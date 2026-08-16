@@ -53,6 +53,14 @@ jobs:
       - name: Quality gate do motor
         run: npm run quality
 
+      - name: Guardar catálogo anterior para relatório
+        run: |
+          if [ -f data/catalog.json ]; then
+            cp data/catalog.json /tmp/catalog-before.json
+          else
+            echo '{"products":[]}' > /tmp/catalog-before.json
+          fi
+
       - name: Varrer, classificar, sincronizar e baixar fotos HD
         env:
           SOURCE_URL: ${{ inputs.source_url }}
@@ -65,6 +73,16 @@ jobs:
 
       - name: Auditar identidade e estado de sincronização
         run: npm run sync:audit
+
+      - name: Gerar relatório de mudanças
+        run: |
+          node scripts/sync-report.mjs \
+            --before /tmp/catalog-before.json \
+            --after data/catalog.json \
+            --state data/sync-state.json \
+            --out /tmp/sync-report.md
+          cat /tmp/sync-report.md >> "$GITHUB_STEP_SUMMARY"
+          cat /tmp/sync-report.md
 
       - name: Validar estado interno efêmero
         run: |
