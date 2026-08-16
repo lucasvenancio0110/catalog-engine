@@ -34,7 +34,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
@@ -69,13 +69,17 @@ jobs:
         run: npm run crawl -- "$SOURCE_URL"
 
       - name: Enriquecer taxonomia pública real
-        run: node scripts/enrich-taxonomy.mjs
+        run: npm run taxonomy:enrich
 
-      - name: Auditar schema e mídia
-        run: npm run audit
+      - name: Preservar HD e gerar mídia web content-addressed
+        run: npm run media:optimize
 
-      - name: Auditar identidade e ledger de escopos
-        run: npm run sync:audit
+      - name: Auditar catálogo, mídia, taxonomia e ledger
+        run: |
+          npm run audit
+          npm run media:audit
+          npm run taxonomy:audit
+          npm run sync:audit
 
       - name: Gerar relatório de mudanças
         run: |
@@ -101,6 +105,7 @@ jobs:
             publicProducts: catalog.products?.length || 0,
             observedProducts: catalog.sync?.observedProducts || 0,
             taxonomy: catalog.taxonomyStats || null,
+            media: catalog.mediaStats || null,
             scopeKind: syncState.scope?.kind || null,
             scopeComplete: syncState.scope?.complete || false,
             scopes: Object.keys(syncState.scopes || {}).length,
@@ -118,15 +123,15 @@ jobs:
       - name: Verificar vulnerabilidades runtime
         run: npm audit --omit=dev --audit-level=high
 
-      - name: Salvar catálogo, ledger sanitizado e imagens
+      - name: Salvar catálogo, ledger, manifest e storage de mídia
         run: |
           git config user.name "catalog-engine-bot"
           git config user.email "catalog-engine-bot@users.noreply.github.com"
-          git add data/catalog.json data/sync-state.json assets/catalog
+          git add data/catalog.json data/sync-state.json data/media-manifest.json assets
           if git diff --cached --quiet; then
             echo "Nenhuma alteração pública/sanitizada no catálogo."
           else
-            git commit -m "sync catalog and HD images"
+            git commit -m "sync catalog and content-addressed media"
             git push origin HEAD:main
           fi
 
