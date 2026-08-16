@@ -1,0 +1,63 @@
+name: Validar Catalog V0.5 Libraries
+
+on:
+  push:
+    branches:
+      - agent/catalog-v05-library-baseline
+
+permissions:
+  contents: write
+
+concurrency:
+  group: catalog-v05-libraries
+  cancel-in-progress: true
+
+jobs:
+  validate-libraries:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: agent/catalog-v05-library-baseline
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+        continue-on-error: true
+
+      - name: Instalar baseline e gerar lockfile
+        run: npm install
+
+      - name: Testar bibliotecas aprovadas
+        run: npm run test
+
+      - name: Rodar ESLint
+        run: npm run lint
+
+      - name: Crawl isolado pequeno
+        env:
+          MAX_ALBUMS: '8'
+          MAX_PAGES: '1'
+        run: npm run crawl -- "https://zhouchangliang.x.yupoo.com/albums/"
+
+      - name: Auditar catálogo com Zod + PQueue + Sharp
+        run: npm run audit
+
+      - name: Verificar vulnerabilidades runtime
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Persistir package-lock
+        run: |
+          git config user.name "catalog-engine-bot"
+          git config user.email "catalog-engine-bot@users.noreply.github.com"
+          git add package-lock.json
+          if git diff --cached --quiet; then
+            echo "package-lock.json já está atualizado."
+          else
+            git commit -m "lock approved JavaScript library baseline"
+            git push origin HEAD:agent/catalog-v05-library-baseline
+          fi
