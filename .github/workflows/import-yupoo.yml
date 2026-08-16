@@ -1,11 +1,6 @@
 name: Importar catálogo Yupoo
 
 on:
-  push:
-    branches: ["main"]
-    paths-ignore:
-      - "data/catalog.json"
-      - "assets/catalog/**"
   workflow_dispatch:
     inputs:
       source_url:
@@ -39,6 +34,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
@@ -49,20 +45,63 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
-      - name: Instalar dependências
-        run: npm install
+      - name: Instalar exatamente pelo lockfile
+        run: npm ci
 
-      - name: Varrer estrutura, classificar produtos e baixar fotos HD
+      - name: Quality gate do motor
+        run: npm run quality
+
+      - name: Varrer, classificar e baixar fotos HD
         env:
-          SOURCE_URL: ${{ github.event.inputs.source_url || 'https://zhouchangliang.x.yupoo.com/albums/' }}
-          MAX_ALBUMS: ${{ github.event.inputs.max_albums || '40' }}
-          MAX_PAGES: ${{ github.event.inputs.max_pages || '3' }}
-        run: node scripts/crawl-yupoo.mjs "$SOURCE_URL"
+          SOURCE_URL: ${{ inputs.source_url }}
+          MAX_ALBUMS: ${{ inputs.max_albums }}
+          MAX_PAGES: ${{ inputs.max_pages }}
+        run: npm run crawl -- "$SOURCE_URL"
 
-      - name: Validar catálogo white-label e arquivos locais
+      - name: Auditar schema e mídia
+        run: npm run audit
+
+      - name: Validar estado white-label
         run: |
-          node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('data/catalog.json','utf8')); if (!Array.isArray(c.products) || c.products.length === 0) { console.error('Nenhum produto comercial foi extraído.'); process.exit(1); } if (!fs.existsSync('data/source-state.json')) { console.error('Estado interno da fonte não foi gerado durante a execução.'); process.exit(1); } const imgs=c.products.flatMap(p => p.images || []); const missing=imgs.filter(i => !fs.existsSync(i.replace(/^\.\//,''))); const leaked=/x\.yupoo\.com|photo\.yupoo\.com/i.test(JSON.stringify(c)); console.log('Produtos comerciais:', c.products.length); console.log('Páginas varridas:', c.crawl?.pagesScanned); console.log('Candidatos analisados:', c.crawl?.candidatesScanned); console.log('Atalhos/informativos filtrados:', (c.crawl?.skippedNavigation || 0) + (c.crawl?.skippedInformation || 0)); console.log('Fotos HD baixadas:', imgs.length); console.log('Categorias detectadas:', c.crawl?.taxonomyEntries || 0); if (!imgs.length || missing.length || leaked) { console.error('Falha na validação white-label.', {missing: missing.slice(0,5), leaked}); process.exit(1); }"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const catalog = JSON.parse(fs.readFileSync('data/catalog.json', 'utf8'));
+          if (!Array.isArray(catalog.products) || catalog.products.length === 0) {
+            throw new Error('Nenhum produto comercial foi extraído.');
+          }
+          if (!fs.existsSync('data/source-state.json')) {
+            throw new Error('Estado interno da fonte não foi gerado durante a execução.');
+          }
+
+          const images = catalog.products.flatMap((product) => product.images || []);
+          const missing = images.filter((image) => !fs.existsSync(image.replace(/^\.\//, '')));
+          const supplierLeak = /x\.yupoo\.com|photo\.yupoo\.com/i.test(JSON.stringify(catalog));
+
+          console.log(JSON.stringify({
+            products: catalog.products.length,
+            pagesScanned: catalog.crawl?.pagesScanned,
+            candidatesScanned: catalog.crawl?.candidatesScanned,
+            taxonomyEntries: catalog.crawl?.taxonomyEntries || 0,
+            filteredNonCommercial: (catalog.crawl?.skippedNavigation || 0) + (catalog.crawl?.skippedInformation || 0),
+            images: images.length,
+            missingImages: missing.length,
+            supplierLeak
+          }, null, 2));
+
+          if (!images.length || missing.length || supplierLeak) process.exit(1);
+          NODE
+
+      - name: Build Vite de produção
+        run: npm run build
+
+      - name: Auditar dist publicável
+        run: npm run build:verify
+
+      - name: Verificar vulnerabilidades runtime
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Salvar somente catálogo público e imagens
         run: |
@@ -70,25 +109,16 @@ jobs:
           git config user.email "catalog-engine-bot@users.noreply.github.com"
           git add data/catalog.json assets/catalog
           if git diff --cached --quiet; then
-            echo "Nenhuma alteração no catálogo."
+            echo "Nenhuma alteração pública no catálogo."
           else
             git commit -m "update classified catalog and HD images"
-            git push origin main
+            git push origin HEAD:main
           fi
-
-      - name: Preparar site estático
-        run: |
-          rm -rf dist
-          mkdir -p dist/data
-          cp index.html app.js styles.css dist/
-          cp data/catalog.json dist/data/catalog.json
-          if [ -d assets ]; then cp -R assets dist/assets; fi
-          touch dist/.nojekyll
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload site
+      - name: Upload site Vite
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
