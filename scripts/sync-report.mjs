@@ -32,6 +32,10 @@ function renderItems(title, ids, before, after, { limit = 20, note = '' } = {}) 
   return `${lines.join('\n')}\n`;
 }
 
+function scopeLabel(kind = '') {
+  return ({ catalog: 'Catálogo geral', category: 'Categoria', source: 'Fonte', legacy: 'Legado' })[kind] || 'Não informado';
+}
+
 export function buildSyncReport({ beforeCatalog = {}, afterCatalog = {}, syncState = {} } = {}) {
   const before = mapProducts(beforeCatalog);
   const after = mapProducts(afterCatalog);
@@ -43,6 +47,7 @@ export function buildSyncReport({ beforeCatalog = {}, afterCatalog = {}, syncSta
   const lines = [
     '# Relatório de sincronização',
     '',
+    `**Tipo de escopo:** ${scopeLabel(scope.kind)}`,
     `**Escopo:** ${complete ? 'COMPLETO' : 'PARCIAL'}`,
     `**Motivo de parada:** ${scope.stopReason || 'não informado'}`,
     `**Produtos publicados:** ${after.size}`,
@@ -52,7 +57,8 @@ export function buildSyncReport({ beforeCatalog = {}, afterCatalog = {}, syncSta
     `| Novos | ${summary.new || 0} |`,
     `| Atualizados | ${summary.updated || 0} |`,
     `| Restaurados | ${summary.restored || 0} |`,
-    `| Removidos | ${summary.removed || 0} |`,
+    `| Removidos da loja | ${summary.removed || 0} |`,
+    `| Desvinculados deste escopo | ${summary.detached || 0} |`,
     `| Não observados preservados | ${summary.unobserved || 0} |`,
     ''
   ];
@@ -64,11 +70,25 @@ export function buildSyncReport({ beforeCatalog = {}, afterCatalog = {}, syncSta
     );
   }
 
+  if ((summary.detached || 0) > (summary.removed || 0)) {
+    lines.push(
+      '> **Proteção entre escopos:** alguns produtos saíram deste escopo, mas continuam ativos porque ainda pertencem a outro escopo sincronizado.',
+      ''
+    );
+  }
+
   const sections = [
     renderItems('Novos', changes.new || [], before, after),
     renderItems('Atualizados', changes.updated || [], before, after),
     renderItems('Restaurados', changes.restored || [], before, after),
-    renderItems('Removidos', changes.removed || [], before, after),
+    renderItems('Removidos da loja', changes.removed || [], before, after),
+    renderItems(
+      'Desvinculados deste escopo',
+      changes.detached || [],
+      before,
+      after,
+      { note: 'Desvincular de um escopo não significa necessariamente remover da loja; outro escopo pode manter o produto ativo.' }
+    ),
     renderItems(
       'Não observados, mas preservados',
       changes.unobserved || [],
