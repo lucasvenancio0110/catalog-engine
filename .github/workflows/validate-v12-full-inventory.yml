@@ -1,0 +1,91 @@
+name: Validar Catalog V0.12 Full Inventory
+
+on:
+  push:
+    branches: ["agent/catalog-v12-full-inventory"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_URL: https://zhouchangliang.x.yupoo.com/albums/
+  MAX_PAGES_PER_SCOPE: "120"
+  INVENTORY_CONCURRENCY: "2"
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Quality gate existente
+        run: npm run quality
+
+      - name: Inventariar catálogo completo sem baixar mídia
+        id: inventory
+        continue-on-error: true
+        run: node scripts/full-catalog-inventory.mjs "$SOURCE_URL"
+
+      - name: Exibir resumo
+        if: always()
+        run: |
+          if [ -f data/full-inventory-summary.json ]; then
+            node --input-type=module <<'NODE'
+            import fs from 'node:fs';
+            const s = JSON.parse(fs.readFileSync('data/full-inventory-summary.json', 'utf8'));
+            console.log(JSON.stringify({
+              taxonomy: s.taxonomy,
+              scopes: s.scopes,
+              products: s.products,
+              mediaEstimate: s.mediaEstimate,
+              topCategories: s.categoryStats?.slice(0, 25),
+              incompleteScopes: s.incompleteScopes
+            }, null, 2));
+            NODE
+            {
+              echo '## Full Catalog Inventory';
+              echo '';
+              echo '```json';
+              node -e "const s=require('./data/full-inventory-summary.json'); console.log(JSON.stringify({taxonomy:s.taxonomy,scopes:s.scopes,products:s.products,mediaEstimate:s.mediaEstimate,topCategories:s.categoryStats.slice(0,20),incompleteScopes:s.incompleteScopes},null,2))";
+              echo '```';
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Inventário não gerou resumo.' >&2
+            exit 1
+          fi
+
+      - name: Upload inventário privado para análise
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-catalog-inventory
+          path: |
+            data/full-inventory-summary.json
+            tmp/full-inventory-private.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Exigir varredura completa
+        if: always()
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const s = JSON.parse(fs.readFileSync('data/full-inventory-summary.json', 'utf8'));
+          if (s.scopes.incomplete !== 0) {
+            throw new Error(`Inventário incompleto: ${s.scopes.incomplete} escopos não concluídos.`);
+          }
+          if (!s.products.uniqueCandidates) throw new Error('Nenhum produto candidato encontrado.');
+          console.log(`Inventário completo: ${s.products.uniqueCandidates} candidatos em ${s.scopes.total} escopos.`);
+          NODE
