@@ -1,14 +1,27 @@
 {
+  "schemaVersion": 2,
   "source": "https://zhouchangliang.x.yupoo.com/albums/",
-  "generatedAt": "2026-08-16T16:13:53.528Z",
+  "generatedAt": "2026-08-16T16:19:10.658Z",
   "store": {
     "name": "Catalog Engine Demo",
     "whatsapp": ""
   },
+  "crawl": {
+    "pagesScanned": 1,
+    "maxPages": 3,
+    "requestedMaxAlbums": 40,
+    "selectedAlbums": 40,
+    "categoryIds": [
+      "748250",
+      "194470"
+    ],
+    "storageMode": "repository-mvp",
+    "hardAlbumLimit": 120
+  },
   "stats": {
-    "products": 20,
-    "photos": 40,
-    "downloadedBytes": 27459836
+    "products": 40,
+    "photos": 63,
+    "downloadedBytes": 32859160
   },
   "products": [
     {
@@ -330,6 +343,292 @@
         "https://photo.yupoo.com/zhouchangliang/084010b849/6229d3fc.jpg"
       ],
       "imageCount": 2
+    },
+    {
+      "id": "248117888",
+      "name": "Vasco da Gama 26/27 Special Edition Jersey - Yellow S-4XL",
+      "category": "Catálogo",
+      "description": "",
+      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248117888?uid=1&isSubCate=false&referrercate=748250",
+      "images": [
+        "./assets/catalog/248117888/01.jpg",
+        "./assets/catalog/248117888/02.jpg"
+      ],
+      "sourceImages": [
+        "https://photo.yupoo.com/zhouchangliang/8a65a71716/1590b62b.jpg",
+        "https://photo.yupoo.com/zhouchangliang/2df71dc52d/24f6025b.jpg"
+      ],
+      "imageCount": 2
+    },
+    {
+      "id": "248117682",
+      "name": "Vasco da Gama 26/27 Special Edition Jersey S-4XL",
+      "category": "Catálogo",
+      "description": "",
+      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248117682?uid=1&isSubCate=false&referrercate=748250",
+      "images": [
+        "./assets/catalog/248117682/01.jpg",
+        "./assets/catalog/248117682/02.jpg"
+      ],
+      "sourceImages": [
+        "https://photo.yupoo.com/zhouchangliang/4c00b5ed43/f8f866c1.jpg",
+        "https://photo.yupoo.com/zhouchangliang/0257111bb8/3ee19f25.jpg"
+      ],
+      "imageCount": 2
+    },
+    {
+      "id": "248117601",
+      "name": "Remo 26/27 Goalkeeper Jersey - Maroon S-4XL",
+      "category": "Catálogo",
+      "description": "",
+      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248117601?uid=1&isSubCate=false&referrercate=748250",
+      "images": [
+        "./assets/catalog/248117601/01.jpg",
+        "./assets/catalog/248117601/02.jpg"
+      ],
+      "sourceImages": [
+        "https://photo.yupoo.com/zhouchangliang/d1697301d5/f208018a.jpg",
+        "https://photo.yupoo.com/zhouchangliang/9cb03bdf6e/442ab673.jpg"
+      ],
+      "imageCount": 2
+    },
+    {
+      "id": "10429373",
+      "name": "Brazil Campeonato Brasileiro Série A",
+      "category": "Catálogo",
+      "description": "",
+      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/10429373?uid=1&isSubCate=false&referrercate=194470",
+      "images": [
+        "./assets/catalog/10429373/01.png"
+      ],
+      "sourceImages": [
+        "https://photo.yupoo.com/zhouchangliang/f2996ff3/5bb3b731.png"
+      ],
+      "imageCount": 1
+    },
+    {
+      "id": "4268347",
+      "name": "Other football leagues",
+      "category": "Catálogo",
+      "description": "",
+      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/4268347?uid=1&isSubCate=false&referrercate=194470",
+      "images": [
+        "./assets/catalog/4268347/01.jpg"
+      ],
+      "sourceImages": [
+        "https://photo.yupoo.com/zhouchangliang/b2950f54/4355fb70.jpg"
+      ],
+      "imageCount": 1
+    },
+    {
+      "id": "4268352",
+      "name": "France Ligue 1",
+      "category": "Catálogo",
+      "description": "",
+      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/4268352?uid=1&isSubCate=false&referrercate=194470",
+      "images": [
+        "./assets/catalog/4268352/01.png"
+      ],
+      "sourceImages": [
+        "https://photo.yupoo.com/zhouchangliang/7d89020a/7959bce2.png"
+      ],
+      "imageCount": 1
+    },
+    {
+      "id": "4268345",
+      "name": "Italy Serie A",
+      "category": "Catálogo",
+      "description": "",
+      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/4268345?uid=1&isSubCate=false&referrercate=194470",
+      "images": [
+        "./assets/catalog/4268345/01.png"
+      ],
+      "sourceImages": [
+        "https://photo.yupoo.com/zhouchangliang/7c86cf3e/31c8adb2.png"
+      ],
+      "imageCount": 1
+    },
+    {
+      "id": "4268334",
+      "name": "FA Premier League",
+      "category": "Catálogo",
+      "description": "",
+      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/4268334?uid=1&isSubCate=false&referrercate=194470",
+      "images": [
+        "./assets/catalog/4268334/01.png"
+      ],
+      "sourceImages": [
+        "https://photo.yupoo.com/zhouchangliang/1d5a8b16/dd1dbb7d.png"
+      ],
+      "imageCount": 1
+    },
+    {
+      "id": "4268338",
+      "name": "Spain La Liga",
+      "category": "Catálogo",
+      "description": "",
+      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/4268338?uid=1&isSubCate=false&referrercate=194470",
+      "images": [
+        "./assets/catalog/4268338/01.png"
+      ],
+      "sourceImages": [
+        "https://photo.yupoo.com/zhouchangliang/4eb8cfa4/2846024c.png"
+      ],
+      "imageCount": 1
+    },
+    {
+      "id": "4268343",
+      "name": "Bundesliga Jersey",
+      "category": "Catálogo",
+      "description": "",
+      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/4268343?uid=1&isSubCate=false&referrercate=194470",
+      "images": [
+        "./assets/catalog/4268343/01.png"
+      ],
+      "sourceImages": [
+        "https://photo.yupoo.com/zhouchangliang/417470b2/ded398d0.png"
+      ],
+      "imageCount": 1
+    },
+    {
+      "id": "4268342",
+      "name": "national team Jersey",
+      "category": "Catálogo",
+      "description": "",
+      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/4268342?uid=1&isSubCate=false&referrercate=194470",
+      "images": [
+        "./assets/catalog/4268342/01.png"
+      ],
+      "sourceImages": [
+        "https://photo.yupoo.com/zhouchangliang/5864f82d/5902c37e.png"
+      ],
+      "imageCount": 1
+    },
+    {
+      "id": "8008946",
+      "name": "player version Jersey",
+      "category": "Catálogo",
+      "description": "",
+      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/8008946?uid=1&isSubCate=false&referrercate=194470",
+      "images": [
+        "./assets/catalog/8008946/01.png"
+      ],
+      "sourceImages": [
+        "https://photo.yupoo.com/zhouchangliang/2026e42e/a45b8f52.png"
+      ],
+      "imageCount": 1
+    },
+    {
+      "id": "4268335",
+      "name": "Women Jersey",
+      "category": "Catálogo",
+      "description": "",
+      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/4268335?uid=1&isSubCate=false&referrercate=194470",
+      "images": [
+        "./assets/catalog/4268335/01.png"
+      ],
+      "sourceImages": [
+        "https://photo.yupoo.com/zhouchangliang/d6bce449/7f4be13e.png"
+      ],
+      "imageCount": 1
+    },
+    {
+      "id": "70501310",
+      "name": "kids All football team",
+      "category": "Catálogo",
+      "description": "",
+      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/70501310?uid=1&isSubCate=false&referrercate=194470",
+      "images": [
+        "./assets/catalog/70501310/01.png"
+      ],
+      "sourceImages": [
+        "https://photo.yupoo.com/zhouchangliang/73f1d282/f388586b.png"
+      ],
+      "imageCount": 1
+    },
+    {
+      "id": "62113782",
+      "name": "Retro jersey",
+      "category": "Catálogo",
+      "description": "",
+      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/62113782?uid=1&isSubCate=false&referrercate=194470",
+      "images": [
+        "./assets/catalog/62113782/01.png"
+      ],
+      "sourceImages": [
+        "https://photo.yupoo.com/zhouchangliang/789dd8e9/95e3b098.png"
+      ],
+      "imageCount": 1
+    },
+    {
+      "id": "9835958",
+      "name": "Windbreaker",
+      "category": "Catálogo",
+      "description": "",
+      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/9835958?uid=1&isSubCate=false&referrercate=194470",
+      "images": [
+        "./assets/catalog/9835958/01.png"
+      ],
+      "sourceImages": [
+        "https://photo.yupoo.com/zhouchangliang/d3e145f0/f95895e1.png"
+      ],
+      "imageCount": 1
+    },
+    {
+      "id": "4268337",
+      "name": "MLS Major League Jersey",
+      "category": "Catálogo",
+      "description": "",
+      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/4268337?uid=1&isSubCate=false&referrercate=194470",
+      "images": [
+        "./assets/catalog/4268337/01.png"
+      ],
+      "sourceImages": [
+        "https://photo.yupoo.com/zhouchangliang/424db23e/b3b06eed.png"
+      ],
+      "imageCount": 1
+    },
+    {
+      "id": "4268333",
+      "name": "NBA (Silk version）",
+      "category": "Catálogo",
+      "description": "",
+      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/4268333?uid=1&isSubCate=false&referrercate=194470",
+      "images": [
+        "./assets/catalog/4268333/01.png"
+      ],
+      "sourceImages": [
+        "https://photo.yupoo.com/zhouchangliang/b7ce2bde/77e0f4e4.png"
+      ],
+      "imageCount": 1
+    },
+    {
+      "id": "4268354",
+      "name": "NFL - MLB - NHL",
+      "category": "Catálogo",
+      "description": "",
+      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/4268354?uid=1&isSubCate=false&referrercate=194470",
+      "images": [
+        "./assets/catalog/4268354/01.jpg"
+      ],
+      "sourceImages": [
+        "https://photo.yupoo.com/zhouchangliang/08c00788/765697a6.jpg"
+      ],
+      "imageCount": 1
+    },
+    {
+      "id": "10428952",
+      "name": "Adult training suit",
+      "category": "Catálogo",
+      "description": "",
+      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/10428952?uid=1&isSubCate=false&referrercate=194470",
+      "images": [
+        "./assets/catalog/10428952/01.jpg"
+      ],
+      "sourceImages": [
+        "https://photo.yupoo.com/zhouchangliang/5893d022/fa48d46c.jpg"
+      ],
+      "imageCount": 1
     }
   ]
 }
