@@ -18,6 +18,10 @@ The goal is not to maximize dependencies. The goal is to standardize one strong 
 | UI motion | Approved next | `motion` | Not installed yet | Lightweight purposeful animations without adopting a UI framework. |
 | Frontend bundling | Approved next | `vite` | Not installed yet | Required before browser npm dependencies are introduced cleanly. |
 
+## Enforcement
+
+`config/dependency-policy.json` is the machine-readable allowlist. `npm run deps:check` compares `package.json` with that policy, and CI fails if an unapproved dependency is added or an expected baseline package disappears. Architectural approval therefore requires both documentation and policy change, not only an `npm install` command.
+
 ## Deliberately rejected for the current architecture
 
 - Axios/Got as a default HTTP client: Node 22 native `fetch` already covers the base requirement.
