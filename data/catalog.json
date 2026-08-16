@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 3,
-  "generatedAt": "2026-08-16T17:21:45.297Z",
+  "schemaVersion": 4,
+  "generatedAt": "2026-08-16T17:38:47.512Z",
   "store": {
     "name": "Catalog Engine Demo",
     "logo": "",
@@ -13,295 +13,311 @@
   },
   "taxonomy": [
     {
-      "id": "748250",
+      "id": "c_0b9cf1d3e18986e302e6",
       "type": "category",
       "name": "NEW PRODUCT RENEW"
     },
     {
-      "id": "194469",
+      "id": "c_32cf0f6b31fd1aea89f3",
       "type": "category",
       "name": "🏆⚽ FIFA World Cup 2026 National team jersey"
     },
     {
-      "id": "379300",
+      "id": "c_2dd903610724b4eaf94a",
       "type": "category",
       "name": "⚽ player version"
     },
     {
-      "id": "3468925",
+      "id": "c_6b616802de0a0e5c2cf3",
       "type": "category",
       "name": "⚽ La Liga"
     },
     {
-      "id": "194459",
+      "id": "c_f1d087200a2fcd0e799c",
       "type": "category",
       "name": "⚽ Bundesliga"
     },
     {
-      "id": "3835861",
+      "id": "c_4650f708eb873787eb61",
       "type": "category",
       "name": "🏎️ F1 Racing"
     },
     {
-      "id": "4640108",
+      "id": "c_e0c0dddadb12fc46a104",
       "type": "category",
       "name": "⚽Adult Soccer Kit"
     },
     {
-      "id": "3881546",
+      "id": "c_33d21deb2036cdedfd9e",
       "type": "category",
       "name": "NFL - MLB - NHL"
     },
     {
-      "id": "3325951",
+      "id": "c_34a333ae94ff5104f2d5",
       "type": "category",
       "name": "⚽👶🏼 Baby size (9 months)-(12 months)"
     },
     {
-      "id": "3975721",
+      "id": "c_8e0679d7e6781f6c28e7",
       "type": "category",
       "name": "📏size"
     },
     {
-      "id": "0",
+      "id": "c_20b38c03ee523a658145",
       "type": "category",
       "name": "Álbum não categorizado"
     },
     {
-      "id": "194470",
+      "id": "c_b0d3174a432050a2a498",
       "type": "category",
       "name": "⚽🏀 Product Category Search"
     },
     {
-      "id": "3313626",
+      "id": "c_d1bccb5aeaf5d1ff5530",
       "type": "category",
       "name": "⚽ Retro"
     },
     {
-      "id": "194473",
+      "id": "c_717f833b4ac91ace1d73",
       "type": "category",
       "name": "⚽ other team league"
     },
     {
-      "id": "194476",
+      "id": "c_eddf25be3637a191c8b9",
       "type": "category",
       "name": "⚽ Serie A"
     },
     {
-      "id": "194464",
+      "id": "c_f2696bee90951c3f37f2",
       "type": "category",
       "name": "⚽👩‍⚕️ Women"
     },
     {
-      "id": "3341304",
+      "id": "c_0e6adc65ea58c6bff85c",
       "type": "category",
       "name": "⚽ Long sleeve"
     },
     {
-      "id": "4100976",
+      "id": "c_1bba554d1ebfda1333ee",
       "type": "category",
       "name": "⚽🩳 shorts"
     },
     {
-      "id": "3554704",
+      "id": "c_a7bc5350d2fd95c4a85d",
       "type": "category",
       "name": "🧥 Windbreaker"
     },
     {
-      "id": "4152986",
+      "id": "c_d02c26238f4a6fa6e59d",
       "type": "category",
       "name": "football shoes"
     },
     {
-      "id": "4870646",
+      "id": "c_26901c657416bd3070ed",
       "type": "category",
       "name": "（Product, Purchase Tutorial）"
     },
     {
-      "id": "3589458",
+      "id": "c_ed2aeec3e31d63ddfeda",
       "type": "category",
       "name": "📦🚚📞 Information shoes, Brand bag,Glasses"
     },
     {
-      "id": "3550018",
+      "id": "c_7c7ca0c87f942e399826",
       "type": "category",
       "name": "🏀 NBA ( silk Version )"
     },
     {
-      "id": "194463",
+      "id": "c_93c641efc42934d90e66",
       "type": "category",
       "name": "⚽ Premier League"
     },
     {
-      "id": "194475",
+      "id": "c_50b93dcf2b9049de2e18",
       "type": "category",
       "name": "⚽ Ligue 1"
     },
     {
-      "id": "3468959",
+      "id": "c_882bfb2dc8a976b53f18",
       "type": "category",
       "name": "⚽👦🏻kids kit size：16-28"
     },
     {
-      "id": "3325969",
+      "id": "c_985dc2d0fbd95f20a19b",
       "type": "category",
       "name": "🧍‍♂️ Youth Pre-Match Training Suit"
     },
     {
-      "id": "4131250",
+      "id": "c_93614866aa09197bdd5b",
       "type": "category",
       "name": "Nike Casual & Nike shorts"
     },
     {
-      "id": "194472",
+      "id": "c_22da3d06b36fc049df32",
       "type": "category",
       "name": "⚽ MLS Major League Soccer"
     },
     {
-      "id": "3905063",
+      "id": "c_db5cfc9a6a191a5cc122",
       "type": "category",
       "name": "🎥 product video"
     },
     {
-      "id": "3325778",
+      "id": "c_40b303c182abd7238b97",
       "type": "category",
       "name": "patch 补丁"
     },
     {
-      "id": "490727",
+      "id": "c_53d642e7554c7f9cdf1e",
       "type": "category",
       "name": "⚽ Brazil Campeonato Brasileiro Série A"
     },
     {
-      "id": "66241",
+      "id": "c_e2342a507fb12424abd8",
       "type": "category",
       "name": "Flamengo"
     },
     {
-      "id": "66242",
+      "id": "c_dda245c96d8eacdfcc7c",
       "type": "category",
       "name": "Palmeiras"
     },
     {
-      "id": "66243",
+      "id": "c_c7bcfe85b4f2fb3e98e9",
       "type": "category",
       "name": "sao paulo"
     },
     {
-      "id": "66244",
+      "id": "c_c0abd796360fd2bb83e7",
       "type": "category",
       "name": "Brazil International"
     },
     {
-      "id": "66245",
+      "id": "c_580667096568ab4e44f6",
       "type": "category",
       "name": "Brazil"
     },
     {
-      "id": "66246",
+      "id": "c_d624026b9ed35fd624bb",
       "type": "category",
       "name": "Corinthians"
     },
     {
-      "id": "66247",
+      "id": "c_c2cdcc44259be02d738b",
       "type": "category",
       "name": "Recife sports"
     },
     {
-      "id": "66248",
+      "id": "c_33eb4871cd08f72200f4",
       "type": "category",
       "name": "Cruzeiro"
     },
     {
-      "id": "66249",
+      "id": "c_0dd0d29ba89fdf844648",
       "type": "category",
       "name": "Vasco da Gama"
     },
     {
-      "id": "66250",
+      "id": "c_ea8d994836f314bcd012",
       "type": "category",
       "name": "Gremio"
     },
     {
-      "id": "66251",
+      "id": "c_26f1d8366066c079a491",
       "type": "category",
       "name": "Fluminense"
     },
     {
-      "id": "66252",
+      "id": "c_e4d5184e4ad55da7ae2c",
       "type": "category",
       "name": "Santos"
     },
     {
-      "id": "66253",
+      "id": "c_e847d2bd6dbc5840a4bd",
       "type": "category",
       "name": "Atletico Mineiro"
     },
     {
-      "id": "66254",
+      "id": "c_c2d8eed8e8b542680328",
       "type": "category",
       "name": "PAYSANDU"
     },
     {
-      "id": "66255",
+      "id": "c_573aa42a15e8fce226bc",
       "type": "category",
       "name": "Botafogo"
     },
     {
-      "id": "66258",
+      "id": "c_e2fa6cddbb18654bc49b",
       "type": "category",
       "name": "Remo"
     },
     {
-      "id": "74729",
+      "id": "c_5abb527a44e3b2d73f90",
       "type": "category",
       "name": "Ceará"
     },
     {
-      "id": "74730",
+      "id": "c_0b6e74fafd78bc2259e5",
       "type": "category",
       "name": "Fortaleza"
     },
     {
-      "id": "80472",
+      "id": "c_1758a094f49579c1d4ca",
       "type": "category",
       "name": "Bahia"
     },
     {
-      "id": "81343",
+      "id": "c_e0a28a37113401978880",
       "type": "category",
       "name": "RB Bragantino"
     },
     {
-      "id": "96345",
+      "id": "c_fbefb39ad896b58aeca5",
       "type": "category",
       "name": "PARANAENSE"
     },
     {
-      "id": "168717",
+      "id": "c_7c554400cec812b8e57d",
       "type": "category",
       "name": "Mineiro America"
     },
     {
-      "id": "172586",
+      "id": "c_7cb7435ed12a09980a0e",
       "type": "category",
       "name": "Santa Cruz"
     },
     {
-      "id": "190740",
+      "id": "c_e6c3acebba8ac9ea9c4d",
       "type": "category",
       "name": "Victoria"
     }
   ],
+  "sync": {
+    "scopeComplete": false,
+    "stopReason": "product-limit",
+    "observedProducts": 40,
+    "publicProducts": 40,
+    "changes": {
+      "new": 0,
+      "updated": 0,
+      "restored": 0,
+      "removed": 0,
+      "unobserved": 0
+    }
+  },
   "crawl": {
     "pagesScanned": 2,
     "maxPages": 2,
     "requestedMaxAlbums": 40,
-    "selectedProducts": 40,
+    "observedProducts": 40,
+    "publicProducts": 40,
     "candidatesScanned": 93,
     "taxonomyEntries": 56,
     "skippedNavigation": 22,
     "skippedInformation": 5,
+    "extractionFailures": 0,
+    "incompleteMedia": 0,
     "storageMode": "repository-mvp",
     "hardAlbumLimit": 120
   },
@@ -312,521 +328,481 @@
   },
   "products": [
     {
-      "id": "248222525",
       "name": "Barcelona x Kobe Bryant 26/27 Away Player Version Long Sleeve Jersey S-3XL",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248222525/01.png",
-        "./assets/catalog/248222525/02.png"
+        "./assets/catalog/p_50a51492363bfafd402a/01.png",
+        "./assets/catalog/p_50a51492363bfafd402a/02.png"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_50a51492363bfafd402a"
     },
     {
-      "id": "248222494",
       "name": "Barcelona x Kobe Bryant 26/27 Away Long Sleeved Jersey S-5XL",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248222494/01.png",
-        "./assets/catalog/248222494/02.png"
+        "./assets/catalog/p_6ba4b90067af0a4c70a5/01.png",
+        "./assets/catalog/p_6ba4b90067af0a4c70a5/02.png"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_6ba4b90067af0a4c70a5"
     },
     {
-      "id": "248222372",
       "name": "Arsenal 26/27 Home Match Women's Crop Jersey S-XXL",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248222372/01.jpg",
-        "./assets/catalog/248222372/02.jpg"
+        "./assets/catalog/p_fa0d5a02f1d3f517fb81/01.jpg",
+        "./assets/catalog/p_fa0d5a02f1d3f517fb81/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_fa0d5a02f1d3f517fb81"
     },
     {
-      "id": "248222336",
       "name": "Arsenal 26/27 Third Away Women's Crop Jersey S-XXL",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248222336/01.jpg",
-        "./assets/catalog/248222336/02.jpg"
+        "./assets/catalog/p_ecc391175f99104d2eba/01.jpg",
+        "./assets/catalog/p_ecc391175f99104d2eba/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_ecc391175f99104d2eba"
     },
     {
-      "id": "248222316",
       "name": "Real Madrid 26/27 Home Women's Crop Jersey S-XXL",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248222316/01.jpg",
-        "./assets/catalog/248222316/02.jpg"
+        "./assets/catalog/p_0e05da8e6f9d010a7a98/01.jpg",
+        "./assets/catalog/p_0e05da8e6f9d010a7a98/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_0e05da8e6f9d010a7a98"
     },
     {
-      "id": "248222302",
       "name": "M-U 26/27 Home Womens Crop Jersey S-XXL",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248222302/01.jpg",
-        "./assets/catalog/248222302/02.jpg"
+        "./assets/catalog/p_659a9391b6970a7f30aa/01.jpg",
+        "./assets/catalog/p_659a9391b6970a7f30aa/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_659a9391b6970a7f30aa"
     },
     {
-      "id": "248222290",
       "name": "Real Madrid 26/27 Home Women's Jersey S-XXL",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248222290/01.jpg",
-        "./assets/catalog/248222290/02.jpg"
+        "./assets/catalog/p_be52417acfde7f101014/01.jpg",
+        "./assets/catalog/p_be52417acfde7f101014/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_be52417acfde7f101014"
     },
     {
-      "id": "248222272",
       "name": "Arsenal 26/27 Home Women's Jersey S-XXL",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248222272/01.jpg",
-        "./assets/catalog/248222272/02.jpg"
+        "./assets/catalog/p_854ffc3fdb2fbb21e54b/01.jpg",
+        "./assets/catalog/p_854ffc3fdb2fbb21e54b/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_854ffc3fdb2fbb21e54b"
     },
     {
-      "id": "248222239",
       "name": "Tottenham Hotspur 26/27 Away Womens Jersey S-XXL",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248222239/01.jpg",
-        "./assets/catalog/248222239/02.jpg"
+        "./assets/catalog/p_ae636477e1ea4c520f23/01.jpg",
+        "./assets/catalog/p_ae636477e1ea4c520f23/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_ae636477e1ea4c520f23"
     },
     {
-      "id": "248222195",
       "name": "M-U 26/27 Home Womens Jersey S-XXL",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248222195/01.jpg",
-        "./assets/catalog/248222195/02.jpg"
+        "./assets/catalog/p_412a18728c5534bf8098/01.jpg",
+        "./assets/catalog/p_412a18728c5534bf8098/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_412a18728c5534bf8098"
     },
     {
-      "id": "248222134",
       "name": "Chelsea 26/27 Home Womens Jersey S-XXL",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248222134/01.jpg",
-        "./assets/catalog/248222134/02.jpg"
+        "./assets/catalog/p_b5de6d46116917887e2b/01.jpg",
+        "./assets/catalog/p_b5de6d46116917887e2b/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_b5de6d46116917887e2b"
     },
     {
-      "id": "248222093",
       "name": "Real Madrid 26/27 Third Away Womens Jersey S-XXL",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248222093/01.jpg",
-        "./assets/catalog/248222093/02.jpg"
+        "./assets/catalog/p_c91d2af4f48c3593b3d1/01.jpg",
+        "./assets/catalog/p_c91d2af4f48c3593b3d1/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_c91d2af4f48c3593b3d1"
     },
     {
-      "id": "248222026",
       "name": "Tottenham Hotspur 26/27 Home Womens Jersey S-XXL",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248222026/01.jpg",
-        "./assets/catalog/248222026/02.jpg"
+        "./assets/catalog/p_fc38e807825c3621cdc7/01.jpg",
+        "./assets/catalog/p_fc38e807825c3621cdc7/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_fc38e807825c3621cdc7"
     },
     {
-      "id": "248221996",
       "name": "Arsenal 26/27 Third Womens Jersey S-XXL",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248221996/01.jpg",
-        "./assets/catalog/248221996/02.jpg"
+        "./assets/catalog/p_e040b932c0b60bf38a82/01.jpg",
+        "./assets/catalog/p_e040b932c0b60bf38a82/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_e040b932c0b60bf38a82"
     },
     {
-      "id": "248221925",
       "name": "Spain 2026 2 Stars Special Edition Jersey - Blue S-4XL",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248221925/01.png",
-        "./assets/catalog/248221925/02.png"
+        "./assets/catalog/p_a807424b5d1300eb1ec6/01.png",
+        "./assets/catalog/p_a807424b5d1300eb1ec6/02.png"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_a807424b5d1300eb1ec6"
     },
     {
-      "id": "248221877",
       "name": "PSG 26/27 2 Stars Home kids kit Jersey SIZE 16-281",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248221877/01.jpg",
-        "./assets/catalog/248221877/02.jpg"
+        "./assets/catalog/p_51eb8d57afb0d90f522d/01.jpg",
+        "./assets/catalog/p_51eb8d57afb0d90f522d/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_51eb8d57afb0d90f522d"
     },
     {
-      "id": "248221862",
       "name": "Sao Paulo 26/27 Away Kids Kit Jersey Size 16-281",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248221862/01.jpg",
-        "./assets/catalog/248221862/02.jpg"
+        "./assets/catalog/p_0702879a186b1c8b3e35/01.jpg",
+        "./assets/catalog/p_0702879a186b1c8b3e35/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_0702879a186b1c8b3e35"
     },
     {
-      "id": "248221832",
       "name": "Sport Recife 26/27 Home Womes Jersey S-XXL",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248221832/01.jpg",
-        "./assets/catalog/248221832/02.jpg"
+        "./assets/catalog/p_618435e503e397a6208e/01.jpg",
+        "./assets/catalog/p_618435e503e397a6208e/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_618435e503e397a6208e"
     },
     {
-      "id": "248118068",
       "name": "Flamengo 26/27 Zico Signature World Cup Version Yellow Womens Jersey S-XXL",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248118068/01.jpg",
-        "./assets/catalog/248118068/02.jpg"
+        "./assets/catalog/p_a50ae6db0aba95d84648/01.jpg",
+        "./assets/catalog/p_a50ae6db0aba95d84648/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_a50ae6db0aba95d84648"
     },
     {
-      "id": "248118001",
       "name": "PSG 26/27 Pre-Match Home Player Version Jersey S-XXL",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248118001/01.jpg",
-        "./assets/catalog/248118001/02.jpg"
+        "./assets/catalog/p_d51c620eb42db0e2a4d4/01.jpg",
+        "./assets/catalog/p_d51c620eb42db0e2a4d4/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_d51c620eb42db0e2a4d4"
     },
     {
-      "id": "248117888",
       "name": "Vasco da Gama 26/27 Special Edition Jersey - Yellow S-4XL",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248117888/01.jpg",
-        "./assets/catalog/248117888/02.jpg"
+        "./assets/catalog/p_257fba8a205209af9d1b/01.jpg",
+        "./assets/catalog/p_257fba8a205209af9d1b/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_257fba8a205209af9d1b"
     },
     {
-      "id": "248117682",
       "name": "Vasco da Gama 26/27 Special Edition Jersey S-4XL",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248117682/01.jpg",
-        "./assets/catalog/248117682/02.jpg"
+        "./assets/catalog/p_4ea4ea440e90fdbbf4b5/01.jpg",
+        "./assets/catalog/p_4ea4ea440e90fdbbf4b5/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_4ea4ea440e90fdbbf4b5"
     },
     {
-      "id": "248117601",
       "name": "Remo 26/27 Goalkeeper Jersey - Maroon S-4XL",
       "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/248117601/01.jpg",
-        "./assets/catalog/248117601/02.jpg"
+        "./assets/catalog/p_1096b9fc5858e920f6d9/01.jpg",
+        "./assets/catalog/p_1096b9fc5858e920f6d9/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_1096b9fc5858e920f6d9"
     },
     {
-      "id": "249466703",
       "name": "Man United Third Away Soccer Jersey 26 27",
       "category": "Catálogo",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/249466703/01.jpg",
-        "./assets/catalog/249466703/02.jpg"
+        "./assets/catalog/p_9a3f1e863c5863065e07/01.jpg",
+        "./assets/catalog/p_9a3f1e863c5863065e07/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_9a3f1e863c5863065e07"
     },
     {
-      "id": "249466582",
       "name": "Malaga Third Away Soccer Jersey 26 27",
       "category": "Catálogo",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/249466582/01.jpg",
-        "./assets/catalog/249466582/02.jpg"
+        "./assets/catalog/p_bd4269b5dfc97b62666a/01.jpg",
+        "./assets/catalog/p_bd4269b5dfc97b62666a/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_bd4269b5dfc97b62666a"
     },
     {
-      "id": "249466433",
       "name": "La Coruna Third Away Soccer Jersey 26 27",
       "category": "Catálogo",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/249466433/01.jpg",
-        "./assets/catalog/249466433/02.jpg"
+        "./assets/catalog/p_7357821ee28351863701/01.jpg",
+        "./assets/catalog/p_7357821ee28351863701/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_7357821ee28351863701"
     },
     {
-      "id": "249466305",
       "name": "Kids Stuttgart Home Soccer Uniform 26 27-huirong",
       "category": "Catálogo",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/249466305/01.jpg",
-        "./assets/catalog/249466305/02.jpg"
+        "./assets/catalog/p_2a0d9296f68c88025eef/01.jpg",
+        "./assets/catalog/p_2a0d9296f68c88025eef/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_2a0d9296f68c88025eef"
     },
     {
-      "id": "249466165",
       "name": "Kids Sevilla Away Soccer Uniform 26 27-huirong",
       "category": "Catálogo",
       "description": "",
-      "sourceImageCount": 1,
       "entityType": "product",
       "images": [
-        "./assets/catalog/249466165/01.jpg"
+        "./assets/catalog/p_78ef12c6929df25e9352/01.jpg"
       ],
-      "imageCount": 1
+      "imageCount": 1,
+      "id": "p_78ef12c6929df25e9352"
     },
     {
-      "id": "249465988",
       "name": "Kids Lisbon Home Soccer Uniform 26 27",
       "category": "Catálogo",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/249465988/01.jpg",
-        "./assets/catalog/249465988/02.jpg"
+        "./assets/catalog/p_a92242df83af65b5aa1c/01.jpg",
+        "./assets/catalog/p_a92242df83af65b5aa1c/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_a92242df83af65b5aa1c"
     },
     {
-      "id": "249465856",
       "name": "Kids Hull City Home Soccer Uniform 26 27-1040",
       "category": "Catálogo",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/249465856/01.jpg",
-        "./assets/catalog/249465856/02.jpg"
+        "./assets/catalog/p_42d164dccf4de4bc5e94/01.jpg",
+        "./assets/catalog/p_42d164dccf4de4bc5e94/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_42d164dccf4de4bc5e94"
     },
     {
-      "id": "249465745",
       "name": "Kids Dusseldorf Home Soccer Uniform 26 27-huirong",
       "category": "Catálogo",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/249465745/01.jpg",
-        "./assets/catalog/249465745/02.jpg"
+        "./assets/catalog/p_23a99e757d76afc80778/01.jpg",
+        "./assets/catalog/p_23a99e757d76afc80778/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_23a99e757d76afc80778"
     },
     {
-      "id": "249465594",
       "name": "Hull City Away Soccer Jersey 26 27",
       "category": "Catálogo",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/249465594/01.jpg",
-        "./assets/catalog/249465594/02.jpg"
+        "./assets/catalog/p_0f05f1cdf0e198bf011d/01.jpg",
+        "./assets/catalog/p_0f05f1cdf0e198bf011d/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_0f05f1cdf0e198bf011d"
     },
     {
-      "id": "249465504",
       "name": "Boca Away Soccer Jersey 26 27",
       "category": "Catálogo",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/249465504/01.jpg",
-        "./assets/catalog/249465504/02.jpg"
+        "./assets/catalog/p_b6e11feab1f11bae5b6e/01.jpg",
+        "./assets/catalog/p_b6e11feab1f11bae5b6e/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_b6e11feab1f11bae5b6e"
     },
     {
-      "id": "249465391",
       "name": "Al Nassr Away Soccer Jersey 26 27",
       "category": "Catálogo",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/249465391/01.jpg",
-        "./assets/catalog/249465391/02.jpg"
+        "./assets/catalog/p_fe7589aae2ae08ae4a70/01.jpg",
+        "./assets/catalog/p_fe7589aae2ae08ae4a70/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_fe7589aae2ae08ae4a70"
     },
     {
-      "id": "249203205",
       "name": "Women RM Away Soccer Jersey 26 27",
       "category": "Catálogo",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/249203205/01.jpg",
-        "./assets/catalog/249203205/02.jpg"
+        "./assets/catalog/p_ff725dcc5b4dae59ffaf/01.jpg",
+        "./assets/catalog/p_ff725dcc5b4dae59ffaf/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_ff725dcc5b4dae59ffaf"
     },
     {
-      "id": "249203099",
       "name": "Tenerife Away Soccer Jersey 26 27",
       "category": "Catálogo",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/249203099/01.jpg",
-        "./assets/catalog/249203099/02.jpg"
+        "./assets/catalog/p_89a76c4f94756ae0b65c/01.jpg",
+        "./assets/catalog/p_89a76c4f94756ae0b65c/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_89a76c4f94756ae0b65c"
     },
     {
-      "id": "249202989",
       "name": "Sunderland Home Soccer Jersey 26 27",
       "category": "Catálogo",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/249202989/01.jpg",
-        "./assets/catalog/249202989/02.jpg"
+        "./assets/catalog/p_678cbf2661a54d0bb70a/01.jpg",
+        "./assets/catalog/p_678cbf2661a54d0bb70a/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_678cbf2661a54d0bb70a"
     },
     {
-      "id": "249202911",
       "name": "RM Away Soccer Shorts 26 27",
       "category": "Catálogo",
       "description": "",
-      "sourceImageCount": 1,
       "entityType": "product",
       "images": [
-        "./assets/catalog/249202911/01.jpg"
+        "./assets/catalog/p_5a61ce4c792686c7af14/01.jpg"
       ],
-      "imageCount": 1
+      "imageCount": 1,
+      "id": "p_5a61ce4c792686c7af14"
     },
     {
-      "id": "249202794",
       "name": "RM Away Baby Soccer Jersey 26 27",
       "category": "Catálogo",
       "description": "",
-      "sourceImageCount": 2,
       "entityType": "product",
       "images": [
-        "./assets/catalog/249202794/01.jpg",
-        "./assets/catalog/249202794/02.jpg"
+        "./assets/catalog/p_70730a2e092358b0cbb9/01.jpg",
+        "./assets/catalog/p_70730a2e092358b0cbb9/02.jpg"
       ],
-      "imageCount": 2
+      "imageCount": 2,
+      "id": "p_70730a2e092358b0cbb9"
     },
     {
-      "id": "249202697",
       "name": "Lyons Home Soccer Shorts 26 27",
       "category": "Catálogo",
       "description": "",
-      "sourceImageCount": 1,
       "entityType": "product",
       "images": [
-        "./assets/catalog/249202697/01.jpg"
+        "./assets/catalog/p_7f3238ac0534539ee43a/01.jpg"
       ],
-      "imageCount": 1
+      "imageCount": 1,
+      "id": "p_7f3238ac0534539ee43a"
     }
   ]
 }
