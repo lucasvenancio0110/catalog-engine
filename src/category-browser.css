@@ -1,0 +1,106 @@
+.category-browser {
+  margin: 4px 0 18px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--panel) 82%, transparent);
+}
+
+.category-browser-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.category-browser-head > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.category-browser-head strong {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: .94rem;
+}
+
+.category-back {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: .78rem;
+  font-weight: 800;
+}
+
+.category-trail {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  margin: 0 0 10px;
+  scrollbar-width: none;
+}
+
+.category-trail::-webkit-scrollbar { display: none; }
+
+.category-trail-item {
+  flex: 0 0 auto;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: .74rem;
+  font-weight: 750;
+}
+
+.category-trail-item:not(:last-child)::after {
+  content: '›';
+  margin: 0 7px;
+  color: var(--muted);
+}
+
+.category-trail-item[aria-current="page"] {
+  color: var(--text);
+}
+
+.category-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.category-chip small {
+  display: inline-grid;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 850;
+}
+
+.category-chip.active small {
+  background: color-mix(in srgb, var(--panel) 82%, transparent);
+  color: inherit;
+}
+
+@media (max-width: 620px) {
+  .category-browser {
+    margin-inline: -2px;
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .category-browser-head strong { font-size: .88rem; }
+  .category-chip { min-height: 40px; }
+}
