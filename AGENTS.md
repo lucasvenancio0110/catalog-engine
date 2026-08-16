@@ -34,6 +34,9 @@ Do not add React/Vue/Svelte/Angular solely for UI convenience. The storefront re
 5. `dist/` must never contain supplier hostnames, source URLs, source credentials or private sync state.
 6. Do not commit `dist/` or `node_modules/` as application source.
 7. Product search uses Fuse.js, media navigation uses Swiper, and motion uses Motion unless this policy is explicitly changed with a documented reason.
+8. Supplier-derived text rendered in the storefront must use `textContent`/safe DOM construction. Do not place supplier-controlled names/descriptions into `innerHTML`.
+9. Storefront taxonomy navigation must hide empty branches instead of rendering the supplier's entire taxonomy tree with zero-product categories.
+10. Selecting a parent category must include products belonging to all descendants; selecting a leaf must restrict to that branch without relying on string-name matching.
 
 ## Native-first rule
 
@@ -50,22 +53,36 @@ Do not add Axios/Got only to replace native `fetch`. Do not add Lodash for trivi
 5. Every item must be classified before expensive image work.
 6. Supplier URLs and sensitive source state must never be emitted into the public storefront artifact.
 7. A product with incomplete downloaded media must not overwrite a previously healthy public product.
+8. Yupoo routing quirks such as `isSubCate=true` must be resolved by the source adapter/resolver. Callers and future customers must not need provider-specific query-string knowledge.
 
 ## Synchronization rules
 
 1. **A partial scan may never infer deletion.** `not observed` is not equivalent to `removed`.
 2. Every synchronized source view is an explicit opaque **scope** (`catalog`, `category`, or future source scope). Pagination/query noise must normalize to the same scope identity.
-3. `REMOVED` is allowed only when the current scope is explicitly complete, the run has no extraction/media failures, and the product has no remaining membership in any other active scope.
-4. A complete category scan may detach a product from that category without removing it from the store if another scope still owns it.
-5. During partial scans, previously active but unobserved products and their scope memberships remain published and active.
-6. A category scan must never replace the global taxonomy tree. Only a complete `catalog` scope may authoritatively replace the entire taxonomy; other scopes merge into it.
-7. Public product/category/scope IDs must be opaque stable IDs; never expose raw supplier album/category IDs in `catalog.json`, asset paths, sync state or `dist/`.
-8. Raw source IDs, source URLs and source image URLs belong only in ignored/private source state.
-9. Persistent `data/sync-state.json` may contain only opaque public IDs, hashes, timestamps, statuses, opaque scope memberships and change summaries. It must not contain supplier URLs or raw supplier IDs.
-10. NEW/UPDATED/RESTORED are computed from stable identity + content fingerprints. Scope detachment and global removal are distinct events.
-11. Confirmed global removals may delete public media only after all active scope memberships are gone.
-12. Schema/state migrations must preserve active products safely and explicitly retire any legacy holding scope only when an authoritative complete catalog scan makes that safe.
-13. Sync behavior changes require tests for NEW, UPDATED, RESTORED, partial UNOBSERVED, scope DETACHED, cross-scope preservation and final global REMOVED.
+3. Provider-routing parameters such as Yupoo `isSubCate`, pagination, tab, uid and referrer metadata must not create duplicate logical scope identities.
+4. `REMOVED` is allowed only when the current scope is explicitly complete, the run has no extraction/media failures, and the product has no remaining membership in any other active scope.
+5. A complete category scan may detach a product from that category without removing it from the store if another scope still owns it.
+6. During partial scans, previously active but unobserved products and their scope memberships remain published and active.
+7. A category scan must never replace the global taxonomy tree. Only a complete `catalog` scope may authoritatively replace the entire taxonomy; other scopes merge into it.
+8. Public product/category/scope IDs must be opaque stable IDs; never expose raw supplier album/category IDs in `catalog.json`, asset paths, sync state or `dist/`.
+9. Raw source IDs, source URLs and source image URLs belong only in ignored/private source state.
+10. Persistent `data/sync-state.json` may contain only opaque public IDs, hashes, timestamps, statuses, opaque scope memberships and change summaries. It must not contain supplier URLs or raw supplier IDs.
+11. NEW/UPDATED/RESTORED are computed from stable identity + content fingerprints. Scope detachment and global removal are distinct events.
+12. Confirmed global removals may delete public media only after all active scope memberships are gone.
+13. Schema/state migrations must preserve active products safely and explicitly retire any legacy holding scope only when an authoritative complete catalog scan makes that safe.
+14. Sync behavior changes require tests for NEW, UPDATED, RESTORED, partial UNOBSERVED, scope DETACHED, cross-scope preservation and final global REMOVED.
+
+## Public taxonomy rules
+
+1. The provider's taxonomy scanner is the authority for hierarchy. Do not infer parent/child relationships from product names in the storefront.
+2. Raw category IDs and raw category URLs may exist only during extraction/private source processing. Public taxonomy uses opaque `c_<hash>` IDs only.
+3. Public categories must expose only safe storefront fields such as `id`, `name`, opaque `parentId`, opaque `childIds` and `depth`.
+4. Parent/child relationships must be reciprocal and acyclic in published data; `npm run taxonomy:audit` is mandatory after taxonomy changes/imports.
+5. Products must carry an opaque `categoryId` and `categoryPathIds` that ends at their own category and follows the audited parent chain.
+6. Unique-name matching is a controlled fallback only when the private source category ID is missing; ambiguous names must not be guessed.
+7. Unmatched products use a stable opaque fallback category rather than leaking or inventing a raw provider category.
+8. Category scans may enrich/merge taxonomy but cannot delete unrelated global taxonomy branches.
+9. Public taxonomy schema changes require schema/version updates and regression tests for hierarchy, descendant counts, breadcrumb trails and parent filtering.
 
 ## Data rules
 
@@ -99,11 +116,12 @@ npm run build
 npm run build:verify
 ```
 
-For crawler/import/sync changes, also run a real isolated crawl and then:
+For crawler/import/sync/taxonomy changes, also run a real isolated crawl and then:
 
 ```bash
 npm run audit
 npm run sync:audit
+npm run taxonomy:audit
 ```
 
 A feature is not complete because it works once. It is complete when its behavior is tested, its output is validated, and its failure mode is understood.

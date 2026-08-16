@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 4,
-  "generatedAt": "2026-08-16T17:57:40.023Z",
+  "schemaVersion": 5,
+  "generatedAt": "2026-08-16T18:20:19.802Z",
   "store": {
     "name": "Catalog Engine Demo",
     "logo": "",
@@ -13,284 +13,485 @@
   },
   "taxonomy": [
     {
-      "id": "c_0b9cf1d3e18986e302e6",
-      "type": "category",
-      "name": "NEW PRODUCT RENEW"
-    },
-    {
-      "id": "c_32cf0f6b31fd1aea89f3",
-      "type": "category",
-      "name": "🏆⚽ FIFA World Cup 2026 National team jersey"
-    },
-    {
-      "id": "c_2dd903610724b4eaf94a",
-      "type": "category",
-      "name": "⚽ player version"
-    },
-    {
-      "id": "c_6b616802de0a0e5c2cf3",
-      "type": "category",
-      "name": "⚽ La Liga"
-    },
-    {
-      "id": "c_f1d087200a2fcd0e799c",
-      "type": "category",
-      "name": "⚽ Bundesliga"
-    },
-    {
-      "id": "c_4650f708eb873787eb61",
-      "type": "category",
-      "name": "🏎️ F1 Racing"
-    },
-    {
-      "id": "c_e0c0dddadb12fc46a104",
-      "type": "category",
-      "name": "⚽Adult Soccer Kit"
-    },
-    {
-      "id": "c_33d21deb2036cdedfd9e",
-      "type": "category",
-      "name": "NFL - MLB - NHL"
-    },
-    {
-      "id": "c_34a333ae94ff5104f2d5",
-      "type": "category",
-      "name": "⚽👶🏼 Baby size (9 months)-(12 months)"
-    },
-    {
-      "id": "c_8e0679d7e6781f6c28e7",
-      "type": "category",
-      "name": "📏size"
-    },
-    {
-      "id": "c_20b38c03ee523a658145",
-      "type": "category",
-      "name": "Álbum não categorizado"
-    },
-    {
-      "id": "c_b0d3174a432050a2a498",
-      "type": "category",
-      "name": "⚽🏀 Product Category Search"
-    },
-    {
-      "id": "c_d1bccb5aeaf5d1ff5530",
-      "type": "category",
-      "name": "⚽ Retro"
-    },
-    {
-      "id": "c_717f833b4ac91ace1d73",
-      "type": "category",
-      "name": "⚽ other team league"
-    },
-    {
-      "id": "c_eddf25be3637a191c8b9",
-      "type": "category",
-      "name": "⚽ Serie A"
-    },
-    {
-      "id": "c_f2696bee90951c3f37f2",
-      "type": "category",
-      "name": "⚽👩‍⚕️ Women"
-    },
-    {
-      "id": "c_0e6adc65ea58c6bff85c",
-      "type": "category",
-      "name": "⚽ Long sleeve"
-    },
-    {
-      "id": "c_1bba554d1ebfda1333ee",
-      "type": "category",
-      "name": "⚽🩳 shorts"
-    },
-    {
-      "id": "c_a7bc5350d2fd95c4a85d",
-      "type": "category",
-      "name": "🧥 Windbreaker"
-    },
-    {
-      "id": "c_d02c26238f4a6fa6e59d",
-      "type": "category",
-      "name": "football shoes"
-    },
-    {
       "id": "c_26901c657416bd3070ed",
       "type": "category",
-      "name": "（Product, Purchase Tutorial）"
-    },
-    {
-      "id": "c_ed2aeec3e31d63ddfeda",
-      "type": "category",
-      "name": "📦🚚📞 Information shoes, Brand bag,Glasses"
-    },
-    {
-      "id": "c_7c7ca0c87f942e399826",
-      "type": "category",
-      "name": "🏀 NBA ( silk Version )"
-    },
-    {
-      "id": "c_93c641efc42934d90e66",
-      "type": "category",
-      "name": "⚽ Premier League"
-    },
-    {
-      "id": "c_50b93dcf2b9049de2e18",
-      "type": "category",
-      "name": "⚽ Ligue 1"
-    },
-    {
-      "id": "c_882bfb2dc8a976b53f18",
-      "type": "category",
-      "name": "⚽👦🏻kids kit size：16-28"
-    },
-    {
-      "id": "c_985dc2d0fbd95f20a19b",
-      "type": "category",
-      "name": "🧍‍♂️ Youth Pre-Match Training Suit"
-    },
-    {
-      "id": "c_93614866aa09197bdd5b",
-      "type": "category",
-      "name": "Nike Casual & Nike shorts"
-    },
-    {
-      "id": "c_22da3d06b36fc049df32",
-      "type": "category",
-      "name": "⚽ MLS Major League Soccer"
-    },
-    {
-      "id": "c_db5cfc9a6a191a5cc122",
-      "type": "category",
-      "name": "🎥 product video"
-    },
-    {
-      "id": "c_40b303c182abd7238b97",
-      "type": "category",
-      "name": "patch 补丁"
+      "name": "（Product, Purchase Tutorial）",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
     },
     {
       "id": "c_53d642e7554c7f9cdf1e",
       "type": "category",
-      "name": "⚽ Brazil Campeonato Brasileiro Série A"
+      "name": "⚽ Brazil Campeonato Brasileiro Série A",
+      "parentId": null,
+      "childIds": [
+        "c_e847d2bd6dbc5840a4bd",
+        "c_1758a094f49579c1d4ca",
+        "c_573aa42a15e8fce226bc",
+        "c_580667096568ab4e44f6",
+        "c_c0abd796360fd2bb83e7",
+        "c_5abb527a44e3b2d73f90",
+        "c_d624026b9ed35fd624bb",
+        "c_33eb4871cd08f72200f4",
+        "c_e2342a507fb12424abd8",
+        "c_26f1d8366066c079a491",
+        "c_0b6e74fafd78bc2259e5",
+        "c_ea8d994836f314bcd012",
+        "c_7c554400cec812b8e57d",
+        "c_dda245c96d8eacdfcc7c",
+        "c_fbefb39ad896b58aeca5",
+        "c_c2d8eed8e8b542680328",
+        "c_e0a28a37113401978880",
+        "c_c2cdcc44259be02d738b",
+        "c_e2fa6cddbb18654bc49b",
+        "c_7cb7435ed12a09980a0e",
+        "c_e4d5184e4ad55da7ae2c",
+        "c_c7bcfe85b4f2fb3e98e9",
+        "c_0dd0d29ba89fdf844648",
+        "c_e6c3acebba8ac9ea9c4d"
+      ],
+      "depth": 0
     },
     {
-      "id": "c_e2342a507fb12424abd8",
+      "id": "c_f1d087200a2fcd0e799c",
       "type": "category",
-      "name": "Flamengo"
+      "name": "⚽ Bundesliga",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
     },
     {
-      "id": "c_dda245c96d8eacdfcc7c",
+      "id": "c_6b616802de0a0e5c2cf3",
       "type": "category",
-      "name": "Palmeiras"
+      "name": "⚽ La Liga",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
     },
     {
-      "id": "c_c7bcfe85b4f2fb3e98e9",
+      "id": "c_50b93dcf2b9049de2e18",
       "type": "category",
-      "name": "sao paulo"
+      "name": "⚽ Ligue 1",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
     },
     {
-      "id": "c_c0abd796360fd2bb83e7",
+      "id": "c_0e6adc65ea58c6bff85c",
       "type": "category",
-      "name": "Brazil International"
+      "name": "⚽ Long sleeve",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
     },
     {
-      "id": "c_580667096568ab4e44f6",
+      "id": "c_22da3d06b36fc049df32",
       "type": "category",
-      "name": "Brazil"
+      "name": "⚽ MLS Major League Soccer",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
     },
     {
-      "id": "c_d624026b9ed35fd624bb",
+      "id": "c_717f833b4ac91ace1d73",
       "type": "category",
-      "name": "Corinthians"
+      "name": "⚽ other team league",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
     },
     {
-      "id": "c_c2cdcc44259be02d738b",
+      "id": "c_2dd903610724b4eaf94a",
       "type": "category",
-      "name": "Recife sports"
+      "name": "⚽ player version",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
     },
     {
-      "id": "c_33eb4871cd08f72200f4",
+      "id": "c_93c641efc42934d90e66",
       "type": "category",
-      "name": "Cruzeiro"
+      "name": "⚽ Premier League",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
     },
     {
-      "id": "c_0dd0d29ba89fdf844648",
+      "id": "c_d1bccb5aeaf5d1ff5530",
       "type": "category",
-      "name": "Vasco da Gama"
+      "name": "⚽ Retro",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
     },
     {
-      "id": "c_ea8d994836f314bcd012",
+      "id": "c_eddf25be3637a191c8b9",
       "type": "category",
-      "name": "Gremio"
+      "name": "⚽ Serie A",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
     },
     {
-      "id": "c_26f1d8366066c079a491",
+      "id": "c_b0d3174a432050a2a498",
       "type": "category",
-      "name": "Fluminense"
+      "name": "⚽🏀 Product Category Search",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
     },
     {
-      "id": "c_e4d5184e4ad55da7ae2c",
+      "id": "c_882bfb2dc8a976b53f18",
       "type": "category",
-      "name": "Santos"
+      "name": "⚽👦🏻kids kit size：16-28",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
+    },
+    {
+      "id": "c_f2696bee90951c3f37f2",
+      "type": "category",
+      "name": "⚽👩‍⚕️ Women",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
+    },
+    {
+      "id": "c_34a333ae94ff5104f2d5",
+      "type": "category",
+      "name": "⚽👶🏼 Baby size (9 months)-(12 months)",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
+    },
+    {
+      "id": "c_1bba554d1ebfda1333ee",
+      "type": "category",
+      "name": "⚽🩳 shorts",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
+    },
+    {
+      "id": "c_e0c0dddadb12fc46a104",
+      "type": "category",
+      "name": "⚽Adult Soccer Kit",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
+    },
+    {
+      "id": "c_db5cfc9a6a191a5cc122",
+      "type": "category",
+      "name": "🎥 product video",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
+    },
+    {
+      "id": "c_7c7ca0c87f942e399826",
+      "type": "category",
+      "name": "🏀 NBA ( silk Version )",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
+    },
+    {
+      "id": "c_32cf0f6b31fd1aea89f3",
+      "type": "category",
+      "name": "🏆⚽ FIFA World Cup 2026 National team jersey",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
+    },
+    {
+      "id": "c_4650f708eb873787eb61",
+      "type": "category",
+      "name": "🏎️ F1 Racing",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
+    },
+    {
+      "id": "c_8e0679d7e6781f6c28e7",
+      "type": "category",
+      "name": "📏size",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
+    },
+    {
+      "id": "c_ed2aeec3e31d63ddfeda",
+      "type": "category",
+      "name": "📦🚚📞 Information shoes, Brand bag,Glasses",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
+    },
+    {
+      "id": "c_985dc2d0fbd95f20a19b",
+      "type": "category",
+      "name": "🧍‍♂️ Youth Pre-Match Training Suit",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
+    },
+    {
+      "id": "c_a7bc5350d2fd95c4a85d",
+      "type": "category",
+      "name": "🧥 Windbreaker",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
+    },
+    {
+      "id": "c_20b38c03ee523a658145",
+      "type": "category",
+      "name": "Álbum não categorizado",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
+    },
+    {
+      "id": "c_d02c26238f4a6fa6e59d",
+      "type": "category",
+      "name": "football shoes",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
+    },
+    {
+      "id": "c_0b9cf1d3e18986e302e6",
+      "type": "category",
+      "name": "NEW PRODUCT RENEW",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
+    },
+    {
+      "id": "c_33d21deb2036cdedfd9e",
+      "type": "category",
+      "name": "NFL - MLB - NHL",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
+    },
+    {
+      "id": "c_93614866aa09197bdd5b",
+      "type": "category",
+      "name": "Nike Casual & Nike shorts",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
+    },
+    {
+      "id": "c_40b303c182abd7238b97",
+      "type": "category",
+      "name": "patch 补丁",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
     },
     {
       "id": "c_e847d2bd6dbc5840a4bd",
       "type": "category",
-      "name": "Atletico Mineiro"
-    },
-    {
-      "id": "c_c2d8eed8e8b542680328",
-      "type": "category",
-      "name": "PAYSANDU"
-    },
-    {
-      "id": "c_573aa42a15e8fce226bc",
-      "type": "category",
-      "name": "Botafogo"
-    },
-    {
-      "id": "c_e2fa6cddbb18654bc49b",
-      "type": "category",
-      "name": "Remo"
-    },
-    {
-      "id": "c_5abb527a44e3b2d73f90",
-      "type": "category",
-      "name": "Ceará"
-    },
-    {
-      "id": "c_0b6e74fafd78bc2259e5",
-      "type": "category",
-      "name": "Fortaleza"
+      "name": "Atletico Mineiro",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
     },
     {
       "id": "c_1758a094f49579c1d4ca",
       "type": "category",
-      "name": "Bahia"
+      "name": "Bahia",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
     },
     {
-      "id": "c_e0a28a37113401978880",
+      "id": "c_573aa42a15e8fce226bc",
       "type": "category",
-      "name": "RB Bragantino"
+      "name": "Botafogo",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
     },
     {
-      "id": "c_fbefb39ad896b58aeca5",
+      "id": "c_580667096568ab4e44f6",
       "type": "category",
-      "name": "PARANAENSE"
+      "name": "Brazil",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
+    },
+    {
+      "id": "c_c0abd796360fd2bb83e7",
+      "type": "category",
+      "name": "Brazil International",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
+    },
+    {
+      "id": "c_5abb527a44e3b2d73f90",
+      "type": "category",
+      "name": "Ceará",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
+    },
+    {
+      "id": "c_d624026b9ed35fd624bb",
+      "type": "category",
+      "name": "Corinthians",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
+    },
+    {
+      "id": "c_33eb4871cd08f72200f4",
+      "type": "category",
+      "name": "Cruzeiro",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
+    },
+    {
+      "id": "c_e2342a507fb12424abd8",
+      "type": "category",
+      "name": "Flamengo",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
+    },
+    {
+      "id": "c_26f1d8366066c079a491",
+      "type": "category",
+      "name": "Fluminense",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
+    },
+    {
+      "id": "c_0b6e74fafd78bc2259e5",
+      "type": "category",
+      "name": "Fortaleza",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
+    },
+    {
+      "id": "c_ea8d994836f314bcd012",
+      "type": "category",
+      "name": "Gremio",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
     },
     {
       "id": "c_7c554400cec812b8e57d",
       "type": "category",
-      "name": "Mineiro America"
+      "name": "Mineiro America",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
+    },
+    {
+      "id": "c_dda245c96d8eacdfcc7c",
+      "type": "category",
+      "name": "Palmeiras",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
+    },
+    {
+      "id": "c_fbefb39ad896b58aeca5",
+      "type": "category",
+      "name": "PARANAENSE",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
+    },
+    {
+      "id": "c_c2d8eed8e8b542680328",
+      "type": "category",
+      "name": "PAYSANDU",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
+    },
+    {
+      "id": "c_e0a28a37113401978880",
+      "type": "category",
+      "name": "RB Bragantino",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
+    },
+    {
+      "id": "c_c2cdcc44259be02d738b",
+      "type": "category",
+      "name": "Recife sports",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
+    },
+    {
+      "id": "c_e2fa6cddbb18654bc49b",
+      "type": "category",
+      "name": "Remo",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
     },
     {
       "id": "c_7cb7435ed12a09980a0e",
       "type": "category",
-      "name": "Santa Cruz"
+      "name": "Santa Cruz",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
+    },
+    {
+      "id": "c_e4d5184e4ad55da7ae2c",
+      "type": "category",
+      "name": "Santos",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
+    },
+    {
+      "id": "c_c7bcfe85b4f2fb3e98e9",
+      "type": "category",
+      "name": "sao paulo",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
+    },
+    {
+      "id": "c_0dd0d29ba89fdf844648",
+      "type": "category",
+      "name": "Vasco da Gama",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
     },
     {
       "id": "c_e6c3acebba8ac9ea9c4d",
       "type": "category",
-      "name": "Victoria"
+      "name": "Victoria",
+      "parentId": "c_53d642e7554c7f9cdf1e",
+      "childIds": [],
+      "depth": 1
+    },
+    {
+      "id": "c_f7087f79d9b69814006b",
+      "type": "category",
+      "name": "Outros",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
     }
   ],
   "sync": {
@@ -315,7 +516,7 @@
     "observedProducts": 40,
     "publicProducts": 40,
     "candidatesScanned": 93,
-    "taxonomyEntries": 56,
+    "taxonomyEntries": 57,
     "skippedNavigation": 22,
     "skippedInformation": 5,
     "extractionFailures": 0,
@@ -339,7 +540,11 @@
         "./assets/catalog/p_50a51492363bfafd402a/02.png"
       ],
       "imageCount": 2,
-      "id": "p_50a51492363bfafd402a"
+      "id": "p_50a51492363bfafd402a",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "Barcelona x Kobe Bryant 26/27 Away Long Sleeved Jersey S-5XL",
@@ -351,7 +556,11 @@
         "./assets/catalog/p_6ba4b90067af0a4c70a5/02.png"
       ],
       "imageCount": 2,
-      "id": "p_6ba4b90067af0a4c70a5"
+      "id": "p_6ba4b90067af0a4c70a5",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "Arsenal 26/27 Home Match Women's Crop Jersey S-XXL",
@@ -363,7 +572,11 @@
         "./assets/catalog/p_fa0d5a02f1d3f517fb81/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_fa0d5a02f1d3f517fb81"
+      "id": "p_fa0d5a02f1d3f517fb81",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "Arsenal 26/27 Third Away Women's Crop Jersey S-XXL",
@@ -375,7 +588,11 @@
         "./assets/catalog/p_ecc391175f99104d2eba/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_ecc391175f99104d2eba"
+      "id": "p_ecc391175f99104d2eba",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "Real Madrid 26/27 Home Women's Crop Jersey S-XXL",
@@ -387,7 +604,11 @@
         "./assets/catalog/p_0e05da8e6f9d010a7a98/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_0e05da8e6f9d010a7a98"
+      "id": "p_0e05da8e6f9d010a7a98",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "M-U 26/27 Home Womens Crop Jersey S-XXL",
@@ -399,7 +620,11 @@
         "./assets/catalog/p_659a9391b6970a7f30aa/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_659a9391b6970a7f30aa"
+      "id": "p_659a9391b6970a7f30aa",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "Real Madrid 26/27 Home Women's Jersey S-XXL",
@@ -411,7 +636,11 @@
         "./assets/catalog/p_be52417acfde7f101014/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_be52417acfde7f101014"
+      "id": "p_be52417acfde7f101014",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "Arsenal 26/27 Home Women's Jersey S-XXL",
@@ -423,7 +652,11 @@
         "./assets/catalog/p_854ffc3fdb2fbb21e54b/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_854ffc3fdb2fbb21e54b"
+      "id": "p_854ffc3fdb2fbb21e54b",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "Tottenham Hotspur 26/27 Away Womens Jersey S-XXL",
@@ -435,7 +668,11 @@
         "./assets/catalog/p_ae636477e1ea4c520f23/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_ae636477e1ea4c520f23"
+      "id": "p_ae636477e1ea4c520f23",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "M-U 26/27 Home Womens Jersey S-XXL",
@@ -447,7 +684,11 @@
         "./assets/catalog/p_412a18728c5534bf8098/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_412a18728c5534bf8098"
+      "id": "p_412a18728c5534bf8098",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "Chelsea 26/27 Home Womens Jersey S-XXL",
@@ -459,7 +700,11 @@
         "./assets/catalog/p_b5de6d46116917887e2b/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_b5de6d46116917887e2b"
+      "id": "p_b5de6d46116917887e2b",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "Real Madrid 26/27 Third Away Womens Jersey S-XXL",
@@ -471,7 +716,11 @@
         "./assets/catalog/p_c91d2af4f48c3593b3d1/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_c91d2af4f48c3593b3d1"
+      "id": "p_c91d2af4f48c3593b3d1",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "Tottenham Hotspur 26/27 Home Womens Jersey S-XXL",
@@ -483,7 +732,11 @@
         "./assets/catalog/p_fc38e807825c3621cdc7/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_fc38e807825c3621cdc7"
+      "id": "p_fc38e807825c3621cdc7",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "Arsenal 26/27 Third Womens Jersey S-XXL",
@@ -495,7 +748,11 @@
         "./assets/catalog/p_e040b932c0b60bf38a82/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_e040b932c0b60bf38a82"
+      "id": "p_e040b932c0b60bf38a82",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "Spain 2026 2 Stars Special Edition Jersey - Blue S-4XL",
@@ -507,7 +764,11 @@
         "./assets/catalog/p_a807424b5d1300eb1ec6/02.png"
       ],
       "imageCount": 2,
-      "id": "p_a807424b5d1300eb1ec6"
+      "id": "p_a807424b5d1300eb1ec6",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "PSG 26/27 2 Stars Home kids kit Jersey SIZE 16-281",
@@ -519,7 +780,11 @@
         "./assets/catalog/p_51eb8d57afb0d90f522d/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_51eb8d57afb0d90f522d"
+      "id": "p_51eb8d57afb0d90f522d",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "Sao Paulo 26/27 Away Kids Kit Jersey Size 16-281",
@@ -531,7 +796,11 @@
         "./assets/catalog/p_0702879a186b1c8b3e35/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_0702879a186b1c8b3e35"
+      "id": "p_0702879a186b1c8b3e35",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "Sport Recife 26/27 Home Womes Jersey S-XXL",
@@ -543,7 +812,11 @@
         "./assets/catalog/p_618435e503e397a6208e/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_618435e503e397a6208e"
+      "id": "p_618435e503e397a6208e",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "Flamengo 26/27 Zico Signature World Cup Version Yellow Womens Jersey S-XXL",
@@ -555,7 +828,11 @@
         "./assets/catalog/p_a50ae6db0aba95d84648/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_a50ae6db0aba95d84648"
+      "id": "p_a50ae6db0aba95d84648",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "PSG 26/27 Pre-Match Home Player Version Jersey S-XXL",
@@ -567,7 +844,11 @@
         "./assets/catalog/p_d51c620eb42db0e2a4d4/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_d51c620eb42db0e2a4d4"
+      "id": "p_d51c620eb42db0e2a4d4",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "Vasco da Gama 26/27 Special Edition Jersey - Yellow S-4XL",
@@ -579,7 +860,11 @@
         "./assets/catalog/p_257fba8a205209af9d1b/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_257fba8a205209af9d1b"
+      "id": "p_257fba8a205209af9d1b",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "Vasco da Gama 26/27 Special Edition Jersey S-4XL",
@@ -591,7 +876,11 @@
         "./assets/catalog/p_4ea4ea440e90fdbbf4b5/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_4ea4ea440e90fdbbf4b5"
+      "id": "p_4ea4ea440e90fdbbf4b5",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "Remo 26/27 Goalkeeper Jersey - Maroon S-4XL",
@@ -603,7 +892,11 @@
         "./assets/catalog/p_1096b9fc5858e920f6d9/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_1096b9fc5858e920f6d9"
+      "id": "p_1096b9fc5858e920f6d9",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "categoryPathIds": [
+        "c_0b9cf1d3e18986e302e6"
+      ]
     },
     {
       "name": "Man United Third Away Soccer Jersey 26 27",
@@ -615,7 +908,11 @@
         "./assets/catalog/p_9a3f1e863c5863065e07/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_9a3f1e863c5863065e07"
+      "id": "p_9a3f1e863c5863065e07",
+      "categoryId": "c_f7087f79d9b69814006b",
+      "categoryPathIds": [
+        "c_f7087f79d9b69814006b"
+      ]
     },
     {
       "name": "Malaga Third Away Soccer Jersey 26 27",
@@ -627,7 +924,11 @@
         "./assets/catalog/p_bd4269b5dfc97b62666a/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_bd4269b5dfc97b62666a"
+      "id": "p_bd4269b5dfc97b62666a",
+      "categoryId": "c_f7087f79d9b69814006b",
+      "categoryPathIds": [
+        "c_f7087f79d9b69814006b"
+      ]
     },
     {
       "name": "La Coruna Third Away Soccer Jersey 26 27",
@@ -639,7 +940,11 @@
         "./assets/catalog/p_7357821ee28351863701/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_7357821ee28351863701"
+      "id": "p_7357821ee28351863701",
+      "categoryId": "c_f7087f79d9b69814006b",
+      "categoryPathIds": [
+        "c_f7087f79d9b69814006b"
+      ]
     },
     {
       "name": "Kids Stuttgart Home Soccer Uniform 26 27-huirong",
@@ -651,7 +956,11 @@
         "./assets/catalog/p_2a0d9296f68c88025eef/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_2a0d9296f68c88025eef"
+      "id": "p_2a0d9296f68c88025eef",
+      "categoryId": "c_f7087f79d9b69814006b",
+      "categoryPathIds": [
+        "c_f7087f79d9b69814006b"
+      ]
     },
     {
       "name": "Kids Sevilla Away Soccer Uniform 26 27-huirong",
@@ -662,7 +971,11 @@
         "./assets/catalog/p_78ef12c6929df25e9352/01.jpg"
       ],
       "imageCount": 1,
-      "id": "p_78ef12c6929df25e9352"
+      "id": "p_78ef12c6929df25e9352",
+      "categoryId": "c_f7087f79d9b69814006b",
+      "categoryPathIds": [
+        "c_f7087f79d9b69814006b"
+      ]
     },
     {
       "name": "Kids Lisbon Home Soccer Uniform 26 27",
@@ -674,7 +987,11 @@
         "./assets/catalog/p_a92242df83af65b5aa1c/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_a92242df83af65b5aa1c"
+      "id": "p_a92242df83af65b5aa1c",
+      "categoryId": "c_f7087f79d9b69814006b",
+      "categoryPathIds": [
+        "c_f7087f79d9b69814006b"
+      ]
     },
     {
       "name": "Kids Hull City Home Soccer Uniform 26 27-1040",
@@ -686,7 +1003,11 @@
         "./assets/catalog/p_42d164dccf4de4bc5e94/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_42d164dccf4de4bc5e94"
+      "id": "p_42d164dccf4de4bc5e94",
+      "categoryId": "c_f7087f79d9b69814006b",
+      "categoryPathIds": [
+        "c_f7087f79d9b69814006b"
+      ]
     },
     {
       "name": "Kids Dusseldorf Home Soccer Uniform 26 27-huirong",
@@ -698,7 +1019,11 @@
         "./assets/catalog/p_23a99e757d76afc80778/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_23a99e757d76afc80778"
+      "id": "p_23a99e757d76afc80778",
+      "categoryId": "c_f7087f79d9b69814006b",
+      "categoryPathIds": [
+        "c_f7087f79d9b69814006b"
+      ]
     },
     {
       "name": "Hull City Away Soccer Jersey 26 27",
@@ -710,7 +1035,11 @@
         "./assets/catalog/p_0f05f1cdf0e198bf011d/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_0f05f1cdf0e198bf011d"
+      "id": "p_0f05f1cdf0e198bf011d",
+      "categoryId": "c_f7087f79d9b69814006b",
+      "categoryPathIds": [
+        "c_f7087f79d9b69814006b"
+      ]
     },
     {
       "name": "Boca Away Soccer Jersey 26 27",
@@ -722,7 +1051,11 @@
         "./assets/catalog/p_b6e11feab1f11bae5b6e/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_b6e11feab1f11bae5b6e"
+      "id": "p_b6e11feab1f11bae5b6e",
+      "categoryId": "c_f7087f79d9b69814006b",
+      "categoryPathIds": [
+        "c_f7087f79d9b69814006b"
+      ]
     },
     {
       "name": "Al Nassr Away Soccer Jersey 26 27",
@@ -734,7 +1067,11 @@
         "./assets/catalog/p_fe7589aae2ae08ae4a70/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_fe7589aae2ae08ae4a70"
+      "id": "p_fe7589aae2ae08ae4a70",
+      "categoryId": "c_f7087f79d9b69814006b",
+      "categoryPathIds": [
+        "c_f7087f79d9b69814006b"
+      ]
     },
     {
       "name": "Women RM Away Soccer Jersey 26 27",
@@ -746,7 +1083,11 @@
         "./assets/catalog/p_ff725dcc5b4dae59ffaf/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_ff725dcc5b4dae59ffaf"
+      "id": "p_ff725dcc5b4dae59ffaf",
+      "categoryId": "c_f7087f79d9b69814006b",
+      "categoryPathIds": [
+        "c_f7087f79d9b69814006b"
+      ]
     },
     {
       "name": "Tenerife Away Soccer Jersey 26 27",
@@ -758,7 +1099,11 @@
         "./assets/catalog/p_89a76c4f94756ae0b65c/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_89a76c4f94756ae0b65c"
+      "id": "p_89a76c4f94756ae0b65c",
+      "categoryId": "c_f7087f79d9b69814006b",
+      "categoryPathIds": [
+        "c_f7087f79d9b69814006b"
+      ]
     },
     {
       "name": "Sunderland Home Soccer Jersey 26 27",
@@ -770,7 +1115,11 @@
         "./assets/catalog/p_678cbf2661a54d0bb70a/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_678cbf2661a54d0bb70a"
+      "id": "p_678cbf2661a54d0bb70a",
+      "categoryId": "c_f7087f79d9b69814006b",
+      "categoryPathIds": [
+        "c_f7087f79d9b69814006b"
+      ]
     },
     {
       "name": "RM Away Soccer Shorts 26 27",
@@ -781,7 +1130,11 @@
         "./assets/catalog/p_5a61ce4c792686c7af14/01.jpg"
       ],
       "imageCount": 1,
-      "id": "p_5a61ce4c792686c7af14"
+      "id": "p_5a61ce4c792686c7af14",
+      "categoryId": "c_f7087f79d9b69814006b",
+      "categoryPathIds": [
+        "c_f7087f79d9b69814006b"
+      ]
     },
     {
       "name": "RM Away Baby Soccer Jersey 26 27",
@@ -793,7 +1146,11 @@
         "./assets/catalog/p_70730a2e092358b0cbb9/02.jpg"
       ],
       "imageCount": 2,
-      "id": "p_70730a2e092358b0cbb9"
+      "id": "p_70730a2e092358b0cbb9",
+      "categoryId": "c_f7087f79d9b69814006b",
+      "categoryPathIds": [
+        "c_f7087f79d9b69814006b"
+      ]
     },
     {
       "name": "Lyons Home Soccer Shorts 26 27",
@@ -804,7 +1161,19 @@
         "./assets/catalog/p_7f3238ac0534539ee43a/01.jpg"
       ],
       "imageCount": 1,
-      "id": "p_7f3238ac0534539ee43a"
+      "id": "p_7f3238ac0534539ee43a",
+      "categoryId": "c_f7087f79d9b69814006b",
+      "categoryPathIds": [
+        "c_f7087f79d9b69814006b"
+      ]
     }
-  ]
+  ],
+  "taxonomyVersion": 1,
+  "taxonomyStats": {
+    "total": 57,
+    "roots": 33,
+    "nested": 24,
+    "maxDepth": 1,
+    "used": 2
+  }
 }

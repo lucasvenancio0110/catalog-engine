@@ -9,9 +9,12 @@
   "scripts": {
     "dev": "vite",
     "scrape": "node scripts/scrape-yupoo.mjs",
-    "crawl": "node scripts/crawl-yupoo.mjs",
+    "crawl": "node scripts/crawl-entry.mjs",
+    "crawl:core": "node scripts/crawl-yupoo.mjs",
+    "taxonomy:enrich": "node scripts/enrich-taxonomy.mjs",
     "audit": "node scripts/quality-audit.mjs",
     "sync:audit": "node scripts/sync-audit.mjs",
+    "taxonomy:audit": "node scripts/taxonomy-audit.mjs",
     "deps:check": "node scripts/check-dependency-policy.mjs",
     "test": "vitest run",
     "test:watch": "vitest",

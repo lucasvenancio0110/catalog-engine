@@ -44,7 +44,18 @@
       </label>
     </section>
 
-    <nav id="categoryChips" class="category-chips" aria-label="Categorias rápidas"></nav>
+    <section id="categoryBrowser" class="category-browser" aria-label="Explorar categorias">
+      <div class="category-browser-head">
+        <div>
+          <span class="eyebrow">EXPLORAR</span>
+          <strong id="categoryTitle">Todas as categorias</strong>
+        </div>
+        <button id="categoryBack" class="category-back" type="button" hidden>← Voltar</button>
+      </div>
+      <nav id="categoryTrail" class="category-trail" aria-label="Caminho da categoria" hidden></nav>
+      <nav id="categoryChips" class="category-chips" aria-label="Categorias disponíveis"></nav>
+    </section>
+
     <div id="status" class="status">Carregando catálogo…</div>
     <section id="productGrid" class="grid" aria-live="polite"></section>
   </main>
@@ -87,6 +98,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="/src/entry.js"></script>
 </body>
 </html>
