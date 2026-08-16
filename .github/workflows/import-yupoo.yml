@@ -1,0 +1,53 @@
+name: Importar catálogo Yupoo
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_url:
+        description: "URL pública do catálogo Yupoo (/albums/)"
+        required: true
+        default: "https://zhouchangliang.x.yupoo.com/albums/"
+        type: string
+      max_albums:
+        description: "Quantidade de álbuns para o teste"
+        required: true
+        default: "20"
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm install
+
+      - name: Extrair catálogo
+        env:
+          MAX_ALBUMS: ${{ inputs.max_albums }}
+        run: npm run scrape -- "${{ inputs.source_url }}"
+
+      - name: Salvar catálogo atualizado
+        run: |
+          git config user.name "catalog-engine-bot"
+          git config user.email "catalog-engine-bot@users.noreply.github.com"
+          git add data/catalog.json
+          if git diff --cached --quiet; then
+            echo "Nenhuma alteração no catálogo."
+            exit 0
+          fi
+          git commit -m "update imported catalog"
+          git push origin main
