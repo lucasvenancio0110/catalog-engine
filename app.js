@@ -2,9 +2,14 @@ const state = { catalog: null, query: '', category: '', activeProduct: null, act
 
 const els = {
   storeName: document.querySelector('#storeName'),
+  storeLogo: document.querySelector('#storeLogo'),
+  storeEyebrow: document.querySelector('#storeEyebrow'),
+  heroEyebrow: document.querySelector('#heroEyebrow'),
+  heroTitle: document.querySelector('#heroTitle'),
   productCount: document.querySelector('#productCount'),
   searchInput: document.querySelector('#searchInput'),
   categorySelect: document.querySelector('#categorySelect'),
+  categoryChips: document.querySelector('#categoryChips'),
   status: document.querySelector('#status'),
   grid: document.querySelector('#productGrid'),
   template: document.querySelector('#productTemplate'),
@@ -38,6 +43,11 @@ function getImages(product) {
     : [];
 }
 
+function getCategories() {
+  return [...new Set((state.catalog?.products || []).map((product) => product.category).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
+}
+
 function filteredProducts() {
   const query = normalize(state.query);
   return state.catalog.products.filter((product) => {
@@ -46,6 +56,47 @@ function filteredProducts() {
     const matchCategory = !state.category || product.category === state.category;
     return matchQuery && matchCategory;
   });
+}
+
+function syncCategoryControls() {
+  els.categorySelect.value = state.category;
+  [...els.categoryChips.querySelectorAll('button')].forEach((button) => {
+    const active = button.dataset.category === state.category;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-current', active ? 'true' : 'false');
+  });
+}
+
+function setCategory(category = '') {
+  state.category = category;
+  syncCategoryControls();
+  render();
+}
+
+function renderCategoryControls() {
+  const categories = getCategories();
+
+  els.categorySelect.innerHTML = '<option value="">Todas</option>';
+  for (const category of categories) {
+    const option = document.createElement('option');
+    option.value = category;
+    option.textContent = category;
+    els.categorySelect.appendChild(option);
+  }
+
+  els.categoryChips.innerHTML = '';
+  const chipEntries = [['', 'Todos'], ...categories.map((category) => [category, category])];
+  for (const [value, label] of chipEntries) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'category-chip';
+    button.dataset.category = value;
+    button.textContent = label;
+    button.addEventListener('click', () => setCategory(value));
+    els.categoryChips.appendChild(button);
+  }
+
+  syncCategoryControls();
 }
 
 function render() {
@@ -101,10 +152,16 @@ function setActiveImage(index) {
   els.dialogImage.alt = `${product.name} — foto ${index + 1}`;
   els.dialogImage.hidden = false;
 
-  const extension = image.split('.').pop()?.split('?')[0] || 'jpg';
-  els.downloadImageButton.href = image;
-  els.downloadImageButton.download = `${slugify(product.name)}-${String(index + 1).padStart(2, '0')}.${extension}`;
-  els.downloadImageButton.hidden = false;
+  const allowDownload = state.catalog.store?.showDownload !== false;
+  if (allowDownload) {
+    const extension = image.split('.').pop()?.split('?')[0] || 'jpg';
+    els.downloadImageButton.href = image;
+    els.downloadImageButton.download = `${slugify(product.name)}-${String(index + 1).padStart(2, '0')}.${extension}`;
+    els.downloadImageButton.hidden = false;
+  } else {
+    els.downloadImageButton.hidden = true;
+    els.downloadImageButton.removeAttribute('href');
+  }
 
   [...els.dialogThumbs.querySelectorAll('button')].forEach((button, buttonIndex) => {
     button.classList.toggle('active', buttonIndex === index);
@@ -140,7 +197,7 @@ function openProduct(product) {
   const images = getImages(product);
   els.dialogCategory.textContent = product.category || 'Catálogo';
   els.dialogName.textContent = product.name;
-  els.dialogDescription.textContent = product.description || 'Fotos extraídas em alta qualidade do catálogo conectado.';
+  els.dialogDescription.textContent = product.description || 'Fotos disponíveis em alta qualidade.';
   els.dialogPhotoCount.textContent = images.length
     ? `${images.length} foto${images.length === 1 ? '' : 's'} em alta qualidade`
     : 'Sem fotos disponíveis';
@@ -160,7 +217,6 @@ function openProduct(product) {
     els.whatsappButton.href = `https://wa.me/${phone}?text=${message}`;
     els.whatsappButton.hidden = false;
   } else {
-    // White-label: nunca expõe a URL do fornecedor como fallback.
     els.whatsappButton.hidden = true;
     els.whatsappButton.removeAttribute('href');
   }
@@ -168,22 +224,34 @@ function openProduct(product) {
   els.dialog.showModal();
 }
 
+function applyStoreConfig() {
+  const store = state.catalog.store || {};
+  const name = store.name || 'Catálogo';
+  els.storeName.textContent = name;
+  els.storeEyebrow.textContent = store.eyebrow || 'CATÁLOGO DIGITAL';
+  els.heroEyebrow.textContent = store.heroEyebrow || 'NOVIDADES';
+  els.heroTitle.textContent = store.heroTitle || 'Encontre o produto certo.';
+  document.title = name;
+
+  if (store.logo) {
+    els.storeLogo.src = store.logo;
+    els.storeLogo.alt = `Logo ${name}`;
+    els.storeLogo.hidden = false;
+  } else {
+    els.storeLogo.hidden = true;
+    els.storeLogo.removeAttribute('src');
+  }
+
+  document.documentElement.classList.toggle('light', store.theme === 'light');
+}
+
 async function init() {
   try {
     const response = await fetch('./data/catalog.json', { cache: 'no-store' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     state.catalog = await response.json();
-    els.storeName.textContent = state.catalog.store?.name || 'Catálogo';
-    document.title = state.catalog.store?.name || 'Catálogo';
-
-    const categories = [...new Set(state.catalog.products.map((p) => p.category).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-    for (const category of categories) {
-      const option = document.createElement('option');
-      option.value = category;
-      option.textContent = category;
-      els.categorySelect.appendChild(option);
-    }
-
+    applyStoreConfig();
+    renderCategoryControls();
     render();
   } catch (error) {
     console.error(error);
@@ -197,8 +265,7 @@ els.searchInput.addEventListener('input', (event) => {
 });
 
 els.categorySelect.addEventListener('change', (event) => {
-  state.category = event.target.value;
-  render();
+  setCategory(event.target.value);
 });
 
 els.dialogClose.addEventListener('click', () => els.dialog.close());
