@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: catalog-release-next-${{ github.ref }}
@@ -113,3 +113,15 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+
+      - name: Persistir catálogo público validado
+        run: |
+          git config user.name "catalog-engine-bot"
+          git config user.email "catalog-engine-bot@users.noreply.github.com"
+          git add data/catalog.json assets/catalog
+          if git diff --cached --quiet; then
+            echo "Catálogo público da release já está materializado."
+          else
+            git commit -m "materialize validated release catalog"
+            git push origin HEAD:release/catalog-engine-next
+          fi
