@@ -77,11 +77,17 @@ export async function optimizeCatalogMedia({
 
   const products = [];
   for (const product of catalog.products) {
-    const inputImages = Array.isArray(product.images) ? product.images : [];
+    const richMedia = Array.isArray(product.media) && product.media.length ? product.media : null;
+    const inputImages = richMedia || (Array.isArray(product.images) ? product.images : []);
     if (!inputImages.length) throw new Error(`Produto sem mídia: ${product.id}`);
     const media = await Promise.all(inputImages.map(descriptorFor));
     logicalDescriptors.push(...media);
-    products.push({ ...product, images: media, imageCount: media.length });
+    products.push({
+      ...product,
+      images: media.map((item) => item.url),
+      media,
+      imageCount: media.length
+    });
   }
 
   await queue.onIdle();
