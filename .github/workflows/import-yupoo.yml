@@ -53,7 +53,7 @@ jobs:
       - name: Quality gate do motor
         run: npm run quality
 
-      - name: Varrer, classificar e baixar fotos HD
+      - name: Varrer, classificar, sincronizar e baixar fotos HD
         env:
           SOURCE_URL: ${{ inputs.source_url }}
           MAX_ALBUMS: ${{ inputs.max_albums }}
@@ -63,35 +63,26 @@ jobs:
       - name: Auditar schema e mídia
         run: npm run audit
 
-      - name: Validar estado white-label
+      - name: Auditar identidade e estado de sincronização
+        run: npm run sync:audit
+
+      - name: Validar estado interno efêmero
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
 
-          const catalog = JSON.parse(fs.readFileSync('data/catalog.json', 'utf8'));
-          if (!Array.isArray(catalog.products) || catalog.products.length === 0) {
-            throw new Error('Nenhum produto comercial foi extraído.');
-          }
           if (!fs.existsSync('data/source-state.json')) {
             throw new Error('Estado interno da fonte não foi gerado durante a execução.');
           }
-
-          const images = catalog.products.flatMap((product) => product.images || []);
-          const missing = images.filter((image) => !fs.existsSync(image.replace(/^\.\//, '')));
-          const supplierLeak = /x\.yupoo\.com|photo\.yupoo\.com/i.test(JSON.stringify(catalog));
-
+          const catalog = JSON.parse(fs.readFileSync('data/catalog.json', 'utf8'));
+          const syncState = JSON.parse(fs.readFileSync('data/sync-state.json', 'utf8'));
           console.log(JSON.stringify({
-            products: catalog.products.length,
-            pagesScanned: catalog.crawl?.pagesScanned,
-            candidatesScanned: catalog.crawl?.candidatesScanned,
-            taxonomyEntries: catalog.crawl?.taxonomyEntries || 0,
-            filteredNonCommercial: (catalog.crawl?.skippedNavigation || 0) + (catalog.crawl?.skippedInformation || 0),
-            images: images.length,
-            missingImages: missing.length,
-            supplierLeak
+            publicProducts: catalog.products?.length || 0,
+            observedProducts: catalog.sync?.observedProducts || 0,
+            scopeComplete: syncState.scope?.complete || false,
+            stopReason: syncState.scope?.stopReason || null,
+            changes: syncState.summary
           }, null, 2));
-
-          if (!images.length || missing.length || supplierLeak) process.exit(1);
           NODE
 
       - name: Build Vite de produção
@@ -103,15 +94,15 @@ jobs:
       - name: Verificar vulnerabilidades runtime
         run: npm audit --omit=dev --audit-level=high
 
-      - name: Salvar somente catálogo público e imagens
+      - name: Salvar catálogo, sync-state sanitizado e imagens
         run: |
           git config user.name "catalog-engine-bot"
           git config user.email "catalog-engine-bot@users.noreply.github.com"
-          git add data/catalog.json assets/catalog
+          git add data/catalog.json data/sync-state.json assets/catalog
           if git diff --cached --quiet; then
-            echo "Nenhuma alteração pública no catálogo."
+            echo "Nenhuma alteração pública/sanitizada no catálogo."
           else
-            git commit -m "update classified catalog and HD images"
+            git commit -m "sync catalog and HD images"
             git push origin HEAD:main
           fi
 
