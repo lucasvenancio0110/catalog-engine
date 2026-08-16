@@ -201,6 +201,7 @@ function renderThumbs(product) {
 
 function openProduct(product) {
   state.gallery?.destroy();
+  state.gallery = null;
   state.activeProduct = product;
   state.activeImageIndex = 0;
 
