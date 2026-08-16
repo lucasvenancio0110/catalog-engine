@@ -1,6 +1,6 @@
 {
   "schemaVersion": 4,
-  "generatedAt": "2026-08-16T17:38:47.512Z",
+  "generatedAt": "2026-08-16T17:57:40.023Z",
   "store": {
     "name": "Catalog Engine Demo",
     "logo": "",
@@ -294,6 +294,7 @@
     }
   ],
   "sync": {
+    "scopeKind": "catalog",
     "scopeComplete": false,
     "stopReason": "product-limit",
     "observedProducts": 40,
@@ -303,7 +304,8 @@
       "updated": 0,
       "restored": 0,
       "removed": 0,
-      "unobserved": 0
+      "unobserved": 0,
+      "detached": 0
     }
   },
   "crawl": {

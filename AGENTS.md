@@ -54,15 +54,18 @@ Do not add Axios/Got only to replace native `fetch`. Do not add Lodash for trivi
 ## Synchronization rules
 
 1. **A partial scan may never infer deletion.** `not observed` is not equivalent to `removed`.
-2. `REMOVED` is allowed only when the scanned scope is explicitly known to be complete and the run had no extraction/media failures that could hide a product.
-3. During partial scans, previously active but unobserved products and their media remain published and active.
-4. Public product/category IDs must be opaque stable IDs; never expose raw supplier album/category IDs in `catalog.json`, asset paths or `dist/`.
-5. Raw source IDs, source URLs and source image URLs belong only in ignored/private source state.
-6. Persistent `data/sync-state.json` may contain only opaque public IDs, hashes, timestamps, statuses, scope metadata and change summaries. It must not contain supplier URLs or raw supplier IDs.
-7. NEW/UPDATED/RESTORED are computed from stable identity + content fingerprints. REMOVED requires complete scope.
-8. Confirmed removals may delete public media only after the complete-scope removal decision is made.
-9. Schema/state migrations must explicitly remove old public source fingerprints rather than silently carrying them forward.
-10. Sync behavior changes require tests for NEW, UPDATED, RESTORED, complete-scope REMOVED and partial-scope UNOBSERVED preservation.
+2. Every synchronized source view is an explicit opaque **scope** (`catalog`, `category`, or future source scope). Pagination/query noise must normalize to the same scope identity.
+3. `REMOVED` is allowed only when the current scope is explicitly complete, the run has no extraction/media failures, and the product has no remaining membership in any other active scope.
+4. A complete category scan may detach a product from that category without removing it from the store if another scope still owns it.
+5. During partial scans, previously active but unobserved products and their scope memberships remain published and active.
+6. A category scan must never replace the global taxonomy tree. Only a complete `catalog` scope may authoritatively replace the entire taxonomy; other scopes merge into it.
+7. Public product/category/scope IDs must be opaque stable IDs; never expose raw supplier album/category IDs in `catalog.json`, asset paths, sync state or `dist/`.
+8. Raw source IDs, source URLs and source image URLs belong only in ignored/private source state.
+9. Persistent `data/sync-state.json` may contain only opaque public IDs, hashes, timestamps, statuses, opaque scope memberships and change summaries. It must not contain supplier URLs or raw supplier IDs.
+10. NEW/UPDATED/RESTORED are computed from stable identity + content fingerprints. Scope detachment and global removal are distinct events.
+11. Confirmed global removals may delete public media only after all active scope memberships are gone.
+12. Schema/state migrations must preserve active products safely and explicitly retire any legacy holding scope only when an authoritative complete catalog scan makes that safe.
+13. Sync behavior changes require tests for NEW, UPDATED, RESTORED, partial UNOBSERVED, scope DETACHED, cross-scope preservation and final global REMOVED.
 
 ## Data rules
 

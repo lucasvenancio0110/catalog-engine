@@ -1,0 +1,120 @@
+name: Validar Catalog V0.9 Scope Ledger
+
+on:
+  push:
+    branches: ["agent/catalog-v09-scope-ledger"]
+    paths-ignore:
+      - "data/catalog.json"
+      - "data/sync-state.json"
+      - "assets/catalog/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: catalog-v09-scope-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-scopes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar pelo lockfile
+        run: npm ci
+
+      - name: Quality gate
+        run: npm run quality
+
+      - name: Crawl 1 — migrar catálogo geral para ledger v2
+        env:
+          MAX_ALBUMS: 40
+          MAX_PAGES: 2
+        run: npm run crawl -- "https://zhouchangliang.x.yupoo.com/albums/"
+
+      - name: Auditar baseline geral por escopo
+        run: |
+          npm run audit
+          npm run sync:audit
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const catalog = JSON.parse(fs.readFileSync('data/catalog.json', 'utf8'));
+          const sync = JSON.parse(fs.readFileSync('data/sync-state.json', 'utf8'));
+          const scopes = Object.values(sync.scopes || {});
+          console.log(JSON.stringify({ products: catalog.products.length, syncSchema: sync.schemaVersion, scopes: scopes.length, scopeKinds: scopes.map(s => s.kind), current: sync.scope }, null, 2));
+          if (catalog.products.length < 40 || sync.schemaVersion !== 2 || !scopes.some(s => s.kind === 'catalog')) process.exit(1);
+          NODE
+          rm -rf /tmp/catalog-v09-general
+          mkdir -p /tmp/catalog-v09-general
+          cp data/catalog.json /tmp/catalog-v09-general/catalog.json
+          cp data/sync-state.json /tmp/catalog-v09-general/sync-state.json
+          cp -R assets/catalog /tmp/catalog-v09-general/assets
+
+      - name: Crawl 2 — categoria Brasil parcial real
+        env:
+          MAX_ALBUMS: 8
+          MAX_PAGES: 1
+        run: npm run crawl -- "https://zhouchangliang.x.yupoo.com/categories/490727"
+
+      - name: Provar isolamento entre escopos
+        run: |
+          npm run audit
+          npm run sync:audit
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const before = JSON.parse(fs.readFileSync('/tmp/catalog-v09-general/catalog.json', 'utf8'));
+          const after = JSON.parse(fs.readFileSync('data/catalog.json', 'utf8'));
+          const sync = JSON.parse(fs.readFileSync('data/sync-state.json', 'utf8'));
+          const beforeIds = new Set(before.products.map(p => String(p.id)));
+          const afterIds = new Set(after.products.map(p => String(p.id)));
+          const preserved = [...beforeIds].filter(id => afterIds.has(id)).length;
+          const scopes = Object.entries(sync.scopes || {});
+          const kinds = scopes.map(([, scope]) => scope.kind);
+          console.log(JSON.stringify({ before: beforeIds.size, after: afterIds.size, preserved, scopes: scopes.length, kinds, currentScope: sync.scope, changes: sync.summary }, null, 2));
+          if (preserved !== beforeIds.size) process.exit(1);
+          if ((sync.summary?.removed || 0) !== 0) process.exit(1);
+          if (sync.scope?.kind !== 'category' || sync.scope?.complete !== false) process.exit(1);
+          if (!kinds.includes('catalog') || !kinds.includes('category')) process.exit(1);
+          NODE
+
+      - name: Restaurar baseline geral limpa após o ensaio de categoria
+        run: |
+          rm -rf assets/catalog
+          cp -R /tmp/catalog-v09-general/assets assets/catalog
+          cp /tmp/catalog-v09-general/catalog.json data/catalog.json
+          cp /tmp/catalog-v09-general/sync-state.json data/sync-state.json
+          npm run audit
+          npm run sync:audit
+
+      - name: Build Vite e dist audit
+        run: |
+          npm run build
+          npm run build:verify
+          npm audit --omit=dev --audit-level=high
+
+      - name: Upload artifact validado
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Materializar ledger v2 validado na branch
+        run: |
+          git config user.name "catalog-engine-bot"
+          git config user.email "catalog-engine-bot@users.noreply.github.com"
+          git add data/catalog.json data/sync-state.json assets/catalog
+          if git diff --cached --quiet; then
+            echo "Ledger V0.9 já materializado."
+          else
+            git commit -m "materialize validated V0.9 scope ledger"
+            git push origin HEAD:agent/catalog-v09-scope-ledger
+          fi
