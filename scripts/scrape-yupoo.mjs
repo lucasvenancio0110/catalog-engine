@@ -344,6 +344,7 @@ async function main() {
   const items = [];
   let totalPhotos = 0;
   let totalBytes = 0;
+  let failed = 0;
 
   for (let i = 0; i < albums.length; i++) {
     const album = albums[i];
@@ -368,6 +369,7 @@ async function main() {
       items.push({ ...itemMeta, images, sourceImages, imageCount: images.length });
       console.log(`[${i + 1}/${albums.length}] ${meta.entityType.toUpperCase()} | ${meta.name} | ${images.length}/${meta.sourceImageCount} foto(s)`);
     } catch (error) {
+      failed += 1;
       console.warn(`[${i + 1}/${albums.length}] falhou ${album.url}: ${error.message}`);
     }
   }
@@ -382,7 +384,9 @@ async function main() {
     generatedAt: new Date().toISOString(),
     taxonomy: [...categoryMap.values()],
     stats: {
+      selectedCandidates: albums.length,
       candidates: items.length,
+      failed,
       products: products.length,
       navigation: navigation.length,
       information: information.length,
@@ -397,7 +401,7 @@ async function main() {
 
   await mkdir('data', { recursive: true });
   await writeFile('data/catalog.json', `${JSON.stringify(output, null, 2)}\n`, 'utf8');
-  console.log(`Concluído: ${products.length} produtos, ${navigation.length} atalhos, ${information.length} informativos, ${totalPhotos} fotos HD, ${(totalBytes / 1024 / 1024).toFixed(1)} MB.`);
+  console.log(`Concluído: ${products.length} produtos, ${navigation.length} atalhos, ${information.length} informativos, ${failed} falhas, ${totalPhotos} fotos HD, ${(totalBytes / 1024 / 1024).toFixed(1)} MB.`);
 }
 
 main().catch((error) => {
