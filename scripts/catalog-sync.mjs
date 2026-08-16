@@ -28,7 +28,7 @@ export function publicCategoryId(provider, sourceId) {
 function canonicalScopeKey(sourceUrl) {
   const url = new URL(sourceUrl);
   url.hash = '';
-  for (const transient of ['page', 'tab', 'uid', 'referrercate']) {
+  for (const transient of ['page', 'tab', 'uid', 'referrercate', 'isSubCate']) {
     url.searchParams.delete(transient);
   }
 
@@ -217,8 +217,6 @@ export function reconcileScopedSyncState(
     members: [...nextMembers].sort()
   };
 
-  // A legacy holding scope exists only when schema v1 was first touched through a non-catalog scope.
-  // A future complete catalog scan is authoritative enough to retire that migration safety net.
   if (complete && scopeKind === 'catalog') {
     for (const [candidateScopeId, candidateScope] of Object.entries(nextScopes)) {
       if (candidateScope.kind === 'legacy') delete nextScopes[candidateScopeId];
@@ -258,7 +256,6 @@ export function reconcileScopedSyncState(
   };
 }
 
-// Backward-compatible single-scope facade kept for existing callers/tests.
 export function reconcileSyncState(previousState, observedProducts, options = {}) {
   const scopeId = stableEntityId('s', 'legacy', 'single-scope-facade', SCOPE_NAMESPACE);
   return reconcileScopedSyncState(previousState, observedProducts, {
