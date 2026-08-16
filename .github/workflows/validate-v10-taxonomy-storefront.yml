@@ -1,0 +1,133 @@
+name: Validar Catalog V0.10 Taxonomy Storefront
+
+on:
+  push:
+    branches: ["agent/catalog-v10-taxonomy-storefront"]
+    paths-ignore:
+      - "data/catalog.json"
+      - "data/sync-state.json"
+      - "assets/catalog/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: catalog-v10-taxonomy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-taxonomy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar pelo lockfile
+        run: npm ci
+
+      - name: Quality gate
+        run: npm run quality
+
+      - name: Crawl 1 — catálogo geral
+        env:
+          MAX_ALBUMS: 40
+          MAX_PAGES: 2
+        run: npm run crawl -- "https://zhouchangliang.x.yupoo.com/albums/"
+
+      - name: Enriquecer com árvore autoritativa
+        run: npm run taxonomy:enrich
+
+      - name: Auditar baseline hierárquica
+        run: |
+          npm run audit
+          npm run sync:audit
+          npm run taxonomy:audit
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const catalog = JSON.parse(fs.readFileSync('data/catalog.json', 'utf8'));
+          const stats = catalog.taxonomyStats || {};
+          const categorized = catalog.products.filter(p => /^c_[a-f0-9]{20}$/.test(String(p.categoryId || ''))).length;
+          console.log(JSON.stringify({ schema: catalog.schemaVersion, taxonomyVersion: catalog.taxonomyVersion, stats, products: catalog.products.length, categorized }, null, 2));
+          if (catalog.schemaVersion !== 5 || catalog.taxonomyVersion !== 1) process.exit(1);
+          if (catalog.products.length < 40 || categorized !== catalog.products.length) process.exit(1);
+          if (stats.total < 50 || stats.roots < 20 || stats.nested < 20 || stats.maxDepth < 1) process.exit(1);
+          NODE
+          rm -rf /tmp/catalog-v10-general
+          mkdir -p /tmp/catalog-v10-general
+          cp data/catalog.json /tmp/catalog-v10-general/catalog.json
+          cp data/sync-state.json /tmp/catalog-v10-general/sync-state.json
+          cp -R assets/catalog /tmp/catalog-v10-general/assets
+
+      - name: Crawl 2 — São Paulo como subcategoria real
+        env:
+          MAX_ALBUMS: 4
+          MAX_PAGES: 1
+        run: npm run crawl -- "https://zhouchangliang.x.yupoo.com/categories/66243"
+
+      - name: Enriquecer subcategoria real
+        run: npm run taxonomy:enrich
+
+      - name: Provar caminho Brasil → São Paulo
+        run: |
+          npm run audit
+          npm run sync:audit
+          npm run taxonomy:audit
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { publicCategoryId } from './scripts/catalog-sync.mjs';
+          const before = JSON.parse(fs.readFileSync('/tmp/catalog-v10-general/catalog.json', 'utf8'));
+          const after = JSON.parse(fs.readFileSync('data/catalog.json', 'utf8'));
+          const beforeIds = new Set(before.products.map(p => String(p.id)));
+          const newProducts = after.products.filter(p => !beforeIds.has(String(p.id)));
+          const brazilId = publicCategoryId('yupoo', '490727');
+          const saoPauloId = publicCategoryId('yupoo', '66243');
+          const hierarchical = newProducts.filter(p =>
+            p.categoryId === saoPauloId &&
+            Array.isArray(p.categoryPathIds) &&
+            p.categoryPathIds.includes(brazilId) &&
+            p.categoryPathIds.at(-1) === saoPauloId
+          );
+          console.log(JSON.stringify({ before: before.products.length, after: after.products.length, newProducts: newProducts.length, hierarchical: hierarchical.length, hierarchyNames: after.taxonomy.filter(c => [brazilId, saoPauloId].includes(c.id)).map(c => ({name:c.name,depth:c.depth})) }, null, 2));
+          if (newProducts.length < 1 || hierarchical.length < 1) process.exit(1);
+          NODE
+
+      - name: Restaurar baseline geral limpa
+        run: |
+          rm -rf assets/catalog
+          cp -R /tmp/catalog-v10-general/assets assets/catalog
+          cp /tmp/catalog-v10-general/catalog.json data/catalog.json
+          cp /tmp/catalog-v10-general/sync-state.json data/sync-state.json
+          npm run audit
+          npm run sync:audit
+          npm run taxonomy:audit
+
+      - name: Build Vite e dist audit
+        run: |
+          npm run build
+          npm run build:verify
+          npm audit --omit=dev --audit-level=high
+
+      - name: Upload artifact validado
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Materializar baseline V0.10 na branch
+        run: |
+          git config user.name "catalog-engine-bot"
+          git config user.email "catalog-engine-bot@users.noreply.github.com"
+          git add data/catalog.json data/sync-state.json assets/catalog
+          if git diff --cached --quiet; then
+            echo "Baseline V0.10 já materializada."
+          else
+            git commit -m "materialize validated V0.10 taxonomy baseline"
+            git push origin HEAD:agent/catalog-v10-taxonomy-storefront
+          fi
