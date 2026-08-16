@@ -1,0 +1,54 @@
+name: Validar Catalog V0.4 Taxonomia
+
+on:
+  push:
+    branches: ["agent/catalog-v04-taxonomy"]
+    paths:
+      - "scripts/yupoo-taxonomy.mjs"
+      - ".github/workflows/validate-v04-taxonomy.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-taxonomy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar dependências
+        run: npm install
+
+      - name: Validar árvore real do fornecedor
+        run: |
+          node --input-type=module <<'NODE'
+          import { scanYupooTaxonomy } from './scripts/yupoo-taxonomy.mjs';
+
+          const result = await scanYupooTaxonomy('https://zhouchangliang.x.yupoo.com/albums/');
+          const byId = new Map(result.categories.map((category) => [category.id, category]));
+          const brazil = byId.get('490727');
+          const expectedChildren = ['66243', '66253', '66255'];
+          const childChecks = expectedChildren.map((id) => ({
+            id,
+            name: byId.get(id)?.name,
+            parentId: byId.get(id)?.parentId,
+            ok: byId.get(id)?.parentId === '490727'
+          }));
+
+          console.log(JSON.stringify({
+            stats: result.stats,
+            brazil: brazil ? { id: brazil.id, name: brazil.name, childCount: brazil.childIds.length, depth: brazil.depth } : null,
+            childChecks,
+            sampleRoots: result.categories.filter((category) => !category.parentId).slice(0, 10).map((category) => category.name)
+          }, null, 2));
+
+          if (!brazil || result.stats.total < 20 || result.stats.nested < 10 || !childChecks.every((item) => item.ok)) {
+            process.exit(1);
+          }
+          NODE

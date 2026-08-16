@@ -3,7 +3,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, extname } from 'node:path';
 
 const sourceUrl = process.argv[2] || 'https://zhouchangliang.x.yupoo.com/albums/';
-const maxAlbums = Number(process.env.MAX_ALBUMS || 20);
+const maxAlbums = Number(process.env.MAX_ALBUMS || 50);
 const timeoutMs = 30000;
 const requestAttempts = 4;
 
@@ -13,6 +13,8 @@ const headers = {
 };
 
 const derivativeNames = /^(?:small|medium|big|square|thumb|thumbnail|tiny)\.[a-z0-9]+$/i;
+const infoPattern = /\b(?:tutorial|how\s+to|notice|announcement|contact|call\s+me|facebook\s+group|logistics(?:\s+website)?(?:\s+query)?|website\s+query|order\s+guide|purchase\s+guide|size\s+(?:chart|table)|payment|shipping|freight|instruction|instructions)\b/i;
+const taxonomyPattern = /^(?:product\s+category(?:\s+search)?|other\s+football\s+leagues?|(?:france\s+)?ligue\s*1|(?:italy\s+)?serie\s*a|(?:fa\s+)?premier\s+league|(?:spain\s+)?la\s+liga|bundesliga(?:\s+jersey)?|national\s+team(?:\s+jersey)?|player\s+version(?:\s+jersey)?|women(?:'s)?\s+jersey|kids?.*football(?:\s+team)?|retro\s+jersey|windbreaker|mls(?:\s+major\s+league)?(?:\s+jersey)?|nba(?:\s*[（(][^）)]*[）)])?|nfl\s*-\s*mlb\s*-\s*nhl|adult\s+training\s+suit|brazil\s+campeonato\s+brasileiro.*)$/i;
 
 function absolute(base, value) {
   if (!value) return null;
@@ -22,6 +24,10 @@ function absolute(base, value) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function cleanText(value = '') {
+  return value.replace(/\s+/g, ' ').trim();
 }
 
 function assertYupooSource(value) {
@@ -82,7 +88,30 @@ async function getHtml(url) {
   return await response.text();
 }
 
-function extractAlbumLinks(html, baseUrl) {
+function extractCategories(html, baseUrl) {
+  const $ = cheerio.load(html);
+  const found = new Map();
+
+  $('a[href*="/categories/"]').each((_, el) => {
+    const href = absolute(baseUrl, $(el).attr('href'));
+    const match = href?.match(/\/categories\/(\d+)/);
+    if (!href || !match) return;
+
+    const name = cleanText($(el).text()) || cleanText($(el).find('img').first().attr('alt'));
+    if (!name || /^\d+$/.test(name)) return;
+
+    found.set(match[1], {
+      id: match[1],
+      type: 'category',
+      name,
+      sourceUrl: href
+    });
+  });
+
+  return found;
+}
+
+function extractAlbumLinks(html, baseUrl, categories) {
   const $ = cheerio.load(html);
   const found = new Map();
 
@@ -92,12 +121,17 @@ function extractAlbumLinks(html, baseUrl) {
     const match = href.match(/\/albums\/(\d+)/);
     if (!match) return;
 
-    const text = $(el).text().replace(/\s+/g, ' ').trim();
-    const imageAlt = $(el).find('img').first().attr('alt')?.trim();
+    const url = new URL(href);
+    const sourceCategoryId = url.searchParams.get('referrercate') || null;
+    const text = cleanText($(el).text());
+    const imageAlt = cleanText($(el).find('img').first().attr('alt'));
+
     found.set(match[1], {
       id: match[1],
       url: href,
-      hintedName: text || imageAlt || `Álbum ${match[1]}`
+      hintedName: text || imageAlt || `Álbum ${match[1]}`,
+      sourceCategoryId,
+      sourceCategoryName: sourceCategoryId ? categories.get(sourceCategoryId)?.name || '' : ''
     });
   });
 
@@ -114,7 +148,7 @@ function cleanTitle(value = '') {
 }
 
 function cleanDescription(value = '') {
-  const normalized = value.replace(/\s+/g, ' ').trim();
+  const normalized = cleanText(value);
   if (/Wholesale|WhatsApp\+?\d+/i.test(normalized)) return '';
   return normalized;
 }
@@ -178,28 +212,72 @@ function extractImageGroups($, albumUrl) {
   );
 }
 
+function resolveSourceCategory($, album) {
+  if (album.sourceCategoryId) {
+    let resolved = '';
+    $('a[href*="/categories/"]').each((_, el) => {
+      if (resolved) return;
+      const href = $(el).attr('href') || '';
+      if (!href.includes(`/categories/${album.sourceCategoryId}`)) return;
+      const text = cleanText($(el).text());
+      if (text) resolved = text;
+    });
+    if (resolved) return resolved;
+  }
+
+  const breadcrumb = cleanText($('[class*="breadcrumb"] a').last().text());
+  return breadcrumb || album.sourceCategoryName || 'Catálogo';
+}
+
+function classifyItem({ name, description, sourceImageCount }) {
+  const cleanName = cleanText(name);
+  const hasSeason = /\b(?:19|20)?\d{2}[\/-](?:19|20)?\d{2}\b|\b20\d{2}\b/.test(cleanName);
+  const hasSize = /\b(?:size\s*)?(?:xs|s|m|l|xl|xxl|xxxl|\d{2})\s*[-–]\s*(?:xs|s|m|l|xl|xxl|xxxl|\d{2,3})\b/i.test(cleanName);
+  const hasProductSignal = hasSeason || hasSize || /\b(?:home|away|third|goalkeeper|match|player\s+version|kids?\s+kit|crop)\b/i.test(cleanName);
+
+  if (infoPattern.test(`${cleanName} ${description}`)) {
+    return { entityType: 'information', confidence: 'high', reason: 'informational-title' };
+  }
+
+  if (taxonomyPattern.test(cleanName) && sourceImageCount <= 2) {
+    return { entityType: 'navigation', confidence: 'high', reason: 'taxonomy-shortcut' };
+  }
+
+  if (!hasProductSignal && sourceImageCount <= 1 && /\b(?:league|liga|jersey|team|training|retro|women|kids|category|jacket|polo|pants|shorts?|kit)\b/i.test(cleanName)) {
+    return { entityType: 'navigation', confidence: 'medium', reason: 'generic-single-image' };
+  }
+
+  return { entityType: 'product', confidence: hasProductSignal || sourceImageCount > 1 ? 'high' : 'medium', reason: 'commercial-item' };
+}
+
 function extractProductMeta(html, album) {
   const $ = cheerio.load(html);
   const metaTitle = $('meta[property="og:title"]').attr('content')?.trim();
-  const h1 = $('h1').first().text().replace(/\s+/g, ' ').trim();
+  const h1 = cleanText($('h1').first().text());
   const rawTitle = metaTitle || h1 || album.hintedName;
 
   const rawDescription =
     $('meta[name="description"]').attr('content')?.trim() ||
-    $('[class*="description"], [class*="desc"]').first().text().replace(/\s+/g, ' ').trim() ||
+    cleanText($('[class*="description"], [class*="desc"]').first().text()) ||
     '';
 
-  const category =
-    $('[class*="breadcrumb"] a').last().text().replace(/\s+/g, ' ').trim() ||
-    'Catálogo';
+  const name = cleanTitle(rawTitle) || cleanTitle(album.hintedName) || `Produto ${album.id}`;
+  const description = cleanDescription(rawDescription);
+  const imageGroups = extractImageGroups($, album.url);
+  const sourceCategoryName = resolveSourceCategory($, album);
+  const classification = classifyItem({ name, description, sourceImageCount: imageGroups.length });
 
   return {
     id: album.id,
-    name: cleanTitle(rawTitle) || cleanTitle(album.hintedName) || `Produto ${album.id}`,
-    category,
-    description: cleanDescription(rawDescription),
+    name,
+    category: sourceCategoryName,
+    description,
     sourceUrl: album.url,
-    imageGroups: extractImageGroups($, album.url)
+    sourceCategoryId: album.sourceCategoryId,
+    sourceCategoryName,
+    sourceImageCount: imageGroups.length,
+    ...classification,
+    imageGroups
   };
 }
 
@@ -255,14 +333,15 @@ async function main() {
   await rm('assets/catalog', { recursive: true, force: true });
 
   const indexHtml = await getHtml(sourceUrl);
-  const albums = extractAlbumLinks(indexHtml, sourceUrl).slice(0, maxAlbums);
+  const categoryMap = extractCategories(indexHtml, sourceUrl);
+  const albums = extractAlbumLinks(indexHtml, sourceUrl, categoryMap).slice(0, maxAlbums);
 
   if (!albums.length) {
     throw new Error('Nenhum álbum foi encontrado. O layout do Yupoo pode ter mudado ou a página pode exigir outro método de leitura.');
   }
 
-  console.log(`${albums.length} álbuns selecionados para o MVP.`);
-  const products = [];
+  console.log(`${albums.length} itens candidatos selecionados.`);
+  const items = [];
   let totalPhotos = 0;
   let totalBytes = 0;
 
@@ -274,41 +353,51 @@ async function main() {
       const images = [];
       const sourceImages = [];
 
-      for (let photoIndex = 0; photoIndex < meta.imageGroups.length; photoIndex++) {
-        const downloaded = await downloadBestImage(meta.imageGroups[photoIndex], album, photoIndex);
-        if (!downloaded) continue;
-        images.push(downloaded.localUrl);
-        sourceImages.push(downloaded.sourceUrl);
-        totalPhotos += 1;
-        totalBytes += downloaded.bytes;
+      if (meta.entityType === 'product') {
+        for (let photoIndex = 0; photoIndex < meta.imageGroups.length; photoIndex++) {
+          const downloaded = await downloadBestImage(meta.imageGroups[photoIndex], album, photoIndex);
+          if (!downloaded) continue;
+          images.push(downloaded.localUrl);
+          sourceImages.push(downloaded.sourceUrl);
+          totalPhotos += 1;
+          totalBytes += downloaded.bytes;
+        }
       }
 
-      const { imageGroups, ...productMeta } = meta;
-      products.push({ ...productMeta, images, sourceImages, imageCount: images.length });
-      console.log(`[${i + 1}/${albums.length}] ${meta.name} | ${images.length} foto(s) original(is)`);
+      const { imageGroups, ...itemMeta } = meta;
+      items.push({ ...itemMeta, images, sourceImages, imageCount: images.length });
+      console.log(`[${i + 1}/${albums.length}] ${meta.entityType.toUpperCase()} | ${meta.name} | ${images.length}/${meta.sourceImageCount} foto(s)`);
     } catch (error) {
       console.warn(`[${i + 1}/${albums.length}] falhou ${album.url}: ${error.message}`);
     }
   }
 
+  const products = items.filter((item) => item.entityType === 'product');
+  const navigation = items.filter((item) => item.entityType === 'navigation');
+  const information = items.filter((item) => item.entityType === 'information');
+
   const output = {
+    schemaVersion: 3,
     source: sourceUrl,
     generatedAt: new Date().toISOString(),
-    store: {
-      name: 'Catalog Engine Demo',
-      whatsapp: ''
-    },
+    taxonomy: [...categoryMap.values()],
     stats: {
+      candidates: items.length,
       products: products.length,
+      navigation: navigation.length,
+      information: information.length,
       photos: totalPhotos,
       downloadedBytes: totalBytes
     },
-    products
+    products,
+    navigation,
+    information,
+    items
   };
 
   await mkdir('data', { recursive: true });
   await writeFile('data/catalog.json', `${JSON.stringify(output, null, 2)}\n`, 'utf8');
-  console.log(`Concluído: ${products.length} produtos, ${totalPhotos} fotos originais, ${(totalBytes / 1024 / 1024).toFixed(1)} MB.`);
+  console.log(`Concluído: ${products.length} produtos, ${navigation.length} atalhos, ${information.length} informativos, ${totalPhotos} fotos HD, ${(totalBytes / 1024 / 1024).toFixed(1)} MB.`);
 }
 
 main().catch((error) => {

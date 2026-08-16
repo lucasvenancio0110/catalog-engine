@@ -4,14 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#0b0b0c" />
-  <title>Catalog Engine</title>
-  <link rel="stylesheet" href="./styles.css" />
+  <meta name="description" content="Catálogo digital" />
+  <title>Catálogo</title>
 </head>
 <body>
   <header class="topbar">
-    <div>
-      <span class="eyebrow">CATÁLOGO DIGITAL</span>
-      <h1 id="storeName">Catalog Engine</h1>
+    <div class="brand-lockup">
+      <img id="storeLogo" class="store-logo" alt="" hidden />
+      <div>
+        <span id="storeEyebrow" class="eyebrow">CATÁLOGO DIGITAL</span>
+        <h1 id="storeName">Catálogo</h1>
+      </div>
     </div>
     <button id="themeToggle" class="ghost" type="button" aria-label="Alternar tema">◐</button>
   </header>
@@ -19,8 +22,8 @@
   <main>
     <section class="hero">
       <div>
-        <p class="eyebrow">VITRINE WHITE-LABEL</p>
-        <h2>Encontre o produto certo sem navegar em centenas de álbuns.</h2>
+        <p id="heroEyebrow" class="eyebrow">NOVIDADES</p>
+        <h2 id="heroTitle">Encontre o produto certo.</h2>
       </div>
       <div class="stats">
         <strong id="productCount">0</strong>
@@ -41,6 +44,7 @@
       </label>
     </section>
 
+    <nav id="categoryChips" class="category-chips" aria-label="Categorias rápidas"></nav>
     <div id="status" class="status">Carregando catálogo…</div>
     <section id="productGrid" class="grid" aria-live="polite"></section>
   </main>
@@ -68,10 +72,10 @@
 
     <div class="dialog-gallery">
       <div class="dialog-main-media">
-        <img id="dialogImage" alt="" />
+        <div id="productSwiper" class="swiper product-swiper" aria-label="Galeria de fotos do produto"></div>
         <a id="downloadImageButton" class="download-action" download>↓ Baixar foto HD</a>
       </div>
-      <div id="dialogThumbs" class="dialog-thumbs" aria-label="Fotos do produto"></div>
+      <div id="dialogThumbs" class="dialog-thumbs" aria-label="Miniaturas do produto"></div>
     </div>
 
     <div class="dialog-copy">
@@ -83,6 +87,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="/src/main.js"></script>
 </body>
 </html>

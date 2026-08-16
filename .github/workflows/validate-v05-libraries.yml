@@ -1,0 +1,52 @@
+name: Validar Catalog V0.5 Libraries
+
+on:
+  push:
+    branches:
+      - agent/catalog-v05-library-baseline
+
+permissions:
+  contents: write
+
+concurrency:
+  group: catalog-v05-libraries
+  cancel-in-progress: true
+
+jobs:
+  validate-libraries:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: agent/catalog-v05-library-baseline
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar baseline reproduzível
+        run: npm ci
+
+      - name: Validar allowlist de dependências
+        run: npm run deps:check
+
+      - name: Testar bibliotecas aprovadas
+        run: npm run test
+
+      - name: Rodar ESLint
+        run: npm run lint
+
+      - name: Crawl isolado pequeno
+        env:
+          MAX_ALBUMS: '8'
+          MAX_PAGES: '1'
+        run: npm run crawl -- "https://zhouchangliang.x.yupoo.com/albums/"
+
+      - name: Auditar catálogo com Zod + PQueue + Sharp
+        run: npm run audit
+
+      - name: Verificar vulnerabilidades runtime
+        run: npm audit --omit=dev --audit-level=high

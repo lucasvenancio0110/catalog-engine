@@ -1,12 +1,40 @@
 {
   "name": "catalog-engine",
-  "version": "0.1.0",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "scrape": "node scripts/scrape-yupoo.mjs"
+    "dev": "vite",
+    "scrape": "node scripts/scrape-yupoo.mjs",
+    "crawl": "node scripts/crawl-yupoo.mjs",
+    "audit": "node scripts/quality-audit.mjs",
+    "deps:check": "node scripts/check-dependency-policy.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "build": "vite build && node scripts/copy-storefront-data.mjs",
+    "build:verify": "node scripts/verify-dist.mjs",
+    "preview": "vite preview",
+    "quality": "npm run deps:check && npm run test && npm run lint"
   },
   "dependencies": {
-    "cheerio": "^1.0.0"
+    "cheerio": "^1.2.0",
+    "fuse.js": "latest",
+    "motion": "latest",
+    "p-queue": "^9.3.3",
+    "sharp": "^0.35.3",
+    "swiper": "latest",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "eslint": "^10.8.0",
+    "prettier": "^3.9.6",
+    "vite": "latest",
+    "vitest": "^4.1.10"
   }
 }
