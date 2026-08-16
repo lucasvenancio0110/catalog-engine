@@ -5,6 +5,7 @@ on:
     branches: ["main"]
     paths-ignore:
       - "data/catalog.json"
+      - "assets/catalog/**"
   workflow_dispatch:
     inputs:
       source_url:
@@ -47,25 +48,25 @@ jobs:
       - name: Instalar dependências
         run: npm install
 
-      - name: Extrair catálogo
+      - name: Extrair catálogo e fotos originais
         env:
           SOURCE_URL: ${{ github.event.inputs.source_url || 'https://zhouchangliang.x.yupoo.com/albums/' }}
           MAX_ALBUMS: ${{ github.event.inputs.max_albums || '20' }}
         run: npm run scrape -- "$SOURCE_URL"
 
-      - name: Validar catálogo extraído
+      - name: Validar catálogo e arquivos locais
         run: |
-          node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('data/catalog.json','utf8')); if (!Array.isArray(c.products) || c.products.length === 0) { console.error('Nenhum produto foi extraído.'); process.exit(1); } console.log('Produtos extraídos:', c.products.length); console.log('Produtos com imagem:', c.products.filter(p => Array.isArray(p.images) && p.images.length).length);"
+          node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('data/catalog.json','utf8')); if (!Array.isArray(c.products) || c.products.length === 0) { console.error('Nenhum produto foi extraído.'); process.exit(1); } const imgs=c.products.flatMap(p => p.images || []); const missing=imgs.filter(i => !fs.existsSync(i.replace(/^\.\//,''))); console.log('Produtos extraídos:', c.products.length); console.log('Fotos HD baixadas:', imgs.length); if (!imgs.length || missing.length) { console.error('Falha na validação das imagens locais.', {missing: missing.slice(0,5)}); process.exit(1); }"
 
-      - name: Salvar catálogo atualizado
+      - name: Salvar catálogo e imagens atualizados
         run: |
           git config user.name "catalog-engine-bot"
           git config user.email "catalog-engine-bot@users.noreply.github.com"
-          git add data/catalog.json
+          git add data/catalog.json assets/catalog
           if git diff --cached --quiet; then
             echo "Nenhuma alteração no catálogo."
           else
-            git commit -m "update imported catalog"
+            git commit -m "update imported catalog and HD images"
             git push origin main
           fi
 
@@ -75,6 +76,7 @@ jobs:
           mkdir -p dist/data
           cp index.html app.js styles.css dist/
           cp data/catalog.json dist/data/catalog.json
+          if [ -d assets ]; then cp -R assets dist/assets; fi
           touch dist/.nojekyll
 
       - name: Configure Pages
