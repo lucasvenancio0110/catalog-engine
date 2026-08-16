@@ -68,6 +68,9 @@ jobs:
           MAX_PAGES: ${{ inputs.max_pages }}
         run: npm run crawl -- "$SOURCE_URL"
 
+      - name: Enriquecer taxonomia pública real
+        run: node scripts/enrich-taxonomy.mjs
+
       - name: Auditar schema e mídia
         run: npm run audit
 
@@ -97,6 +100,7 @@ jobs:
           console.log(JSON.stringify({
             publicProducts: catalog.products?.length || 0,
             observedProducts: catalog.sync?.observedProducts || 0,
+            taxonomy: catalog.taxonomyStats || null,
             scopeKind: syncState.scope?.kind || null,
             scopeComplete: syncState.scope?.complete || false,
             scopes: Object.keys(syncState.scopes || {}).length,
