@@ -36,10 +36,11 @@ jobs:
       - name: Quality gate
         run: npm run quality
 
-      - name: Auditar catálogo, imagens e sync-state
+      - name: Auditar catálogo, imagens, sync-state e taxonomia
         run: |
           npm run audit
           npm run sync:audit
+          npm run taxonomy:audit
 
       - name: Build Vite
         run: npm run build
