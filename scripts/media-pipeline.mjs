@@ -42,11 +42,13 @@ export async function optimizeCatalogMedia({
   catalogPath = 'data/catalog.json',
   manifestPath = 'data/media-manifest.json',
   legacyAssetsPath = 'assets/catalog',
-  store = new RepositoryMediaStore(),
+  store = null,
   concurrency = 4,
   prune = true
 } = {}) {
+  const mediaStore = store || new RepositoryMediaStore({ rootDir: resolve(root, 'assets/media') });
   const absoluteCatalog = resolve(root, catalogPath);
+  const absoluteManifest = resolve(root, manifestPath);
   const catalog = JSON.parse(await readFile(absoluteCatalog, 'utf8'));
   if (!Array.isArray(catalog.products) || !catalog.products.length) {
     throw new Error('Catálogo sem produtos para otimização de mídia.');
@@ -68,7 +70,7 @@ export async function optimizeCatalogMedia({
     if (!(await exists(path))) throw new Error(`Mídia de origem ausente: ${sourceUrl}`);
 
     if (!processingByPath.has(path)) {
-      processingByPath.set(path, queue.add(() => processMediaFile(path, store), { id: path }));
+      processingByPath.set(path, queue.add(() => processMediaFile(path, mediaStore), { id: path }));
     }
     return processingByPath.get(path);
   }
@@ -103,7 +105,7 @@ export async function optimizeCatalogMedia({
     schemaVersion: Math.max(6, Number(catalog.schemaVersion || 0)),
     mediaVersion: 1,
     mediaStats: {
-      storageMode: store.mode,
+      storageMode: mediaStore.mode,
       logicalImages: logicalDescriptors.length,
       uniqueImages: unique.length,
       duplicateReferences: logicalDescriptors.length - unique.length,
@@ -119,17 +121,18 @@ export async function optimizeCatalogMedia({
   const manifest = {
     schemaVersion: 1,
     generatedAt,
-    storage: { mode: store.mode, publicBase: store.publicBase },
+    storage: { mode: mediaStore.mode, publicBase: mediaStore.publicBase },
     stats: output.mediaStats,
     media: unique.map((media) => ({ ...media, refCount: refsById.get(media.id) || 0 }))
   };
 
   await mkdir(dirname(absoluteCatalog), { recursive: true });
+  await mkdir(dirname(absoluteManifest), { recursive: true });
   await writeFile(absoluteCatalog, `${JSON.stringify(output, null, 2)}\n`, 'utf8');
-  await writeFile(resolve(root, manifestPath), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+  await writeFile(absoluteManifest, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
 
   let pruneResult = { removed: 0, removedBytes: 0 };
-  if (prune) pruneResult = await store.prune(referencedUrls(unique));
+  if (prune) pruneResult = await mediaStore.prune(referencedUrls(unique));
 
   const legacy = resolve(root, legacyAssetsPath);
   if (await exists(legacy)) await rm(legacy, { recursive: true, force: true });
