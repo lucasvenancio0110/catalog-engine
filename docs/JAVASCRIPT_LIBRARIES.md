@@ -1,46 +1,62 @@
 # JavaScript Library Baseline
 
-Decision date: 2026-08-16
+Decision baseline: 2026-08-16
 
-The goal is not to maximize dependencies. The goal is to standardize one strong tool per recurring responsibility and eliminate duplicated custom infrastructure.
+The project uses one approved tool per recurring responsibility. New packages must have a clear owner/problem and must be added to `config/dependency-policy.json`; CI rejects unapproved dependencies.
 
-| Responsibility | Decision | Package | Status | Why |
-|---|---|---|---|---|
-| Static HTML parsing | Keep | `cheerio` | Installed | Fast DOM/query model and already proven against the Yupoo structure. |
-| Concurrency / rate limiting | Adopt | `p-queue` | Installed | Explicit concurrency, queueing, timeout and rate-limit controls are safer than unbounded Promise batches. |
-| Runtime schema validation | Adopt | `zod` | Installed | Makes source/store/catalog boundaries explicit and fail-fast. |
-| Image processing | Adopt | `sharp` | Installed | Decoding, metadata, resize and WebP/AVIF/JPEG optimization in one high-performance package. |
-| Tests | Adopt | `vitest` | Installed (dev) | Fast ESM-compatible automated tests with a modern API. |
-| Static analysis | Adopt | `eslint` | Installed (dev) | Enforces correctness and catches regressions before deploy. |
-| Formatting | Adopt | `prettier` | Installed (dev) | One deterministic formatting policy. |
-| Product search | Approved next | `fuse.js` | Not installed yet | Fuzzy typo-tolerant search is valuable when the storefront contains hundreds/thousands of products. |
-| Touch gallery | Approved next | `swiper` | Not installed yet | Strong mobile gallery interaction for product photos. |
-| UI motion | Approved next | `motion` | Not installed yet | Lightweight purposeful animations without adopting a UI framework. |
-| Frontend bundling | Approved next | `vite` | Not installed yet | Required before browser npm dependencies are introduced cleanly. |
+| Responsibility | Package | Status |
+|---|---|---|
+| Static HTML parsing | `cheerio` | Active |
+| Concurrency / rate limiting | `p-queue` | Active |
+| Runtime schema validation | `zod` | Active |
+| Image processing | `sharp` | Active |
+| Product fuzzy search | `fuse.js` | Active |
+| Touch product gallery | `swiper` | Active |
+| UI microinteractions | `motion` | Active |
+| Frontend bundling | `vite` | Active |
+| Tests | `vitest` | Active (dev) |
+| Static analysis | `eslint` | Active (dev) |
+| Formatting | `prettier` | Active (dev) |
+
+## Storefront architecture
+
+Browser dependencies are imported through Vite modules. Production must not load these packages from arbitrary public CDNs.
+
+- Fuse.js owns typo-tolerant local search.
+- Swiper owns image swiping/navigation.
+- Motion owns subtle transitions and must respect reduced-motion accessibility.
+- Vite owns dev/build output and uses a relative base so the same artifact is portable across GitHub Pages, custom domains and future tenant paths.
+
+## Deliberately rejected by default
+
+- Axios/Got: Node 22 native `fetch` is sufficient.
+- jsdom: Cheerio is lighter for static supplier HTML.
+- Playwright/Puppeteer: browser automation is fallback-only.
+- Lodash: native JavaScript covers current transformations.
+- React/Vue/Svelte/Angular: no framework migration without objective product complexity that justifies it.
 
 ## Enforcement
 
-`config/dependency-policy.json` is the machine-readable allowlist. `npm run deps:check` compares `package.json` with that policy, and CI fails if an unapproved dependency is added or an expected baseline package disappears. Architectural approval therefore requires both documentation and policy change, not only an `npm install` command.
+```bash
+npm run deps:check
+npm run test
+npm run lint
+npm run build
+npm run build:verify
+```
 
-## Deliberately rejected for the current architecture
+`npm run build:verify` additionally prevents deployment if public data contains supplier URLs or referenced catalog images are missing from the generated `dist/`.
 
-- Axios/Got as a default HTTP client: Node 22 native `fetch` already covers the base requirement.
-- jsdom as the default parser: Cheerio is lighter for static supplier HTML.
-- Playwright/Puppeteer as the default scraper: browser automation is expensive and should be fallback-only for pages that cannot be read server-side.
-- Lodash for general helpers: native JavaScript is sufficient for the current transformations.
-- React/Vue/Svelte/Angular: the current storefront does not yet justify framework migration cost.
-- Multiple queue/retry libraries for the same concern: PQueue owns concurrency/backpressure; bounded retry remains a small domain-specific utility until requirements justify extracting it.
-
-## Sources reviewed
+## Primary documentation
 
 - Cheerio: https://cheerio.js.org/
 - PQueue: https://github.com/sindresorhus/p-queue
 - Zod: https://zod.dev/
 - Sharp: https://sharp.pixelplumbing.com/
-- Vitest: https://vitest.dev/
-- ESLint: https://eslint.org/
-- Prettier: https://prettier.io/
 - Fuse.js: https://www.fusejs.io/
 - Swiper: https://swiperjs.com/
 - Motion: https://motion.dev/
 - Vite: https://vite.dev/
+- Vitest: https://vitest.dev/
+- ESLint: https://eslint.org/
+- Prettier: https://prettier.io/

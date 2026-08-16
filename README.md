@@ -1,59 +1,93 @@
 # Catalog Engine
 
-MVP para transformar um catálogo público do Yupoo em uma vitrine web white-label.
+MVP para transformar um catálogo público autorizado em uma vitrine web white-label, com importação estruturada, mídia local e build reproduzível.
 
-## Objetivo do MVP 0.1
+## Fluxo atual
 
-Provar o fluxo:
+`URL Yupoo -> classificar -> extrair mídia HD -> data/catalog.json -> Vite -> dist/ -> GitHub Pages`
 
-`URL Yupoo -> extração -> data/catalog.json -> vitrine -> GitHub Pages`
+Ainda sem login, assinatura, banco de dados ou multiusuário. O objetivo continua sendo validar o motor e a experiência comercial antes de transformar o projeto em SaaS.
 
-Sem login, assinatura, banco de dados ou multiusuário nesta etapa.
+## Stack oficial
 
-## Teste inicial
+### Motor/importação
+- Cheerio — parsing HTML.
+- PQueue — concorrência/backpressure.
+- Zod — validação de schemas.
+- Sharp — validação/processamento de imagens.
 
-Catálogo de referência:
+### Storefront
+- Vite — build/dev server.
+- Fuse.js — busca tolerante a erros de digitação.
+- Swiper — galeria touch de produto.
+- Motion — microinterações discretas.
 
-`https://zhouchangliang.x.yupoo.com/albums/`
+### Qualidade
+- Vitest — testes.
+- ESLint — análise estática.
+- Prettier — formatação.
 
-O importador usa, por padrão, até 20 álbuns para validar a extração antes de escalar para o catálogo inteiro.
+A política completa está em `AGENTS.md` e `config/dependency-policy.json`.
 
-## Rodar o extrator
+## Instalação reproduzível
 
 ```bash
-npm install
-npm run scrape -- "https://zhouchangliang.x.yupoo.com/albums/"
+npm ci
 ```
 
-Para limitar a quantidade de álbuns:
+## Desenvolvimento da vitrine
 
 ```bash
-MAX_ALBUMS=20 npm run scrape -- "https://zhouchangliang.x.yupoo.com/albums/"
+npm run dev
 ```
 
-O resultado é salvo em `data/catalog.json`.
+## Build de produção
 
-## Importar sem computador
+```bash
+npm run build
+npm run build:verify
+```
 
-Depois que os workflows estiverem na `main`:
+O Vite gera `dist/`. Depois do build, o projeto copia apenas os dados/mídia pública necessários para o storefront. `dist/` é auditado antes do deploy.
 
-1. Abra **Actions** no GitHub.
-2. Escolha **Importar catálogo Yupoo**.
-3. Clique em **Run workflow**.
-4. Cole a URL pública terminada em `/albums/`.
-5. Informe a quantidade de álbuns do teste.
-6. Execute.
+## Quality gate
 
-Se o catálogo mudar, o workflow atualiza `data/catalog.json`. Esse commit aciona o deploy do GitHub Pages automaticamente.
+```bash
+npm run deps:check
+npm run test
+npm run lint
+npm run build
+npm run build:verify
+```
 
-## Estrutura
+Para mudanças no crawler/importador também execute um crawl real isolado e:
 
-- `scripts/scrape-yupoo.mjs` — importador inicial.
-- `data/catalog.json` — catálogo normalizado consumido pela vitrine.
-- `index.html`, `app.js`, `styles.css` — storefront estático.
-- `.github/workflows/import-yupoo.yml` — importação manual pelo GitHub Actions.
-- `.github/workflows/deploy-pages.yml` — publicação no GitHub Pages.
+```bash
+npm run audit
+```
 
-## Próximo marco
+## Crawl
 
-Validar a estrutura real do Yupoo com o catálogo de teste e fortalecer o parser para paginação, categorias, imagens e detecção de alterações.
+```bash
+MAX_ALBUMS=20 MAX_PAGES=2 npm run crawl -- "https://fornecedor.x.yupoo.com/albums/"
+```
+
+O catálogo público é salvo em `data/catalog.json`. Estado sensível da origem não deve ser versionado nem publicado.
+
+## Estrutura principal
+
+- `src/main.js` — entrada do storefront.
+- `src/catalog/search.js` — busca Fuse.js.
+- `src/product/gallery.js` — galeria Swiper.
+- `src/ui/motion.js` — microinterações Motion.
+- `src/styles.css` — estilos da vitrine.
+- `scripts/scrape-yupoo.mjs` — extrator de página.
+- `scripts/crawl-yupoo.mjs` — orquestrador do catálogo.
+- `scripts/quality-audit.mjs` — auditoria Zod/PQueue/Sharp.
+- `scripts/verify-dist.mjs` — auditoria do artifact público.
+- `vite.config.js` — build portátil com `base: './'`.
+- `.github/workflows/deploy-pages.yml` — build e publicação do `dist/` no GitHub Pages.
+
+## Regra de produto
+
+O storefront não deve expor o fornecedor. A origem existe apenas para o motor de sincronização. A camada pública recebe marca da loja, catálogo normalizado e mídia autorizada.
