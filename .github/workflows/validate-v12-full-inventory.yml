@@ -10,7 +10,7 @@ permissions:
 
 env:
   SOURCE_URL: https://zhouchangliang.x.yupoo.com/albums/
-  MAX_PAGES_PER_SCOPE: "120"
+  MAX_PAGES_PER_SCOPE: "300"
   INVENTORY_CONCURRENCY: "2"
 
 jobs:
@@ -41,30 +41,13 @@ jobs:
       - name: Exibir resumo
         if: always()
         run: |
-          if [ -f data/full-inventory-summary.json ]; then
-            node --input-type=module <<'NODE'
-            import fs from 'node:fs';
-            const s = JSON.parse(fs.readFileSync('data/full-inventory-summary.json', 'utf8'));
-            console.log(JSON.stringify({
-              taxonomy: s.taxonomy,
-              scopes: s.scopes,
-              products: s.products,
-              mediaEstimate: s.mediaEstimate,
-              topCategories: s.categoryStats?.slice(0, 25),
-              incompleteScopes: s.incompleteScopes
-            }, null, 2));
-            NODE
-            {
-              echo '## Full Catalog Inventory';
-              echo '';
-              echo '```json';
-              node -e "const s=require('./data/full-inventory-summary.json'); console.log(JSON.stringify({taxonomy:s.taxonomy,scopes:s.scopes,products:s.products,mediaEstimate:s.mediaEstimate,topCategories:s.categoryStats.slice(0,20),incompleteScopes:s.incompleteScopes},null,2))";
-              echo '```';
-            } >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo 'Inventário não gerou resumo.' >&2
-            exit 1
-          fi
+          test -f data/full-inventory-summary.json
+          node -e "const s=require('./data/full-inventory-summary.json'); console.log(JSON.stringify({taxonomy:s.taxonomy,scopes:s.scopes,products:s.products,mediaEstimate:s.mediaEstimate,topCategories:s.categoryStats.slice(0,25),incompleteScopes:s.incompleteScopes},null,2))"
+          echo '## Full Catalog Inventory' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          node -e "const s=require('./data/full-inventory-summary.json'); console.log(JSON.stringify({taxonomy:s.taxonomy,scopes:s.scopes,products:s.products,mediaEstimate:s.mediaEstimate,topCategories:s.categoryStats.slice(0,20),incompleteScopes:s.incompleteScopes},null,2))" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload inventário privado para análise
         if: always()
@@ -80,12 +63,4 @@ jobs:
       - name: Exigir varredura completa
         if: always()
         run: |
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const s = JSON.parse(fs.readFileSync('data/full-inventory-summary.json', 'utf8'));
-          if (s.scopes.incomplete !== 0) {
-            throw new Error(`Inventário incompleto: ${s.scopes.incomplete} escopos não concluídos.`);
-          }
-          if (!s.products.uniqueCandidates) throw new Error('Nenhum produto candidato encontrado.');
-          console.log(`Inventário completo: ${s.products.uniqueCandidates} candidatos em ${s.scopes.total} escopos.`);
-          NODE
+          node -e "const s=require('./data/full-inventory-summary.json'); if(s.scopes.incomplete!==0) throw new Error('Inventário incompleto: '+s.scopes.incomplete+' escopos não concluídos.'); if(!s.products.uniqueCandidates) throw new Error('Nenhum produto candidato encontrado.'); console.log('Inventário completo: '+s.products.uniqueCandidates+' candidatos em '+s.scopes.total+' escopos.')"
