@@ -73,8 +73,13 @@ function categoryButton(category, selectedId = '') {
   button.type = 'button';
   button.className = 'category-chip';
   button.dataset.categoryId = category.id;
-  const count = state.taxonomy?.count(category.id) || 0;
-  button.innerHTML = `<span>${category.name}</span><small>${count}</small>`;
+
+  const label = document.createElement('span');
+  label.textContent = category.name;
+  const badge = document.createElement('small');
+  badge.textContent = String(state.taxonomy?.count(category.id) || 0);
+  button.append(label, badge);
+
   const active = category.id === selectedId;
   button.classList.toggle('active', active);
   button.setAttribute('aria-current', active ? 'true' : 'false');
@@ -112,8 +117,9 @@ function renderCategoryBrowser() {
 
   els.categoryBrowser.hidden = false;
   const selected = state.categoryId ? model.byId.get(state.categoryId) : null;
+  const selectedCount = selected ? model.count(selected.id) : 0;
   els.categoryTitle.textContent = selected
-    ? `${selected.name} · ${model.count(selected.id)} produto${model.count(selected.id) === 1 ? '' : 's'}`
+    ? `${selected.name} · ${selectedCount} produto${selectedCount === 1 ? '' : 's'}`
     : 'Todas as categorias';
   els.categoryBack.hidden = !selected;
   renderCategoryTrail(selected);
