@@ -26,11 +26,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: package-lock.json
-        continue-on-error: true
 
-      - name: Instalar baseline e gerar lockfile
-        run: npm install
+      - name: Instalar baseline reproduzível
+        run: npm ci
+
+      - name: Validar allowlist de dependências
+        run: npm run deps:check
 
       - name: Testar bibliotecas aprovadas
         run: npm run test
@@ -49,15 +50,3 @@ jobs:
 
       - name: Verificar vulnerabilidades runtime
         run: npm audit --omit=dev --audit-level=high
-
-      - name: Persistir package-lock
-        run: |
-          git config user.name "catalog-engine-bot"
-          git config user.email "catalog-engine-bot@users.noreply.github.com"
-          git add package-lock.json
-          if git diff --cached --quiet; then
-            echo "package-lock.json já está atualizado."
-          else
-            git commit -m "lock approved JavaScript library baseline"
-            git push origin HEAD:agent/catalog-v05-library-baseline
-          fi

@@ -1,0 +1,31 @@
+{
+  "runtime": [
+    "cheerio",
+    "p-queue",
+    "sharp",
+    "zod"
+  ],
+  "development": [
+    "eslint",
+    "prettier",
+    "vitest"
+  ],
+  "approvedFutureStorefront": [
+    "fuse.js",
+    "swiper",
+    "motion",
+    "vite"
+  ],
+  "blockedByDefault": [
+    "axios",
+    "got",
+    "lodash",
+    "jsdom",
+    "playwright",
+    "puppeteer",
+    "react",
+    "vue",
+    "svelte",
+    "angular"
+  ]
+}

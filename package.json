@@ -10,12 +10,13 @@
     "scrape": "node scripts/scrape-yupoo.mjs",
     "crawl": "node scripts/crawl-yupoo.mjs",
     "audit": "node scripts/quality-audit.mjs",
+    "deps:check": "node scripts/check-dependency-policy.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "quality": "npm run test && npm run lint"
+    "quality": "npm run deps:check && npm run test && npm run lint"
   },
   "dependencies": {
     "cheerio": "^1.2.0",
