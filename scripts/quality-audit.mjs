@@ -4,14 +4,26 @@ import PQueue from 'p-queue';
 import sharp from 'sharp';
 import { z } from 'zod';
 
-const imagePathSchema = z.string().regex(/^\.\/assets\/catalog\//);
+const legacyImageSchema = z.string().regex(/^\.\/assets\/catalog\//);
+const mediaDescriptorSchema = z.object({
+  id: z.string().regex(/^m_[a-f0-9]{20}$/),
+  hash: z.string().regex(/^[a-f0-9]{64}$/),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  bytes: z.number().int().positive(),
+  format: z.string().min(1),
+  url: z.string().regex(/^\.\/assets\/media\/web\//),
+  thumbnailUrl: z.string().regex(/^\.\/assets\/media\/thumb\//),
+  downloadUrl: z.string().regex(/^\.\/assets\/media\/original\//)
+}).passthrough();
+const imageSchema = z.union([legacyImageSchema, mediaDescriptorSchema]);
 
 const productSchema = z.object({
   id: z.union([z.string(), z.number()]).transform(String),
   name: z.string().min(1),
   category: z.string().min(1),
   description: z.string().default(''),
-  images: z.array(imagePathSchema).min(1),
+  images: z.array(imageSchema).min(1),
   imageCount: z.number().int().nonnegative().optional(),
   entityType: z.literal('product').optional()
 }).passthrough();
@@ -36,6 +48,16 @@ const catalogSchema = z.object({
   }).passthrough()).default([]),
   products: z.array(productSchema).min(1)
 }).passthrough();
+
+function primaryPath(image) {
+  return typeof image === 'string' ? image : image.downloadUrl || image.url;
+}
+
+function allPublicPaths(image) {
+  return typeof image === 'string'
+    ? [image]
+    : [image.url, image.thumbnailUrl, image.downloadUrl].filter(Boolean);
+}
 
 async function auditImage(relativePath) {
   const localPath = resolve(process.cwd(), relativePath.replace(/^\.\//, ''));
@@ -67,21 +89,28 @@ if (catalog.schemaVersion >= 4) {
   const invalidProducts = catalog.products.filter((product) => !/^p_[a-f0-9]{20}$/.test(product.id));
   const invalidCategories = catalog.taxonomy.filter((category) => !/^c_[a-f0-9]{20}$/.test(category.id));
   const rawAssetPaths = catalog.products
-    .flatMap((product) => product.images)
+    .flatMap((product) => product.images.flatMap(allPublicPaths))
     .filter((path) => /\/assets\/catalog\/\d+\//.test(path));
 
   if (invalidProducts.length || invalidCategories.length || rawAssetPaths.length) {
-    throw new Error('White-label identity gate: schema v4 contém ID/pasta pública não opaca.');
+    throw new Error('White-label identity gate: catálogo contém ID/pasta pública não opaca.');
   }
 
   for (const product of catalog.products) {
-    if (product.images.some((path) => !path.includes(`/assets/catalog/${product.id}/`))) {
+    if (catalog.schemaVersion >= 6) {
+      if (product.images.some((image) => typeof image !== 'object')) {
+        throw new Error(`Schema 6 exige media descriptors no produto ${product.id}.`);
+      }
+      if (product.images.flatMap(allPublicPaths).some((path) => !path.startsWith('./assets/media/'))) {
+        throw new Error(`Schema 6 contém mídia fora do content-addressed store no produto ${product.id}.`);
+      }
+    } else if (product.images.some((image) => !String(image).includes(`/assets/catalog/${product.id}/`))) {
       throw new Error(`Imagem fora do namespace público do produto ${product.id}.`);
     }
   }
 }
 
-const paths = [...new Set(catalog.products.flatMap((product) => product.images))];
+const paths = [...new Set(catalog.products.flatMap((product) => product.images.map(primaryPath)))];
 const queue = new PQueue({ concurrency: 4, timeout: 20_000 });
 const jobs = paths.map((path) => queue.add(() => auditImage(path), { id: path }));
 const images = await Promise.all(jobs);
@@ -103,5 +132,6 @@ console.log(JSON.stringify({
   totalMB: Number((totalBytes / 1024 / 1024).toFixed(2)),
   formats,
   opaqueIds: catalog.schemaVersion >= 4,
+  mediaDescriptors: catalog.schemaVersion >= 6,
   concurrency: 4
 }, null, 2));
