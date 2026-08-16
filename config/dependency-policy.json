@@ -1,21 +1,20 @@
 {
   "runtime": [
     "cheerio",
+    "fuse.js",
+    "motion",
     "p-queue",
     "sharp",
+    "swiper",
     "zod"
   ],
   "development": [
     "eslint",
     "prettier",
+    "vite",
     "vitest"
   ],
-  "approvedFutureStorefront": [
-    "fuse.js",
-    "swiper",
-    "motion",
-    "vite"
-  ],
+  "approvedFutureStorefront": [],
   "blockedByDefault": [
     "axios",
     "got",

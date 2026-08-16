@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#0b0b0c" />
+  <meta name="description" content="Catálogo digital" />
   <title>Catálogo</title>
-  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
   <header class="topbar">
@@ -72,10 +72,10 @@
 
     <div class="dialog-gallery">
       <div class="dialog-main-media">
-        <img id="dialogImage" alt="" />
+        <div id="productSwiper" class="swiper product-swiper" aria-label="Galeria de fotos do produto"></div>
         <a id="downloadImageButton" class="download-action" download>↓ Baixar foto HD</a>
       </div>
-      <div id="dialogThumbs" class="dialog-thumbs" aria-label="Fotos do produto"></div>
+      <div id="dialogThumbs" class="dialog-thumbs" aria-label="Miniaturas do produto"></div>
     </div>
 
     <div class="dialog-copy">
@@ -87,6 +87,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="/src/main.js"></script>
 </body>
 </html>

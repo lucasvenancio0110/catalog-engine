@@ -1,0 +1,75 @@
+name: Validar Catalog V0.6 Vite
+
+on:
+  push:
+    branches: ["agent/catalog-v06-vite-storefront"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: catalog-v06-vite-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-vite:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: agent/catalog-v06-vite-storefront
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Resolver e instalar baseline Vite
+        run: npm install
+
+      - name: Validar allowlist de dependências
+        run: npm run deps:check
+
+      - name: Testar JavaScript e busca Fuse
+        run: npm run test
+
+      - name: Rodar ESLint
+        run: npm run lint
+
+      - name: Crawl real isolado para smoke test
+        env:
+          MAX_ALBUMS: 8
+          MAX_PAGES: 1
+        run: npm run crawl -- "https://zhouchangliang.x.yupoo.com/albums/"
+
+      - name: Auditar catálogo e imagens
+        run: npm run audit
+
+      - name: Build de produção com Vite
+        run: npm run build
+
+      - name: Auditar dist publicável
+        run: npm run build:verify
+
+      - name: Verificar vulnerabilidades runtime
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Upload do dist validado
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Persistir lockfile reproduzível
+        run: |
+          git config user.name "catalog-engine-bot"
+          git config user.email "catalog-engine-bot@users.noreply.github.com"
+          git add package.json package-lock.json
+          if git diff --cached --quiet; then
+            echo "package-lock já está atualizado."
+            exit 0
+          fi
+          git commit -m "lock Vite storefront dependencies"
+          git push

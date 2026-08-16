@@ -24,14 +24,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Preparar site estático
-        run: |
-          rm -rf dist
-          mkdir -p dist/data
-          cp index.html app.js styles.css dist/
-          cp data/catalog.json dist/data/catalog.json
-          if [ -d assets ]; then cp -R assets dist/assets; fi
-          touch dist/.nojekyll
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências reproduzíveis
+        run: npm ci
+
+      - name: Quality gate
+        run: npm run quality
+
+      - name: Build Vite
+        run: npm run build
+
+      - name: Auditar dist
+        run: npm run build:verify
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
