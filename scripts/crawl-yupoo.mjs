@@ -5,7 +5,8 @@ import {
   contentFingerprint,
   publicCategoryId,
   publicProductId,
-  reconcileSyncState
+  publicScopeIdentity,
+  reconcileScopedSyncState
 } from './catalog-sync.mjs';
 
 const provider = 'yupoo';
@@ -143,8 +144,9 @@ function sanitizeTaxonomy(entry) {
   };
 }
 
-function mergeTaxonomy(previous, observed, complete) {
-  if (complete || !Array.isArray(previous)) return observed;
+function mergeTaxonomy(previous, observed, { complete, scopeKind }) {
+  if (complete && scopeKind === 'catalog') return observed;
+  if (!Array.isArray(previous)) return observed;
   const merged = new Map(previous.map((entry) => [entry.id, entry]));
   for (const entry of observed) merged.set(entry.id, entry);
   return [...merged.values()];
@@ -160,21 +162,22 @@ async function calculatePublicMediaStats(products) {
 }
 
 async function main() {
-  const hostname = new URL(sourceUrl).hostname;
-  if (!hostname.endsWith('.x.yupoo.com')) {
+  const source = new URL(sourceUrl);
+  if (!source.hostname.endsWith('.x.yupoo.com')) {
     throw new Error('A fonte precisa ser um catálogo público do Yupoo (*.x.yupoo.com).');
   }
+  const currentScope = publicScopeIdentity(provider, sourceUrl);
 
   const previousCatalog = await readJson(outputData, { products: [], taxonomy: [] });
   const previousSyncState = await readJson(syncStateData);
-  const hasSyncBaseline = previousSyncState?.schemaVersion === 1;
-  const migrationMode = !hasSyncBaseline;
+  const hasSyncBaseline = [1, 2].includes(previousSyncState?.schemaVersion);
+  const identityMigrationMode = !hasSyncBaseline || Number(previousCatalog?.schemaVersion || 0) < 4;
 
   await rm(scratchRoot, { recursive: true, force: true });
   await mkdir(scratchRoot, { recursive: true });
 
-  if (migrationMode) {
-    console.log('Migração V0.7: removendo diretórios públicos legados com IDs brutos.');
+  if (identityMigrationMode) {
+    console.log('Migração de identidade pública: removendo diretórios legados antes de reconstruir a superfície sanitizada.');
     await rm(outputAssets, { recursive: true, force: true });
   }
   await mkdir(outputAssets, { recursive: true });
@@ -200,7 +203,7 @@ async function main() {
     await mkdir(pageDir, { recursive: true });
 
     const url = pagedUrl(sourceUrl, page);
-    console.log(`\n=== CRAWL página ${page}/${maxPages}: ${url} | janela ${maxCandidates} candidatos para ${remainingProducts} produtos restantes ===`);
+    console.log(`\n=== CRAWL ${currentScope.kind} página ${page}/${maxPages}: ${url} | janela ${maxCandidates} candidatos para ${remainingProducts} produtos restantes ===`);
 
     await runWorker(url, pageDir, maxCandidates);
 
@@ -305,15 +308,20 @@ async function main() {
     contentHash: contentFingerprint(product)
   }));
 
-  const reconciled = reconcileSyncState(
+  const reconciled = reconcileScopedSyncState(
     hasSyncBaseline ? previousSyncState : null,
     observedForSync,
-    { complete, now }
+    {
+      scopeId: currentScope.id,
+      scopeKind: currentScope.kind,
+      complete,
+      now
+    }
   );
   const syncState = {
     ...reconciled,
     scope: {
-      complete,
+      ...reconciled.scope,
       pagesScanned,
       maxPages,
       requestedMaxAlbums,
@@ -340,7 +348,10 @@ async function main() {
   );
   const store = await loadStoreConfig();
   const observedTaxonomy = [...taxonomyBySourceId.values()].map(sanitizeTaxonomy);
-  const taxonomy = mergeTaxonomy(previousCatalog.taxonomy, observedTaxonomy, complete || migrationMode);
+  const taxonomy = mergeTaxonomy(previousCatalog.taxonomy, observedTaxonomy, {
+    complete,
+    scopeKind: currentScope.kind
+  });
   const navigation = [...navigationById.values()];
   const information = [...informationById.values()];
   const mediaStats = await calculatePublicMediaStats(products);
@@ -351,6 +362,7 @@ async function main() {
     store,
     taxonomy,
     sync: {
+      scopeKind: currentScope.kind,
       scopeComplete: complete,
       stopReason,
       observedProducts: observedPublicProducts.length,
@@ -381,7 +393,7 @@ async function main() {
   };
 
   const sourceState = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     source: sourceUrl,
     generatedAt: now,
     scope: syncState.scope,
@@ -410,8 +422,8 @@ async function main() {
   await writeFile(sourceStateData, `${JSON.stringify(sourceState, null, 2)}\n`, 'utf8');
   await rm(scratchRoot, { recursive: true, force: true });
 
-  console.log(`\nSYNC concluído: ${observedPublicProducts.length} observados, ${products.length} públicos, ${mediaStats.photos} fotos, escopo ${complete ? 'COMPLETO' : 'PARCIAL'} (${stopReason}).`);
-  console.log(`Mudanças: +${syncState.summary.new} novos, ~${syncState.summary.updated} atualizados, ↩${syncState.summary.restored} restaurados, -${syncState.summary.removed} removidos, ?${syncState.summary.unobserved} não observados preservados.`);
+  console.log(`\nSYNC ${currentScope.kind} concluído: ${observedPublicProducts.length} observados, ${products.length} públicos, ${mediaStats.photos} fotos, escopo ${complete ? 'COMPLETO' : 'PARCIAL'} (${stopReason}).`);
+  console.log(`Mudanças: +${syncState.summary.new} novos, ~${syncState.summary.updated} atualizados, ↩${syncState.summary.restored} restaurados, -${syncState.summary.removed} removidos, ⇢${syncState.summary.detached} desligados deste escopo, ?${syncState.summary.unobserved} não observados preservados.`);
 }
 
 main().catch((error) => {
