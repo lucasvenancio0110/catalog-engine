@@ -1,0 +1,115 @@
+name: Validar Release Catalog Engine Next
+
+on:
+  push:
+    branches: ["release/catalog-engine-next"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: catalog-release-next-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar exatamente pelo lockfile
+        run: npm ci
+
+      - name: Quality gate base
+        run: npm run quality
+
+      - name: Validar árvore real do fornecedor
+        run: |
+          node --input-type=module <<'NODE'
+          import { scanYupooTaxonomy } from './scripts/yupoo-taxonomy.mjs';
+
+          const result = await scanYupooTaxonomy('https://zhouchangliang.x.yupoo.com/albums/');
+          const byId = new Map(result.categories.map((category) => [category.id, category]));
+          const brazil = byId.get('490727');
+          const expectedChildren = ['66243', '66253', '66255'];
+          const childrenOk = expectedChildren.every((id) => byId.get(id)?.parentId === '490727');
+
+          console.log(JSON.stringify({
+            ok: Boolean(brazil) && childrenOk,
+            stats: result.stats,
+            brazil: brazil ? {
+              id: brazil.id,
+              name: brazil.name,
+              childCount: brazil.childIds.length,
+              depth: brazil.depth
+            } : null
+          }, null, 2));
+
+          if (!brazil || result.stats.total < 20 || result.stats.nested < 10 || !childrenOk) {
+            process.exit(1);
+          }
+          NODE
+
+      - name: Crawl integrado de release
+        env:
+          MAX_ALBUMS: 40
+          MAX_PAGES: 2
+        run: npm run crawl -- "https://zhouchangliang.x.yupoo.com/albums/"
+
+      - name: Auditar schema e mídia
+        run: npm run audit
+
+      - name: Validar volume mínimo da release
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+
+          const catalog = JSON.parse(await readFile('data/catalog.json', 'utf8'));
+          const products = catalog.products || [];
+          const taxonomy = catalog.taxonomy || catalog.categories || [];
+          const images = products.flatMap((product) => product.images || []);
+          const serialized = JSON.stringify(catalog).toLowerCase();
+          const supplierLeak = serialized.includes('x.yupoo.com') || serialized.includes('photo.yupoo.com');
+
+          const report = {
+            products: products.length,
+            taxonomyEntries: taxonomy.length,
+            images: images.length,
+            productsWithoutImages: products.filter((product) => !(product.images || []).length).length,
+            supplierLeak
+          };
+          console.log(JSON.stringify(report, null, 2));
+
+          if (
+            products.length < 40 ||
+            taxonomy.length < 20 ||
+            images.length < 40 ||
+            report.productsWithoutImages > 0 ||
+            supplierLeak
+          ) {
+            process.exit(1);
+          }
+          NODE
+
+      - name: Build de produção Vite
+        run: npm run build
+
+      - name: Auditar artifact publicável
+        run: npm run build:verify
+
+      - name: Verificar vulnerabilidades runtime
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Upload do artifact de release
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
