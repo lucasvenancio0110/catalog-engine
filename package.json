@@ -9,6 +9,7 @@
   "scripts": {
     "scrape": "node scripts/scrape-yupoo.mjs",
     "crawl": "node scripts/crawl-yupoo.mjs",
+    "audit": "node scripts/quality-audit.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
