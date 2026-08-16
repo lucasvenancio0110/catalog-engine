@@ -5,6 +5,7 @@ import { dirname, extname } from 'node:path';
 const sourceUrl = process.argv[2] || 'https://zhouchangliang.x.yupoo.com/albums/';
 const maxAlbums = Number(process.env.MAX_ALBUMS || 20);
 const timeoutMs = 30000;
+const requestAttempts = 4;
 
 const headers = {
   'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36',
@@ -17,6 +18,10 @@ function absolute(base, value) {
   if (!value) return null;
   if (value.startsWith('//')) return `https:${value}`;
   try { return new URL(value, base).href; } catch { return null; }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function assertYupooSource(value) {
@@ -49,8 +54,30 @@ async function fetchWithTimeout(url, options = {}) {
   }
 }
 
+async function fetchWithRetry(url, options = {}, attempts = requestAttempts) {
+  let lastError;
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const response = await fetchWithTimeout(url, options);
+      if (response.status === 429 || response.status >= 500) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return response;
+    } catch (error) {
+      lastError = error;
+      if (attempt === attempts) break;
+      const delay = attempt * 1500;
+      console.warn(`Tentativa ${attempt}/${attempts} falhou em ${url}: ${error.message}. Nova tentativa em ${delay} ms.`);
+      await sleep(delay);
+    }
+  }
+
+  throw lastError;
+}
+
 async function getHtml(url) {
-  const response = await fetchWithTimeout(url, { headers });
+  const response = await fetchWithRetry(url, { headers });
   if (!response.ok) throw new Error(`HTTP ${response.status} em ${url}`);
   return await response.text();
 }
@@ -188,13 +215,13 @@ function extensionFor(url, contentType) {
 async function downloadBestImage(candidates, album, photoIndex) {
   for (const candidate of candidates) {
     try {
-      const response = await fetchWithTimeout(candidate.url, {
+      const response = await fetchWithRetry(candidate.url, {
         headers: {
           ...headers,
           referer: album.url,
           accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
         }
-      });
+      }, 3);
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const contentType = response.headers.get('content-type') || '';
