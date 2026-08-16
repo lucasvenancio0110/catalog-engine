@@ -4,17 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       source_url:
-        description: "URL pública do catálogo Yupoo (/albums/)"
+        description: "URL pública Yupoo do catálogo geral (/albums/) ou de uma categoria (/categories/...)"
         required: true
         default: "https://zhouchangliang.x.yupoo.com/albums/"
         type: string
       max_albums:
-        description: "Quantidade máxima de produtos comerciais no MVP (até 120 enquanto usamos GitHub como storage)"
+        description: "Quantidade máxima de produtos comerciais neste escopo (até 120 enquanto usamos GitHub como storage)"
         required: true
         default: "40"
         type: string
       max_pages:
-        description: "Quantidade máxima de páginas do Yupoo para varrer"
+        description: "Quantidade máxima de páginas deste escopo para varrer"
         required: true
         default: "3"
         type: string
@@ -71,7 +71,7 @@ jobs:
       - name: Auditar schema e mídia
         run: npm run audit
 
-      - name: Auditar identidade e estado de sincronização
+      - name: Auditar identidade e ledger de escopos
         run: npm run sync:audit
 
       - name: Gerar relatório de mudanças
@@ -97,7 +97,9 @@ jobs:
           console.log(JSON.stringify({
             publicProducts: catalog.products?.length || 0,
             observedProducts: catalog.sync?.observedProducts || 0,
+            scopeKind: syncState.scope?.kind || null,
             scopeComplete: syncState.scope?.complete || false,
+            scopes: Object.keys(syncState.scopes || {}).length,
             stopReason: syncState.scope?.stopReason || null,
             changes: syncState.summary
           }, null, 2));
@@ -112,7 +114,7 @@ jobs:
       - name: Verificar vulnerabilidades runtime
         run: npm audit --omit=dev --audit-level=high
 
-      - name: Salvar catálogo, sync-state sanitizado e imagens
+      - name: Salvar catálogo, ledger sanitizado e imagens
         run: |
           git config user.name "catalog-engine-bot"
           git config user.email "catalog-engine-bot@users.noreply.github.com"
