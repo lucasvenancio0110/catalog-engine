@@ -44,16 +44,19 @@ if (await exists(resolve(root, 'assets/catalog'))) {
   throw new Error('Pasta legada assets/catalog ainda existe após a migração de mídia.');
 }
 
-const logicalMedia = (catalog.products || []).flatMap((product) => product.images || []);
-if (!logicalMedia.length) throw new Error('Catálogo sem mídia para auditar.');
+const logicalMedia = (catalog.products || []).flatMap((product) => product.media || []);
+if (!logicalMedia.length) throw new Error('Catálogo sem rich media para auditar.');
 
 for (const product of catalog.products || []) {
-  if (!Array.isArray(product.images) || !product.images.length) throw new Error(`Produto sem mídia: ${product.id}`);
-  if (product.imageCount !== undefined && product.imageCount !== product.images.length) {
+  if (!Array.isArray(product.images) || !product.images.length) throw new Error(`Produto sem images: ${product.id}`);
+  if (!Array.isArray(product.media) || product.media.length !== product.images.length) {
+    throw new Error(`Produto sem descriptors alinhados: ${product.id}`);
+  }
+  if (product.imageCount !== undefined && product.imageCount !== product.media.length) {
     throw new Error(`imageCount divergente no produto ${product.id}.`);
   }
-  for (const media of product.images) {
-    if (!media || typeof media !== 'object') throw new Error(`Produto ${product.id} ainda usa imagem legada string.`);
+
+  product.media.forEach((media, index) => {
     if (!mediaIdPattern.test(String(media.id || ''))) throw new Error(`Media ID inválido no produto ${product.id}.`);
     if (!hashPattern.test(String(media.hash || ''))) throw new Error(`Media hash inválido no produto ${product.id}.`);
     if (media.id !== `m_${media.hash.slice(0, 20)}`) throw new Error(`Media ID não corresponde ao hash: ${media.id}`);
@@ -61,8 +64,9 @@ for (const product of catalog.products || []) {
       throw new Error(`Dimensões originais inválidas em ${media.id}.`);
     }
     if (!Number.isInteger(media.bytes) || media.bytes < 1) throw new Error(`Bytes originais inválidos em ${media.id}.`);
+    if (product.images[index] !== media.url) throw new Error(`images/media fora de sincronia no produto ${product.id}.`);
     for (const url of [media.url, media.thumbnailUrl, media.downloadUrl]) localPath(url);
-  }
+  });
 }
 
 const unique = new Map();
