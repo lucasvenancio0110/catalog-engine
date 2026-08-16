@@ -50,6 +50,7 @@
       <div class="image-wrap">
         <img class="product-image" alt="" loading="lazy" />
         <div class="image-fallback">Sem imagem</div>
+        <span class="photo-count" hidden></span>
       </div>
       <div class="card-content">
         <span class="category"></span>
@@ -64,10 +65,19 @@
 
   <dialog id="productDialog">
     <button id="dialogClose" class="dialog-close" type="button" aria-label="Fechar">×</button>
-    <img id="dialogImage" alt="" />
+
+    <div class="dialog-gallery">
+      <div class="dialog-main-media">
+        <img id="dialogImage" alt="" />
+        <a id="downloadImageButton" class="download-action" download>↓ Baixar foto HD</a>
+      </div>
+      <div id="dialogThumbs" class="dialog-thumbs" aria-label="Fotos do produto"></div>
+    </div>
+
     <div class="dialog-copy">
       <span id="dialogCategory" class="category"></span>
       <h2 id="dialogName"></h2>
+      <p id="dialogPhotoCount" class="dialog-photo-count"></p>
       <p id="dialogDescription"></p>
       <a id="whatsappButton" class="primary-action" target="_blank" rel="noopener">Pedir no WhatsApp</a>
     </div>

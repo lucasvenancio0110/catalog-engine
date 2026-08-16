@@ -30,6 +30,7 @@ jobs:
           mkdir -p dist/data
           cp index.html app.js styles.css dist/
           cp data/catalog.json dist/data/catalog.json
+          if [ -d assets ]; then cp -R assets dist/assets; fi
           touch dist/.nojekyll
 
       - name: Configure Pages
