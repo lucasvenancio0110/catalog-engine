@@ -36,7 +36,9 @@ describe('optimizeCatalogMedia', () => {
   it('preserves one original HD file, creates web/thumb derivatives and deduplicates identical content', async () => {
     const { root, source } = await fixtureRoot();
     const result = await optimizeCatalogMedia({ root });
-    const [a, b] = result.catalog.products.map((product) => product.images[0]);
+    const [productA, productB] = result.catalog.products;
+    const [a] = productA.media;
+    const [b] = productB.media;
 
     expect(result.catalog.schemaVersion).toBe(6);
     expect(result.catalog.mediaVersion).toBe(1);
@@ -48,6 +50,8 @@ describe('optimizeCatalogMedia', () => {
     expect(a.url).toBe(b.url);
     expect(a.downloadUrl).toBe(b.downloadUrl);
     expect(a.thumbnailUrl).toBe(b.thumbnailUrl);
+    expect(productA.images).toEqual([a.url]);
+    expect(productB.images).toEqual([b.url]);
     expect(a.width).toBe(1000);
     expect(a.height).toBe(800);
     expect(a.bytes).toBe(source.length);
@@ -64,13 +68,16 @@ describe('optimizeCatalogMedia', () => {
     expect(Buffer.compare(originalBytes, source)).toBe(0);
   });
 
-  it('is idempotent after the catalog already contains media descriptors', async () => {
+  it('is idempotent after the catalog already contains rich media descriptors', async () => {
     const { root } = await fixtureRoot();
     const first = await optimizeCatalogMedia({ root });
     const second = await optimizeCatalogMedia({ root });
 
     expect(second.catalog.products.map((product) => product.images)).toEqual(
       first.catalog.products.map((product) => product.images)
+    );
+    expect(second.catalog.products.map((product) => product.media)).toEqual(
+      first.catalog.products.map((product) => product.media)
     );
     expect(second.catalog.mediaStats).toEqual(first.catalog.mediaStats);
     expect(second.prune.removed).toBe(0);
