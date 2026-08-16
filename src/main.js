@@ -1,4 +1,5 @@
 import './styles.css';
+import { getProductMedia, productGalleryUrls } from './catalog/media.js';
 import { createProductSearch } from './catalog/search.js';
 import { createTaxonomyModel } from './catalog/taxonomy.js';
 import { mountProductGallery } from './product/gallery.js';
@@ -54,12 +55,6 @@ function slugify(value = 'produto') {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 80) || 'produto';
-}
-
-function getImages(product) {
-  return Array.isArray(product.images)
-    ? product.images.map((image) => (typeof image === 'string' ? image : image?.url)).filter(Boolean)
-    : [];
 }
 
 function filteredProducts() {
@@ -128,13 +123,9 @@ function renderCategoryBrowser() {
   let entries = roots;
   if (selected) {
     const children = model.children(selected.id);
-    if (children.length) {
-      entries = children;
-    } else if (selected.parentId) {
-      entries = model.children(selected.parentId);
-    } else {
-      entries = roots;
-    }
+    if (children.length) entries = children;
+    else if (selected.parentId) entries = model.children(selected.parentId);
+    else entries = roots;
   }
 
   for (const category of entries) {
@@ -188,15 +179,15 @@ function render() {
     const image = node.querySelector('.product-image');
     const fallback = node.querySelector('.image-fallback');
     const photoCount = node.querySelector('.photo-count');
-    const images = getImages(product);
-    const firstImage = images[0];
+    const media = getProductMedia(product);
+    const firstImage = media[0]?.url;
 
     if (firstImage) {
       image.src = firstImage;
       image.alt = product.name;
       fallback.hidden = true;
       photoCount.hidden = false;
-      photoCount.textContent = `${images.length} foto${images.length === 1 ? '' : 's'} HD`;
+      photoCount.textContent = `${media.length} foto${media.length === 1 ? '' : 's'} HD`;
       image.addEventListener('error', () => {
         image.hidden = true;
         fallback.hidden = false;
@@ -210,7 +201,7 @@ function render() {
     node.querySelector('.category').textContent = product.category || 'Catálogo';
     node.querySelector('.product-name').textContent = product.name;
     node.querySelector('.description').textContent =
-      product.description || `${images.length || 0} foto${images.length === 1 ? '' : 's'} disponíveis em alta qualidade.`;
+      product.description || `${media.length || 0} foto${media.length === 1 ? '' : 's'} disponíveis em alta qualidade.`;
     node.querySelector('.details').addEventListener('click', () => openProduct(product));
     els.grid.appendChild(node);
   }
@@ -222,15 +213,16 @@ function syncActiveImage(index) {
   const product = state.activeProduct;
   if (!product) return;
 
-  const images = getImages(product);
-  const image = images[index];
-  if (!image) return;
+  const media = getProductMedia(product);
+  const image = media[index];
+  if (!image?.url) return;
 
   state.activeImageIndex = index;
   const allowDownload = state.catalog.store?.showDownload !== false;
   if (allowDownload) {
-    const extension = image.split('.').pop()?.split('?')[0] || 'jpg';
-    els.downloadImageButton.href = image;
+    const downloadUrl = image.downloadUrl || image.url;
+    const extension = downloadUrl.split('.').pop()?.split('?')[0] || 'jpg';
+    els.downloadImageButton.href = downloadUrl;
     els.downloadImageButton.download = `${slugify(product.name)}-${String(index + 1).padStart(2, '0')}.${extension}`;
     els.downloadImageButton.hidden = false;
   } else {
@@ -246,17 +238,17 @@ function syncActiveImage(index) {
 }
 
 function renderThumbs(product) {
-  const images = getImages(product);
+  const media = getProductMedia(product);
   els.dialogThumbs.innerHTML = '';
 
-  images.forEach((image, index) => {
+  media.forEach((image, index) => {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'thumb-button';
     button.setAttribute('aria-label', `Abrir foto ${index + 1}`);
 
     const img = document.createElement('img');
-    img.src = image;
+    img.src = image.thumbnailUrl || image.url;
     img.alt = '';
     img.loading = 'lazy';
 
@@ -272,7 +264,7 @@ function openProduct(product) {
   state.activeProduct = product;
   state.activeImageIndex = 0;
 
-  const images = getImages(product);
+  const images = productGalleryUrls(product);
   els.dialogCategory.textContent = product.category || 'Catálogo';
   els.dialogName.textContent = product.name;
   els.dialogDescription.textContent = product.description || 'Fotos disponíveis em alta qualidade.';
