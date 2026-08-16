@@ -5,23 +5,45 @@ function byName(a, b) {
 export function createTaxonomyModel(taxonomy = [], products = []) {
   const byId = new Map(taxonomy.map((category) => [String(category.id), category]));
   const directCounts = new Map();
+  const descendantCache = new Map();
+  const countCache = new Map();
 
   for (const product of products) {
     if (!product?.categoryId) continue;
     directCounts.set(product.categoryId, (directCounts.get(product.categoryId) || 0) + 1);
   }
 
-  function descendants(categoryId, seen = new Set()) {
-    if (!categoryId || seen.has(categoryId)) return [];
-    seen.add(categoryId);
+  function computeDescendants(categoryId, visiting = new Set()) {
+    if (!categoryId || visiting.has(categoryId)) return [];
+    if (descendantCache.has(categoryId)) return descendantCache.get(categoryId);
+
     const category = byId.get(categoryId);
     if (!category) return [];
+
+    const nextVisiting = new Set(visiting);
+    nextVisiting.add(categoryId);
     const children = (category.childIds || []).filter((id) => byId.has(id));
-    return [categoryId, ...children.flatMap((childId) => descendants(childId, seen))];
+    const ids = [
+      categoryId,
+      ...children.flatMap((childId) => computeDescendants(childId, nextVisiting))
+    ];
+    const unique = [...new Set(ids)];
+    descendantCache.set(categoryId, unique);
+    return unique;
+  }
+
+  function descendants(categoryId) {
+    return [...computeDescendants(categoryId)];
   }
 
   function count(categoryId) {
-    return descendants(categoryId).reduce((sum, id) => sum + (directCounts.get(id) || 0), 0);
+    if (countCache.has(categoryId)) return countCache.get(categoryId);
+    const total = computeDescendants(categoryId).reduce(
+      (sum, id) => sum + (directCounts.get(id) || 0),
+      0
+    );
+    countCache.set(categoryId, total);
+    return total;
   }
 
   function children(categoryId) {
@@ -55,7 +77,7 @@ export function createTaxonomyModel(taxonomy = [], products = []) {
 
   function productMatches(product, categoryId) {
     if (!categoryId) return true;
-    const accepted = new Set(descendants(categoryId));
+    const accepted = new Set(computeDescendants(categoryId));
     if (product.categoryId && accepted.has(product.categoryId)) return true;
     return (product.categoryPathIds || []).some((id) => accepted.has(id));
   }
