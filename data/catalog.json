@@ -1,632 +1,830 @@
 {
-  "schemaVersion": 2,
-  "source": "https://zhouchangliang.x.yupoo.com/albums/",
-  "generatedAt": "2026-08-16T16:19:10.658Z",
+  "schemaVersion": 3,
+  "generatedAt": "2026-08-16T17:21:45.297Z",
   "store": {
     "name": "Catalog Engine Demo",
-    "whatsapp": ""
+    "logo": "",
+    "whatsapp": "",
+    "instagram": "",
+    "theme": "dark",
+    "currency": "BRL",
+    "showDownload": true,
+    "showSource": false
   },
+  "taxonomy": [
+    {
+      "id": "748250",
+      "type": "category",
+      "name": "NEW PRODUCT RENEW"
+    },
+    {
+      "id": "194469",
+      "type": "category",
+      "name": "🏆⚽ FIFA World Cup 2026 National team jersey"
+    },
+    {
+      "id": "379300",
+      "type": "category",
+      "name": "⚽ player version"
+    },
+    {
+      "id": "3468925",
+      "type": "category",
+      "name": "⚽ La Liga"
+    },
+    {
+      "id": "194459",
+      "type": "category",
+      "name": "⚽ Bundesliga"
+    },
+    {
+      "id": "3835861",
+      "type": "category",
+      "name": "🏎️ F1 Racing"
+    },
+    {
+      "id": "4640108",
+      "type": "category",
+      "name": "⚽Adult Soccer Kit"
+    },
+    {
+      "id": "3881546",
+      "type": "category",
+      "name": "NFL - MLB - NHL"
+    },
+    {
+      "id": "3325951",
+      "type": "category",
+      "name": "⚽👶🏼 Baby size (9 months)-(12 months)"
+    },
+    {
+      "id": "3975721",
+      "type": "category",
+      "name": "📏size"
+    },
+    {
+      "id": "0",
+      "type": "category",
+      "name": "Álbum não categorizado"
+    },
+    {
+      "id": "194470",
+      "type": "category",
+      "name": "⚽🏀 Product Category Search"
+    },
+    {
+      "id": "3313626",
+      "type": "category",
+      "name": "⚽ Retro"
+    },
+    {
+      "id": "194473",
+      "type": "category",
+      "name": "⚽ other team league"
+    },
+    {
+      "id": "194476",
+      "type": "category",
+      "name": "⚽ Serie A"
+    },
+    {
+      "id": "194464",
+      "type": "category",
+      "name": "⚽👩‍⚕️ Women"
+    },
+    {
+      "id": "3341304",
+      "type": "category",
+      "name": "⚽ Long sleeve"
+    },
+    {
+      "id": "4100976",
+      "type": "category",
+      "name": "⚽🩳 shorts"
+    },
+    {
+      "id": "3554704",
+      "type": "category",
+      "name": "🧥 Windbreaker"
+    },
+    {
+      "id": "4152986",
+      "type": "category",
+      "name": "football shoes"
+    },
+    {
+      "id": "4870646",
+      "type": "category",
+      "name": "（Product, Purchase Tutorial）"
+    },
+    {
+      "id": "3589458",
+      "type": "category",
+      "name": "📦🚚📞 Information shoes, Brand bag,Glasses"
+    },
+    {
+      "id": "3550018",
+      "type": "category",
+      "name": "🏀 NBA ( silk Version )"
+    },
+    {
+      "id": "194463",
+      "type": "category",
+      "name": "⚽ Premier League"
+    },
+    {
+      "id": "194475",
+      "type": "category",
+      "name": "⚽ Ligue 1"
+    },
+    {
+      "id": "3468959",
+      "type": "category",
+      "name": "⚽👦🏻kids kit size：16-28"
+    },
+    {
+      "id": "3325969",
+      "type": "category",
+      "name": "🧍‍♂️ Youth Pre-Match Training Suit"
+    },
+    {
+      "id": "4131250",
+      "type": "category",
+      "name": "Nike Casual & Nike shorts"
+    },
+    {
+      "id": "194472",
+      "type": "category",
+      "name": "⚽ MLS Major League Soccer"
+    },
+    {
+      "id": "3905063",
+      "type": "category",
+      "name": "🎥 product video"
+    },
+    {
+      "id": "3325778",
+      "type": "category",
+      "name": "patch 补丁"
+    },
+    {
+      "id": "490727",
+      "type": "category",
+      "name": "⚽ Brazil Campeonato Brasileiro Série A"
+    },
+    {
+      "id": "66241",
+      "type": "category",
+      "name": "Flamengo"
+    },
+    {
+      "id": "66242",
+      "type": "category",
+      "name": "Palmeiras"
+    },
+    {
+      "id": "66243",
+      "type": "category",
+      "name": "sao paulo"
+    },
+    {
+      "id": "66244",
+      "type": "category",
+      "name": "Brazil International"
+    },
+    {
+      "id": "66245",
+      "type": "category",
+      "name": "Brazil"
+    },
+    {
+      "id": "66246",
+      "type": "category",
+      "name": "Corinthians"
+    },
+    {
+      "id": "66247",
+      "type": "category",
+      "name": "Recife sports"
+    },
+    {
+      "id": "66248",
+      "type": "category",
+      "name": "Cruzeiro"
+    },
+    {
+      "id": "66249",
+      "type": "category",
+      "name": "Vasco da Gama"
+    },
+    {
+      "id": "66250",
+      "type": "category",
+      "name": "Gremio"
+    },
+    {
+      "id": "66251",
+      "type": "category",
+      "name": "Fluminense"
+    },
+    {
+      "id": "66252",
+      "type": "category",
+      "name": "Santos"
+    },
+    {
+      "id": "66253",
+      "type": "category",
+      "name": "Atletico Mineiro"
+    },
+    {
+      "id": "66254",
+      "type": "category",
+      "name": "PAYSANDU"
+    },
+    {
+      "id": "66255",
+      "type": "category",
+      "name": "Botafogo"
+    },
+    {
+      "id": "66258",
+      "type": "category",
+      "name": "Remo"
+    },
+    {
+      "id": "74729",
+      "type": "category",
+      "name": "Ceará"
+    },
+    {
+      "id": "74730",
+      "type": "category",
+      "name": "Fortaleza"
+    },
+    {
+      "id": "80472",
+      "type": "category",
+      "name": "Bahia"
+    },
+    {
+      "id": "81343",
+      "type": "category",
+      "name": "RB Bragantino"
+    },
+    {
+      "id": "96345",
+      "type": "category",
+      "name": "PARANAENSE"
+    },
+    {
+      "id": "168717",
+      "type": "category",
+      "name": "Mineiro America"
+    },
+    {
+      "id": "172586",
+      "type": "category",
+      "name": "Santa Cruz"
+    },
+    {
+      "id": "190740",
+      "type": "category",
+      "name": "Victoria"
+    }
+  ],
   "crawl": {
-    "pagesScanned": 1,
-    "maxPages": 3,
+    "pagesScanned": 2,
+    "maxPages": 2,
     "requestedMaxAlbums": 40,
-    "selectedAlbums": 40,
-    "categoryIds": [
-      "748250",
-      "194470"
-    ],
+    "selectedProducts": 40,
+    "candidatesScanned": 93,
+    "taxonomyEntries": 56,
+    "skippedNavigation": 22,
+    "skippedInformation": 5,
     "storageMode": "repository-mvp",
     "hardAlbumLimit": 120
   },
   "stats": {
     "products": 40,
-    "photos": 63,
-    "downloadedBytes": 32859160
+    "photos": 77,
+    "downloadedBytes": 44658595
   },
   "products": [
     {
       "id": "248222525",
       "name": "Barcelona x Kobe Bryant 26/27 Away Player Version Long Sleeve Jersey S-3XL",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222525?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248222525/01.png",
         "./assets/catalog/248222525/02.png"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/f292211bfc/147758cf.png",
-        "https://photo.yupoo.com/zhouchangliang/5b423ccff0/0c2032fc.png"
       ],
       "imageCount": 2
     },
     {
       "id": "248222494",
       "name": "Barcelona x Kobe Bryant 26/27 Away Long Sleeved Jersey S-5XL",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222494?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248222494/01.png",
         "./assets/catalog/248222494/02.png"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/c7dcd549dc/b4294c7b.png",
-        "https://photo.yupoo.com/zhouchangliang/64216e56da/6b4a15db.png"
       ],
       "imageCount": 2
     },
     {
       "id": "248222372",
       "name": "Arsenal 26/27 Home Match Women's Crop Jersey S-XXL",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222372?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248222372/01.jpg",
         "./assets/catalog/248222372/02.jpg"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/39ff984b9f/ea1f19a7.jpg",
-        "https://photo.yupoo.com/zhouchangliang/73b3a1f6cb/f5d790ff.jpg"
       ],
       "imageCount": 2
     },
     {
       "id": "248222336",
       "name": "Arsenal 26/27 Third Away Women's Crop Jersey S-XXL",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222336?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248222336/01.jpg",
         "./assets/catalog/248222336/02.jpg"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/c4ebbd6c31/69677982.jpg",
-        "https://photo.yupoo.com/zhouchangliang/c0338dd36f/ac90098a.jpg"
       ],
       "imageCount": 2
     },
     {
       "id": "248222316",
       "name": "Real Madrid 26/27 Home Women's Crop Jersey S-XXL",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222316?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248222316/01.jpg",
         "./assets/catalog/248222316/02.jpg"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/35a2d82270/c1443276.jpg",
-        "https://photo.yupoo.com/zhouchangliang/210a524b98/07b212c3.jpg"
       ],
       "imageCount": 2
     },
     {
       "id": "248222302",
       "name": "M-U 26/27 Home Womens Crop Jersey S-XXL",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222302?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248222302/01.jpg",
         "./assets/catalog/248222302/02.jpg"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/6dd90baabb/71410d68.jpg",
-        "https://photo.yupoo.com/zhouchangliang/093bca3880/d6315314.jpg"
       ],
       "imageCount": 2
     },
     {
       "id": "248222290",
       "name": "Real Madrid 26/27 Home Women's Jersey S-XXL",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222290?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248222290/01.jpg",
         "./assets/catalog/248222290/02.jpg"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/dea4bc22e4/af67447a.jpg",
-        "https://photo.yupoo.com/zhouchangliang/5899f28e6f/d50bee73.jpg"
       ],
       "imageCount": 2
     },
     {
       "id": "248222272",
       "name": "Arsenal 26/27 Home Women's Jersey S-XXL",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222272?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248222272/01.jpg",
         "./assets/catalog/248222272/02.jpg"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/6450b9f2f2/e410e00f.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a3b4be7b6d/97c44051.jpg"
       ],
       "imageCount": 2
     },
     {
       "id": "248222239",
       "name": "Tottenham Hotspur 26/27 Away Womens Jersey S-XXL",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222239?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248222239/01.jpg",
         "./assets/catalog/248222239/02.jpg"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/26b0585957/3b1f761a.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a41d23dbe7/fe269287.jpg"
       ],
       "imageCount": 2
     },
     {
       "id": "248222195",
       "name": "M-U 26/27 Home Womens Jersey S-XXL",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222195?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248222195/01.jpg",
         "./assets/catalog/248222195/02.jpg"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/8c9826ecb1/a026cbf3.jpg",
-        "https://photo.yupoo.com/zhouchangliang/22f62aeed0/9e1e6a86.jpg"
       ],
       "imageCount": 2
     },
     {
       "id": "248222134",
       "name": "Chelsea 26/27 Home Womens Jersey S-XXL",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222134?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248222134/01.jpg",
         "./assets/catalog/248222134/02.jpg"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/a736237bbc/4a63d3ff.jpg",
-        "https://photo.yupoo.com/zhouchangliang/60e6aa9d14/ffaa846c.jpg"
       ],
       "imageCount": 2
     },
     {
       "id": "248222093",
       "name": "Real Madrid 26/27 Third Away Womens Jersey S-XXL",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222093?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248222093/01.jpg",
         "./assets/catalog/248222093/02.jpg"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/f1ee1c82c5/34a067f0.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a8edffbcbb/b0b633c0.jpg"
       ],
       "imageCount": 2
     },
     {
       "id": "248222026",
       "name": "Tottenham Hotspur 26/27 Home Womens Jersey S-XXL",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222026?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248222026/01.jpg",
         "./assets/catalog/248222026/02.jpg"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/d0d198fe7d/904f967f.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a9e9dc63aa/adbc8942.jpg"
       ],
       "imageCount": 2
     },
     {
       "id": "248221996",
       "name": "Arsenal 26/27 Third Womens Jersey S-XXL",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248221996?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248221996/01.jpg",
         "./assets/catalog/248221996/02.jpg"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/ec8252142c/fe56f978.jpg",
-        "https://photo.yupoo.com/zhouchangliang/bd3696a142/1b4abf89.jpg"
       ],
       "imageCount": 2
     },
     {
       "id": "248221925",
       "name": "Spain 2026 2 Stars Special Edition Jersey - Blue S-4XL",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248221925?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248221925/01.png",
         "./assets/catalog/248221925/02.png"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/7a8bb14c79/d363f57a.png",
-        "https://photo.yupoo.com/zhouchangliang/b13cfb6367/1d2a75d3.png"
       ],
       "imageCount": 2
     },
     {
       "id": "248221877",
       "name": "PSG 26/27 2 Stars Home kids kit Jersey SIZE 16-281",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248221877?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248221877/01.jpg",
         "./assets/catalog/248221877/02.jpg"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/1c360e1cc4/1f1d33c1.jpg",
-        "https://photo.yupoo.com/zhouchangliang/1805e83956/a21446c5.jpg"
       ],
       "imageCount": 2
     },
     {
       "id": "248221862",
       "name": "Sao Paulo 26/27 Away Kids Kit Jersey Size 16-281",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248221862?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248221862/01.jpg",
         "./assets/catalog/248221862/02.jpg"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/f64ff4afea/b7714bae.jpg",
-        "https://photo.yupoo.com/zhouchangliang/7e69070009/dfa2be1a.jpg"
       ],
       "imageCount": 2
     },
     {
       "id": "248221832",
       "name": "Sport Recife 26/27 Home Womes Jersey S-XXL",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248221832?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248221832/01.jpg",
         "./assets/catalog/248221832/02.jpg"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/5fbb3edda9/d1576483.jpg",
-        "https://photo.yupoo.com/zhouchangliang/d274a25bfe/ad0dc67c.jpg"
       ],
       "imageCount": 2
     },
     {
       "id": "248118068",
       "name": "Flamengo 26/27 Zico Signature World Cup Version Yellow Womens Jersey S-XXL",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248118068?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248118068/01.jpg",
         "./assets/catalog/248118068/02.jpg"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/fe75f8ab98/4b90d99e.jpg",
-        "https://photo.yupoo.com/zhouchangliang/6193272fa0/991f0725.jpg"
       ],
       "imageCount": 2
     },
     {
       "id": "248118001",
       "name": "PSG 26/27 Pre-Match Home Player Version Jersey S-XXL",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248118001?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248118001/01.jpg",
         "./assets/catalog/248118001/02.jpg"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/2023fb385b/5b3dff7a.jpg",
-        "https://photo.yupoo.com/zhouchangliang/084010b849/6229d3fc.jpg"
       ],
       "imageCount": 2
     },
     {
       "id": "248117888",
       "name": "Vasco da Gama 26/27 Special Edition Jersey - Yellow S-4XL",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248117888?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248117888/01.jpg",
         "./assets/catalog/248117888/02.jpg"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/8a65a71716/1590b62b.jpg",
-        "https://photo.yupoo.com/zhouchangliang/2df71dc52d/24f6025b.jpg"
       ],
       "imageCount": 2
     },
     {
       "id": "248117682",
       "name": "Vasco da Gama 26/27 Special Edition Jersey S-4XL",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248117682?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248117682/01.jpg",
         "./assets/catalog/248117682/02.jpg"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/4c00b5ed43/f8f866c1.jpg",
-        "https://photo.yupoo.com/zhouchangliang/0257111bb8/3ee19f25.jpg"
       ],
       "imageCount": 2
     },
     {
       "id": "248117601",
       "name": "Remo 26/27 Goalkeeper Jersey - Maroon S-4XL",
-      "category": "Catálogo",
+      "category": "NEW PRODUCT RENEW",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248117601?uid=1&isSubCate=false&referrercate=748250",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
         "./assets/catalog/248117601/01.jpg",
         "./assets/catalog/248117601/02.jpg"
       ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/d1697301d5/f208018a.jpg",
-        "https://photo.yupoo.com/zhouchangliang/9cb03bdf6e/442ab673.jpg"
+      "imageCount": 2
+    },
+    {
+      "id": "249466703",
+      "name": "Man United Third Away Soccer Jersey 26 27",
+      "category": "Catálogo",
+      "description": "",
+      "sourceImageCount": 2,
+      "entityType": "product",
+      "images": [
+        "./assets/catalog/249466703/01.jpg",
+        "./assets/catalog/249466703/02.jpg"
       ],
       "imageCount": 2
     },
     {
-      "id": "10429373",
-      "name": "Brazil Campeonato Brasileiro Série A",
+      "id": "249466582",
+      "name": "Malaga Third Away Soccer Jersey 26 27",
       "category": "Catálogo",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/10429373?uid=1&isSubCate=false&referrercate=194470",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
-        "./assets/catalog/10429373/01.png"
+        "./assets/catalog/249466582/01.jpg",
+        "./assets/catalog/249466582/02.jpg"
       ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/f2996ff3/5bb3b731.png"
+      "imageCount": 2
+    },
+    {
+      "id": "249466433",
+      "name": "La Coruna Third Away Soccer Jersey 26 27",
+      "category": "Catálogo",
+      "description": "",
+      "sourceImageCount": 2,
+      "entityType": "product",
+      "images": [
+        "./assets/catalog/249466433/01.jpg",
+        "./assets/catalog/249466433/02.jpg"
+      ],
+      "imageCount": 2
+    },
+    {
+      "id": "249466305",
+      "name": "Kids Stuttgart Home Soccer Uniform 26 27-huirong",
+      "category": "Catálogo",
+      "description": "",
+      "sourceImageCount": 2,
+      "entityType": "product",
+      "images": [
+        "./assets/catalog/249466305/01.jpg",
+        "./assets/catalog/249466305/02.jpg"
+      ],
+      "imageCount": 2
+    },
+    {
+      "id": "249466165",
+      "name": "Kids Sevilla Away Soccer Uniform 26 27-huirong",
+      "category": "Catálogo",
+      "description": "",
+      "sourceImageCount": 1,
+      "entityType": "product",
+      "images": [
+        "./assets/catalog/249466165/01.jpg"
       ],
       "imageCount": 1
     },
     {
-      "id": "4268347",
-      "name": "Other football leagues",
+      "id": "249465988",
+      "name": "Kids Lisbon Home Soccer Uniform 26 27",
       "category": "Catálogo",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/4268347?uid=1&isSubCate=false&referrercate=194470",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
-        "./assets/catalog/4268347/01.jpg"
+        "./assets/catalog/249465988/01.jpg",
+        "./assets/catalog/249465988/02.jpg"
       ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/b2950f54/4355fb70.jpg"
+      "imageCount": 2
+    },
+    {
+      "id": "249465856",
+      "name": "Kids Hull City Home Soccer Uniform 26 27-1040",
+      "category": "Catálogo",
+      "description": "",
+      "sourceImageCount": 2,
+      "entityType": "product",
+      "images": [
+        "./assets/catalog/249465856/01.jpg",
+        "./assets/catalog/249465856/02.jpg"
+      ],
+      "imageCount": 2
+    },
+    {
+      "id": "249465745",
+      "name": "Kids Dusseldorf Home Soccer Uniform 26 27-huirong",
+      "category": "Catálogo",
+      "description": "",
+      "sourceImageCount": 2,
+      "entityType": "product",
+      "images": [
+        "./assets/catalog/249465745/01.jpg",
+        "./assets/catalog/249465745/02.jpg"
+      ],
+      "imageCount": 2
+    },
+    {
+      "id": "249465594",
+      "name": "Hull City Away Soccer Jersey 26 27",
+      "category": "Catálogo",
+      "description": "",
+      "sourceImageCount": 2,
+      "entityType": "product",
+      "images": [
+        "./assets/catalog/249465594/01.jpg",
+        "./assets/catalog/249465594/02.jpg"
+      ],
+      "imageCount": 2
+    },
+    {
+      "id": "249465504",
+      "name": "Boca Away Soccer Jersey 26 27",
+      "category": "Catálogo",
+      "description": "",
+      "sourceImageCount": 2,
+      "entityType": "product",
+      "images": [
+        "./assets/catalog/249465504/01.jpg",
+        "./assets/catalog/249465504/02.jpg"
+      ],
+      "imageCount": 2
+    },
+    {
+      "id": "249465391",
+      "name": "Al Nassr Away Soccer Jersey 26 27",
+      "category": "Catálogo",
+      "description": "",
+      "sourceImageCount": 2,
+      "entityType": "product",
+      "images": [
+        "./assets/catalog/249465391/01.jpg",
+        "./assets/catalog/249465391/02.jpg"
+      ],
+      "imageCount": 2
+    },
+    {
+      "id": "249203205",
+      "name": "Women RM Away Soccer Jersey 26 27",
+      "category": "Catálogo",
+      "description": "",
+      "sourceImageCount": 2,
+      "entityType": "product",
+      "images": [
+        "./assets/catalog/249203205/01.jpg",
+        "./assets/catalog/249203205/02.jpg"
+      ],
+      "imageCount": 2
+    },
+    {
+      "id": "249203099",
+      "name": "Tenerife Away Soccer Jersey 26 27",
+      "category": "Catálogo",
+      "description": "",
+      "sourceImageCount": 2,
+      "entityType": "product",
+      "images": [
+        "./assets/catalog/249203099/01.jpg",
+        "./assets/catalog/249203099/02.jpg"
+      ],
+      "imageCount": 2
+    },
+    {
+      "id": "249202989",
+      "name": "Sunderland Home Soccer Jersey 26 27",
+      "category": "Catálogo",
+      "description": "",
+      "sourceImageCount": 2,
+      "entityType": "product",
+      "images": [
+        "./assets/catalog/249202989/01.jpg",
+        "./assets/catalog/249202989/02.jpg"
+      ],
+      "imageCount": 2
+    },
+    {
+      "id": "249202911",
+      "name": "RM Away Soccer Shorts 26 27",
+      "category": "Catálogo",
+      "description": "",
+      "sourceImageCount": 1,
+      "entityType": "product",
+      "images": [
+        "./assets/catalog/249202911/01.jpg"
       ],
       "imageCount": 1
     },
     {
-      "id": "4268352",
-      "name": "France Ligue 1",
+      "id": "249202794",
+      "name": "RM Away Baby Soccer Jersey 26 27",
       "category": "Catálogo",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/4268352?uid=1&isSubCate=false&referrercate=194470",
+      "sourceImageCount": 2,
+      "entityType": "product",
       "images": [
-        "./assets/catalog/4268352/01.png"
+        "./assets/catalog/249202794/01.jpg",
+        "./assets/catalog/249202794/02.jpg"
       ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/7d89020a/7959bce2.png"
-      ],
-      "imageCount": 1
+      "imageCount": 2
     },
     {
-      "id": "4268345",
-      "name": "Italy Serie A",
+      "id": "249202697",
+      "name": "Lyons Home Soccer Shorts 26 27",
       "category": "Catálogo",
       "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/4268345?uid=1&isSubCate=false&referrercate=194470",
+      "sourceImageCount": 1,
+      "entityType": "product",
       "images": [
-        "./assets/catalog/4268345/01.png"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/7c86cf3e/31c8adb2.png"
-      ],
-      "imageCount": 1
-    },
-    {
-      "id": "4268334",
-      "name": "FA Premier League",
-      "category": "Catálogo",
-      "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/4268334?uid=1&isSubCate=false&referrercate=194470",
-      "images": [
-        "./assets/catalog/4268334/01.png"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/1d5a8b16/dd1dbb7d.png"
-      ],
-      "imageCount": 1
-    },
-    {
-      "id": "4268338",
-      "name": "Spain La Liga",
-      "category": "Catálogo",
-      "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/4268338?uid=1&isSubCate=false&referrercate=194470",
-      "images": [
-        "./assets/catalog/4268338/01.png"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/4eb8cfa4/2846024c.png"
-      ],
-      "imageCount": 1
-    },
-    {
-      "id": "4268343",
-      "name": "Bundesliga Jersey",
-      "category": "Catálogo",
-      "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/4268343?uid=1&isSubCate=false&referrercate=194470",
-      "images": [
-        "./assets/catalog/4268343/01.png"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/417470b2/ded398d0.png"
-      ],
-      "imageCount": 1
-    },
-    {
-      "id": "4268342",
-      "name": "national team Jersey",
-      "category": "Catálogo",
-      "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/4268342?uid=1&isSubCate=false&referrercate=194470",
-      "images": [
-        "./assets/catalog/4268342/01.png"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/5864f82d/5902c37e.png"
-      ],
-      "imageCount": 1
-    },
-    {
-      "id": "8008946",
-      "name": "player version Jersey",
-      "category": "Catálogo",
-      "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/8008946?uid=1&isSubCate=false&referrercate=194470",
-      "images": [
-        "./assets/catalog/8008946/01.png"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/2026e42e/a45b8f52.png"
-      ],
-      "imageCount": 1
-    },
-    {
-      "id": "4268335",
-      "name": "Women Jersey",
-      "category": "Catálogo",
-      "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/4268335?uid=1&isSubCate=false&referrercate=194470",
-      "images": [
-        "./assets/catalog/4268335/01.png"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/d6bce449/7f4be13e.png"
-      ],
-      "imageCount": 1
-    },
-    {
-      "id": "70501310",
-      "name": "kids All football team",
-      "category": "Catálogo",
-      "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/70501310?uid=1&isSubCate=false&referrercate=194470",
-      "images": [
-        "./assets/catalog/70501310/01.png"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/73f1d282/f388586b.png"
-      ],
-      "imageCount": 1
-    },
-    {
-      "id": "62113782",
-      "name": "Retro jersey",
-      "category": "Catálogo",
-      "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/62113782?uid=1&isSubCate=false&referrercate=194470",
-      "images": [
-        "./assets/catalog/62113782/01.png"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/789dd8e9/95e3b098.png"
-      ],
-      "imageCount": 1
-    },
-    {
-      "id": "9835958",
-      "name": "Windbreaker",
-      "category": "Catálogo",
-      "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/9835958?uid=1&isSubCate=false&referrercate=194470",
-      "images": [
-        "./assets/catalog/9835958/01.png"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/d3e145f0/f95895e1.png"
-      ],
-      "imageCount": 1
-    },
-    {
-      "id": "4268337",
-      "name": "MLS Major League Jersey",
-      "category": "Catálogo",
-      "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/4268337?uid=1&isSubCate=false&referrercate=194470",
-      "images": [
-        "./assets/catalog/4268337/01.png"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/424db23e/b3b06eed.png"
-      ],
-      "imageCount": 1
-    },
-    {
-      "id": "4268333",
-      "name": "NBA (Silk version）",
-      "category": "Catálogo",
-      "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/4268333?uid=1&isSubCate=false&referrercate=194470",
-      "images": [
-        "./assets/catalog/4268333/01.png"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/b7ce2bde/77e0f4e4.png"
-      ],
-      "imageCount": 1
-    },
-    {
-      "id": "4268354",
-      "name": "NFL - MLB - NHL",
-      "category": "Catálogo",
-      "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/4268354?uid=1&isSubCate=false&referrercate=194470",
-      "images": [
-        "./assets/catalog/4268354/01.jpg"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/08c00788/765697a6.jpg"
-      ],
-      "imageCount": 1
-    },
-    {
-      "id": "10428952",
-      "name": "Adult training suit",
-      "category": "Catálogo",
-      "description": "",
-      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/10428952?uid=1&isSubCate=false&referrercate=194470",
-      "images": [
-        "./assets/catalog/10428952/01.jpg"
-      ],
-      "sourceImages": [
-        "https://photo.yupoo.com/zhouchangliang/5893d022/fa48d46c.jpg"
+        "./assets/catalog/249202697/01.jpg"
       ],
       "imageCount": 1
     }
