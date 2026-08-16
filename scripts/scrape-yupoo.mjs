@@ -13,8 +13,8 @@ const headers = {
 };
 
 const derivativeNames = /^(?:small|medium|big|square|thumb|thumbnail|tiny)\.[a-z0-9]+$/i;
-const infoPattern = /\b(?:tutorial|how\s+to|notice|announcement|contact|order\s+guide|purchase\s+guide|size\s+chart|payment|shipping|freight|instruction|instructions)\b/i;
-const taxonomyPattern = /^(?:product\s+category(?:\s+search)?|other\s+football\s+leagues?|(?:france\s+)?ligue\s*1|(?:italy\s+)?serie\s*a|(?:fa\s+)?premier\s+league|(?:spain\s+)?la\s+liga|bundesliga(?:\s+jersey)?|national\s+team(?:\s+jersey)?|player\s+version(?:\s+jersey)?|women(?:'s)?\s+jersey|kids?.*football(?:\s+team)?|retro\s+jersey|windbreaker|mls(?:\s+major\s+league)?(?:\s+jersey)?|nba(?:\s*\([^)]*\))?|nfl\s*-\s*mlb\s*-\s*nhl|adult\s+training\s+suit|brazil\s+campeonato\s+brasileiro.*)$/i;
+const infoPattern = /\b(?:tutorial|how\s+to|notice|announcement|contact|call\s+me|facebook\s+group|logistics(?:\s+website)?(?:\s+query)?|website\s+query|order\s+guide|purchase\s+guide|size\s+(?:chart|table)|payment|shipping|freight|instruction|instructions)\b/i;
+const taxonomyPattern = /^(?:product\s+category(?:\s+search)?|other\s+football\s+leagues?|(?:france\s+)?ligue\s*1|(?:italy\s+)?serie\s*a|(?:fa\s+)?premier\s+league|(?:spain\s+)?la\s+liga|bundesliga(?:\s+jersey)?|national\s+team(?:\s+jersey)?|player\s+version(?:\s+jersey)?|women(?:'s)?\s+jersey|kids?.*football(?:\s+team)?|retro\s+jersey|windbreaker|mls(?:\s+major\s+league)?(?:\s+jersey)?|nba(?:\s*[（(][^）)]*[）)])?|nfl\s*-\s*mlb\s*-\s*nhl|adult\s+training\s+suit|brazil\s+campeonato\s+brasileiro.*)$/i;
 
 function absolute(base, value) {
   if (!value) return null;
@@ -239,11 +239,11 @@ function classifyItem({ name, description, sourceImageCount }) {
     return { entityType: 'information', confidence: 'high', reason: 'informational-title' };
   }
 
-  if (taxonomyPattern.test(cleanName) && !hasProductSignal && sourceImageCount <= 2) {
+  if (taxonomyPattern.test(cleanName) && sourceImageCount <= 2) {
     return { entityType: 'navigation', confidence: 'high', reason: 'taxonomy-shortcut' };
   }
 
-  if (!hasProductSignal && sourceImageCount <= 1 && /\b(?:league|liga|jersey|team|training|retro|women|kids|category)\b/i.test(cleanName)) {
+  if (!hasProductSignal && sourceImageCount <= 1 && /\b(?:league|liga|jersey|team|training|retro|women|kids|category|jacket|polo|pants|shorts?|kit)\b/i.test(cleanName)) {
     return { entityType: 'navigation', confidence: 'medium', reason: 'generic-single-image' };
   }
 
