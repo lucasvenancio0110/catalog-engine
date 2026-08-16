@@ -1,13 +1,15 @@
 import './styles.css';
 import { createProductSearch } from './catalog/search.js';
+import { createTaxonomyModel } from './catalog/taxonomy.js';
 import { mountProductGallery } from './product/gallery.js';
 import { revealCards, revealDialog } from './ui/motion.js';
 
 const state = {
   catalog: null,
   search: null,
+  taxonomy: null,
   query: '',
-  category: '',
+  categoryId: '',
   activeProduct: null,
   activeImageIndex: 0,
   gallery: null
@@ -22,6 +24,10 @@ const els = {
   productCount: document.querySelector('#productCount'),
   searchInput: document.querySelector('#searchInput'),
   categorySelect: document.querySelector('#categorySelect'),
+  categoryBrowser: document.querySelector('#categoryBrowser'),
+  categoryTitle: document.querySelector('#categoryTitle'),
+  categoryBack: document.querySelector('#categoryBack'),
+  categoryTrail: document.querySelector('#categoryTrail'),
   categoryChips: document.querySelector('#categoryChips'),
   status: document.querySelector('#status'),
   grid: document.querySelector('#productGrid'),
@@ -56,56 +62,111 @@ function getImages(product) {
     : [];
 }
 
-function getCategories() {
-  return [...new Set((state.catalog?.products || []).map((product) => product.category).filter(Boolean))].sort(
-    (a, b) => a.localeCompare(b)
-  );
-}
-
 function filteredProducts() {
   const source = state.query.trim() && state.search ? state.search(state.query) : state.catalog.products;
-  return source.filter((product) => !state.category || product.category === state.category);
+  if (!state.categoryId || !state.taxonomy) return source;
+  return source.filter((product) => state.taxonomy.productMatches(product, state.categoryId));
+}
+
+function categoryButton(category, selectedId = '') {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'category-chip';
+  button.dataset.categoryId = category.id;
+  const count = state.taxonomy?.count(category.id) || 0;
+  button.innerHTML = `<span>${category.name}</span><small>${count}</small>`;
+  const active = category.id === selectedId;
+  button.classList.toggle('active', active);
+  button.setAttribute('aria-current', active ? 'true' : 'false');
+  button.addEventListener('click', () => setCategory(category.id));
+  return button;
+}
+
+function renderCategoryTrail(selected) {
+  els.categoryTrail.innerHTML = '';
+  if (!selected || !state.taxonomy) {
+    els.categoryTrail.hidden = true;
+    return;
+  }
+
+  const trail = state.taxonomy.trail(selected.id);
+  trail.forEach((category, index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = category.name;
+    button.className = 'category-trail-item';
+    if (index === trail.length - 1) button.setAttribute('aria-current', 'page');
+    button.addEventListener('click', () => setCategory(category.id));
+    els.categoryTrail.appendChild(button);
+  });
+  els.categoryTrail.hidden = trail.length === 0;
+}
+
+function renderCategoryBrowser() {
+  const model = state.taxonomy;
+  const roots = model?.roots() || [];
+  if (!model || roots.length === 0) {
+    els.categoryBrowser.hidden = true;
+    return;
+  }
+
+  els.categoryBrowser.hidden = false;
+  const selected = state.categoryId ? model.byId.get(state.categoryId) : null;
+  els.categoryTitle.textContent = selected
+    ? `${selected.name} · ${model.count(selected.id)} produto${model.count(selected.id) === 1 ? '' : 's'}`
+    : 'Todas as categorias';
+  els.categoryBack.hidden = !selected;
+  renderCategoryTrail(selected);
+  els.categoryChips.innerHTML = '';
+
+  let entries = roots;
+  if (selected) {
+    const children = model.children(selected.id);
+    if (children.length) {
+      entries = children;
+    } else if (selected.parentId) {
+      entries = model.children(selected.parentId);
+    } else {
+      entries = roots;
+    }
+  }
+
+  for (const category of entries) {
+    els.categoryChips.appendChild(categoryButton(category, state.categoryId));
+  }
+}
+
+function renderCategorySelect() {
+  els.categorySelect.innerHTML = '<option value="">Todas</option>';
+  if (!state.taxonomy) return;
+
+  const categories = [...state.taxonomy.byId.values()]
+    .filter((category) => state.taxonomy.count(category.id) > 0)
+    .sort((a, b) => (a.depth || 0) - (b.depth || 0) || a.name.localeCompare(b.name));
+
+  for (const category of categories) {
+    const option = document.createElement('option');
+    option.value = category.id;
+    option.textContent = `${'— '.repeat(Math.min(category.depth || 0, 4))}${category.name} (${state.taxonomy.count(category.id)})`;
+    els.categorySelect.appendChild(option);
+  }
+  els.categorySelect.value = state.categoryId;
 }
 
 function syncCategoryControls() {
-  els.categorySelect.value = state.category;
-  [...els.categoryChips.querySelectorAll('button')].forEach((button) => {
-    const active = button.dataset.category === state.category;
-    button.classList.toggle('active', active);
-    button.setAttribute('aria-current', active ? 'true' : 'false');
-  });
+  els.categorySelect.value = state.categoryId;
+  renderCategoryBrowser();
 }
 
-function setCategory(category = '') {
-  state.category = category;
+function setCategory(categoryId = '') {
+  state.categoryId = categoryId && state.taxonomy?.byId.has(categoryId) ? categoryId : '';
   syncCategoryControls();
   render();
 }
 
 function renderCategoryControls() {
-  const categories = getCategories();
-
-  els.categorySelect.innerHTML = '<option value="">Todas</option>';
-  for (const category of categories) {
-    const option = document.createElement('option');
-    option.value = category;
-    option.textContent = category;
-    els.categorySelect.appendChild(option);
-  }
-
-  els.categoryChips.innerHTML = '';
-  const chipEntries = [['', 'Todos'], ...categories.map((category) => [category, category])];
-  for (const [value, label] of chipEntries) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'category-chip';
-    button.dataset.category = value;
-    button.textContent = label;
-    button.addEventListener('click', () => setCategory(value));
-    els.categoryChips.appendChild(button);
-  }
-
-  syncCategoryControls();
+  renderCategorySelect();
+  renderCategoryBrowser();
 }
 
 function render() {
@@ -272,6 +333,7 @@ async function init() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     state.catalog = await response.json();
     state.search = createProductSearch(state.catalog.products || []);
+    state.taxonomy = createTaxonomyModel(state.catalog.taxonomy || [], state.catalog.products || []);
     applyStoreConfig();
     renderCategoryControls();
     render();
@@ -288,6 +350,11 @@ els.searchInput.addEventListener('input', (event) => {
 
 els.categorySelect.addEventListener('change', (event) => {
   setCategory(event.target.value);
+});
+
+els.categoryBack.addEventListener('click', () => {
+  const selected = state.taxonomy?.byId.get(state.categoryId);
+  setCategory(selected?.parentId || '');
 });
 
 els.dialogClose.addEventListener('click', closeProduct);
