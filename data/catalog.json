@@ -1,6 +1,6 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-08-16T18:15:53.531Z",
+  "generatedAt": "2026-08-16T18:20:19.802Z",
   "store": {
     "name": "Catalog Engine Demo",
     "logo": "",
@@ -516,7 +516,7 @@
     "observedProducts": 40,
     "publicProducts": 40,
     "candidatesScanned": 93,
-    "taxonomyEntries": 56,
+    "taxonomyEntries": 57,
     "skippedNavigation": 22,
     "skippedInformation": 5,
     "extractionFailures": 0,
