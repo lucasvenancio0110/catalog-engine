@@ -24,7 +24,10 @@ const invalidCategoryIds = (catalog.taxonomy || [])
   .map((category) => String(category.id))
   .filter((id) => !publicCategoryPattern.test(id));
 const rawAssetPaths = (catalog.products || [])
-  .flatMap((product) => product.images || [])
+  .flatMap((product) => [
+    ...(product.images || []),
+    ...(product.media || []).flatMap((media) => [media.url, media.thumbnailUrl, media.downloadUrl])
+  ])
   .filter((image) => /\/assets\/catalog\/\d+\//.test(image));
 
 if (invalidProductIds.length || invalidCategoryIds.length || rawAssetPaths.length) {
@@ -41,7 +44,7 @@ if (!['catalog', 'category', 'source', 'legacy'].includes(syncState.scope?.kind)
 const syncEntries = Object.entries(syncState.products || {});
 for (const [publicId, entry] of syncEntries) {
   if (!publicProductPattern.test(publicId)) throw new Error(`sync-state contém ID público inválido: ${publicId}`);
-  if (!contentHashPattern.test(entry.contentHash || '')) throw new Error(`sync-state contém hash inválido: ${publicId}`);
+  if (!contentHashPattern.test(entry.contentHash || '')) throw new Error(`sync-state contém hash inválido: ${publicId}.`);
   if (!['active', 'removed'].includes(entry.status)) throw new Error(`sync-state contém status inválido: ${publicId}`);
 }
 
@@ -87,7 +90,11 @@ if (missingActiveProducts.length || publishedRemovedProducts.length || activeWit
 let checkedImages = 0;
 for (const product of catalog.products || []) {
   for (const image of product.images || []) {
-    if (!image.includes(`/assets/catalog/${product.id}/`)) {
+    if (catalog.schemaVersion >= 6) {
+      if (!image.startsWith('./assets/media/web/')) {
+        throw new Error(`Imagem web fora do media store no produto ${product.id}: ${image}`);
+      }
+    } else if (!image.includes(`/assets/catalog/${product.id}/`)) {
       throw new Error(`Imagem fora do namespace do produto ${product.id}: ${image}`);
     }
     await stat(resolve(process.cwd(), image.replace(/^\.\//, '')));
@@ -109,6 +116,7 @@ console.log(JSON.stringify({
     ])
   ),
   checkedImages,
+  storageMode: catalog.schemaVersion >= 6 ? 'content-addressed' : 'product-folders',
   scopeComplete: Boolean(syncState.scope?.complete),
   currentScopeKind: syncState.scope?.kind,
   stopReason: syncState.scope?.stopReason || null,

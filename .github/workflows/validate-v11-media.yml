@@ -1,0 +1,137 @@
+name: Validar Catalog V0.11 Media Pipeline
+
+on:
+  push:
+    branches: ["agent/catalog-v11-media-pipeline"]
+    paths-ignore:
+      - "data/catalog.json"
+      - "data/sync-state.json"
+      - "data/media-manifest.json"
+      - "assets/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: catalog-v11-media-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-media:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar pelo lockfile
+        run: npm ci
+
+      - name: Quality gate
+        run: npm run quality
+
+      - name: Migrar baseline atual para mídia content-addressed
+        run: npm run media:optimize
+
+      - name: Auditar baseline schema 6
+        run: |
+          npm run audit
+          npm run media:audit
+          npm run sync:audit
+          npm run taxonomy:audit
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const catalog = JSON.parse(fs.readFileSync('data/catalog.json', 'utf8'));
+          const manifest = JSON.parse(fs.readFileSync('data/media-manifest.json', 'utf8'));
+          const logical = catalog.products.reduce((sum, p) => sum + (p.media?.length || 0), 0);
+          const originals = catalog.products.flatMap(p => p.media || []).every(m => m.downloadUrl.includes('/assets/media/original/'));
+          const web = catalog.products.flatMap(p => p.media || []).every(m => m.url.includes('/assets/media/web/'));
+          const thumbs = catalog.products.flatMap(p => p.media || []).every(m => m.thumbnailUrl.includes('/assets/media/thumb/'));
+          console.log(JSON.stringify({ schema: catalog.schemaVersion, mediaVersion: catalog.mediaVersion, products: catalog.products.length, logical, mediaStats: catalog.mediaStats, manifestMedia: manifest.media.length, originals, web, thumbs }, null, 2));
+          if (catalog.schemaVersion !== 6 || catalog.mediaVersion !== 1 || catalog.products.length < 40 || logical < 77 || !originals || !web || !thumbs) process.exit(1);
+          NODE
+          rm -rf /tmp/catalog-v11-baseline
+          mkdir -p /tmp/catalog-v11-baseline
+          cp data/catalog.json /tmp/catalog-v11-baseline/catalog.json
+          cp data/sync-state.json /tmp/catalog-v11-baseline/sync-state.json
+          cp data/media-manifest.json /tmp/catalog-v11-baseline/media-manifest.json
+          cp -R assets /tmp/catalog-v11-baseline/assets
+
+      - name: Provar idempotência da otimização
+        run: |
+          cp data/catalog.json /tmp/catalog-before-second-media.json
+          npm run media:optimize
+          cmp data/catalog.json /tmp/catalog-before-second-media.json
+          npm run media:audit
+
+      - name: Import incremental real — São Paulo 2 produtos
+        env:
+          MAX_ALBUMS: 2
+          MAX_PAGES: 1
+        run: npm run crawl -- "https://zhouchangliang.x.yupoo.com/categories/66243"
+
+      - name: Enriquecer taxonomia e otimizar somente o delta
+        run: |
+          npm run taxonomy:enrich
+          npm run media:optimize
+
+      - name: Provar compatibilidade incremental
+        run: |
+          npm run audit
+          npm run media:audit
+          npm run sync:audit
+          npm run taxonomy:audit
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const before = JSON.parse(fs.readFileSync('/tmp/catalog-v11-baseline/catalog.json', 'utf8'));
+          const after = JSON.parse(fs.readFileSync('data/catalog.json', 'utf8'));
+          const beforeIds = new Set(before.products.map(p => String(p.id)));
+          const newProducts = after.products.filter(p => !beforeIds.has(String(p.id)));
+          const preserved = before.products.filter(p => after.products.some(current => current.id === p.id)).length;
+          const richNew = newProducts.filter(p => p.media?.length && p.images?.every((url, i) => url === p.media[i].url));
+          const legacyExists = fs.existsSync('assets/catalog');
+          console.log(JSON.stringify({ before: before.products.length, after: after.products.length, preserved, newProducts: newProducts.length, richNew: richNew.length, legacyExists, mediaStats: after.mediaStats }, null, 2));
+          if (preserved !== before.products.length || newProducts.length < 1 || richNew.length !== newProducts.length || legacyExists) process.exit(1);
+          NODE
+
+      - name: Restaurar baseline schema 6 limpa
+        run: |
+          rm -rf assets
+          cp -R /tmp/catalog-v11-baseline/assets assets
+          cp /tmp/catalog-v11-baseline/catalog.json data/catalog.json
+          cp /tmp/catalog-v11-baseline/sync-state.json data/sync-state.json
+          cp /tmp/catalog-v11-baseline/media-manifest.json data/media-manifest.json
+          npm run audit
+          npm run media:audit
+          npm run sync:audit
+          npm run taxonomy:audit
+
+      - name: Build Vite e dist audit
+        run: |
+          npm run build
+          npm run build:verify
+          npm audit --omit=dev --audit-level=high
+
+      - name: Upload artifact validado
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Materializar baseline V0.11 na branch
+        run: |
+          git config user.name "catalog-engine-bot"
+          git config user.email "catalog-engine-bot@users.noreply.github.com"
+          git add data/catalog.json data/sync-state.json data/media-manifest.json assets
+          if git diff --cached --quiet; then
+            echo "Baseline V0.11 já materializada."
+          else
+            git commit -m "materialize validated V0.11 media baseline"
+            git push origin HEAD:agent/catalog-v11-media-pipeline
+          fi

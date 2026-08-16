@@ -4,7 +4,18 @@ import PQueue from 'p-queue';
 import sharp from 'sharp';
 import { z } from 'zod';
 
-const imagePathSchema = z.string().regex(/^\.\/assets\/catalog\//);
+const imagePathSchema = z.string().regex(/^\.\/assets\/(?:catalog|media\/web)\//);
+const mediaDescriptorSchema = z.object({
+  id: z.string().regex(/^m_[a-f0-9]{20}$/),
+  hash: z.string().regex(/^[a-f0-9]{64}$/),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  bytes: z.number().int().positive(),
+  format: z.string().min(1),
+  url: z.string().regex(/^\.\/assets\/media\/web\//),
+  thumbnailUrl: z.string().regex(/^\.\/assets\/media\/thumb\//),
+  downloadUrl: z.string().regex(/^\.\/assets\/media\/original\//)
+}).passthrough();
 
 const productSchema = z.object({
   id: z.union([z.string(), z.number()]).transform(String),
@@ -12,6 +23,7 @@ const productSchema = z.object({
   category: z.string().min(1),
   description: z.string().default(''),
   images: z.array(imagePathSchema).min(1),
+  media: z.array(mediaDescriptorSchema).optional(),
   imageCount: z.number().int().nonnegative().optional(),
   entityType: z.literal('product').optional()
 }).passthrough();
@@ -67,15 +79,28 @@ if (catalog.schemaVersion >= 4) {
   const invalidProducts = catalog.products.filter((product) => !/^p_[a-f0-9]{20}$/.test(product.id));
   const invalidCategories = catalog.taxonomy.filter((category) => !/^c_[a-f0-9]{20}$/.test(category.id));
   const rawAssetPaths = catalog.products
-    .flatMap((product) => product.images)
+    .flatMap((product) => [
+      ...product.images,
+      ...(product.media || []).flatMap((media) => [media.url, media.thumbnailUrl, media.downloadUrl])
+    ])
     .filter((path) => /\/assets\/catalog\/\d+\//.test(path));
 
   if (invalidProducts.length || invalidCategories.length || rawAssetPaths.length) {
-    throw new Error('White-label identity gate: schema v4 contém ID/pasta pública não opaca.');
+    throw new Error('White-label identity gate: catálogo contém ID/pasta pública não opaca.');
   }
 
   for (const product of catalog.products) {
-    if (product.images.some((path) => !path.includes(`/assets/catalog/${product.id}/`))) {
+    if (catalog.schemaVersion >= 6) {
+      if (!Array.isArray(product.media) || product.media.length !== product.images.length) {
+        throw new Error(`Schema 6 exige media descriptors alinhados no produto ${product.id}.`);
+      }
+      if (product.images.some((path) => !path.startsWith('./assets/media/web/'))) {
+        throw new Error(`Schema 6 contém imagem de navegação fora do media store no produto ${product.id}.`);
+      }
+      if (product.media.some((media, index) => media.url !== product.images[index])) {
+        throw new Error(`images e media divergiram no produto ${product.id}.`);
+      }
+    } else if (product.images.some((path) => !path.includes(`/assets/catalog/${product.id}/`))) {
       throw new Error(`Imagem fora do namespace público do produto ${product.id}.`);
     }
   }
@@ -103,5 +128,6 @@ console.log(JSON.stringify({
   totalMB: Number((totalBytes / 1024 / 1024).toFixed(2)),
   formats,
   opaqueIds: catalog.schemaVersion >= 4,
+  mediaDescriptors: catalog.schemaVersion >= 6,
   concurrency: 4
 }, null, 2));
