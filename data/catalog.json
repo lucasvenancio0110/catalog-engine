@@ -1,370 +1,335 @@
 {
   "source": "https://zhouchangliang.x.yupoo.com/albums/",
-  "generatedAt": "2026-08-16T15:58:17.939Z",
+  "generatedAt": "2026-08-16T16:08:46.981Z",
   "store": {
     "name": "Catalog Engine Demo",
     "whatsapp": ""
   },
+  "stats": {
+    "products": 20,
+    "photos": 40,
+    "downloadedBytes": 27459836
+  },
   "products": [
     {
       "id": "248222525",
-      "name": "Barcelona x Kobe Bryant 26/27 Away Player Version Long Sleeve Jersey S-3XL | álbum | Wholesale jersey WhatsApp+86 15811885591",
+      "name": "Barcelona x Kobe Bryant 26/27 Away Player Version Long Sleeve Jersey S-3XL",
       "category": "Catálogo",
-      "description": "Wholesale jersey WhatsApp+86 15811885591 - Wholesale",
+      "description": "",
       "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222525?uid=1&isSubCate=false&referrercate=748250",
       "images": [
-        "https://photo.yupoo.com/zhouchangliang/f292211bfc/medium.png",
+        "./assets/catalog/248222525/01.png",
+        "./assets/catalog/248222525/02.png"
+      ],
+      "sourceImages": [
         "https://photo.yupoo.com/zhouchangliang/f292211bfc/147758cf.png",
-        "https://photo.yupoo.com/zhouchangliang/f292211bfc/big.png",
-        "https://photo.yupoo.com/zhouchangliang/f292211bfc/small.png",
-        "https://photo.yupoo.com/zhouchangliang/5b423ccff0/0c2032fc.png",
-        "https://photo.yupoo.com/zhouchangliang/5b423ccff0/big.png",
-        "https://photo.yupoo.com/zhouchangliang/5b423ccff0/small.png",
-        "https://photo.yupoo.com/zhouchangliang/f292211bfc/square.png",
-        "https://photo.yupoo.com/zhouchangliang/5b423ccff0/square.png"
-      ]
+        "https://photo.yupoo.com/zhouchangliang/5b423ccff0/0c2032fc.png"
+      ],
+      "imageCount": 2
     },
     {
       "id": "248222494",
-      "name": "Barcelona x Kobe Bryant 26/27 Away Long Sleeved Jersey S-5XL | álbum | Wholesale jersey WhatsApp+86 15811885591",
+      "name": "Barcelona x Kobe Bryant 26/27 Away Long Sleeved Jersey S-5XL",
       "category": "Catálogo",
-      "description": "Wholesale jersey WhatsApp+86 15811885591 - Wholesale",
+      "description": "",
       "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222494?uid=1&isSubCate=false&referrercate=748250",
       "images": [
-        "https://photo.yupoo.com/zhouchangliang/c7dcd549dc/medium.png",
-        "https://photo.yupoo.com/zhouchangliang/64216e56da/6b4a15db.png",
-        "https://photo.yupoo.com/zhouchangliang/64216e56da/big.png",
-        "https://photo.yupoo.com/zhouchangliang/64216e56da/small.png",
+        "./assets/catalog/248222494/01.png",
+        "./assets/catalog/248222494/02.png"
+      ],
+      "sourceImages": [
         "https://photo.yupoo.com/zhouchangliang/c7dcd549dc/b4294c7b.png",
-        "https://photo.yupoo.com/zhouchangliang/c7dcd549dc/big.png",
-        "https://photo.yupoo.com/zhouchangliang/c7dcd549dc/small.png",
-        "https://photo.yupoo.com/zhouchangliang/64216e56da/square.png",
-        "https://photo.yupoo.com/zhouchangliang/c7dcd549dc/square.png"
-      ]
+        "https://photo.yupoo.com/zhouchangliang/64216e56da/6b4a15db.png"
+      ],
+      "imageCount": 2
     },
     {
       "id": "248222372",
-      "name": "Arsenal 26/27 Home Match Women's Crop Jersey S-XXL | álbum | Wholesale jersey WhatsApp+86 15811885591",
+      "name": "Arsenal 26/27 Home Match Women's Crop Jersey S-XXL",
       "category": "Catálogo",
-      "description": "Wholesale jersey WhatsApp+86 15811885591 - Wholesale",
+      "description": "",
       "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222372?uid=1&isSubCate=false&referrercate=748250",
       "images": [
-        "https://photo.yupoo.com/zhouchangliang/39ff984b9f/medium.jpg",
-        "https://photo.yupoo.com/zhouchangliang/73b3a1f6cb/f5d790ff.jpg",
-        "https://photo.yupoo.com/zhouchangliang/73b3a1f6cb/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/73b3a1f6cb/small.jpg",
+        "./assets/catalog/248222372/01.jpg",
+        "./assets/catalog/248222372/02.jpg"
+      ],
+      "sourceImages": [
         "https://photo.yupoo.com/zhouchangliang/39ff984b9f/ea1f19a7.jpg",
-        "https://photo.yupoo.com/zhouchangliang/39ff984b9f/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/39ff984b9f/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/73b3a1f6cb/square.jpg",
-        "https://photo.yupoo.com/zhouchangliang/39ff984b9f/square.jpg"
-      ]
+        "https://photo.yupoo.com/zhouchangliang/73b3a1f6cb/f5d790ff.jpg"
+      ],
+      "imageCount": 2
     },
     {
       "id": "248222336",
-      "name": "Arsenal 26/27 Third Away Women's Crop Jersey S-XXL | álbum | Wholesale jersey WhatsApp+86 15811885591",
+      "name": "Arsenal 26/27 Third Away Women's Crop Jersey S-XXL",
       "category": "Catálogo",
-      "description": "Wholesale jersey WhatsApp+86 15811885591 - Wholesale",
+      "description": "",
       "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222336?uid=1&isSubCate=false&referrercate=748250",
       "images": [
-        "https://photo.yupoo.com/zhouchangliang/c4ebbd6c31/medium.jpg",
+        "./assets/catalog/248222336/01.jpg",
+        "./assets/catalog/248222336/02.jpg"
+      ],
+      "sourceImages": [
         "https://photo.yupoo.com/zhouchangliang/c4ebbd6c31/69677982.jpg",
-        "https://photo.yupoo.com/zhouchangliang/c4ebbd6c31/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/c4ebbd6c31/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/c0338dd36f/ac90098a.jpg",
-        "https://photo.yupoo.com/zhouchangliang/c0338dd36f/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/c0338dd36f/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/c4ebbd6c31/square.jpg",
-        "https://photo.yupoo.com/zhouchangliang/c0338dd36f/square.jpg"
-      ]
+        "https://photo.yupoo.com/zhouchangliang/c0338dd36f/ac90098a.jpg"
+      ],
+      "imageCount": 2
     },
     {
       "id": "248222316",
-      "name": "Real Madrid 26/27 Home Women's Crop Jersey S-XXL | álbum | Wholesale jersey WhatsApp+86 15811885591",
+      "name": "Real Madrid 26/27 Home Women's Crop Jersey S-XXL",
       "category": "Catálogo",
-      "description": "Wholesale jersey WhatsApp+86 15811885591 - Wholesale",
+      "description": "",
       "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222316?uid=1&isSubCate=false&referrercate=748250",
       "images": [
-        "https://photo.yupoo.com/zhouchangliang/35a2d82270/medium.jpg",
-        "https://photo.yupoo.com/zhouchangliang/210a524b98/07b212c3.jpg",
-        "https://photo.yupoo.com/zhouchangliang/210a524b98/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/210a524b98/small.jpg",
+        "./assets/catalog/248222316/01.jpg",
+        "./assets/catalog/248222316/02.jpg"
+      ],
+      "sourceImages": [
         "https://photo.yupoo.com/zhouchangliang/35a2d82270/c1443276.jpg",
-        "https://photo.yupoo.com/zhouchangliang/35a2d82270/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/35a2d82270/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/210a524b98/square.jpg",
-        "https://photo.yupoo.com/zhouchangliang/35a2d82270/square.jpg"
-      ]
+        "https://photo.yupoo.com/zhouchangliang/210a524b98/07b212c3.jpg"
+      ],
+      "imageCount": 2
     },
     {
       "id": "248222302",
-      "name": "M-U 26/27 Home Womens Crop Jersey S-XXL | álbum | Wholesale jersey WhatsApp+86 15811885591",
+      "name": "M-U 26/27 Home Womens Crop Jersey S-XXL",
       "category": "Catálogo",
-      "description": "Wholesale jersey WhatsApp+86 15811885591 - Wholesale",
+      "description": "",
       "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222302?uid=1&isSubCate=false&referrercate=748250",
       "images": [
-        "https://photo.yupoo.com/zhouchangliang/6dd90baabb/medium.jpg",
-        "https://photo.yupoo.com/zhouchangliang/093bca3880/d6315314.jpg",
-        "https://photo.yupoo.com/zhouchangliang/093bca3880/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/093bca3880/small.jpg",
+        "./assets/catalog/248222302/01.jpg",
+        "./assets/catalog/248222302/02.jpg"
+      ],
+      "sourceImages": [
         "https://photo.yupoo.com/zhouchangliang/6dd90baabb/71410d68.jpg",
-        "https://photo.yupoo.com/zhouchangliang/6dd90baabb/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/6dd90baabb/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/093bca3880/square.jpg",
-        "https://photo.yupoo.com/zhouchangliang/6dd90baabb/square.jpg"
-      ]
+        "https://photo.yupoo.com/zhouchangliang/093bca3880/d6315314.jpg"
+      ],
+      "imageCount": 2
     },
     {
       "id": "248222290",
-      "name": "Real Madrid 26/27 Home Women's Jersey S-XXL | álbum | Wholesale jersey WhatsApp+86 15811885591",
+      "name": "Real Madrid 26/27 Home Women's Jersey S-XXL",
       "category": "Catálogo",
-      "description": "Wholesale jersey WhatsApp+86 15811885591 - Wholesale",
+      "description": "",
       "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222290?uid=1&isSubCate=false&referrercate=748250",
       "images": [
-        "https://photo.yupoo.com/zhouchangliang/dea4bc22e4/medium.jpg",
-        "https://photo.yupoo.com/zhouchangliang/5899f28e6f/d50bee73.jpg",
-        "https://photo.yupoo.com/zhouchangliang/5899f28e6f/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/5899f28e6f/small.jpg",
+        "./assets/catalog/248222290/01.jpg",
+        "./assets/catalog/248222290/02.jpg"
+      ],
+      "sourceImages": [
         "https://photo.yupoo.com/zhouchangliang/dea4bc22e4/af67447a.jpg",
-        "https://photo.yupoo.com/zhouchangliang/dea4bc22e4/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/dea4bc22e4/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/5899f28e6f/square.jpg",
-        "https://photo.yupoo.com/zhouchangliang/dea4bc22e4/square.jpg"
-      ]
+        "https://photo.yupoo.com/zhouchangliang/5899f28e6f/d50bee73.jpg"
+      ],
+      "imageCount": 2
     },
     {
       "id": "248222272",
-      "name": "Arsenal 26/27 Home Women's Jersey S-XXL | álbum | Wholesale jersey WhatsApp+86 15811885591",
+      "name": "Arsenal 26/27 Home Women's Jersey S-XXL",
       "category": "Catálogo",
-      "description": "Wholesale jersey WhatsApp+86 15811885591 - Wholesale",
+      "description": "",
       "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222272?uid=1&isSubCate=false&referrercate=748250",
       "images": [
-        "https://photo.yupoo.com/zhouchangliang/6450b9f2f2/medium.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a3b4be7b6d/97c44051.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a3b4be7b6d/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a3b4be7b6d/small.jpg",
+        "./assets/catalog/248222272/01.jpg",
+        "./assets/catalog/248222272/02.jpg"
+      ],
+      "sourceImages": [
         "https://photo.yupoo.com/zhouchangliang/6450b9f2f2/e410e00f.jpg",
-        "https://photo.yupoo.com/zhouchangliang/6450b9f2f2/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/6450b9f2f2/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a3b4be7b6d/square.jpg",
-        "https://photo.yupoo.com/zhouchangliang/6450b9f2f2/square.jpg"
-      ]
+        "https://photo.yupoo.com/zhouchangliang/a3b4be7b6d/97c44051.jpg"
+      ],
+      "imageCount": 2
     },
     {
       "id": "248222239",
-      "name": "Tottenham Hotspur 26/27 Away Womens Jersey S-XXL | álbum | Wholesale jersey WhatsApp+86 15811885591",
+      "name": "Tottenham Hotspur 26/27 Away Womens Jersey S-XXL",
       "category": "Catálogo",
-      "description": "Wholesale jersey WhatsApp+86 15811885591 - Wholesale",
+      "description": "",
       "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222239?uid=1&isSubCate=false&referrercate=748250",
       "images": [
-        "https://photo.yupoo.com/zhouchangliang/26b0585957/medium.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a41d23dbe7/fe269287.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a41d23dbe7/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a41d23dbe7/small.jpg",
+        "./assets/catalog/248222239/01.jpg",
+        "./assets/catalog/248222239/02.jpg"
+      ],
+      "sourceImages": [
         "https://photo.yupoo.com/zhouchangliang/26b0585957/3b1f761a.jpg",
-        "https://photo.yupoo.com/zhouchangliang/26b0585957/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/26b0585957/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a41d23dbe7/square.jpg",
-        "https://photo.yupoo.com/zhouchangliang/26b0585957/square.jpg"
-      ]
+        "https://photo.yupoo.com/zhouchangliang/a41d23dbe7/fe269287.jpg"
+      ],
+      "imageCount": 2
     },
     {
       "id": "248222195",
-      "name": "M-U 26/27 Home Womens Jersey S-XXL | álbum | Wholesale jersey WhatsApp+86 15811885591",
+      "name": "M-U 26/27 Home Womens Jersey S-XXL",
       "category": "Catálogo",
-      "description": "Wholesale jersey WhatsApp+86 15811885591 - Wholesale",
+      "description": "",
       "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222195?uid=1&isSubCate=false&referrercate=748250",
       "images": [
-        "https://photo.yupoo.com/zhouchangliang/8c9826ecb1/medium.jpg",
+        "./assets/catalog/248222195/01.jpg",
+        "./assets/catalog/248222195/02.jpg"
+      ],
+      "sourceImages": [
         "https://photo.yupoo.com/zhouchangliang/8c9826ecb1/a026cbf3.jpg",
-        "https://photo.yupoo.com/zhouchangliang/8c9826ecb1/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/8c9826ecb1/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/22f62aeed0/9e1e6a86.jpg",
-        "https://photo.yupoo.com/zhouchangliang/22f62aeed0/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/22f62aeed0/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/8c9826ecb1/square.jpg",
-        "https://photo.yupoo.com/zhouchangliang/22f62aeed0/square.jpg"
-      ]
+        "https://photo.yupoo.com/zhouchangliang/22f62aeed0/9e1e6a86.jpg"
+      ],
+      "imageCount": 2
     },
     {
       "id": "248222134",
-      "name": "Chelsea 26/27 Home Womens Jersey S-XXL | álbum | Wholesale jersey WhatsApp+86 15811885591",
+      "name": "Chelsea 26/27 Home Womens Jersey S-XXL",
       "category": "Catálogo",
-      "description": "Wholesale jersey WhatsApp+86 15811885591 - Wholesale",
+      "description": "",
       "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222134?uid=1&isSubCate=false&referrercate=748250",
       "images": [
-        "https://photo.yupoo.com/zhouchangliang/a736237bbc/medium.jpg",
-        "https://photo.yupoo.com/zhouchangliang/60e6aa9d14/ffaa846c.jpg",
-        "https://photo.yupoo.com/zhouchangliang/60e6aa9d14/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/60e6aa9d14/small.jpg",
+        "./assets/catalog/248222134/01.jpg",
+        "./assets/catalog/248222134/02.jpg"
+      ],
+      "sourceImages": [
         "https://photo.yupoo.com/zhouchangliang/a736237bbc/4a63d3ff.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a736237bbc/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a736237bbc/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/60e6aa9d14/square.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a736237bbc/square.jpg"
-      ]
+        "https://photo.yupoo.com/zhouchangliang/60e6aa9d14/ffaa846c.jpg"
+      ],
+      "imageCount": 2
     },
     {
       "id": "248222093",
-      "name": "Real Madrid 26/27 Third Away Womens Jersey S-XXL | álbum | Wholesale jersey WhatsApp+86 15811885591",
+      "name": "Real Madrid 26/27 Third Away Womens Jersey S-XXL",
       "category": "Catálogo",
-      "description": "Wholesale jersey WhatsApp+86 15811885591 - Wholesale",
+      "description": "",
       "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222093?uid=1&isSubCate=false&referrercate=748250",
       "images": [
-        "https://photo.yupoo.com/zhouchangliang/f1ee1c82c5/medium.jpg",
+        "./assets/catalog/248222093/01.jpg",
+        "./assets/catalog/248222093/02.jpg"
+      ],
+      "sourceImages": [
         "https://photo.yupoo.com/zhouchangliang/f1ee1c82c5/34a067f0.jpg",
-        "https://photo.yupoo.com/zhouchangliang/f1ee1c82c5/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/f1ee1c82c5/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a8edffbcbb/b0b633c0.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a8edffbcbb/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a8edffbcbb/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/f1ee1c82c5/square.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a8edffbcbb/square.jpg"
-      ]
+        "https://photo.yupoo.com/zhouchangliang/a8edffbcbb/b0b633c0.jpg"
+      ],
+      "imageCount": 2
     },
     {
       "id": "248222026",
-      "name": "Tottenham Hotspur 26/27 Home Womens Jersey S-XXL | álbum | Wholesale jersey WhatsApp+86 15811885591",
+      "name": "Tottenham Hotspur 26/27 Home Womens Jersey S-XXL",
       "category": "Catálogo",
-      "description": "Wholesale jersey WhatsApp+86 15811885591 - Wholesale",
+      "description": "",
       "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248222026?uid=1&isSubCate=false&referrercate=748250",
       "images": [
-        "https://photo.yupoo.com/zhouchangliang/d0d198fe7d/medium.jpg",
+        "./assets/catalog/248222026/01.jpg",
+        "./assets/catalog/248222026/02.jpg"
+      ],
+      "sourceImages": [
         "https://photo.yupoo.com/zhouchangliang/d0d198fe7d/904f967f.jpg",
-        "https://photo.yupoo.com/zhouchangliang/d0d198fe7d/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/d0d198fe7d/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a9e9dc63aa/adbc8942.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a9e9dc63aa/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a9e9dc63aa/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/d0d198fe7d/square.jpg",
-        "https://photo.yupoo.com/zhouchangliang/a9e9dc63aa/square.jpg"
-      ]
+        "https://photo.yupoo.com/zhouchangliang/a9e9dc63aa/adbc8942.jpg"
+      ],
+      "imageCount": 2
     },
     {
       "id": "248221996",
-      "name": "Arsenal 26/27 Third Womens Jersey S-XXL | álbum | Wholesale jersey WhatsApp+86 15811885591",
+      "name": "Arsenal 26/27 Third Womens Jersey S-XXL",
       "category": "Catálogo",
-      "description": "Wholesale jersey WhatsApp+86 15811885591 - Wholesale",
+      "description": "",
       "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248221996?uid=1&isSubCate=false&referrercate=748250",
       "images": [
-        "https://photo.yupoo.com/zhouchangliang/ec8252142c/medium.jpg",
+        "./assets/catalog/248221996/01.jpg",
+        "./assets/catalog/248221996/02.jpg"
+      ],
+      "sourceImages": [
         "https://photo.yupoo.com/zhouchangliang/ec8252142c/fe56f978.jpg",
-        "https://photo.yupoo.com/zhouchangliang/ec8252142c/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/ec8252142c/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/bd3696a142/1b4abf89.jpg",
-        "https://photo.yupoo.com/zhouchangliang/bd3696a142/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/bd3696a142/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/ec8252142c/square.jpg",
-        "https://photo.yupoo.com/zhouchangliang/bd3696a142/square.jpg"
-      ]
+        "https://photo.yupoo.com/zhouchangliang/bd3696a142/1b4abf89.jpg"
+      ],
+      "imageCount": 2
     },
     {
       "id": "248221925",
-      "name": "Spain 2026 2 Stars Special Edition Jersey - Blue S-4XL | álbum | Wholesale jersey WhatsApp+86 15811885591",
+      "name": "Spain 2026 2 Stars Special Edition Jersey - Blue S-4XL",
       "category": "Catálogo",
-      "description": "Wholesale jersey WhatsApp+86 15811885591 - Wholesale",
+      "description": "",
       "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248221925?uid=1&isSubCate=false&referrercate=748250",
       "images": [
-        "https://photo.yupoo.com/zhouchangliang/7a8bb14c79/medium.png",
-        "https://photo.yupoo.com/zhouchangliang/b13cfb6367/1d2a75d3.png",
-        "https://photo.yupoo.com/zhouchangliang/b13cfb6367/big.png",
-        "https://photo.yupoo.com/zhouchangliang/b13cfb6367/small.png",
+        "./assets/catalog/248221925/01.png",
+        "./assets/catalog/248221925/02.png"
+      ],
+      "sourceImages": [
         "https://photo.yupoo.com/zhouchangliang/7a8bb14c79/d363f57a.png",
-        "https://photo.yupoo.com/zhouchangliang/7a8bb14c79/big.png",
-        "https://photo.yupoo.com/zhouchangliang/7a8bb14c79/small.png",
-        "https://photo.yupoo.com/zhouchangliang/b13cfb6367/square.png",
-        "https://photo.yupoo.com/zhouchangliang/7a8bb14c79/square.png"
-      ]
+        "https://photo.yupoo.com/zhouchangliang/b13cfb6367/1d2a75d3.png"
+      ],
+      "imageCount": 2
     },
     {
       "id": "248221877",
-      "name": "PSG 26/27 2 Stars Home kids kit Jersey SIZE 16-281 | álbum | Wholesale jersey WhatsApp+86 15811885591",
+      "name": "PSG 26/27 2 Stars Home kids kit Jersey SIZE 16-281",
       "category": "Catálogo",
-      "description": "Wholesale jersey WhatsApp+86 15811885591 - Wholesale",
+      "description": "",
       "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248221877?uid=1&isSubCate=false&referrercate=748250",
       "images": [
-        "https://photo.yupoo.com/zhouchangliang/1c360e1cc4/medium.jpg",
+        "./assets/catalog/248221877/01.jpg",
+        "./assets/catalog/248221877/02.jpg"
+      ],
+      "sourceImages": [
         "https://photo.yupoo.com/zhouchangliang/1c360e1cc4/1f1d33c1.jpg",
-        "https://photo.yupoo.com/zhouchangliang/1c360e1cc4/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/1c360e1cc4/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/1805e83956/a21446c5.jpg",
-        "https://photo.yupoo.com/zhouchangliang/1805e83956/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/1805e83956/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/1c360e1cc4/square.jpg",
-        "https://photo.yupoo.com/zhouchangliang/1805e83956/square.jpg"
-      ]
+        "https://photo.yupoo.com/zhouchangliang/1805e83956/a21446c5.jpg"
+      ],
+      "imageCount": 2
     },
     {
       "id": "248221862",
-      "name": "Sao Paulo 26/27 Away Kids Kit Jersey Size 16-281 | álbum | Wholesale jersey WhatsApp+86 15811885591",
+      "name": "Sao Paulo 26/27 Away Kids Kit Jersey Size 16-281",
       "category": "Catálogo",
-      "description": "Wholesale jersey WhatsApp+86 15811885591 - Wholesale",
+      "description": "",
       "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248221862?uid=1&isSubCate=false&referrercate=748250",
       "images": [
-        "https://photo.yupoo.com/zhouchangliang/f64ff4afea/medium.jpg",
+        "./assets/catalog/248221862/01.jpg",
+        "./assets/catalog/248221862/02.jpg"
+      ],
+      "sourceImages": [
         "https://photo.yupoo.com/zhouchangliang/f64ff4afea/b7714bae.jpg",
-        "https://photo.yupoo.com/zhouchangliang/f64ff4afea/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/f64ff4afea/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/7e69070009/dfa2be1a.jpg",
-        "https://photo.yupoo.com/zhouchangliang/7e69070009/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/7e69070009/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/f64ff4afea/square.jpg",
-        "https://photo.yupoo.com/zhouchangliang/7e69070009/square.jpg"
-      ]
+        "https://photo.yupoo.com/zhouchangliang/7e69070009/dfa2be1a.jpg"
+      ],
+      "imageCount": 2
     },
     {
       "id": "248221832",
-      "name": "Sport Recife 26/27 Home Womes Jersey S-XXL | álbum | Wholesale jersey WhatsApp+86 15811885591",
+      "name": "Sport Recife 26/27 Home Womes Jersey S-XXL",
       "category": "Catálogo",
-      "description": "Wholesale jersey WhatsApp+86 15811885591 - Wholesale",
+      "description": "",
       "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248221832?uid=1&isSubCate=false&referrercate=748250",
       "images": [
-        "https://photo.yupoo.com/zhouchangliang/5fbb3edda9/medium.jpg",
-        "https://photo.yupoo.com/zhouchangliang/d274a25bfe/ad0dc67c.jpg",
-        "https://photo.yupoo.com/zhouchangliang/d274a25bfe/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/d274a25bfe/small.jpg",
+        "./assets/catalog/248221832/01.jpg",
+        "./assets/catalog/248221832/02.jpg"
+      ],
+      "sourceImages": [
         "https://photo.yupoo.com/zhouchangliang/5fbb3edda9/d1576483.jpg",
-        "https://photo.yupoo.com/zhouchangliang/5fbb3edda9/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/5fbb3edda9/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/d274a25bfe/square.jpg",
-        "https://photo.yupoo.com/zhouchangliang/5fbb3edda9/square.jpg"
-      ]
+        "https://photo.yupoo.com/zhouchangliang/d274a25bfe/ad0dc67c.jpg"
+      ],
+      "imageCount": 2
     },
     {
       "id": "248118068",
-      "name": "Flamengo 26/27 Zico Signature World Cup Version Yellow Womens Jersey S-XXL | álbum | Wholesale jersey WhatsApp+86 15811885591",
+      "name": "Flamengo 26/27 Zico Signature World Cup Version Yellow Womens Jersey S-XXL",
       "category": "Catálogo",
-      "description": "Wholesale jersey WhatsApp+86 15811885591 - Wholesale",
+      "description": "",
       "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248118068?uid=1&isSubCate=false&referrercate=748250",
       "images": [
-        "https://photo.yupoo.com/zhouchangliang/fe75f8ab98/medium.jpg",
-        "https://photo.yupoo.com/zhouchangliang/6193272fa0/991f0725.jpg",
-        "https://photo.yupoo.com/zhouchangliang/6193272fa0/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/6193272fa0/small.jpg",
+        "./assets/catalog/248118068/01.jpg",
+        "./assets/catalog/248118068/02.jpg"
+      ],
+      "sourceImages": [
         "https://photo.yupoo.com/zhouchangliang/fe75f8ab98/4b90d99e.jpg",
-        "https://photo.yupoo.com/zhouchangliang/fe75f8ab98/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/fe75f8ab98/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/6193272fa0/square.jpg",
-        "https://photo.yupoo.com/zhouchangliang/fe75f8ab98/square.jpg"
-      ]
+        "https://photo.yupoo.com/zhouchangliang/6193272fa0/991f0725.jpg"
+      ],
+      "imageCount": 2
     },
     {
       "id": "248118001",
-      "name": "PSG 26/27 Pre-Match Home Player Version Jersey S-XXL | álbum | Wholesale jersey WhatsApp+86 15811885591",
+      "name": "PSG 26/27 Pre-Match Home Player Version Jersey S-XXL",
       "category": "Catálogo",
-      "description": "Wholesale jersey WhatsApp+86 15811885591 - Wholesale",
+      "description": "",
       "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/248118001?uid=1&isSubCate=false&referrercate=748250",
       "images": [
-        "https://photo.yupoo.com/zhouchangliang/2023fb385b/medium.jpg",
-        "https://photo.yupoo.com/zhouchangliang/084010b849/6229d3fc.jpg",
-        "https://photo.yupoo.com/zhouchangliang/084010b849/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/084010b849/small.jpg",
+        "./assets/catalog/248118001/01.jpg",
+        "./assets/catalog/248118001/02.jpg"
+      ],
+      "sourceImages": [
         "https://photo.yupoo.com/zhouchangliang/2023fb385b/5b3dff7a.jpg",
-        "https://photo.yupoo.com/zhouchangliang/2023fb385b/big.jpg",
-        "https://photo.yupoo.com/zhouchangliang/2023fb385b/small.jpg",
-        "https://photo.yupoo.com/zhouchangliang/084010b849/square.jpg",
-        "https://photo.yupoo.com/zhouchangliang/2023fb385b/square.jpg"
-      ]
+        "https://photo.yupoo.com/zhouchangliang/084010b849/6229d3fc.jpg"
+      ],
+      "imageCount": 2
     }
   ]
 }
