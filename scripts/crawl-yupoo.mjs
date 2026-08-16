@@ -39,14 +39,20 @@ function pagedUrl(base, page) {
   return url.href;
 }
 
-function runWorker(url, cwd) {
+function candidateWindow(remainingProducts, previousProductRatio = 0.65) {
+  const safeRatio = Math.max(0.25, Math.min(1, previousProductRatio));
+  const estimatedNeeded = Math.ceil(remainingProducts / safeRatio);
+  return Math.max(16, Math.min(50, estimatedNeeded + 6));
+}
+
+function runWorker(url, cwd, maxCandidates) {
   return new Promise((resolvePromise, rejectPromise) => {
     const child = spawn(process.execPath, [workerScript, url], {
       cwd,
       stdio: 'inherit',
       env: {
         ...process.env,
-        MAX_ALBUMS: '50'
+        MAX_ALBUMS: String(maxCandidates)
       }
     });
 
@@ -137,15 +143,18 @@ async function main() {
   let totalBytes = 0;
   let totalPhotos = 0;
   let candidatesScanned = 0;
+  let previousProductRatio = 0.65;
 
   for (let page = 1; page <= maxPages && productsById.size < maxAlbums; page++) {
+    const remainingProducts = maxAlbums - productsById.size;
+    const maxCandidates = candidateWindow(remainingProducts, previousProductRatio);
     const pageDir = resolve(scratchRoot, `page-${page}`);
     await mkdir(pageDir, { recursive: true });
 
     const url = pagedUrl(sourceUrl, page);
-    console.log(`\n=== CRAWL página ${page}/${maxPages}: ${url} ===`);
+    console.log(`\n=== CRAWL página ${page}/${maxPages}: ${url} | janela ${maxCandidates} candidatos para ${remainingProducts} produtos restantes ===`);
 
-    await runWorker(url, pageDir);
+    await runWorker(url, pageDir, maxCandidates);
 
     const pageCatalog = JSON.parse(await readFile(resolve(pageDir, 'data/catalog.json'), 'utf8'));
     const pageProducts = Array.isArray(pageCatalog.products) ? pageCatalog.products : [];
@@ -155,6 +164,7 @@ async function main() {
     const pageInformation = Array.isArray(pageCatalog.information) ? pageCatalog.information : [];
     pagesScanned += 1;
     candidatesScanned += pageItems.length;
+    previousProductRatio = pageItems.length ? pageProducts.length / pageItems.length : previousProductRatio;
 
     for (const category of pageTaxonomy) {
       if (category?.id && category?.name) taxonomyById.set(String(category.id), category);
@@ -194,7 +204,7 @@ async function main() {
       newProducts += 1;
     }
 
-    console.log(`Página ${page}: ${pageItems.length} candidatos, ${pageProducts.length} produtos classificados, ${newProducts} produtos novos, ${productsById.size}/${maxAlbums} consolidados.`);
+    console.log(`Página ${page}: ${pageItems.length} candidatos, ${pageProducts.length} produtos classificados (${Math.round(previousProductRatio * 100)}%), ${newProducts} produtos novos, ${productsById.size}/${maxAlbums} consolidados.`);
 
     if (pageItems.length === 0) {
       console.log('Fim detectado: página sem itens.');
