@@ -63,6 +63,24 @@ if (/x\.yupoo\.com|photo\.yupoo\.com/i.test(serialized)) {
   throw new Error('White-label gate: catálogo público contém URL da fonte Yupoo.');
 }
 
+if (catalog.schemaVersion >= 4) {
+  const invalidProducts = catalog.products.filter((product) => !/^p_[a-f0-9]{20}$/.test(product.id));
+  const invalidCategories = catalog.taxonomy.filter((category) => !/^c_[a-f0-9]{20}$/.test(category.id));
+  const rawAssetPaths = catalog.products
+    .flatMap((product) => product.images)
+    .filter((path) => /\/assets\/catalog\/\d+\//.test(path));
+
+  if (invalidProducts.length || invalidCategories.length || rawAssetPaths.length) {
+    throw new Error('White-label identity gate: schema v4 contém ID/pasta pública não opaca.');
+  }
+
+  for (const product of catalog.products) {
+    if (product.images.some((path) => !path.includes(`/assets/catalog/${product.id}/`))) {
+      throw new Error(`Imagem fora do namespace público do produto ${product.id}.`);
+    }
+  }
+}
+
 const paths = [...new Set(catalog.products.flatMap((product) => product.images))];
 const queue = new PQueue({ concurrency: 4, timeout: 20_000 });
 const jobs = paths.map((path) => queue.add(() => auditImage(path), { id: path }));
@@ -84,5 +102,6 @@ console.log(JSON.stringify({
   images: images.length,
   totalMB: Number((totalBytes / 1024 / 1024).toFixed(2)),
   formats,
+  opaqueIds: catalog.schemaVersion >= 4,
   concurrency: 4
 }, null, 2));
