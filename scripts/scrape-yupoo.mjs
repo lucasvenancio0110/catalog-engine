@@ -16,11 +16,25 @@ function absolute(base, value) {
   try { return new URL(value, base).href; } catch { return null; }
 }
 
+function normalizeAlbumUrl(baseUrl, value) {
+  const href = absolute(baseUrl, value);
+  if (!href) return null;
+
+  try {
+    const url = new URL(href);
+    // Yupoo usa uid=1 em páginas de álbum. Remover a query pode fazer o mesmo álbum responder 404.
+    if (!url.searchParams.has('uid')) url.searchParams.set('uid', '1');
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
 async function getHtml(url) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(url, { headers, signal: controller.signal });
+    const response = await fetch(url, { headers, signal: controller.signal, redirect: 'follow' });
     if (!response.ok) throw new Error(`HTTP ${response.status} em ${url}`);
     return await response.text();
   } finally {
@@ -33,7 +47,7 @@ function extractAlbumLinks(html, baseUrl) {
   const found = new Map();
 
   $('a[href*="/albums/"]').each((_, el) => {
-    const href = absolute(baseUrl, $(el).attr('href'));
+    const href = normalizeAlbumUrl(baseUrl, $(el).attr('href'));
     if (!href) return;
     const match = href.match(/\/albums\/(\d+)/);
     if (!match) return;
@@ -42,7 +56,7 @@ function extractAlbumLinks(html, baseUrl) {
     const imageAlt = $(el).find('img').first().attr('alt')?.trim();
     found.set(match[1], {
       id: match[1],
-      url: href.split('?')[0],
+      url: href,
       hintedName: text || imageAlt || `Álbum ${match[1]}`
     });
   });
@@ -67,13 +81,14 @@ function extractProduct(html, album) {
       $(img).attr('data-origin-src'),
       $(img).attr('data-src'),
       $(img).attr('data-lazy'),
+      $(img).attr('data-original'),
       $(img).attr('src')
     ];
 
     for (const candidate of candidates) {
       const url = absolute(album.url, candidate);
       if (!url) continue;
-      if (/yupoo|photo\./i.test(url) && !/avatar|logo|icon/i.test(url)) images.add(url);
+      if (/yupoo|photo\./i.test(url) && !/avatar|logo|icon|qrcode/i.test(url)) images.add(url);
     }
   });
 
@@ -101,14 +116,16 @@ async function main() {
   }
 
   console.log(`${albums.length} álbuns selecionados para o MVP.`);
+  console.log(`Primeiro álbum: ${albums[0].url}`);
   const products = [];
 
   for (let i = 0; i < albums.length; i++) {
     const album = albums[i];
     try {
       const html = await getHtml(album.url);
-      products.push(extractProduct(html, album));
-      console.log(`[${i + 1}/${albums.length}] ${products.at(-1).name}`);
+      const product = extractProduct(html, album);
+      products.push(product);
+      console.log(`[${i + 1}/${albums.length}] ${product.name} | ${product.images.length} imagem(ns)`);
     } catch (error) {
       console.warn(`[${i + 1}/${albums.length}] falhou ${album.url}: ${error.message}`);
     }
