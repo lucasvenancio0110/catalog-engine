@@ -1,0 +1,131 @@
+name: Validar Catalog V0.7 Sync
+
+on:
+  push:
+    branches: ["agent/catalog-v07-sync-engine"]
+    paths-ignore:
+      - "data/catalog.json"
+      - "data/sync-state.json"
+      - "assets/catalog/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: catalog-v07-sync-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar pelo lockfile
+        run: npm ci
+
+      - name: Quality gate e testes de reconciliação
+        run: npm run quality
+
+      - name: Crawl real 1 — migração para IDs opacos
+        env:
+          MAX_ALBUMS: 40
+          MAX_PAGES: 2
+        run: npm run crawl -- "https://zhouchangliang.x.yupoo.com/albums/"
+
+      - name: Auditar migração e salvar baseline
+        run: |
+          npm run audit
+          npm run sync:audit
+          cp data/catalog.json /tmp/catalog-first.json
+          cp data/sync-state.json /tmp/sync-first.json
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const catalog = JSON.parse(fs.readFileSync('data/catalog.json', 'utf8'));
+          const sync = JSON.parse(fs.readFileSync('data/sync-state.json', 'utf8'));
+          const ids = catalog.products.map((product) => String(product.id));
+          const rawPaths = catalog.products.flatMap((product) => product.images || []).filter((image) => /\/catalog\/\d+\//.test(image));
+          console.log(JSON.stringify({ schemaVersion: catalog.schemaVersion, products: ids.length, new: sync.summary?.new, rawPaths: rawPaths.length }, null, 2));
+          if (catalog.schemaVersion !== 4 || ids.length < 40 || ids.some((id) => !/^p_[a-f0-9]{20}$/.test(id)) || rawPaths.length) process.exit(1);
+          NODE
+
+      - name: Crawl real 2 — escopo parcial de 20 produtos
+        env:
+          MAX_ALBUMS: 20
+          MAX_PAGES: 1
+        run: npm run crawl -- "https://zhouchangliang.x.yupoo.com/albums/"
+
+      - name: Provar preservação em scan parcial
+        run: |
+          npm run audit
+          npm run sync:audit
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const before = JSON.parse(fs.readFileSync('/tmp/catalog-first.json', 'utf8'));
+          const after = JSON.parse(fs.readFileSync('data/catalog.json', 'utf8'));
+          const sync = JSON.parse(fs.readFileSync('data/sync-state.json', 'utf8'));
+          const beforeIds = new Set(before.products.map((product) => String(product.id)));
+          const afterIds = new Set(after.products.map((product) => String(product.id)));
+          const preserved = [...beforeIds].filter((id) => afterIds.has(id)).length;
+          const removed = sync.summary?.removed || 0;
+          const unobserved = sync.summary?.unobserved || 0;
+          console.log(JSON.stringify({ before: beforeIds.size, after: afterIds.size, preserved, removed, unobserved, scopeComplete: sync.scope?.complete }, null, 2));
+          if (sync.scope?.complete !== false || removed !== 0 || preserved !== beforeIds.size || afterIds.size < beforeIds.size || unobserved < 1) process.exit(1);
+          NODE
+
+      - name: Crawl real 3 — voltar ao lote de 40
+        env:
+          MAX_ALBUMS: 40
+          MAX_PAGES: 2
+        run: npm run crawl -- "https://zhouchangliang.x.yupoo.com/albums/"
+
+      - name: Auditoria final de sincronização
+        run: |
+          npm run audit
+          npm run sync:audit
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const first = JSON.parse(fs.readFileSync('/tmp/catalog-first.json', 'utf8'));
+          const finalCatalog = JSON.parse(fs.readFileSync('data/catalog.json', 'utf8'));
+          const finalSync = JSON.parse(fs.readFileSync('data/sync-state.json', 'utf8'));
+          const firstIds = new Set(first.products.map((product) => String(product.id)));
+          const finalIds = new Set(finalCatalog.products.map((product) => String(product.id)));
+          const stable = [...firstIds].filter((id) => finalIds.has(id)).length;
+          console.log(JSON.stringify({ first: firstIds.size, final: finalIds.size, stable, changes: finalSync.summary, scope: finalSync.scope }, null, 2));
+          if ((finalSync.summary?.removed || 0) !== 0 || stable < Math.min(35, firstIds.size) || finalIds.size < 40) process.exit(1);
+          NODE
+
+      - name: Build Vite
+        run: npm run build
+
+      - name: Auditar dist sem estado privado nem IDs brutos
+        run: npm run build:verify
+
+      - name: Verificar vulnerabilidades runtime
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Upload do artifact validado
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Materializar baseline V0.7 validada na branch
+        run: |
+          git config user.name "catalog-engine-bot"
+          git config user.email "catalog-engine-bot@users.noreply.github.com"
+          git add data/catalog.json data/sync-state.json assets/catalog
+          if git diff --cached --quiet; then
+            echo "Baseline V0.7 já materializada."
+          else
+            git commit -m "materialize validated V0.7 sync baseline"
+            git push origin HEAD:agent/catalog-v07-sync-engine
+          fi
