@@ -49,6 +49,20 @@ Do not add Axios/Got only to replace native `fetch`. Do not add Lodash for trivi
 4. Parse static HTML with Cheerio first. Browser automation is fallback-only when server HTML does not expose required data.
 5. Every item must be classified before expensive image work.
 6. Supplier URLs and sensitive source state must never be emitted into the public storefront artifact.
+7. A product with incomplete downloaded media must not overwrite a previously healthy public product.
+
+## Synchronization rules
+
+1. **A partial scan may never infer deletion.** `not observed` is not equivalent to `removed`.
+2. `REMOVED` is allowed only when the scanned scope is explicitly known to be complete and the run had no extraction/media failures that could hide a product.
+3. During partial scans, previously active but unobserved products and their media remain published and active.
+4. Public product/category IDs must be opaque stable IDs; never expose raw supplier album/category IDs in `catalog.json`, asset paths or `dist/`.
+5. Raw source IDs, source URLs and source image URLs belong only in ignored/private source state.
+6. Persistent `data/sync-state.json` may contain only opaque public IDs, hashes, timestamps, statuses, scope metadata and change summaries. It must not contain supplier URLs or raw supplier IDs.
+7. NEW/UPDATED/RESTORED are computed from stable identity + content fingerprints. REMOVED requires complete scope.
+8. Confirmed removals may delete public media only after the complete-scope removal decision is made.
+9. Schema/state migrations must explicitly remove old public source fingerprints rather than silently carrying them forward.
+10. Sync behavior changes require tests for NEW, UPDATED, RESTORED, complete-scope REMOVED and partial-scope UNOBSERVED preservation.
 
 ## Data rules
 
@@ -82,10 +96,11 @@ npm run build
 npm run build:verify
 ```
 
-For crawler/import changes, also run a real isolated crawl and then:
+For crawler/import/sync changes, also run a real isolated crawl and then:
 
 ```bash
 npm run audit
+npm run sync:audit
 ```
 
 A feature is not complete because it works once. It is complete when its behavior is tested, its output is validated, and its failure mode is understood.
