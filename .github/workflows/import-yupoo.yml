@@ -5,6 +5,7 @@ on:
     branches: ["main"]
     paths-ignore:
       - "data/catalog.json"
+      - "data/source-state.json"
       - "assets/catalog/**"
   workflow_dispatch:
     inputs:
@@ -14,7 +15,7 @@ on:
         default: "https://zhouchangliang.x.yupoo.com/albums/"
         type: string
       max_albums:
-        description: "Quantidade máxima de produtos no MVP (até 120 enquanto usamos GitHub como storage)"
+        description: "Quantidade máxima de produtos comerciais no MVP (até 120 enquanto usamos GitHub como storage)"
         required: true
         default: "40"
         type: string
@@ -53,26 +54,26 @@ jobs:
       - name: Instalar dependências
         run: npm install
 
-      - name: Varrer páginas, extrair produtos e baixar fotos HD
+      - name: Varrer estrutura, classificar produtos e baixar fotos HD
         env:
           SOURCE_URL: ${{ github.event.inputs.source_url || 'https://zhouchangliang.x.yupoo.com/albums/' }}
           MAX_ALBUMS: ${{ github.event.inputs.max_albums || '40' }}
           MAX_PAGES: ${{ github.event.inputs.max_pages || '3' }}
         run: node scripts/crawl-yupoo.mjs "$SOURCE_URL"
 
-      - name: Validar catálogo consolidado e arquivos locais
+      - name: Validar catálogo white-label e arquivos locais
         run: |
-          node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('data/catalog.json','utf8')); if (!Array.isArray(c.products) || c.products.length === 0) { console.error('Nenhum produto foi extraído.'); process.exit(1); } const imgs=c.products.flatMap(p => p.images || []); const missing=imgs.filter(i => !fs.existsSync(i.replace(/^\.\//,''))); console.log('Produtos extraídos:', c.products.length); console.log('Páginas varridas:', c.crawl?.pagesScanned); console.log('Fotos HD baixadas:', imgs.length); console.log('Categorias de origem detectadas:', c.crawl?.categoryIds?.length || 0); if (!imgs.length || missing.length) { console.error('Falha na validação das imagens locais.', {missing: missing.slice(0,5)}); process.exit(1); }"
+          node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('data/catalog.json','utf8')); if (!Array.isArray(c.products) || c.products.length === 0) { console.error('Nenhum produto comercial foi extraído.'); process.exit(1); } if (!fs.existsSync('data/source-state.json')) { console.error('Estado interno da fonte não foi gerado.'); process.exit(1); } const imgs=c.products.flatMap(p => p.images || []); const missing=imgs.filter(i => !fs.existsSync(i.replace(/^\.\//,''))); const leaked=/x\.yupoo\.com|photo\.yupoo\.com/i.test(JSON.stringify(c)); console.log('Produtos comerciais:', c.products.length); console.log('Páginas varridas:', c.crawl?.pagesScanned); console.log('Candidatos analisados:', c.crawl?.candidatesScanned); console.log('Atalhos/informativos filtrados:', (c.crawl?.skippedNavigation || 0) + (c.crawl?.skippedInformation || 0)); console.log('Fotos HD baixadas:', imgs.length); console.log('Categorias detectadas:', c.crawl?.taxonomyEntries || 0); if (!imgs.length || missing.length || leaked) { console.error('Falha na validação white-label.', {missing: missing.slice(0,5), leaked}); process.exit(1); }"
 
-      - name: Salvar catálogo e imagens atualizados
+      - name: Salvar catálogo, estado e imagens atualizados
         run: |
           git config user.name "catalog-engine-bot"
           git config user.email "catalog-engine-bot@users.noreply.github.com"
-          git add data/catalog.json assets/catalog
+          git add data/catalog.json data/source-state.json assets/catalog
           if git diff --cached --quiet; then
             echo "Nenhuma alteração no catálogo."
           else
-            git commit -m "update paginated imported catalog and HD images"
+            git commit -m "update classified catalog and HD images"
             git push origin main
           fi
 
