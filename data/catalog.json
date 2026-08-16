@@ -1,0 +1,18 @@
+{
+  "source": "https://zhouchangliang.x.yupoo.com/albums/",
+  "generatedAt": null,
+  "store": {
+    "name": "Catalog Engine Demo",
+    "whatsapp": ""
+  },
+  "products": [
+    {
+      "id": "demo-001",
+      "name": "Produto de demonstração",
+      "category": "Demonstração",
+      "description": "Este item será substituído pelos produtos importados do Yupoo.",
+      "sourceUrl": "https://zhouchangliang.x.yupoo.com/albums/",
+      "images": []
+    }
+  ]
+}
