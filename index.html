@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0b0b0c" />
+  <title>Catalog Engine</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <span class="eyebrow">CATÁLOGO DIGITAL</span>
+      <h1 id="storeName">Catalog Engine</h1>
+    </div>
+    <button id="themeToggle" class="ghost" type="button" aria-label="Alternar tema">◐</button>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">VITRINE WHITE-LABEL</p>
+        <h2>Encontre o produto certo sem navegar em centenas de álbuns.</h2>
+      </div>
+      <div class="stats">
+        <strong id="productCount">0</strong>
+        <span>produtos</span>
+      </div>
+    </section>
+
+    <section class="toolbar" aria-label="Filtros do catálogo">
+      <label class="search">
+        <span>Buscar</span>
+        <input id="searchInput" type="search" placeholder="Nome, modelo ou categoria" autocomplete="off" />
+      </label>
+      <label class="category-filter">
+        <span>Categoria</span>
+        <select id="categorySelect">
+          <option value="">Todas</option>
+        </select>
+      </label>
+    </section>
+
+    <div id="status" class="status">Carregando catálogo…</div>
+    <section id="productGrid" class="grid" aria-live="polite"></section>
+  </main>
+
+  <template id="productTemplate">
+    <article class="card">
+      <div class="image-wrap">
+        <img class="product-image" alt="" loading="lazy" />
+        <div class="image-fallback">Sem imagem</div>
+      </div>
+      <div class="card-content">
+        <span class="category"></span>
+        <h3 class="product-name"></h3>
+        <p class="description"></p>
+        <div class="card-actions">
+          <button class="details" type="button">Ver produto</button>
+        </div>
+      </div>
+    </article>
+  </template>
+
+  <dialog id="productDialog">
+    <button id="dialogClose" class="dialog-close" type="button" aria-label="Fechar">×</button>
+    <img id="dialogImage" alt="" />
+    <div class="dialog-copy">
+      <span id="dialogCategory" class="category"></span>
+      <h2 id="dialogName"></h2>
+      <p id="dialogDescription"></p>
+      <a id="whatsappButton" class="primary-action" target="_blank" rel="noopener">Pedir no WhatsApp</a>
+    </div>
+  </dialog>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
