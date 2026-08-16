@@ -14,9 +14,14 @@ on:
         default: "https://zhouchangliang.x.yupoo.com/albums/"
         type: string
       max_albums:
-        description: "Quantidade de álbuns para o teste"
+        description: "Quantidade máxima de produtos no MVP (até 120 enquanto usamos GitHub como storage)"
         required: true
-        default: "20"
+        default: "40"
+        type: string
+      max_pages:
+        description: "Quantidade máxima de páginas do Yupoo para varrer"
+        required: true
+        default: "3"
         type: string
 
 permissions:
@@ -48,15 +53,16 @@ jobs:
       - name: Instalar dependências
         run: npm install
 
-      - name: Extrair catálogo e fotos originais
+      - name: Varrer páginas, extrair produtos e baixar fotos HD
         env:
           SOURCE_URL: ${{ github.event.inputs.source_url || 'https://zhouchangliang.x.yupoo.com/albums/' }}
-          MAX_ALBUMS: ${{ github.event.inputs.max_albums || '20' }}
-        run: npm run scrape -- "$SOURCE_URL"
+          MAX_ALBUMS: ${{ github.event.inputs.max_albums || '40' }}
+          MAX_PAGES: ${{ github.event.inputs.max_pages || '3' }}
+        run: node scripts/crawl-yupoo.mjs "$SOURCE_URL"
 
-      - name: Validar catálogo e arquivos locais
+      - name: Validar catálogo consolidado e arquivos locais
         run: |
-          node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('data/catalog.json','utf8')); if (!Array.isArray(c.products) || c.products.length === 0) { console.error('Nenhum produto foi extraído.'); process.exit(1); } const imgs=c.products.flatMap(p => p.images || []); const missing=imgs.filter(i => !fs.existsSync(i.replace(/^\.\//,''))); console.log('Produtos extraídos:', c.products.length); console.log('Fotos HD baixadas:', imgs.length); if (!imgs.length || missing.length) { console.error('Falha na validação das imagens locais.', {missing: missing.slice(0,5)}); process.exit(1); }"
+          node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('data/catalog.json','utf8')); if (!Array.isArray(c.products) || c.products.length === 0) { console.error('Nenhum produto foi extraído.'); process.exit(1); } const imgs=c.products.flatMap(p => p.images || []); const missing=imgs.filter(i => !fs.existsSync(i.replace(/^\.\//,''))); console.log('Produtos extraídos:', c.products.length); console.log('Páginas varridas:', c.crawl?.pagesScanned); console.log('Fotos HD baixadas:', imgs.length); console.log('Categorias de origem detectadas:', c.crawl?.categoryIds?.length || 0); if (!imgs.length || missing.length) { console.error('Falha na validação das imagens locais.', {missing: missing.slice(0,5)}); process.exit(1); }"
 
       - name: Salvar catálogo e imagens atualizados
         run: |
@@ -66,7 +72,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "Nenhuma alteração no catálogo."
           else
-            git commit -m "update imported catalog and HD images"
+            git commit -m "update paginated imported catalog and HD images"
             git push origin main
           fi
 
