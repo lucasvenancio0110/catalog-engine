@@ -4,7 +4,7 @@ import PQueue from 'p-queue';
 import sharp from 'sharp';
 import { z } from 'zod';
 
-const legacyImageSchema = z.string().regex(/^\.\/assets\/catalog\//);
+const imagePathSchema = z.string().regex(/^\.\/assets\/(?:catalog|media\/web)\//);
 const mediaDescriptorSchema = z.object({
   id: z.string().regex(/^m_[a-f0-9]{20}$/),
   hash: z.string().regex(/^[a-f0-9]{64}$/),
@@ -16,14 +16,14 @@ const mediaDescriptorSchema = z.object({
   thumbnailUrl: z.string().regex(/^\.\/assets\/media\/thumb\//),
   downloadUrl: z.string().regex(/^\.\/assets\/media\/original\//)
 }).passthrough();
-const imageSchema = z.union([legacyImageSchema, mediaDescriptorSchema]);
 
 const productSchema = z.object({
   id: z.union([z.string(), z.number()]).transform(String),
   name: z.string().min(1),
   category: z.string().min(1),
   description: z.string().default(''),
-  images: z.array(imageSchema).min(1),
+  images: z.array(imagePathSchema).min(1),
+  media: z.array(mediaDescriptorSchema).optional(),
   imageCount: z.number().int().nonnegative().optional(),
   entityType: z.literal('product').optional()
 }).passthrough();
@@ -48,16 +48,6 @@ const catalogSchema = z.object({
   }).passthrough()).default([]),
   products: z.array(productSchema).min(1)
 }).passthrough();
-
-function primaryPath(image) {
-  return typeof image === 'string' ? image : image.downloadUrl || image.url;
-}
-
-function allPublicPaths(image) {
-  return typeof image === 'string'
-    ? [image]
-    : [image.url, image.thumbnailUrl, image.downloadUrl].filter(Boolean);
-}
 
 async function auditImage(relativePath) {
   const localPath = resolve(process.cwd(), relativePath.replace(/^\.\//, ''));
@@ -89,7 +79,10 @@ if (catalog.schemaVersion >= 4) {
   const invalidProducts = catalog.products.filter((product) => !/^p_[a-f0-9]{20}$/.test(product.id));
   const invalidCategories = catalog.taxonomy.filter((category) => !/^c_[a-f0-9]{20}$/.test(category.id));
   const rawAssetPaths = catalog.products
-    .flatMap((product) => product.images.flatMap(allPublicPaths))
+    .flatMap((product) => [
+      ...product.images,
+      ...(product.media || []).flatMap((media) => [media.url, media.thumbnailUrl, media.downloadUrl])
+    ])
     .filter((path) => /\/assets\/catalog\/\d+\//.test(path));
 
   if (invalidProducts.length || invalidCategories.length || rawAssetPaths.length) {
@@ -98,19 +91,22 @@ if (catalog.schemaVersion >= 4) {
 
   for (const product of catalog.products) {
     if (catalog.schemaVersion >= 6) {
-      if (product.images.some((image) => typeof image !== 'object')) {
-        throw new Error(`Schema 6 exige media descriptors no produto ${product.id}.`);
+      if (!Array.isArray(product.media) || product.media.length !== product.images.length) {
+        throw new Error(`Schema 6 exige media descriptors alinhados no produto ${product.id}.`);
       }
-      if (product.images.flatMap(allPublicPaths).some((path) => !path.startsWith('./assets/media/'))) {
-        throw new Error(`Schema 6 contém mídia fora do content-addressed store no produto ${product.id}.`);
+      if (product.images.some((path) => !path.startsWith('./assets/media/web/'))) {
+        throw new Error(`Schema 6 contém imagem de navegação fora do media store no produto ${product.id}.`);
       }
-    } else if (product.images.some((image) => !String(image).includes(`/assets/catalog/${product.id}/`))) {
+      if (product.media.some((media, index) => media.url !== product.images[index])) {
+        throw new Error(`images e media divergiram no produto ${product.id}.`);
+      }
+    } else if (product.images.some((path) => !path.includes(`/assets/catalog/${product.id}/`))) {
       throw new Error(`Imagem fora do namespace público do produto ${product.id}.`);
     }
   }
 }
 
-const paths = [...new Set(catalog.products.flatMap((product) => product.images.map(primaryPath)))];
+const paths = [...new Set(catalog.products.flatMap((product) => product.images))];
 const queue = new PQueue({ concurrency: 4, timeout: 20_000 });
 const jobs = paths.map((path) => queue.add(() => auditImage(path), { id: path }));
 const images = await Promise.all(jobs);
