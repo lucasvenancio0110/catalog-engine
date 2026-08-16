@@ -36,9 +36,10 @@ jobs:
       - name: Quality gate
         run: npm run quality
 
-      - name: Auditar catálogo, imagens, sync-state e taxonomia
+      - name: Auditar catálogo, mídia, sync-state e taxonomia
         run: |
           npm run audit
+          npm run media:audit
           npm run sync:audit
           npm run taxonomy:audit
 
