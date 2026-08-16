@@ -15,7 +15,7 @@ if (!Number.isFinite(requestedMaxPages) || requestedMaxPages < 1) {
   throw new Error('MAX_PAGES precisa ser um número maior que zero.');
 }
 if (requestedMaxAlbums > hardAlbumLimit) {
-  throw new Error(`O MVP limita a importação a ${hardAlbumLimit} álbuns enquanto as imagens ainda ficam no GitHub. Para escalar além disso, migraremos o storage para objeto/CDN.`);
+  throw new Error(`O MVP limita a importação a ${hardAlbumLimit} produtos enquanto as imagens ainda ficam no GitHub. Para escalar além disso, migraremos o storage para objeto/CDN.`);
 }
 
 const maxAlbums = Math.min(requestedMaxAlbums, hardAlbumLimit);
@@ -25,6 +25,8 @@ const workerScript = resolve(root, 'scripts/scrape-yupoo.mjs');
 const scratchRoot = resolve(root, '.crawl');
 const outputAssets = resolve(root, 'assets/catalog');
 const outputData = resolve(root, 'data/catalog.json');
+const sourceStateData = resolve(root, 'data/source-state.json');
+const storeData = resolve(root, 'data/store.json');
 
 function pagedUrl(base, page) {
   const url = new URL(base);
@@ -37,14 +39,14 @@ function pagedUrl(base, page) {
   return url.href;
 }
 
-function runWorker(url, cwd, maxForPage) {
+function runWorker(url, cwd) {
   return new Promise((resolvePromise, rejectPromise) => {
     const child = spawn(process.execPath, [workerScript, url], {
       cwd,
       stdio: 'inherit',
       env: {
         ...process.env,
-        MAX_ALBUMS: String(maxForPage)
+        MAX_ALBUMS: '50'
       }
     });
 
@@ -64,6 +66,57 @@ async function fileSize(path) {
   }
 }
 
+async function exists(path) {
+  try {
+    await stat(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function loadStoreConfig() {
+  try {
+    return JSON.parse(await readFile(storeData, 'utf8'));
+  } catch {
+    return {
+      name: 'Catalog Engine Demo',
+      logo: '',
+      whatsapp: '',
+      instagram: '',
+      theme: 'dark',
+      currency: 'BRL',
+      showDownload: true,
+      showSource: false
+    };
+  }
+}
+
+function sanitizeProduct(product) {
+  const {
+    sourceUrl,
+    sourceImages,
+    sourceCategoryId,
+    sourceCategoryName,
+    confidence,
+    reason,
+    ...publicProduct
+  } = product;
+
+  return {
+    ...publicProduct,
+    category: publicProduct.category || sourceCategoryName || 'Catálogo'
+  };
+}
+
+function sanitizeTaxonomy(entry) {
+  return {
+    id: String(entry.id),
+    type: 'category',
+    name: entry.name
+  };
+}
+
 async function main() {
   const hostname = new URL(sourceUrl).hostname;
   if (!hostname.endsWith('.x.yupoo.com')) {
@@ -76,80 +129,106 @@ async function main() {
   await mkdir(outputAssets, { recursive: true });
 
   const productsById = new Map();
+  const taxonomyById = new Map();
+  const navigationById = new Map();
+  const informationById = new Map();
+  const seenCandidateIds = new Set();
   let pagesScanned = 0;
   let totalBytes = 0;
   let totalPhotos = 0;
+  let candidatesScanned = 0;
 
   for (let page = 1; page <= maxPages && productsById.size < maxAlbums; page++) {
-    const remaining = maxAlbums - productsById.size;
     const pageDir = resolve(scratchRoot, `page-${page}`);
     await mkdir(pageDir, { recursive: true });
 
     const url = pagedUrl(sourceUrl, page);
     console.log(`\n=== CRAWL página ${page}/${maxPages}: ${url} ===`);
 
-    await runWorker(url, pageDir, Math.min(50, Math.max(1, remaining)));
+    await runWorker(url, pageDir);
 
     const pageCatalog = JSON.parse(await readFile(resolve(pageDir, 'data/catalog.json'), 'utf8'));
     const pageProducts = Array.isArray(pageCatalog.products) ? pageCatalog.products : [];
+    const pageItems = Array.isArray(pageCatalog.items) ? pageCatalog.items : pageProducts;
+    const pageTaxonomy = Array.isArray(pageCatalog.taxonomy) ? pageCatalog.taxonomy : [];
+    const pageNavigation = Array.isArray(pageCatalog.navigation) ? pageCatalog.navigation : [];
+    const pageInformation = Array.isArray(pageCatalog.information) ? pageCatalog.information : [];
     pagesScanned += 1;
+    candidatesScanned += pageItems.length;
+
+    for (const category of pageTaxonomy) {
+      if (category?.id && category?.name) taxonomyById.set(String(category.id), category);
+    }
+    for (const item of pageNavigation) {
+      if (item?.id) navigationById.set(String(item.id), item);
+    }
+    for (const item of pageInformation) {
+      if (item?.id) informationById.set(String(item.id), item);
+    }
+
+    let newCandidates = 0;
+    for (const item of pageItems) {
+      if (!item?.id || seenCandidateIds.has(String(item.id))) continue;
+      seenCandidateIds.add(String(item.id));
+      newCandidates += 1;
+    }
 
     let newProducts = 0;
     for (const product of pageProducts) {
       if (productsById.size >= maxAlbums) break;
-      if (!product?.id || productsById.has(product.id)) continue;
+      if (!product?.id || productsById.has(String(product.id))) continue;
 
       const sourceDir = resolve(pageDir, 'assets/catalog', String(product.id));
       const destinationDir = resolve(outputAssets, String(product.id));
-      await mkdir(dirname(destinationDir), { recursive: true });
-      await cp(sourceDir, destinationDir, { recursive: true, force: true });
+      if (await exists(sourceDir)) {
+        await mkdir(dirname(destinationDir), { recursive: true });
+        await cp(sourceDir, destinationDir, { recursive: true, force: true });
+      }
 
       for (const image of product.images || []) {
         const localPath = resolve(root, image.replace(/^\.\//, ''));
         totalBytes += await fileSize(localPath);
       }
       totalPhotos += (product.images || []).length;
-      productsById.set(product.id, product);
+      productsById.set(String(product.id), product);
       newProducts += 1;
     }
 
-    console.log(`Página ${page}: ${pageProducts.length} lidos, ${newProducts} novos, ${productsById.size}/${maxAlbums} consolidados.`);
+    console.log(`Página ${page}: ${pageItems.length} candidatos, ${pageProducts.length} produtos classificados, ${newProducts} produtos novos, ${productsById.size}/${maxAlbums} consolidados.`);
 
-    if (pageProducts.length === 0) {
-      console.log('Fim detectado: página sem produtos.');
+    if (pageItems.length === 0) {
+      console.log('Fim detectado: página sem itens.');
       break;
     }
-    if (page > 1 && newProducts === 0) {
-      console.log('Fim detectado: página repetiu apenas álbuns já conhecidos.');
+    if (page > 1 && newCandidates === 0) {
+      console.log('Fim detectado: página repetiu apenas itens já conhecidos.');
       break;
     }
   }
 
-  const products = [...productsById.values()];
-  if (!products.length) throw new Error('Nenhum produto foi consolidado pelo crawler.');
+  const sourceProducts = [...productsById.values()];
+  if (!sourceProducts.length) throw new Error('Nenhum produto comercial foi consolidado pelo crawler.');
 
-  const categoryIds = [...new Set(products.map((product) => {
-    try {
-      return new URL(product.sourceUrl).searchParams.get('referrercate');
-    } catch {
-      return null;
-    }
-  }).filter(Boolean))];
+  const store = await loadStoreConfig();
+  const taxonomy = [...taxonomyById.values()].map(sanitizeTaxonomy);
+  const products = sourceProducts.map(sanitizeProduct);
+  const navigation = [...navigationById.values()];
+  const information = [...informationById.values()];
 
   const output = {
-    schemaVersion: 2,
-    source: sourceUrl,
+    schemaVersion: 3,
     generatedAt: new Date().toISOString(),
-    store: {
-      name: 'Catalog Engine Demo',
-      whatsapp: ''
-    },
+    store,
+    taxonomy,
     crawl: {
       pagesScanned,
       maxPages,
       requestedMaxAlbums,
-      selectedAlbums: products.length,
-      categoryIds,
+      selectedProducts: products.length,
+      candidatesScanned,
+      taxonomyEntries: taxonomy.length,
+      skippedNavigation: navigation.length,
+      skippedInformation: information.length,
       storageMode: 'repository-mvp',
       hardAlbumLimit
     },
@@ -161,11 +240,33 @@ async function main() {
     products
   };
 
+  const sourceState = {
+    schemaVersion: 1,
+    source: sourceUrl,
+    generatedAt: output.generatedAt,
+    taxonomy: [...taxonomyById.values()],
+    navigation,
+    information,
+    products: sourceProducts.map((product) => ({
+      id: product.id,
+      sourceUrl: product.sourceUrl,
+      sourceImages: product.sourceImages,
+      sourceCategoryId: product.sourceCategoryId,
+      sourceCategoryName: product.sourceCategoryName,
+      classification: {
+        entityType: product.entityType,
+        confidence: product.confidence,
+        reason: product.reason
+      }
+    }))
+  };
+
   await mkdir(dirname(outputData), { recursive: true });
   await writeFile(outputData, `${JSON.stringify(output, null, 2)}\n`, 'utf8');
+  await writeFile(sourceStateData, `${JSON.stringify(sourceState, null, 2)}\n`, 'utf8');
   await rm(scratchRoot, { recursive: true, force: true });
 
-  console.log(`\nCRAWL concluído: ${products.length} produtos em ${pagesScanned} página(s), ${totalPhotos} fotos, ${(totalBytes / 1024 / 1024).toFixed(1)} MB.`);
+  console.log(`\nCRAWL concluído: ${products.length} produtos em ${pagesScanned} página(s), ${totalPhotos} fotos, ${taxonomy.length} categorias detectadas, ${navigation.length + information.length} itens não comerciais filtrados, ${(totalBytes / 1024 / 1024).toFixed(1)} MB.`);
 }
 
 main().catch((error) => {
