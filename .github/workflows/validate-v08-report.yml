@@ -1,0 +1,62 @@
+name: Validar Catalog V0.8 Sync Report
+
+on:
+  push:
+    branches: ["agent/catalog-v08-sync-report"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: catalog-v08-report-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar pelo lockfile
+        run: npm ci
+
+      - name: Quality gate
+        run: npm run quality
+
+      - name: Auditar catálogo e sync-state atuais
+        run: |
+          npm run audit
+          npm run sync:audit
+
+      - name: Gerar relatório real do estado atual
+        run: |
+          node scripts/sync-report.mjs \
+            --before data/catalog.json \
+            --after data/catalog.json \
+            --state data/sync-state.json \
+            --out /tmp/sync-report.md
+          cat /tmp/sync-report.md
+          grep -q "Relatório de sincronização" /tmp/sync-report.md
+          grep -q "Produtos publicados:.*40" /tmp/sync-report.md
+
+      - name: Build Vite
+        run: npm run build
+
+      - name: Auditar dist
+        run: npm run build:verify
+
+      - name: Verificar vulnerabilidades runtime
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Upload artifact validado
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
