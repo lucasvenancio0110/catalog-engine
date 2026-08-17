@@ -16,6 +16,8 @@ const state = {
   gallery: null
 };
 
+const prefetchedImages = new Map();
+
 const els = {
   storeName: document.querySelector('#storeName'),
   storeLogo: document.querySelector('#storeLogo'),
@@ -55,6 +57,27 @@ function slugify(value = 'produto') {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 80) || 'produto';
+}
+
+function prefetchImage(url) {
+  if (!url || prefetchedImages.has(url)) return;
+  const image = new Image();
+  image.decoding = 'async';
+  image.src = url;
+  prefetchedImages.set(url, image);
+  const release = () => setTimeout(() => prefetchedImages.delete(url), 30_000);
+  image.addEventListener('load', release, { once: true });
+  image.addEventListener('error', release, { once: true });
+}
+
+function scheduleInitialViewPrefetch(products) {
+  const urls = products
+    .slice(0, 4)
+    .map((product) => getProductMedia(product)[0]?.url)
+    .filter(Boolean);
+  const run = () => urls.forEach(prefetchImage);
+  if ('requestIdleCallback' in window) window.requestIdleCallback(run, { timeout: 1800 });
+  else setTimeout(run, 600);
 }
 
 function filteredProducts() {
@@ -174,15 +197,18 @@ function render() {
     ? `${products.length} produto${products.length === 1 ? '' : 's'} encontrado${products.length === 1 ? '' : 's'}`
     : 'Nenhum produto encontrado com esses filtros.';
 
-  for (const product of products) {
+  for (const [index, product] of products.entries()) {
     const node = els.template.content.cloneNode(true);
     const image = node.querySelector('.product-image');
     const fallback = node.querySelector('.image-fallback');
     const photoCount = node.querySelector('.photo-count');
     const media = getProductMedia(product);
-    const firstImage = media[0]?.url;
+    const firstImage = media[0]?.thumbnailUrl || media[0]?.url;
 
     if (firstImage) {
+      image.loading = index < 4 ? 'eager' : 'lazy';
+      image.decoding = 'async';
+      image.fetchPriority = index < 4 ? 'high' : 'low';
       image.src = firstImage;
       image.alt = product.name;
       fallback.hidden = true;
@@ -202,11 +228,18 @@ function render() {
     node.querySelector('.product-name').textContent = product.name;
     node.querySelector('.description').textContent =
       product.description || `${media.length || 0} foto${media.length === 1 ? '' : 's'} disponíveis em alta qualidade.`;
-    node.querySelector('.details').addEventListener('click', () => openProduct(product));
+
+    const details = node.querySelector('.details');
+    const prefetchHero = () => prefetchImage(media[0]?.url);
+    details.addEventListener('pointerenter', prefetchHero, { once: true });
+    details.addEventListener('focus', prefetchHero, { once: true });
+    details.addEventListener('touchstart', prefetchHero, { once: true, passive: true });
+    details.addEventListener('click', () => openProduct(product));
     els.grid.appendChild(node);
   }
 
   revealCards(els.grid);
+  scheduleInitialViewPrefetch(products);
 }
 
 function syncActiveImage(index) {
@@ -250,7 +283,9 @@ function renderThumbs(product) {
     const img = document.createElement('img');
     img.src = image.thumbnailUrl || image.url;
     img.alt = '';
-    img.loading = 'lazy';
+    img.loading = index === 0 ? 'eager' : 'lazy';
+    img.decoding = 'async';
+    img.fetchPriority = index === 0 ? 'high' : 'low';
 
     button.appendChild(img);
     button.addEventListener('click', () => state.gallery?.slideTo(index));
