@@ -56,7 +56,11 @@ function normalizePrevious(row = {}) {
   };
 }
 
-export function planIncrementalDelta(previousRows = [], currentEntries = [], { removalMissThreshold = 3 } = {}) {
+export function planIncrementalDelta(
+  previousRows = [],
+  currentEntries = [],
+  { removalMissThreshold = 3, inferMissing = true } = {}
+) {
   const threshold = Math.max(2, Number(removalMissThreshold || 3));
   const previousById = new Map(previousRows.map(normalizePrevious).filter((row) => row.sourceId).map((row) => [row.sourceId, row]));
   const currentById = new Map(currentEntries.filter((entry) => clean(entry.sourceId)).map((entry) => [clean(entry.sourceId), entry]));
@@ -77,24 +81,31 @@ export function planIncrementalDelta(previousRows = [], currentEntries = [], { r
 
     const categoryMoved = previous.categoryId !== clean(current.categoryId) || previous.categoryPathJson !== JSON.stringify(current.categoryPathIds || []);
     const contentChanged = previous.listingFingerprint !== fingerprint;
-    if (categoryMoved && !contentChanged) {
-      events.push({ type: 'MOVED', sourceId, previous, current: { ...current, listingFingerprint: fingerprint }, needsDetail: false });
-    } else if (contentChanged) {
-      events.push({ type: categoryMoved ? 'CHANGED_MOVED' : 'CHANGED', sourceId, previous, current: { ...current, listingFingerprint: fingerprint }, needsDetail: true });
+    const detailPending = !previous.detailFingerprint;
+
+    if (contentChanged) {
+      events.push({ type: categoryMoved ? 'CHANGED_MOVED' : 'CHANGED', sourceId, previous, current: { ...current, listingFingerprint: fingerprint }, needsDetail: true, reason: 'listing-changed' });
+    } else if (detailPending) {
+      events.push({ type: 'CHANGED', sourceId, previous, current: { ...current, listingFingerprint: fingerprint }, needsDetail: true, reason: 'detail-pending' });
+    } else if (categoryMoved) {
+      events.push({ type: 'MOVED', sourceId, previous, current: { ...current, listingFingerprint: fingerprint }, needsDetail: false, reason: 'source-placement-changed' });
     }
   }
 
-  for (const [sourceId, previous] of previousById) {
-    if (currentById.has(sourceId) || previous.status === 'deleted') continue;
-    const nextMissCount = previous.missCount + 1;
-    events.push({
-      type: nextMissCount >= threshold ? 'REMOVED' : 'MISSING',
-      sourceId,
-      previous,
-      current: null,
-      missCount: nextMissCount,
-      needsDetail: false
-    });
+  if (inferMissing) {
+    for (const [sourceId, previous] of previousById) {
+      if (currentById.has(sourceId) || previous.status === 'deleted') continue;
+      const nextMissCount = previous.missCount + 1;
+      events.push({
+        type: nextMissCount >= threshold ? 'REMOVED' : 'MISSING',
+        sourceId,
+        previous,
+        current: null,
+        missCount: nextMissCount,
+        needsDetail: false,
+        reason: 'not-observed-in-complete-scan'
+      });
+    }
   }
 
   const priority = new Map([
