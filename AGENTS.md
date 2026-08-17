@@ -63,7 +63,7 @@ Do not add Axios/Got only to replace native `fetch`. Do not add Lodash for trivi
 4. `REMOVED` is allowed only when the current scope is explicitly complete, the run has no extraction/media failures, and the product has no remaining membership in any other active scope.
 5. A complete category scan may detach a product from that category without removing it from the store if another scope still owns it.
 6. During partial scans, previously active but unobserved products and their scope memberships remain published and active.
-7. A category scan must never replace the global taxonomy tree. Only a complete `catalog` scope may authoritatively replace the entire taxonomy; other scopes merge into it.
+7. A category scan must never replace the global source taxonomy tree. Only a complete `catalog` scope may authoritatively replace the private source taxonomy; other scopes merge into it.
 8. Public product/category/scope IDs must be opaque stable IDs; never expose raw supplier album/category IDs in `catalog.json`, asset paths, sync state or `dist/`.
 9. Raw source IDs, source URLs and source image URLs belong only in ignored/private source state.
 10. Persistent `data/sync-state.json` may contain only opaque public IDs, hashes, timestamps, statuses, opaque scope memberships and change summaries. It must not contain supplier URLs or raw supplier IDs.
@@ -71,18 +71,38 @@ Do not add Axios/Got only to replace native `fetch`. Do not add Lodash for trivi
 12. Confirmed global removals may delete public media only after all active scope memberships are gone.
 13. Schema/state migrations must preserve active products safely and explicitly retire any legacy holding scope only when an authoritative complete catalog scan makes that safe.
 14. Sync behavior changes require tests for NEW, UPDATED, RESTORED, partial UNOBSERVED, scope DETACHED, cross-scope preservation and final global REMOVED.
+15. Daily sync is incremental. Expensive product detail requests are limited to the delta queue; full detail re-import is recovery tooling, not the default schedule.
+16. Incomplete/temporarily broken supplier albums use bounded retry and backoff and must not be re-fetched indefinitely on every run.
 
 ## Public taxonomy rules
 
-1. The provider's taxonomy scanner is the authority for hierarchy. Do not infer parent/child relationships from product names in the storefront.
-2. Raw category IDs and raw category URLs may exist only during extraction/private source processing. Public taxonomy uses opaque `c_<hash>` IDs only.
-3. Public categories must expose only safe storefront fields such as `id`, `name`, opaque `parentId`, opaque `childIds` and `depth`.
-4. Parent/child relationships must be reciprocal and acyclic in published data; `npm run taxonomy:audit` is mandatory after taxonomy changes/imports.
-5. Products must carry an opaque `categoryId` and `categoryPathIds` that ends at their own category and follows the audited parent chain.
-6. Unique-name matching is a controlled fallback only when the private source category ID is missing; ambiguous names must not be guessed.
-7. Unmatched products use a stable opaque fallback category rather than leaking or inventing a raw provider category.
-8. Category scans may enrich/merge taxonomy but cannot delete unrelated global taxonomy branches.
-9. Public taxonomy schema changes require schema/version updates and regression tests for hierarchy, descendant counts, breadcrumb trails and parent filtering.
+1. **Supplier taxonomy is evidence, not public truth.** Preserve the provider hierarchy privately for diagnostics/sync scope, but publish Catalog Engine's canonical merchandising taxonomy.
+2. Canonical classification may use weighted evidence from product content, source path, aliases, known entities, competition/team dictionaries and explicit rules. Product evidence may override a wrong supplier folder.
+3. Ambiguous team/entity/competition matches must become `review` or `unknown`; do not force a confident-looking wrong classification.
+4. Raw category IDs and raw category URLs may exist only during extraction/private source processing. Public taxonomy uses opaque `c_<hash>` IDs only.
+5. Public categories must expose only safe storefront fields such as `id`, `name`, opaque `parentId`, opaque `childIds` and `depth`.
+6. Parent/child relationships must be reciprocal and acyclic in published data; `npm run taxonomy:audit` is mandatory after taxonomy changes/imports.
+7. Products must carry an opaque canonical `categoryId`/path and may additionally carry team, league and facet references. Supplier category membership is not a competing public category system.
+8. Unique-name matching is a controlled fallback only. Ambiguous names such as `United`, `City` or `Inter` must not be guessed without enough evidence.
+9. Unmatched products use a stable opaque fallback/review state rather than leaking raw provider taxonomy.
+10. Source category scans may enrich private evidence but cannot directly delete or redefine unrelated canonical public branches.
+11. Public taxonomy schema changes require schema/version updates or documented backward compatibility plus regression tests.
+12. Manual classification overrides are durable business data and must survive source sync/reclassification unless explicitly cleared by an authorized admin action.
+
+## SaaS tenancy rules
+
+1. Build features for a **tenant**, even while only `t_00000000000000000001` exists.
+2. Keep a logical separation between the low-volume **control plane** (tenant/account/store/domain/source configuration) and the high-volume **tenant data plane** (products, taxonomy, media, private source index and sync state).
+3. The intended scale model is an isolated catalog data plane per tenant (for example one D1 database per tenant or another explicitly isolated shard), rather than relying on a tenant predicate in every storefront product query.
+4. Control-plane schemas may temporarily live in the current D1 during migration, but must remain portable to a future dedicated `CONTROL_DB`.
+5. Never create unauthenticated admin write endpoints. Future admin mutations require an authenticated opaque principal, tenant membership/role checks and audit logging.
+6. Do not store customer passwords in Catalog Engine. Identity comes from an authentication layer; Catalog Engine stores only opaque principal IDs and authorization metadata.
+7. Tenant branding must be validated before persistence. Customer-selected themes are controlled presets/components, not arbitrary uploaded JavaScript or HTML.
+8. Supplier URLs/credentials/private source state remain private tenant configuration and must never be returned by public storefront APIs.
+9. A custom hostname belongs to only one tenant and is not activated until verified.
+10. Provisioning must be idempotent and resumable: tenant -> profile -> source -> data plane -> migrations -> import -> classification -> smoke test -> publish.
+11. A failed tenant sync/provisioning job must not corrupt another tenant or block unrelated tenants.
+12. See `docs/SAAS-ARCHITECTURE.md` before changing tenancy, provisioning, domains or authentication boundaries.
 
 ## Data rules
 
