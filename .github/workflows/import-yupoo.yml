@@ -40,7 +40,7 @@ jobs:
       SOURCE_URL: ${{ inputs.source_url || 'https://zhouchangliang.x.yupoo.com/albums/' }}
       MAX_PRODUCTS: ${{ inputs.max_products || '0' }}
       MAX_ROOT_PAGES: "500"
-      MAX_CATEGORY_PAGES: "100"
+      MAX_CATEGORY_PAGES: "500"
       CATALOG_SQL_DIR: /tmp/catalog-engine-full-sql
       IMPORT_SUMMARY_OUT: /tmp/catalog-engine-full-summary.json
       WRANGLER_VERSION: 4.123.0
