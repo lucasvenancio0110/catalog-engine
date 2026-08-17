@@ -16,7 +16,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: catalog-engine-incremental-sync
+  group: catalog-engine-production-d1
   cancel-in-progress: false
 
 jobs:
