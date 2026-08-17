@@ -1,6 +1,6 @@
 {
   "schemaVersion": 6,
-  "generatedAt": "2026-08-17T03:48:29.299Z",
+  "generatedAt": "2026-08-17T04:17:01.434Z",
   "store": {
     "name": "Catalog Engine Demo",
     "logo": "",
@@ -536,8 +536,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_d0129bf76295ab80fef3",
-        "/media/m_535de176253347752d12"
+        "/media/m_d0129bf76295ab80fef3/view",
+        "/media/m_535de176253347752d12/view"
       ],
       "imageCount": 2,
       "id": "p_50a51492363bfafd402a",
@@ -548,15 +548,15 @@
       "media": [
         {
           "id": "m_d0129bf76295ab80fef3",
-          "url": "/media/m_d0129bf76295ab80fef3",
-          "thumbnailUrl": "/media/m_d0129bf76295ab80fef3",
+          "url": "/media/m_d0129bf76295ab80fef3/view",
+          "thumbnailUrl": "/media/m_d0129bf76295ab80fef3/thumb",
           "downloadUrl": "/media/m_d0129bf76295ab80fef3",
           "storage": "edge-proxy"
         },
         {
           "id": "m_535de176253347752d12",
-          "url": "/media/m_535de176253347752d12",
-          "thumbnailUrl": "/media/m_535de176253347752d12",
+          "url": "/media/m_535de176253347752d12/view",
+          "thumbnailUrl": "/media/m_535de176253347752d12/thumb",
           "downloadUrl": "/media/m_535de176253347752d12",
           "storage": "edge-proxy"
         }
@@ -568,8 +568,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_ffb1dda89355ad1d3f23",
-        "/media/m_15169248617e05cd7547"
+        "/media/m_ffb1dda89355ad1d3f23/view",
+        "/media/m_15169248617e05cd7547/view"
       ],
       "imageCount": 2,
       "id": "p_6ba4b90067af0a4c70a5",
@@ -580,15 +580,15 @@
       "media": [
         {
           "id": "m_ffb1dda89355ad1d3f23",
-          "url": "/media/m_ffb1dda89355ad1d3f23",
-          "thumbnailUrl": "/media/m_ffb1dda89355ad1d3f23",
+          "url": "/media/m_ffb1dda89355ad1d3f23/view",
+          "thumbnailUrl": "/media/m_ffb1dda89355ad1d3f23/thumb",
           "downloadUrl": "/media/m_ffb1dda89355ad1d3f23",
           "storage": "edge-proxy"
         },
         {
           "id": "m_15169248617e05cd7547",
-          "url": "/media/m_15169248617e05cd7547",
-          "thumbnailUrl": "/media/m_15169248617e05cd7547",
+          "url": "/media/m_15169248617e05cd7547/view",
+          "thumbnailUrl": "/media/m_15169248617e05cd7547/thumb",
           "downloadUrl": "/media/m_15169248617e05cd7547",
           "storage": "edge-proxy"
         }
@@ -600,8 +600,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_4f37642378a118bfae7b",
-        "/media/m_1d3cf4fbbd551796295a"
+        "/media/m_4f37642378a118bfae7b/view",
+        "/media/m_1d3cf4fbbd551796295a/view"
       ],
       "imageCount": 2,
       "id": "p_fa0d5a02f1d3f517fb81",
@@ -612,15 +612,15 @@
       "media": [
         {
           "id": "m_4f37642378a118bfae7b",
-          "url": "/media/m_4f37642378a118bfae7b",
-          "thumbnailUrl": "/media/m_4f37642378a118bfae7b",
+          "url": "/media/m_4f37642378a118bfae7b/view",
+          "thumbnailUrl": "/media/m_4f37642378a118bfae7b/thumb",
           "downloadUrl": "/media/m_4f37642378a118bfae7b",
           "storage": "edge-proxy"
         },
         {
           "id": "m_1d3cf4fbbd551796295a",
-          "url": "/media/m_1d3cf4fbbd551796295a",
-          "thumbnailUrl": "/media/m_1d3cf4fbbd551796295a",
+          "url": "/media/m_1d3cf4fbbd551796295a/view",
+          "thumbnailUrl": "/media/m_1d3cf4fbbd551796295a/thumb",
           "downloadUrl": "/media/m_1d3cf4fbbd551796295a",
           "storage": "edge-proxy"
         }
@@ -632,8 +632,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_ba598dde6f9e26c5a7cd",
-        "/media/m_8c4b658389bd8340aba6"
+        "/media/m_ba598dde6f9e26c5a7cd/view",
+        "/media/m_8c4b658389bd8340aba6/view"
       ],
       "imageCount": 2,
       "id": "p_ecc391175f99104d2eba",
@@ -644,15 +644,15 @@
       "media": [
         {
           "id": "m_ba598dde6f9e26c5a7cd",
-          "url": "/media/m_ba598dde6f9e26c5a7cd",
-          "thumbnailUrl": "/media/m_ba598dde6f9e26c5a7cd",
+          "url": "/media/m_ba598dde6f9e26c5a7cd/view",
+          "thumbnailUrl": "/media/m_ba598dde6f9e26c5a7cd/thumb",
           "downloadUrl": "/media/m_ba598dde6f9e26c5a7cd",
           "storage": "edge-proxy"
         },
         {
           "id": "m_8c4b658389bd8340aba6",
-          "url": "/media/m_8c4b658389bd8340aba6",
-          "thumbnailUrl": "/media/m_8c4b658389bd8340aba6",
+          "url": "/media/m_8c4b658389bd8340aba6/view",
+          "thumbnailUrl": "/media/m_8c4b658389bd8340aba6/thumb",
           "downloadUrl": "/media/m_8c4b658389bd8340aba6",
           "storage": "edge-proxy"
         }
@@ -664,8 +664,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_2df02914be00b96c0523",
-        "/media/m_9d6b8e6f4defb9142822"
+        "/media/m_2df02914be00b96c0523/view",
+        "/media/m_9d6b8e6f4defb9142822/view"
       ],
       "imageCount": 2,
       "id": "p_0e05da8e6f9d010a7a98",
@@ -676,15 +676,15 @@
       "media": [
         {
           "id": "m_2df02914be00b96c0523",
-          "url": "/media/m_2df02914be00b96c0523",
-          "thumbnailUrl": "/media/m_2df02914be00b96c0523",
+          "url": "/media/m_2df02914be00b96c0523/view",
+          "thumbnailUrl": "/media/m_2df02914be00b96c0523/thumb",
           "downloadUrl": "/media/m_2df02914be00b96c0523",
           "storage": "edge-proxy"
         },
         {
           "id": "m_9d6b8e6f4defb9142822",
-          "url": "/media/m_9d6b8e6f4defb9142822",
-          "thumbnailUrl": "/media/m_9d6b8e6f4defb9142822",
+          "url": "/media/m_9d6b8e6f4defb9142822/view",
+          "thumbnailUrl": "/media/m_9d6b8e6f4defb9142822/thumb",
           "downloadUrl": "/media/m_9d6b8e6f4defb9142822",
           "storage": "edge-proxy"
         }
@@ -696,8 +696,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_38dd66041edfbed8a5c5",
-        "/media/m_b48544cc36667dda5e16"
+        "/media/m_38dd66041edfbed8a5c5/view",
+        "/media/m_b48544cc36667dda5e16/view"
       ],
       "imageCount": 2,
       "id": "p_659a9391b6970a7f30aa",
@@ -708,15 +708,15 @@
       "media": [
         {
           "id": "m_38dd66041edfbed8a5c5",
-          "url": "/media/m_38dd66041edfbed8a5c5",
-          "thumbnailUrl": "/media/m_38dd66041edfbed8a5c5",
+          "url": "/media/m_38dd66041edfbed8a5c5/view",
+          "thumbnailUrl": "/media/m_38dd66041edfbed8a5c5/thumb",
           "downloadUrl": "/media/m_38dd66041edfbed8a5c5",
           "storage": "edge-proxy"
         },
         {
           "id": "m_b48544cc36667dda5e16",
-          "url": "/media/m_b48544cc36667dda5e16",
-          "thumbnailUrl": "/media/m_b48544cc36667dda5e16",
+          "url": "/media/m_b48544cc36667dda5e16/view",
+          "thumbnailUrl": "/media/m_b48544cc36667dda5e16/thumb",
           "downloadUrl": "/media/m_b48544cc36667dda5e16",
           "storage": "edge-proxy"
         }
@@ -728,8 +728,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_e90a32511f6b843bcfae",
-        "/media/m_30c2e077c90ba240dfe8"
+        "/media/m_e90a32511f6b843bcfae/view",
+        "/media/m_30c2e077c90ba240dfe8/view"
       ],
       "imageCount": 2,
       "id": "p_be52417acfde7f101014",
@@ -740,15 +740,15 @@
       "media": [
         {
           "id": "m_e90a32511f6b843bcfae",
-          "url": "/media/m_e90a32511f6b843bcfae",
-          "thumbnailUrl": "/media/m_e90a32511f6b843bcfae",
+          "url": "/media/m_e90a32511f6b843bcfae/view",
+          "thumbnailUrl": "/media/m_e90a32511f6b843bcfae/thumb",
           "downloadUrl": "/media/m_e90a32511f6b843bcfae",
           "storage": "edge-proxy"
         },
         {
           "id": "m_30c2e077c90ba240dfe8",
-          "url": "/media/m_30c2e077c90ba240dfe8",
-          "thumbnailUrl": "/media/m_30c2e077c90ba240dfe8",
+          "url": "/media/m_30c2e077c90ba240dfe8/view",
+          "thumbnailUrl": "/media/m_30c2e077c90ba240dfe8/thumb",
           "downloadUrl": "/media/m_30c2e077c90ba240dfe8",
           "storage": "edge-proxy"
         }
@@ -760,8 +760,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_6c80aaa706c848808a5f",
-        "/media/m_dcb8bc1f21e40660ccb8"
+        "/media/m_6c80aaa706c848808a5f/view",
+        "/media/m_dcb8bc1f21e40660ccb8/view"
       ],
       "imageCount": 2,
       "id": "p_854ffc3fdb2fbb21e54b",
@@ -772,15 +772,15 @@
       "media": [
         {
           "id": "m_6c80aaa706c848808a5f",
-          "url": "/media/m_6c80aaa706c848808a5f",
-          "thumbnailUrl": "/media/m_6c80aaa706c848808a5f",
+          "url": "/media/m_6c80aaa706c848808a5f/view",
+          "thumbnailUrl": "/media/m_6c80aaa706c848808a5f/thumb",
           "downloadUrl": "/media/m_6c80aaa706c848808a5f",
           "storage": "edge-proxy"
         },
         {
           "id": "m_dcb8bc1f21e40660ccb8",
-          "url": "/media/m_dcb8bc1f21e40660ccb8",
-          "thumbnailUrl": "/media/m_dcb8bc1f21e40660ccb8",
+          "url": "/media/m_dcb8bc1f21e40660ccb8/view",
+          "thumbnailUrl": "/media/m_dcb8bc1f21e40660ccb8/thumb",
           "downloadUrl": "/media/m_dcb8bc1f21e40660ccb8",
           "storage": "edge-proxy"
         }
@@ -792,8 +792,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_ecf9f178849f2de971b0",
-        "/media/m_47c4f73bd29c4135a980"
+        "/media/m_ecf9f178849f2de971b0/view",
+        "/media/m_47c4f73bd29c4135a980/view"
       ],
       "imageCount": 2,
       "id": "p_ae636477e1ea4c520f23",
@@ -804,15 +804,15 @@
       "media": [
         {
           "id": "m_ecf9f178849f2de971b0",
-          "url": "/media/m_ecf9f178849f2de971b0",
-          "thumbnailUrl": "/media/m_ecf9f178849f2de971b0",
+          "url": "/media/m_ecf9f178849f2de971b0/view",
+          "thumbnailUrl": "/media/m_ecf9f178849f2de971b0/thumb",
           "downloadUrl": "/media/m_ecf9f178849f2de971b0",
           "storage": "edge-proxy"
         },
         {
           "id": "m_47c4f73bd29c4135a980",
-          "url": "/media/m_47c4f73bd29c4135a980",
-          "thumbnailUrl": "/media/m_47c4f73bd29c4135a980",
+          "url": "/media/m_47c4f73bd29c4135a980/view",
+          "thumbnailUrl": "/media/m_47c4f73bd29c4135a980/thumb",
           "downloadUrl": "/media/m_47c4f73bd29c4135a980",
           "storage": "edge-proxy"
         }
@@ -824,8 +824,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_840dc8fa94c52bba729f",
-        "/media/m_8d5e2e5cef42640861c1"
+        "/media/m_840dc8fa94c52bba729f/view",
+        "/media/m_8d5e2e5cef42640861c1/view"
       ],
       "imageCount": 2,
       "id": "p_412a18728c5534bf8098",
@@ -836,15 +836,15 @@
       "media": [
         {
           "id": "m_840dc8fa94c52bba729f",
-          "url": "/media/m_840dc8fa94c52bba729f",
-          "thumbnailUrl": "/media/m_840dc8fa94c52bba729f",
+          "url": "/media/m_840dc8fa94c52bba729f/view",
+          "thumbnailUrl": "/media/m_840dc8fa94c52bba729f/thumb",
           "downloadUrl": "/media/m_840dc8fa94c52bba729f",
           "storage": "edge-proxy"
         },
         {
           "id": "m_8d5e2e5cef42640861c1",
-          "url": "/media/m_8d5e2e5cef42640861c1",
-          "thumbnailUrl": "/media/m_8d5e2e5cef42640861c1",
+          "url": "/media/m_8d5e2e5cef42640861c1/view",
+          "thumbnailUrl": "/media/m_8d5e2e5cef42640861c1/thumb",
           "downloadUrl": "/media/m_8d5e2e5cef42640861c1",
           "storage": "edge-proxy"
         }
@@ -856,8 +856,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_5e892e7a85c7e6b23a27",
-        "/media/m_739961e41b12b2308bf8"
+        "/media/m_5e892e7a85c7e6b23a27/view",
+        "/media/m_739961e41b12b2308bf8/view"
       ],
       "imageCount": 2,
       "id": "p_b5de6d46116917887e2b",
@@ -868,15 +868,15 @@
       "media": [
         {
           "id": "m_5e892e7a85c7e6b23a27",
-          "url": "/media/m_5e892e7a85c7e6b23a27",
-          "thumbnailUrl": "/media/m_5e892e7a85c7e6b23a27",
+          "url": "/media/m_5e892e7a85c7e6b23a27/view",
+          "thumbnailUrl": "/media/m_5e892e7a85c7e6b23a27/thumb",
           "downloadUrl": "/media/m_5e892e7a85c7e6b23a27",
           "storage": "edge-proxy"
         },
         {
           "id": "m_739961e41b12b2308bf8",
-          "url": "/media/m_739961e41b12b2308bf8",
-          "thumbnailUrl": "/media/m_739961e41b12b2308bf8",
+          "url": "/media/m_739961e41b12b2308bf8/view",
+          "thumbnailUrl": "/media/m_739961e41b12b2308bf8/thumb",
           "downloadUrl": "/media/m_739961e41b12b2308bf8",
           "storage": "edge-proxy"
         }
@@ -888,8 +888,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_ecb6b1bcb1a90f685fbf",
-        "/media/m_8f244ed1831e406bea01"
+        "/media/m_ecb6b1bcb1a90f685fbf/view",
+        "/media/m_8f244ed1831e406bea01/view"
       ],
       "imageCount": 2,
       "id": "p_c91d2af4f48c3593b3d1",
@@ -900,15 +900,15 @@
       "media": [
         {
           "id": "m_ecb6b1bcb1a90f685fbf",
-          "url": "/media/m_ecb6b1bcb1a90f685fbf",
-          "thumbnailUrl": "/media/m_ecb6b1bcb1a90f685fbf",
+          "url": "/media/m_ecb6b1bcb1a90f685fbf/view",
+          "thumbnailUrl": "/media/m_ecb6b1bcb1a90f685fbf/thumb",
           "downloadUrl": "/media/m_ecb6b1bcb1a90f685fbf",
           "storage": "edge-proxy"
         },
         {
           "id": "m_8f244ed1831e406bea01",
-          "url": "/media/m_8f244ed1831e406bea01",
-          "thumbnailUrl": "/media/m_8f244ed1831e406bea01",
+          "url": "/media/m_8f244ed1831e406bea01/view",
+          "thumbnailUrl": "/media/m_8f244ed1831e406bea01/thumb",
           "downloadUrl": "/media/m_8f244ed1831e406bea01",
           "storage": "edge-proxy"
         }
@@ -920,8 +920,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_682f9cd1e26881923afc",
-        "/media/m_e52cc6acbfacefaaccd8"
+        "/media/m_682f9cd1e26881923afc/view",
+        "/media/m_e52cc6acbfacefaaccd8/view"
       ],
       "imageCount": 2,
       "id": "p_fc38e807825c3621cdc7",
@@ -932,15 +932,15 @@
       "media": [
         {
           "id": "m_682f9cd1e26881923afc",
-          "url": "/media/m_682f9cd1e26881923afc",
-          "thumbnailUrl": "/media/m_682f9cd1e26881923afc",
+          "url": "/media/m_682f9cd1e26881923afc/view",
+          "thumbnailUrl": "/media/m_682f9cd1e26881923afc/thumb",
           "downloadUrl": "/media/m_682f9cd1e26881923afc",
           "storage": "edge-proxy"
         },
         {
           "id": "m_e52cc6acbfacefaaccd8",
-          "url": "/media/m_e52cc6acbfacefaaccd8",
-          "thumbnailUrl": "/media/m_e52cc6acbfacefaaccd8",
+          "url": "/media/m_e52cc6acbfacefaaccd8/view",
+          "thumbnailUrl": "/media/m_e52cc6acbfacefaaccd8/thumb",
           "downloadUrl": "/media/m_e52cc6acbfacefaaccd8",
           "storage": "edge-proxy"
         }
@@ -952,8 +952,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_ae0137911c2aebedcef7",
-        "/media/m_351eea0ef9d9b8dbd278"
+        "/media/m_ae0137911c2aebedcef7/view",
+        "/media/m_351eea0ef9d9b8dbd278/view"
       ],
       "imageCount": 2,
       "id": "p_e040b932c0b60bf38a82",
@@ -964,15 +964,15 @@
       "media": [
         {
           "id": "m_ae0137911c2aebedcef7",
-          "url": "/media/m_ae0137911c2aebedcef7",
-          "thumbnailUrl": "/media/m_ae0137911c2aebedcef7",
+          "url": "/media/m_ae0137911c2aebedcef7/view",
+          "thumbnailUrl": "/media/m_ae0137911c2aebedcef7/thumb",
           "downloadUrl": "/media/m_ae0137911c2aebedcef7",
           "storage": "edge-proxy"
         },
         {
           "id": "m_351eea0ef9d9b8dbd278",
-          "url": "/media/m_351eea0ef9d9b8dbd278",
-          "thumbnailUrl": "/media/m_351eea0ef9d9b8dbd278",
+          "url": "/media/m_351eea0ef9d9b8dbd278/view",
+          "thumbnailUrl": "/media/m_351eea0ef9d9b8dbd278/thumb",
           "downloadUrl": "/media/m_351eea0ef9d9b8dbd278",
           "storage": "edge-proxy"
         }
@@ -984,8 +984,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_7ec905328669d03ea947",
-        "/media/m_3f0948930de5ec5c451b"
+        "/media/m_7ec905328669d03ea947/view",
+        "/media/m_3f0948930de5ec5c451b/view"
       ],
       "imageCount": 2,
       "id": "p_a807424b5d1300eb1ec6",
@@ -996,15 +996,15 @@
       "media": [
         {
           "id": "m_7ec905328669d03ea947",
-          "url": "/media/m_7ec905328669d03ea947",
-          "thumbnailUrl": "/media/m_7ec905328669d03ea947",
+          "url": "/media/m_7ec905328669d03ea947/view",
+          "thumbnailUrl": "/media/m_7ec905328669d03ea947/thumb",
           "downloadUrl": "/media/m_7ec905328669d03ea947",
           "storage": "edge-proxy"
         },
         {
           "id": "m_3f0948930de5ec5c451b",
-          "url": "/media/m_3f0948930de5ec5c451b",
-          "thumbnailUrl": "/media/m_3f0948930de5ec5c451b",
+          "url": "/media/m_3f0948930de5ec5c451b/view",
+          "thumbnailUrl": "/media/m_3f0948930de5ec5c451b/thumb",
           "downloadUrl": "/media/m_3f0948930de5ec5c451b",
           "storage": "edge-proxy"
         }
@@ -1016,8 +1016,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_69d5d30f0302f76abf0d",
-        "/media/m_2a5aab50c89bd766598d"
+        "/media/m_69d5d30f0302f76abf0d/view",
+        "/media/m_2a5aab50c89bd766598d/view"
       ],
       "imageCount": 2,
       "id": "p_51eb8d57afb0d90f522d",
@@ -1028,15 +1028,15 @@
       "media": [
         {
           "id": "m_69d5d30f0302f76abf0d",
-          "url": "/media/m_69d5d30f0302f76abf0d",
-          "thumbnailUrl": "/media/m_69d5d30f0302f76abf0d",
+          "url": "/media/m_69d5d30f0302f76abf0d/view",
+          "thumbnailUrl": "/media/m_69d5d30f0302f76abf0d/thumb",
           "downloadUrl": "/media/m_69d5d30f0302f76abf0d",
           "storage": "edge-proxy"
         },
         {
           "id": "m_2a5aab50c89bd766598d",
-          "url": "/media/m_2a5aab50c89bd766598d",
-          "thumbnailUrl": "/media/m_2a5aab50c89bd766598d",
+          "url": "/media/m_2a5aab50c89bd766598d/view",
+          "thumbnailUrl": "/media/m_2a5aab50c89bd766598d/thumb",
           "downloadUrl": "/media/m_2a5aab50c89bd766598d",
           "storage": "edge-proxy"
         }
@@ -1048,8 +1048,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_1a5b5b2e6c3ac411c3df",
-        "/media/m_9fa4c7b96ea91cc27e35"
+        "/media/m_1a5b5b2e6c3ac411c3df/view",
+        "/media/m_9fa4c7b96ea91cc27e35/view"
       ],
       "imageCount": 2,
       "id": "p_0702879a186b1c8b3e35",
@@ -1060,15 +1060,15 @@
       "media": [
         {
           "id": "m_1a5b5b2e6c3ac411c3df",
-          "url": "/media/m_1a5b5b2e6c3ac411c3df",
-          "thumbnailUrl": "/media/m_1a5b5b2e6c3ac411c3df",
+          "url": "/media/m_1a5b5b2e6c3ac411c3df/view",
+          "thumbnailUrl": "/media/m_1a5b5b2e6c3ac411c3df/thumb",
           "downloadUrl": "/media/m_1a5b5b2e6c3ac411c3df",
           "storage": "edge-proxy"
         },
         {
           "id": "m_9fa4c7b96ea91cc27e35",
-          "url": "/media/m_9fa4c7b96ea91cc27e35",
-          "thumbnailUrl": "/media/m_9fa4c7b96ea91cc27e35",
+          "url": "/media/m_9fa4c7b96ea91cc27e35/view",
+          "thumbnailUrl": "/media/m_9fa4c7b96ea91cc27e35/thumb",
           "downloadUrl": "/media/m_9fa4c7b96ea91cc27e35",
           "storage": "edge-proxy"
         }
@@ -1080,8 +1080,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_b1f84d513c3c26544eaa",
-        "/media/m_99b4aeadce92f3bb05cd"
+        "/media/m_b1f84d513c3c26544eaa/view",
+        "/media/m_99b4aeadce92f3bb05cd/view"
       ],
       "imageCount": 2,
       "id": "p_618435e503e397a6208e",
@@ -1092,15 +1092,15 @@
       "media": [
         {
           "id": "m_b1f84d513c3c26544eaa",
-          "url": "/media/m_b1f84d513c3c26544eaa",
-          "thumbnailUrl": "/media/m_b1f84d513c3c26544eaa",
+          "url": "/media/m_b1f84d513c3c26544eaa/view",
+          "thumbnailUrl": "/media/m_b1f84d513c3c26544eaa/thumb",
           "downloadUrl": "/media/m_b1f84d513c3c26544eaa",
           "storage": "edge-proxy"
         },
         {
           "id": "m_99b4aeadce92f3bb05cd",
-          "url": "/media/m_99b4aeadce92f3bb05cd",
-          "thumbnailUrl": "/media/m_99b4aeadce92f3bb05cd",
+          "url": "/media/m_99b4aeadce92f3bb05cd/view",
+          "thumbnailUrl": "/media/m_99b4aeadce92f3bb05cd/thumb",
           "downloadUrl": "/media/m_99b4aeadce92f3bb05cd",
           "storage": "edge-proxy"
         }
@@ -1112,8 +1112,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_897d97533f529ee47ed9",
-        "/media/m_1fc5fd1dd73a0acb2edd"
+        "/media/m_897d97533f529ee47ed9/view",
+        "/media/m_1fc5fd1dd73a0acb2edd/view"
       ],
       "imageCount": 2,
       "id": "p_a50ae6db0aba95d84648",
@@ -1124,15 +1124,15 @@
       "media": [
         {
           "id": "m_897d97533f529ee47ed9",
-          "url": "/media/m_897d97533f529ee47ed9",
-          "thumbnailUrl": "/media/m_897d97533f529ee47ed9",
+          "url": "/media/m_897d97533f529ee47ed9/view",
+          "thumbnailUrl": "/media/m_897d97533f529ee47ed9/thumb",
           "downloadUrl": "/media/m_897d97533f529ee47ed9",
           "storage": "edge-proxy"
         },
         {
           "id": "m_1fc5fd1dd73a0acb2edd",
-          "url": "/media/m_1fc5fd1dd73a0acb2edd",
-          "thumbnailUrl": "/media/m_1fc5fd1dd73a0acb2edd",
+          "url": "/media/m_1fc5fd1dd73a0acb2edd/view",
+          "thumbnailUrl": "/media/m_1fc5fd1dd73a0acb2edd/thumb",
           "downloadUrl": "/media/m_1fc5fd1dd73a0acb2edd",
           "storage": "edge-proxy"
         }
@@ -1144,8 +1144,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_43ac7c0384f6d9b03a4d",
-        "/media/m_f169963515c4bdf94b38"
+        "/media/m_43ac7c0384f6d9b03a4d/view",
+        "/media/m_f169963515c4bdf94b38/view"
       ],
       "imageCount": 2,
       "id": "p_d51c620eb42db0e2a4d4",
@@ -1156,15 +1156,15 @@
       "media": [
         {
           "id": "m_43ac7c0384f6d9b03a4d",
-          "url": "/media/m_43ac7c0384f6d9b03a4d",
-          "thumbnailUrl": "/media/m_43ac7c0384f6d9b03a4d",
+          "url": "/media/m_43ac7c0384f6d9b03a4d/view",
+          "thumbnailUrl": "/media/m_43ac7c0384f6d9b03a4d/thumb",
           "downloadUrl": "/media/m_43ac7c0384f6d9b03a4d",
           "storage": "edge-proxy"
         },
         {
           "id": "m_f169963515c4bdf94b38",
-          "url": "/media/m_f169963515c4bdf94b38",
-          "thumbnailUrl": "/media/m_f169963515c4bdf94b38",
+          "url": "/media/m_f169963515c4bdf94b38/view",
+          "thumbnailUrl": "/media/m_f169963515c4bdf94b38/thumb",
           "downloadUrl": "/media/m_f169963515c4bdf94b38",
           "storage": "edge-proxy"
         }
@@ -1176,8 +1176,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_1ff025ec069ac04c0f02",
-        "/media/m_2cbcf66554d89cec68a6"
+        "/media/m_1ff025ec069ac04c0f02/view",
+        "/media/m_2cbcf66554d89cec68a6/view"
       ],
       "imageCount": 2,
       "id": "p_257fba8a205209af9d1b",
@@ -1188,15 +1188,15 @@
       "media": [
         {
           "id": "m_1ff025ec069ac04c0f02",
-          "url": "/media/m_1ff025ec069ac04c0f02",
-          "thumbnailUrl": "/media/m_1ff025ec069ac04c0f02",
+          "url": "/media/m_1ff025ec069ac04c0f02/view",
+          "thumbnailUrl": "/media/m_1ff025ec069ac04c0f02/thumb",
           "downloadUrl": "/media/m_1ff025ec069ac04c0f02",
           "storage": "edge-proxy"
         },
         {
           "id": "m_2cbcf66554d89cec68a6",
-          "url": "/media/m_2cbcf66554d89cec68a6",
-          "thumbnailUrl": "/media/m_2cbcf66554d89cec68a6",
+          "url": "/media/m_2cbcf66554d89cec68a6/view",
+          "thumbnailUrl": "/media/m_2cbcf66554d89cec68a6/thumb",
           "downloadUrl": "/media/m_2cbcf66554d89cec68a6",
           "storage": "edge-proxy"
         }
@@ -1208,8 +1208,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_86e161d87fecc8ce40c5",
-        "/media/m_91de345fa90506f85120"
+        "/media/m_86e161d87fecc8ce40c5/view",
+        "/media/m_91de345fa90506f85120/view"
       ],
       "imageCount": 2,
       "id": "p_4ea4ea440e90fdbbf4b5",
@@ -1220,15 +1220,15 @@
       "media": [
         {
           "id": "m_86e161d87fecc8ce40c5",
-          "url": "/media/m_86e161d87fecc8ce40c5",
-          "thumbnailUrl": "/media/m_86e161d87fecc8ce40c5",
+          "url": "/media/m_86e161d87fecc8ce40c5/view",
+          "thumbnailUrl": "/media/m_86e161d87fecc8ce40c5/thumb",
           "downloadUrl": "/media/m_86e161d87fecc8ce40c5",
           "storage": "edge-proxy"
         },
         {
           "id": "m_91de345fa90506f85120",
-          "url": "/media/m_91de345fa90506f85120",
-          "thumbnailUrl": "/media/m_91de345fa90506f85120",
+          "url": "/media/m_91de345fa90506f85120/view",
+          "thumbnailUrl": "/media/m_91de345fa90506f85120/thumb",
           "downloadUrl": "/media/m_91de345fa90506f85120",
           "storage": "edge-proxy"
         }
@@ -1240,8 +1240,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_ab93114341ae7ac11d84",
-        "/media/m_34573b951fc90f50c2dd"
+        "/media/m_ab93114341ae7ac11d84/view",
+        "/media/m_34573b951fc90f50c2dd/view"
       ],
       "imageCount": 2,
       "id": "p_1096b9fc5858e920f6d9",
@@ -1252,15 +1252,15 @@
       "media": [
         {
           "id": "m_ab93114341ae7ac11d84",
-          "url": "/media/m_ab93114341ae7ac11d84",
-          "thumbnailUrl": "/media/m_ab93114341ae7ac11d84",
+          "url": "/media/m_ab93114341ae7ac11d84/view",
+          "thumbnailUrl": "/media/m_ab93114341ae7ac11d84/thumb",
           "downloadUrl": "/media/m_ab93114341ae7ac11d84",
           "storage": "edge-proxy"
         },
         {
           "id": "m_34573b951fc90f50c2dd",
-          "url": "/media/m_34573b951fc90f50c2dd",
-          "thumbnailUrl": "/media/m_34573b951fc90f50c2dd",
+          "url": "/media/m_34573b951fc90f50c2dd/view",
+          "thumbnailUrl": "/media/m_34573b951fc90f50c2dd/thumb",
           "downloadUrl": "/media/m_34573b951fc90f50c2dd",
           "storage": "edge-proxy"
         }
@@ -1272,8 +1272,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_fd520658e3ca095052e8",
-        "/media/m_ff8fd06de654190d2daf"
+        "/media/m_fd520658e3ca095052e8/view",
+        "/media/m_ff8fd06de654190d2daf/view"
       ],
       "imageCount": 2,
       "id": "p_9a3f1e863c5863065e07",
@@ -1284,15 +1284,15 @@
       "media": [
         {
           "id": "m_fd520658e3ca095052e8",
-          "url": "/media/m_fd520658e3ca095052e8",
-          "thumbnailUrl": "/media/m_fd520658e3ca095052e8",
+          "url": "/media/m_fd520658e3ca095052e8/view",
+          "thumbnailUrl": "/media/m_fd520658e3ca095052e8/thumb",
           "downloadUrl": "/media/m_fd520658e3ca095052e8",
           "storage": "edge-proxy"
         },
         {
           "id": "m_ff8fd06de654190d2daf",
-          "url": "/media/m_ff8fd06de654190d2daf",
-          "thumbnailUrl": "/media/m_ff8fd06de654190d2daf",
+          "url": "/media/m_ff8fd06de654190d2daf/view",
+          "thumbnailUrl": "/media/m_ff8fd06de654190d2daf/thumb",
           "downloadUrl": "/media/m_ff8fd06de654190d2daf",
           "storage": "edge-proxy"
         }
@@ -1304,8 +1304,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_5b69bf06fca5799e450b",
-        "/media/m_7811d22b43a23c1e741b"
+        "/media/m_5b69bf06fca5799e450b/view",
+        "/media/m_7811d22b43a23c1e741b/view"
       ],
       "imageCount": 2,
       "id": "p_bd4269b5dfc97b62666a",
@@ -1316,15 +1316,15 @@
       "media": [
         {
           "id": "m_5b69bf06fca5799e450b",
-          "url": "/media/m_5b69bf06fca5799e450b",
-          "thumbnailUrl": "/media/m_5b69bf06fca5799e450b",
+          "url": "/media/m_5b69bf06fca5799e450b/view",
+          "thumbnailUrl": "/media/m_5b69bf06fca5799e450b/thumb",
           "downloadUrl": "/media/m_5b69bf06fca5799e450b",
           "storage": "edge-proxy"
         },
         {
           "id": "m_7811d22b43a23c1e741b",
-          "url": "/media/m_7811d22b43a23c1e741b",
-          "thumbnailUrl": "/media/m_7811d22b43a23c1e741b",
+          "url": "/media/m_7811d22b43a23c1e741b/view",
+          "thumbnailUrl": "/media/m_7811d22b43a23c1e741b/thumb",
           "downloadUrl": "/media/m_7811d22b43a23c1e741b",
           "storage": "edge-proxy"
         }
@@ -1336,8 +1336,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_6faaef8c150803ba70ac",
-        "/media/m_53bb439e9fdf01fb5211"
+        "/media/m_6faaef8c150803ba70ac/view",
+        "/media/m_53bb439e9fdf01fb5211/view"
       ],
       "imageCount": 2,
       "id": "p_7357821ee28351863701",
@@ -1348,15 +1348,15 @@
       "media": [
         {
           "id": "m_6faaef8c150803ba70ac",
-          "url": "/media/m_6faaef8c150803ba70ac",
-          "thumbnailUrl": "/media/m_6faaef8c150803ba70ac",
+          "url": "/media/m_6faaef8c150803ba70ac/view",
+          "thumbnailUrl": "/media/m_6faaef8c150803ba70ac/thumb",
           "downloadUrl": "/media/m_6faaef8c150803ba70ac",
           "storage": "edge-proxy"
         },
         {
           "id": "m_53bb439e9fdf01fb5211",
-          "url": "/media/m_53bb439e9fdf01fb5211",
-          "thumbnailUrl": "/media/m_53bb439e9fdf01fb5211",
+          "url": "/media/m_53bb439e9fdf01fb5211/view",
+          "thumbnailUrl": "/media/m_53bb439e9fdf01fb5211/thumb",
           "downloadUrl": "/media/m_53bb439e9fdf01fb5211",
           "storage": "edge-proxy"
         }
@@ -1368,8 +1368,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_8ebdace5c9c278877537",
-        "/media/m_adf8eb92e6ceee6d9a3e"
+        "/media/m_8ebdace5c9c278877537/view",
+        "/media/m_adf8eb92e6ceee6d9a3e/view"
       ],
       "imageCount": 2,
       "id": "p_2a0d9296f68c88025eef",
@@ -1380,15 +1380,15 @@
       "media": [
         {
           "id": "m_8ebdace5c9c278877537",
-          "url": "/media/m_8ebdace5c9c278877537",
-          "thumbnailUrl": "/media/m_8ebdace5c9c278877537",
+          "url": "/media/m_8ebdace5c9c278877537/view",
+          "thumbnailUrl": "/media/m_8ebdace5c9c278877537/thumb",
           "downloadUrl": "/media/m_8ebdace5c9c278877537",
           "storage": "edge-proxy"
         },
         {
           "id": "m_adf8eb92e6ceee6d9a3e",
-          "url": "/media/m_adf8eb92e6ceee6d9a3e",
-          "thumbnailUrl": "/media/m_adf8eb92e6ceee6d9a3e",
+          "url": "/media/m_adf8eb92e6ceee6d9a3e/view",
+          "thumbnailUrl": "/media/m_adf8eb92e6ceee6d9a3e/thumb",
           "downloadUrl": "/media/m_adf8eb92e6ceee6d9a3e",
           "storage": "edge-proxy"
         }
@@ -1400,7 +1400,7 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_f2bfd8126ff029f3b5f8"
+        "/media/m_f2bfd8126ff029f3b5f8/view"
       ],
       "imageCount": 1,
       "id": "p_78ef12c6929df25e9352",
@@ -1411,8 +1411,8 @@
       "media": [
         {
           "id": "m_f2bfd8126ff029f3b5f8",
-          "url": "/media/m_f2bfd8126ff029f3b5f8",
-          "thumbnailUrl": "/media/m_f2bfd8126ff029f3b5f8",
+          "url": "/media/m_f2bfd8126ff029f3b5f8/view",
+          "thumbnailUrl": "/media/m_f2bfd8126ff029f3b5f8/thumb",
           "downloadUrl": "/media/m_f2bfd8126ff029f3b5f8",
           "storage": "edge-proxy"
         }
@@ -1424,8 +1424,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_7374e1fb9087d8ad2334",
-        "/media/m_b9eeb6f243114f0ab849"
+        "/media/m_7374e1fb9087d8ad2334/view",
+        "/media/m_b9eeb6f243114f0ab849/view"
       ],
       "imageCount": 2,
       "id": "p_a92242df83af65b5aa1c",
@@ -1436,15 +1436,15 @@
       "media": [
         {
           "id": "m_7374e1fb9087d8ad2334",
-          "url": "/media/m_7374e1fb9087d8ad2334",
-          "thumbnailUrl": "/media/m_7374e1fb9087d8ad2334",
+          "url": "/media/m_7374e1fb9087d8ad2334/view",
+          "thumbnailUrl": "/media/m_7374e1fb9087d8ad2334/thumb",
           "downloadUrl": "/media/m_7374e1fb9087d8ad2334",
           "storage": "edge-proxy"
         },
         {
           "id": "m_b9eeb6f243114f0ab849",
-          "url": "/media/m_b9eeb6f243114f0ab849",
-          "thumbnailUrl": "/media/m_b9eeb6f243114f0ab849",
+          "url": "/media/m_b9eeb6f243114f0ab849/view",
+          "thumbnailUrl": "/media/m_b9eeb6f243114f0ab849/thumb",
           "downloadUrl": "/media/m_b9eeb6f243114f0ab849",
           "storage": "edge-proxy"
         }
@@ -1456,8 +1456,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_7a342e9b12a50c79bae4",
-        "/media/m_7becc25e08cd09c9eb11"
+        "/media/m_7a342e9b12a50c79bae4/view",
+        "/media/m_7becc25e08cd09c9eb11/view"
       ],
       "imageCount": 2,
       "id": "p_42d164dccf4de4bc5e94",
@@ -1468,15 +1468,15 @@
       "media": [
         {
           "id": "m_7a342e9b12a50c79bae4",
-          "url": "/media/m_7a342e9b12a50c79bae4",
-          "thumbnailUrl": "/media/m_7a342e9b12a50c79bae4",
+          "url": "/media/m_7a342e9b12a50c79bae4/view",
+          "thumbnailUrl": "/media/m_7a342e9b12a50c79bae4/thumb",
           "downloadUrl": "/media/m_7a342e9b12a50c79bae4",
           "storage": "edge-proxy"
         },
         {
           "id": "m_7becc25e08cd09c9eb11",
-          "url": "/media/m_7becc25e08cd09c9eb11",
-          "thumbnailUrl": "/media/m_7becc25e08cd09c9eb11",
+          "url": "/media/m_7becc25e08cd09c9eb11/view",
+          "thumbnailUrl": "/media/m_7becc25e08cd09c9eb11/thumb",
           "downloadUrl": "/media/m_7becc25e08cd09c9eb11",
           "storage": "edge-proxy"
         }
@@ -1488,8 +1488,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_eb65d1479dc3e276e2a6",
-        "/media/m_5aa3da950a6878c2a446"
+        "/media/m_eb65d1479dc3e276e2a6/view",
+        "/media/m_5aa3da950a6878c2a446/view"
       ],
       "imageCount": 2,
       "id": "p_23a99e757d76afc80778",
@@ -1500,15 +1500,15 @@
       "media": [
         {
           "id": "m_eb65d1479dc3e276e2a6",
-          "url": "/media/m_eb65d1479dc3e276e2a6",
-          "thumbnailUrl": "/media/m_eb65d1479dc3e276e2a6",
+          "url": "/media/m_eb65d1479dc3e276e2a6/view",
+          "thumbnailUrl": "/media/m_eb65d1479dc3e276e2a6/thumb",
           "downloadUrl": "/media/m_eb65d1479dc3e276e2a6",
           "storage": "edge-proxy"
         },
         {
           "id": "m_5aa3da950a6878c2a446",
-          "url": "/media/m_5aa3da950a6878c2a446",
-          "thumbnailUrl": "/media/m_5aa3da950a6878c2a446",
+          "url": "/media/m_5aa3da950a6878c2a446/view",
+          "thumbnailUrl": "/media/m_5aa3da950a6878c2a446/thumb",
           "downloadUrl": "/media/m_5aa3da950a6878c2a446",
           "storage": "edge-proxy"
         }
@@ -1520,8 +1520,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_f16113f8b7ad3b3aafe8",
-        "/media/m_8eea026cb2f2d2ff4512"
+        "/media/m_f16113f8b7ad3b3aafe8/view",
+        "/media/m_8eea026cb2f2d2ff4512/view"
       ],
       "imageCount": 2,
       "id": "p_0f05f1cdf0e198bf011d",
@@ -1532,15 +1532,15 @@
       "media": [
         {
           "id": "m_f16113f8b7ad3b3aafe8",
-          "url": "/media/m_f16113f8b7ad3b3aafe8",
-          "thumbnailUrl": "/media/m_f16113f8b7ad3b3aafe8",
+          "url": "/media/m_f16113f8b7ad3b3aafe8/view",
+          "thumbnailUrl": "/media/m_f16113f8b7ad3b3aafe8/thumb",
           "downloadUrl": "/media/m_f16113f8b7ad3b3aafe8",
           "storage": "edge-proxy"
         },
         {
           "id": "m_8eea026cb2f2d2ff4512",
-          "url": "/media/m_8eea026cb2f2d2ff4512",
-          "thumbnailUrl": "/media/m_8eea026cb2f2d2ff4512",
+          "url": "/media/m_8eea026cb2f2d2ff4512/view",
+          "thumbnailUrl": "/media/m_8eea026cb2f2d2ff4512/thumb",
           "downloadUrl": "/media/m_8eea026cb2f2d2ff4512",
           "storage": "edge-proxy"
         }
@@ -1552,8 +1552,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_0c578fdfdff3af1ca0de",
-        "/media/m_0ef647bd881754912543"
+        "/media/m_0c578fdfdff3af1ca0de/view",
+        "/media/m_0ef647bd881754912543/view"
       ],
       "imageCount": 2,
       "id": "p_b6e11feab1f11bae5b6e",
@@ -1564,15 +1564,15 @@
       "media": [
         {
           "id": "m_0c578fdfdff3af1ca0de",
-          "url": "/media/m_0c578fdfdff3af1ca0de",
-          "thumbnailUrl": "/media/m_0c578fdfdff3af1ca0de",
+          "url": "/media/m_0c578fdfdff3af1ca0de/view",
+          "thumbnailUrl": "/media/m_0c578fdfdff3af1ca0de/thumb",
           "downloadUrl": "/media/m_0c578fdfdff3af1ca0de",
           "storage": "edge-proxy"
         },
         {
           "id": "m_0ef647bd881754912543",
-          "url": "/media/m_0ef647bd881754912543",
-          "thumbnailUrl": "/media/m_0ef647bd881754912543",
+          "url": "/media/m_0ef647bd881754912543/view",
+          "thumbnailUrl": "/media/m_0ef647bd881754912543/thumb",
           "downloadUrl": "/media/m_0ef647bd881754912543",
           "storage": "edge-proxy"
         }
@@ -1584,8 +1584,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_dcdfebc4875aca9fb325",
-        "/media/m_a26194b155acbdc62232"
+        "/media/m_dcdfebc4875aca9fb325/view",
+        "/media/m_a26194b155acbdc62232/view"
       ],
       "imageCount": 2,
       "id": "p_fe7589aae2ae08ae4a70",
@@ -1596,15 +1596,15 @@
       "media": [
         {
           "id": "m_dcdfebc4875aca9fb325",
-          "url": "/media/m_dcdfebc4875aca9fb325",
-          "thumbnailUrl": "/media/m_dcdfebc4875aca9fb325",
+          "url": "/media/m_dcdfebc4875aca9fb325/view",
+          "thumbnailUrl": "/media/m_dcdfebc4875aca9fb325/thumb",
           "downloadUrl": "/media/m_dcdfebc4875aca9fb325",
           "storage": "edge-proxy"
         },
         {
           "id": "m_a26194b155acbdc62232",
-          "url": "/media/m_a26194b155acbdc62232",
-          "thumbnailUrl": "/media/m_a26194b155acbdc62232",
+          "url": "/media/m_a26194b155acbdc62232/view",
+          "thumbnailUrl": "/media/m_a26194b155acbdc62232/thumb",
           "downloadUrl": "/media/m_a26194b155acbdc62232",
           "storage": "edge-proxy"
         }
@@ -1616,8 +1616,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_92c9b956ccc6cfa7cf46",
-        "/media/m_ca3f68b2b5bd7b8eeb98"
+        "/media/m_92c9b956ccc6cfa7cf46/view",
+        "/media/m_ca3f68b2b5bd7b8eeb98/view"
       ],
       "imageCount": 2,
       "id": "p_ff725dcc5b4dae59ffaf",
@@ -1628,15 +1628,15 @@
       "media": [
         {
           "id": "m_92c9b956ccc6cfa7cf46",
-          "url": "/media/m_92c9b956ccc6cfa7cf46",
-          "thumbnailUrl": "/media/m_92c9b956ccc6cfa7cf46",
+          "url": "/media/m_92c9b956ccc6cfa7cf46/view",
+          "thumbnailUrl": "/media/m_92c9b956ccc6cfa7cf46/thumb",
           "downloadUrl": "/media/m_92c9b956ccc6cfa7cf46",
           "storage": "edge-proxy"
         },
         {
           "id": "m_ca3f68b2b5bd7b8eeb98",
-          "url": "/media/m_ca3f68b2b5bd7b8eeb98",
-          "thumbnailUrl": "/media/m_ca3f68b2b5bd7b8eeb98",
+          "url": "/media/m_ca3f68b2b5bd7b8eeb98/view",
+          "thumbnailUrl": "/media/m_ca3f68b2b5bd7b8eeb98/thumb",
           "downloadUrl": "/media/m_ca3f68b2b5bd7b8eeb98",
           "storage": "edge-proxy"
         }
@@ -1648,8 +1648,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_dbcfa334a091fbe846f3",
-        "/media/m_35b4dbafae91895161f0"
+        "/media/m_dbcfa334a091fbe846f3/view",
+        "/media/m_35b4dbafae91895161f0/view"
       ],
       "imageCount": 2,
       "id": "p_89a76c4f94756ae0b65c",
@@ -1660,15 +1660,15 @@
       "media": [
         {
           "id": "m_dbcfa334a091fbe846f3",
-          "url": "/media/m_dbcfa334a091fbe846f3",
-          "thumbnailUrl": "/media/m_dbcfa334a091fbe846f3",
+          "url": "/media/m_dbcfa334a091fbe846f3/view",
+          "thumbnailUrl": "/media/m_dbcfa334a091fbe846f3/thumb",
           "downloadUrl": "/media/m_dbcfa334a091fbe846f3",
           "storage": "edge-proxy"
         },
         {
           "id": "m_35b4dbafae91895161f0",
-          "url": "/media/m_35b4dbafae91895161f0",
-          "thumbnailUrl": "/media/m_35b4dbafae91895161f0",
+          "url": "/media/m_35b4dbafae91895161f0/view",
+          "thumbnailUrl": "/media/m_35b4dbafae91895161f0/thumb",
           "downloadUrl": "/media/m_35b4dbafae91895161f0",
           "storage": "edge-proxy"
         }
@@ -1680,8 +1680,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_42212f8fcbb0440cdfa3",
-        "/media/m_686045fc73252cfcf2fe"
+        "/media/m_42212f8fcbb0440cdfa3/view",
+        "/media/m_686045fc73252cfcf2fe/view"
       ],
       "imageCount": 2,
       "id": "p_678cbf2661a54d0bb70a",
@@ -1692,15 +1692,15 @@
       "media": [
         {
           "id": "m_42212f8fcbb0440cdfa3",
-          "url": "/media/m_42212f8fcbb0440cdfa3",
-          "thumbnailUrl": "/media/m_42212f8fcbb0440cdfa3",
+          "url": "/media/m_42212f8fcbb0440cdfa3/view",
+          "thumbnailUrl": "/media/m_42212f8fcbb0440cdfa3/thumb",
           "downloadUrl": "/media/m_42212f8fcbb0440cdfa3",
           "storage": "edge-proxy"
         },
         {
           "id": "m_686045fc73252cfcf2fe",
-          "url": "/media/m_686045fc73252cfcf2fe",
-          "thumbnailUrl": "/media/m_686045fc73252cfcf2fe",
+          "url": "/media/m_686045fc73252cfcf2fe/view",
+          "thumbnailUrl": "/media/m_686045fc73252cfcf2fe/thumb",
           "downloadUrl": "/media/m_686045fc73252cfcf2fe",
           "storage": "edge-proxy"
         }
@@ -1712,7 +1712,7 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_b0056851889b6dbc2c0b"
+        "/media/m_b0056851889b6dbc2c0b/view"
       ],
       "imageCount": 1,
       "id": "p_5a61ce4c792686c7af14",
@@ -1723,8 +1723,8 @@
       "media": [
         {
           "id": "m_b0056851889b6dbc2c0b",
-          "url": "/media/m_b0056851889b6dbc2c0b",
-          "thumbnailUrl": "/media/m_b0056851889b6dbc2c0b",
+          "url": "/media/m_b0056851889b6dbc2c0b/view",
+          "thumbnailUrl": "/media/m_b0056851889b6dbc2c0b/thumb",
           "downloadUrl": "/media/m_b0056851889b6dbc2c0b",
           "storage": "edge-proxy"
         }
@@ -1736,8 +1736,8 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_5f46f167e27fdf922f64",
-        "/media/m_f55aa4b35dddf12315a5"
+        "/media/m_5f46f167e27fdf922f64/view",
+        "/media/m_f55aa4b35dddf12315a5/view"
       ],
       "imageCount": 2,
       "id": "p_70730a2e092358b0cbb9",
@@ -1748,15 +1748,15 @@
       "media": [
         {
           "id": "m_5f46f167e27fdf922f64",
-          "url": "/media/m_5f46f167e27fdf922f64",
-          "thumbnailUrl": "/media/m_5f46f167e27fdf922f64",
+          "url": "/media/m_5f46f167e27fdf922f64/view",
+          "thumbnailUrl": "/media/m_5f46f167e27fdf922f64/thumb",
           "downloadUrl": "/media/m_5f46f167e27fdf922f64",
           "storage": "edge-proxy"
         },
         {
           "id": "m_f55aa4b35dddf12315a5",
-          "url": "/media/m_f55aa4b35dddf12315a5",
-          "thumbnailUrl": "/media/m_f55aa4b35dddf12315a5",
+          "url": "/media/m_f55aa4b35dddf12315a5/view",
+          "thumbnailUrl": "/media/m_f55aa4b35dddf12315a5/thumb",
           "downloadUrl": "/media/m_f55aa4b35dddf12315a5",
           "storage": "edge-proxy"
         }
@@ -1768,7 +1768,7 @@
       "description": "",
       "entityType": "product",
       "images": [
-        "/media/m_c5630ef9c7641b5e6a99"
+        "/media/m_c5630ef9c7641b5e6a99/view"
       ],
       "imageCount": 1,
       "id": "p_7f3238ac0534539ee43a",
@@ -1779,8 +1779,8 @@
       "media": [
         {
           "id": "m_c5630ef9c7641b5e6a99",
-          "url": "/media/m_c5630ef9c7641b5e6a99",
-          "thumbnailUrl": "/media/m_c5630ef9c7641b5e6a99",
+          "url": "/media/m_c5630ef9c7641b5e6a99/view",
+          "thumbnailUrl": "/media/m_c5630ef9c7641b5e6a99/thumb",
           "downloadUrl": "/media/m_c5630ef9c7641b5e6a99",
           "storage": "edge-proxy"
         }
@@ -1795,16 +1795,23 @@
     "maxDepth": 1,
     "used": 2
   },
-  "mediaVersion": 2,
+  "mediaVersion": 3,
   "mediaStats": {
     "storageMode": "edge-proxy",
     "logicalImages": 77,
     "uniqueImages": 77,
     "proxiedImages": 77,
+    "optimizedDisplayVariants": 77,
+    "optimizedThumbnailVariants": 77,
     "repositoryImageBytes": 0
   },
   "storage": {
     "mode": "edge-proxy",
-    "publicBase": "/media"
+    "publicBase": "/media",
+    "variants": {
+      "view": "view",
+      "thumbnail": "thumb",
+      "download": "original"
+    }
   }
 }
