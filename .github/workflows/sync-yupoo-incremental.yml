@@ -46,6 +46,7 @@ jobs:
       SUPPLIER_DELTA_OUT: /tmp/catalog-engine-delta.json
       SUPPLIER_INDEX_SQL_DIR: /tmp/catalog-engine-index-sql
       SUPPLIER_MEDIA_SQL_DIR: /tmp/catalog-engine-delta-media-sql
+      SUPPLIER_DETAIL_SQL_OUT: /tmp/catalog-engine-detail-fingerprints.sql
       SUPPLIER_PROCESS_SUMMARY_OUT: /tmp/catalog-engine-incremental-summary.json
       PUBLIC_CATALOG_SQL_DIR: /tmp/catalog-engine-public-api-sql
       WRANGLER_VERSION: 4.123.0
@@ -111,17 +112,6 @@ jobs:
         if: steps.process_delta.outputs.catalog_changed == 'true'
         run: npm run taxonomy:audit
 
-      - name: Persist private source index delta in D1
-        shell: bash
-        run: |
-          shopt -s nullglob
-          files=("$SUPPLIER_INDEX_SQL_DIR"/*.sql)
-          test ${#files[@]} -gt 0 || { echo "No supplier index SQL generated"; exit 1; }
-          for file in "${files[@]}"; do
-            echo "Applying private index $(basename "$file")"
-            npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$file"
-          done
-
       - name: Persist changed private media registry
         shell: bash
         run: |
@@ -149,14 +139,7 @@ jobs:
             npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$file"
           done
 
-      - name: Mark sync successful
-        shell: bash
-        run: |
-          RUN_ID="$(node -p "JSON.parse(require('fs').readFileSync(process.env.SUPPLIER_DELTA_OUT, 'utf8')).runId")"
-          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc \
-            --command="UPDATE supplier_sync_runs SET status='success', finished_at=CURRENT_TIMESTAMP WHERE run_id='$RUN_ID'; UPDATE supplier_sources SET status='active', last_success_at=CURRENT_TIMESTAMP, last_error=NULL, updated_at=CURRENT_TIMESTAMP WHERE tenant_id='$TENANT_ID' AND source_key='$SOURCE_KEY';"
-
-      - name: Smoke test public catalog
+      - name: Smoke test public catalog before cursor promotion
         shell: bash
         run: |
           curl --fail --silent --show-error "$PUBLIC_URL/api/health" > /tmp/health.json
@@ -187,6 +170,27 @@ jobs:
             git push origin HEAD:main
           fi
 
+      - name: Promote private supplier cursor in D1
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=("$SUPPLIER_INDEX_SQL_DIR"/*.sql)
+          test ${#files[@]} -gt 0 || { echo "No supplier index SQL generated"; exit 1; }
+          for file in "${files[@]}"; do
+            echo "Promoting private index $(basename "$file")"
+            npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$file"
+          done
+
+      - name: Persist detail fingerprints after cursor promotion
+        run: npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$SUPPLIER_DETAIL_SQL_OUT"
+
+      - name: Mark sync successful
+        shell: bash
+        run: |
+          RUN_ID="$(node -p "JSON.parse(require('fs').readFileSync(process.env.SUPPLIER_DELTA_OUT, 'utf8')).runId")"
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc \
+            --command="UPDATE supplier_sync_runs SET status='success', finished_at=CURRENT_TIMESTAMP WHERE run_id='$RUN_ID'; UPDATE supplier_sources SET status='active', last_success_at=CURRENT_TIMESTAMP, last_error=NULL, updated_at=CURRENT_TIMESTAMP WHERE tenant_id='$TENANT_ID' AND source_key='$SOURCE_KEY';"
+
       - name: Record sync failure
         if: failure()
         continue-on-error: true
@@ -195,5 +199,5 @@ jobs:
           RUN_ID="$(node -e "try{const fs=require('fs');process.stdout.write(JSON.parse(fs.readFileSync(process.env.SUPPLIER_DELTA_OUT,'utf8')).runId||'')}catch{}")"
           if [ -n "$RUN_ID" ]; then
             npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc \
-              --command="UPDATE supplier_sync_runs SET status='failed', finished_at=CURRENT_TIMESTAMP, error_text='GitHub Actions incremental sync failed' WHERE run_id='$RUN_ID'; UPDATE supplier_sources SET status='error', last_error='GitHub Actions incremental sync failed', updated_at=CURRENT_TIMESTAMP WHERE tenant_id='$TENANT_ID' AND source_key='$SOURCE_KEY';"
+              --command="UPDATE supplier_sync_runs SET status='failed', finished_at=CURRENT_TIMESTAMP, error_text='GitHub Actions incremental sync failed' WHERE run_id='$RUN_ID'; UPDATE supplier_sources SET status='error', last_error='GitHub Actions incremental sync failed', updated_at=CURRENT_TIMESTAMP WHERE tenant_id='$TENANT_ID' AND source_key='$SOURCE_KEY';" || true
           fi
