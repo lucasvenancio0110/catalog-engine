@@ -1,10 +1,9 @@
-name: Import complete Yupoo catalog
+name: Reconcile complete Yupoo catalog
 
 on:
   schedule:
-    # GitHub cron uses UTC. 07:17 UTC = 04:17 in Brasília/Curitiba (UTC-3).
-    # The non-round minute also reduces the chance of GitHub scheduler congestion.
-    - cron: "17 7 * * *"
+    # Weekly authoritative reconciliation. 07:17 UTC = 04:17 in Brasília/Curitiba (UTC-3).
+    - cron: "17 7 * * 0"
   workflow_dispatch:
     inputs:
       source_url:
@@ -17,15 +16,6 @@ on:
         required: true
         default: "0"
         type: string
-  push:
-    branches: ["main"]
-    paths:
-      - ".github/workflows/import-yupoo.yml"
-      - "scripts/import-full-yupoo.mjs"
-      - "scripts/full-import-core.mjs"
-      - "scripts/yupoo-taxonomy.mjs"
-      - "scripts/yupoo-source-resolver.mjs"
-      - "tests/full-import-core.test.mjs"
 
 permissions:
   contents: write
@@ -46,6 +36,7 @@ jobs:
       MAX_ROOT_PAGES: "500"
       MAX_CATEGORY_PAGES: "500"
       CATALOG_SQL_DIR: /tmp/catalog-engine-full-sql
+      PUBLIC_CATALOG_SQL_DIR: /tmp/catalog-engine-public-api-sql
       IMPORT_SUMMARY_OUT: /tmp/catalog-engine-full-summary.json
       WRANGLER_VERSION: 4.123.0
       PUBLIC_URL: https://catalog-engine.lucassantanals0110.workers.dev
@@ -99,9 +90,23 @@ jobs:
             npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$file"
           done
 
-      - name: Verify remote media registry
+      - name: Rebuild normalized public catalog SQL
+        run: node scripts/sync-public-catalog-d1.mjs
+
+      - name: Load normalized public catalog into D1
+        shell: bash
         run: |
-          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --command="SELECT COUNT(*) AS media_sources FROM media_sources; SELECT COUNT(*) AS product_media FROM product_media;"
+          shopt -s nullglob
+          files=("$PUBLIC_CATALOG_SQL_DIR"/*.sql)
+          test ${#files[@]} -gt 0 || { echo "No public catalog SQL chunks were generated"; exit 1; }
+          for file in "${files[@]}"; do
+            echo "Applying public $(basename "$file")"
+            npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$file"
+          done
+
+      - name: Verify remote catalog
+        run: |
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --command="SELECT COUNT(*) AS media_sources FROM media_sources; SELECT COUNT(*) AS product_media FROM product_media; SELECT COUNT(*) AS catalog_products FROM catalog_products;"
 
       - name: Build storefront
         run: |
@@ -115,6 +120,7 @@ jobs:
         shell: bash
         run: |
           curl --fail --silent --show-error "$PUBLIC_URL/api/health"
+          curl --fail --silent --show-error "$PUBLIC_URL/api/products?page=1&limit=15" > /tmp/products.json
           node --input-type=module <<'NODE' > /tmp/smoke-media.txt
           import fs from 'node:fs';
           const catalog = JSON.parse(fs.readFileSync('data/catalog.json', 'utf8'));
@@ -140,7 +146,6 @@ jobs:
           const views = [...new Set(products.map((product) => product.media?.[0]?.url).filter(Boolean))].slice(0, 30);
           fs.writeFileSync('/tmp/warm-thumbs.txt', thumbs.map((url) => `${process.env.PUBLIC_URL}${url}`).join('\n') + '\n');
           fs.writeFileSync('/tmp/warm-views.txt', views.map((url) => `${process.env.PUBLIC_URL}${url}`).join('\n') + '\n');
-          console.log(`Warming ${thumbs.length} thumbnails and ${views.length} display images.`);
           NODE
           xargs -r -n1 -P10 curl --fail --silent --show-error --output /dev/null < /tmp/warm-thumbs.txt
           xargs -r -n1 -P6 curl --fail --silent --show-error --output /dev/null < /tmp/warm-views.txt
@@ -154,7 +159,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "Complete catalog is already materialized."
           else
-            git commit -m "import complete catalog with source taxonomy"
+            git commit -m "reconcile complete supplier catalog"
             git pull --rebase origin main
             git push origin HEAD:main
           fi

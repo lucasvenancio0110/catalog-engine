@@ -1,0 +1,188 @@
+name: Sync supplier catalog incrementally
+
+on:
+  schedule:
+    # 07:17 UTC = 04:17 in Brasília/Curitiba (UTC-3).
+    - cron: "17 7 * * *"
+  workflow_dispatch:
+    inputs:
+      source_url:
+        description: "Yupoo catalog source (/albums/)"
+        required: false
+        default: "https://zhouchangliang.x.yupoo.com/albums/"
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: catalog-engine-incremental-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SOURCE_URL: ${{ inputs.source_url || 'https://zhouchangliang.x.yupoo.com/albums/' }}
+      TENANT_ID: t_00000000000000000001
+      SOURCE_KEY: primary
+      REMOVAL_MISS_THRESHOLD: "3"
+      SUPPLIER_INDEX_OUT: /tmp/catalog-engine-current-index.json
+      SUPPLIER_PREVIOUS_INDEX: /tmp/catalog-engine-previous-index.json
+      SUPPLIER_DELTA_OUT: /tmp/catalog-engine-delta.json
+      SUPPLIER_INDEX_SQL_DIR: /tmp/catalog-engine-index-sql
+      SUPPLIER_MEDIA_SQL_DIR: /tmp/catalog-engine-delta-media-sql
+      SUPPLIER_PROCESS_SUMMARY_OUT: /tmp/catalog-engine-incremental-summary.json
+      PUBLIC_CATALOG_SQL_DIR: /tmp/catalog-engine-public-api-sql
+      WRANGLER_VERSION: 4.123.0
+      PUBLIC_URL: https://catalog-engine.lucassantanals0110.workers.dev
+      MAX_ROOT_PAGES: "500"
+      MAX_CATEGORY_PAGES: "500"
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate Cloudflare credentials
+        shell: bash
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Quality gate
+        run: npm run quality
+
+      - name: Apply D1 migrations
+        run: npx --yes "wrangler@$WRANGLER_VERSION" d1 migrations apply CATALOG_DB --remote --config wrangler.jsonc
+
+      - name: Load previous private supplier index
+        shell: bash
+        run: |
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --json \
+            --command="SELECT album_source_id, public_product_id, source_title, source_category_id, source_category_path_json, cover_source_url, image_count_hint, listing_fingerprint, detail_fingerprint, status, miss_count, first_seen_at, last_seen_at, last_changed_at, last_detail_at FROM supplier_album_index WHERE tenant_id='$TENANT_ID' AND source_key='$SOURCE_KEY';" \
+            > "$SUPPLIER_PREVIOUS_INDEX"
+
+      - name: Lightweight supplier listing scan
+        run: npm run sync:incremental:scan -- "$SOURCE_URL"
+
+      - name: Detect NEW CHANGED MOVED and missing albums
+        run: npm run sync:incremental:plan
+
+      - name: Fetch details only for delta queue
+        id: process_delta
+        shell: bash
+        run: |
+          npm run sync:incremental:apply
+          cat "$SUPPLIER_PROCESS_SUMMARY_OUT"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const report = JSON.parse(fs.readFileSync(process.env.SUPPLIER_PROCESS_SUMMARY_OUT, 'utf8'));
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `catalog_changed=${report.catalogChanged ? 'true' : 'false'}\n`);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\n### Sync incremental\n\n\`\`\`json\n${JSON.stringify(report, null, 2)}\n\`\`\`\n`);
+          NODE
+
+      - name: Audit public taxonomy after delta
+        if: steps.process_delta.outputs.catalog_changed == 'true'
+        run: npm run taxonomy:audit
+
+      - name: Persist private source index delta in D1
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=("$SUPPLIER_INDEX_SQL_DIR"/*.sql)
+          test ${#files[@]} -gt 0 || { echo "No supplier index SQL generated"; exit 1; }
+          for file in "${files[@]}"; do
+            echo "Applying private index $(basename "$file")"
+            npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$file"
+          done
+
+      - name: Persist changed private media registry
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=("$SUPPLIER_MEDIA_SQL_DIR"/*.sql)
+          test ${#files[@]} -gt 0 || { echo "No media SQL generated"; exit 1; }
+          for file in "${files[@]}"; do
+            echo "Applying media delta $(basename "$file")"
+            npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$file"
+          done
+
+      - name: Generate normalized public catalog SQL
+        if: steps.process_delta.outputs.catalog_changed == 'true'
+        run: node scripts/sync-public-catalog-d1.mjs
+
+      - name: Update normalized public D1 catalog
+        if: steps.process_delta.outputs.catalog_changed == 'true'
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=("$PUBLIC_CATALOG_SQL_DIR"/*.sql)
+          test ${#files[@]} -gt 0 || { echo "No public catalog SQL generated"; exit 1; }
+          for file in "${files[@]}"; do
+            echo "Applying public catalog $(basename "$file")"
+            npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$file"
+          done
+
+      - name: Mark sync successful
+        shell: bash
+        run: |
+          RUN_ID="$(node -p "JSON.parse(require('fs').readFileSync(process.env.SUPPLIER_DELTA_OUT, 'utf8')).runId")"
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc \
+            --command="UPDATE supplier_sync_runs SET status='success', finished_at=CURRENT_TIMESTAMP WHERE run_id='$RUN_ID'; UPDATE supplier_sources SET status='active', last_success_at=CURRENT_TIMESTAMP, last_error=NULL, updated_at=CURRENT_TIMESTAMP WHERE tenant_id='$TENANT_ID' AND source_key='$SOURCE_KEY';"
+
+      - name: Smoke test public catalog
+        shell: bash
+        run: |
+          curl --fail --silent --show-error "$PUBLIC_URL/api/health" > /tmp/health.json
+          curl --fail --silent --show-error "$PUBLIC_URL/api/catalog/meta" > /tmp/meta.json
+          curl --fail --silent --show-error "$PUBLIC_URL/api/products?page=1&limit=15" > /tmp/products.json
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const health = JSON.parse(fs.readFileSync('/tmp/health.json', 'utf8'));
+          const meta = JSON.parse(fs.readFileSync('/tmp/meta.json', 'utf8'));
+          const products = JSON.parse(fs.readFileSync('/tmp/products.json', 'utf8'));
+          if (!health.ok || !health.catalogApi) throw new Error('Catalog API health failed.');
+          if (!Number(meta.stats?.products)) throw new Error('Catalog metadata is empty.');
+          if (!products.items?.length || products.items.length > 15) throw new Error('Catalog pagination failed.');
+          NODE
+
+      - name: Persist changed sanitized catalog snapshot
+        if: steps.process_delta.outputs.catalog_changed == 'true'
+        shell: bash
+        run: |
+          git config user.name "catalog-engine-bot"
+          git config user.email "catalog-engine-bot@users.noreply.github.com"
+          git add data/catalog.json
+          if git diff --cached --quiet; then
+            echo "No public catalog snapshot change to persist."
+          else
+            git commit -m "sync supplier catalog incrementally"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+
+      - name: Record sync failure
+        if: failure()
+        continue-on-error: true
+        shell: bash
+        run: |
+          RUN_ID="$(node -e "try{const fs=require('fs');process.stdout.write(JSON.parse(fs.readFileSync(process.env.SUPPLIER_DELTA_OUT,'utf8')).runId||'')}catch{}")"
+          if [ -n "$RUN_ID" ]; then
+            npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc \
+              --command="UPDATE supplier_sync_runs SET status='failed', finished_at=CURRENT_TIMESTAMP, error_text='GitHub Actions incremental sync failed' WHERE run_id='$RUN_ID'; UPDATE supplier_sources SET status='error', last_error='GitHub Actions incremental sync failed', updated_at=CURRENT_TIMESTAMP WHERE tenant_id='$TENANT_ID' AND source_key='$SOURCE_KEY';"
+          fi

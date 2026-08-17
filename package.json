@@ -1,6 +1,6 @@
 {
   "name": "catalog-engine",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -15,6 +15,9 @@
     "media:optimize": "node scripts/media-pipeline.mjs",
     "audit": "node scripts/quality-audit.mjs",
     "sync:audit": "node scripts/sync-audit.mjs",
+    "sync:incremental:scan": "node scripts/scan-yupoo-listing-index.mjs",
+    "sync:incremental:plan": "node scripts/plan-yupoo-incremental.mjs",
+    "sync:incremental:apply": "node scripts/process-yupoo-delta.mjs",
     "taxonomy:audit": "node scripts/taxonomy-audit.mjs",
     "media:audit": "node scripts/media-audit.mjs",
     "deps:check": "node scripts/check-dependency-policy.mjs",

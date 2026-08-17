@@ -5,7 +5,6 @@ on:
     branches: ["main"]
     paths:
       - ".github/workflows/deploy-catalog-api.yml"
-      - "data/catalog.json"
       - "index.html"
       - "migrations/**"
       - "scripts/sync-public-catalog-d1.mjs"
