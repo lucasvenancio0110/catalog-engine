@@ -13,8 +13,8 @@ async function exists(path) {
 const catalog = JSON.parse(await readFile('data/catalog.json', 'utf8'));
 const serialized = JSON.stringify(catalog);
 
-if (catalog.mediaVersion !== 2 || catalog.storage?.mode !== 'edge-proxy' || catalog.storage?.publicBase !== '/media') {
-  throw new Error('Catálogo não está configurado para edge-proxy mediaVersion 2.');
+if (catalog.mediaVersion !== 3 || catalog.storage?.mode !== 'edge-proxy' || catalog.storage?.publicBase !== '/media') {
+  throw new Error('Catálogo não está configurado para edge-proxy mediaVersion 3.');
 }
 if (/x\.yupoo\.com|photo\.yupoo\.com/i.test(serialized)) {
   throw new Error('White-label violation: hostname do fornecedor apareceu no catálogo público.');
@@ -37,8 +37,10 @@ for (const product of catalog.products || []) {
 
   product.media.forEach((media, index) => {
     if (!/^m_[a-f0-9]{20}$/.test(String(media.id || ''))) throw new Error(`Media ID inválido em ${product.id}.`);
-    const expected = `/media/${media.id}`;
-    if (product.images[index] !== expected || media.url !== expected || media.thumbnailUrl !== expected || media.downloadUrl !== expected) {
+    const view = `/media/${media.id}/view`;
+    const thumb = `/media/${media.id}/thumb`;
+    const download = `/media/${media.id}`;
+    if (product.images[index] !== view || media.url !== view || media.thumbnailUrl !== thumb || media.downloadUrl !== download) {
       throw new Error(`Rota pública de mídia divergente em ${product.id}/${media.id}.`);
     }
     if (media.storage !== 'edge-proxy') throw new Error(`Descriptor sem storage edge-proxy: ${media.id}.`);
@@ -59,6 +61,7 @@ console.log(JSON.stringify({
   uniqueImages: uniqueIds.size,
   storageMode: catalog.storage.mode,
   publicBase: catalog.storage.publicBase,
+  variants: catalog.storage.variants,
   supplierLeak: false,
   repositoryMedia: false
 }, null, 2));
