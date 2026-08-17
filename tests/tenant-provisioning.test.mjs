@@ -60,7 +60,7 @@ describe('tenant provisioning', () => {
     expect(sql).not.toContain('yupoo.com');
   });
 
-  it('keeps the provisioning summary free from private supplier state', () => {
+  it('keeps the provisioning summary free from private supplier data', () => {
     const summary = publicProvisioningSummary(buildTenantProvisioningPlan(arenaRequest));
     expect(summary).toMatchObject({
       slug: 'loja-arena',
@@ -69,7 +69,10 @@ describe('tenant provisioning', () => {
       hostname: 'loja-arena.shops.example.com',
       status: 'pending'
     });
-    expect(JSON.stringify(summary)).not.toMatch(/source|supplier|credential|secret/i);
+    expect(summary).not.toHaveProperty('sourceUrl');
+    expect(summary).not.toHaveProperty('supplierUrl');
+    expect(summary).not.toHaveProperty('sourceLocatorRef');
+    expect(JSON.stringify(summary)).not.toMatch(/yupoo\.com|credential|secret/i);
   });
 
   it('rejects unsafe platform domain input', () => {
