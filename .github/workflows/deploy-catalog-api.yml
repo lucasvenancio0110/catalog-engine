@@ -1,0 +1,115 @@
+name: Deploy paginated catalog API
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/deploy-catalog-api.yml"
+      - "data/catalog.json"
+      - "index.html"
+      - "migrations/**"
+      - "scripts/sync-public-catalog-d1.mjs"
+      - "scripts/copy-storefront-data.mjs"
+      - "scripts/verify-dist.mjs"
+      - "src/**"
+      - "worker/**"
+      - "wrangler.jsonc"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: catalog-engine-cloudflare-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PUBLIC_CATALOG_SQL_DIR: /tmp/catalog-engine-public-api-sql
+      WRANGLER_VERSION: 4.123.0
+      PUBLIC_URL: https://catalog-engine.lucassantanals0110.workers.dev
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate Cloudflare credentials
+        shell: bash
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Quality gate
+        run: npm run quality
+
+      - name: Apply D1 migrations
+        run: npx --yes "wrangler@$WRANGLER_VERSION" d1 migrations apply CATALOG_DB --remote --config wrangler.jsonc
+
+      - name: Generate paginated catalog SQL
+        run: node scripts/sync-public-catalog-d1.mjs
+
+      - name: Load public catalog into D1
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=("$PUBLIC_CATALOG_SQL_DIR"/*.sql)
+          test ${#files[@]} -gt 0 || { echo "No public catalog SQL chunks were generated"; exit 1; }
+          for file in "${files[@]}"; do
+            echo "Applying $(basename "$file")"
+            npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$file"
+          done
+
+      - name: Verify D1 catalog
+        run: |
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --command="SELECT COUNT(*) AS products FROM catalog_products; SELECT COUNT(*) AS categories FROM catalog_categories;"
+
+      - name: Build storefront
+        run: |
+          npm run build
+          npm run build:verify
+
+      - name: Deploy Worker and catalog
+        run: npx --yes "wrangler@$WRANGLER_VERSION" deploy --config wrangler.jsonc
+
+      - name: Smoke test paginated API
+        shell: bash
+        run: |
+          curl --fail --silent --show-error "$PUBLIC_URL/api/health" > /tmp/health.json
+          curl --fail --silent --show-error "$PUBLIC_URL/api/catalog/meta" > /tmp/meta.json
+          curl --fail --silent --show-error "$PUBLIC_URL/api/products?page=1&limit=15" > /tmp/products.json
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const health = JSON.parse(fs.readFileSync('/tmp/health.json', 'utf8'));
+          const meta = JSON.parse(fs.readFileSync('/tmp/meta.json', 'utf8'));
+          const products = JSON.parse(fs.readFileSync('/tmp/products.json', 'utf8'));
+          if (!health.ok || !health.catalogApi) throw new Error('Catalog API health check failed.');
+          if (!Number(meta.stats?.products) || !meta.taxonomy?.length) throw new Error('Catalog meta is empty.');
+          if (!products.items?.length || products.items.length > 15) throw new Error('Pagination did not return 1-15 products.');
+          if (products.total !== meta.stats.products) throw new Error('Catalog totals disagree.');
+          const firstId = products.items[0]?.id;
+          if (!firstId) throw new Error('First product id is missing.');
+          fs.writeFileSync('/tmp/first-product-id.txt', firstId);
+          NODE
+          FIRST_PRODUCT_ID="$(cat /tmp/first-product-id.txt)"
+          curl --fail --silent --show-error "$PUBLIC_URL/api/products/$FIRST_PRODUCT_ID" > /tmp/product.json
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const detail = JSON.parse(fs.readFileSync('/tmp/product.json', 'utf8'));
+          if (!detail.product?.media?.length) throw new Error('Product detail media is empty.');
+          NODE

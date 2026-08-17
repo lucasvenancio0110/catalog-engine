@@ -58,6 +58,11 @@
 
     <div id="status" class="status">Carregando catálogo…</div>
     <section id="productGrid" class="grid" aria-live="polite"></section>
+    <nav id="pagination" class="pagination" aria-label="Paginação do catálogo" hidden>
+      <button id="previousPage" class="pagination-button" type="button">← Anterior</button>
+      <span id="pageInfo" class="page-info"></span>
+      <button id="nextPage" class="pagination-button" type="button">Próxima →</button>
+    </nav>
   </main>
 
   <template id="productTemplate">

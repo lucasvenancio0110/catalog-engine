@@ -5,8 +5,14 @@ function byName(a, b) {
 export function createTaxonomyModel(taxonomy = [], products = []) {
   const byId = new Map(taxonomy.map((category) => [String(category.id), category]));
   const directCounts = new Map();
+  const precomputedCounts = new Map();
   const descendantCache = new Map();
   const countCache = new Map();
+
+  for (const category of taxonomy) {
+    const count = Number(category?.productCount);
+    if (Number.isFinite(count) && count >= 0) precomputedCounts.set(category.id, count);
+  }
 
   for (const product of products) {
     if (!product?.categoryId) continue;
@@ -37,6 +43,7 @@ export function createTaxonomyModel(taxonomy = [], products = []) {
   }
 
   function count(categoryId) {
+    if (precomputedCounts.has(categoryId)) return precomputedCounts.get(categoryId);
     if (countCache.has(categoryId)) return countCache.get(categoryId);
     const total = computeDescendants(categoryId).reduce(
       (sum, id) => sum + (directCounts.get(id) || 0),
