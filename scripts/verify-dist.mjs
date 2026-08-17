@@ -55,12 +55,19 @@ if (catalog.schemaVersion >= 4) {
   }
 }
 
-if (catalog.schemaVersion >= 6 && await exists(resolve(dist, 'assets/catalog'))) {
+const edgeProxy = catalog.storage?.mode === 'edge-proxy' || catalog.mediaVersion === 2;
+if (edgeProxy) {
+  if (catalog.storage?.publicBase !== '/media') throw new Error('Catálogo edge-proxy sem publicBase /media.');
+  if (await exists(resolve(dist, 'assets/media'))) {
+    throw new Error('Build edge-proxy publicou assets/media; as imagens do fornecedor não devem estar no dist.');
+  }
+} else if (catalog.schemaVersion >= 6 && await exists(resolve(dist, 'assets/catalog'))) {
   throw new Error('Build schema 6 ainda contém a árvore legada assets/catalog.');
 }
 
 let checkedImages = 0;
 let checkedMediaFiles = 0;
+let checkedProxyRoutes = 0;
 for (const product of catalog.products) {
   if (catalog.schemaVersion >= 6) {
     if (!Array.isArray(product.media) || product.media.length !== product.images?.length) {
@@ -70,11 +77,23 @@ for (const product of catalog.products) {
 
   for (let index = 0; index < (product.images || []).length; index += 1) {
     const image = product.images[index];
-    if (typeof image !== 'string' || !image.startsWith('./assets/')) {
-      throw new Error(`Imagem pública com caminho inválido no produto ${product.id || product.name}.`);
+    if (typeof image !== 'string') {
+      throw new Error(`Imagem pública inválida no produto ${product.id || product.name}.`);
     }
 
-    if (catalog.schemaVersion >= 6) {
+    if (edgeProxy) {
+      const media = product.media?.[index];
+      if (!/^\/media\/m_[a-f0-9]{20}$/.test(image)) {
+        throw new Error(`Rota de mídia edge-proxy inválida no produto ${product.id}.`);
+      }
+      if (!media || !/^m_[a-f0-9]{20}$/.test(String(media.id || '')) || media.url !== image) {
+        throw new Error(`Descriptor edge-proxy divergente no produto ${product.id}.`);
+      }
+      for (const url of [media.url, media.thumbnailUrl, media.downloadUrl]) {
+        if (url !== `/media/${media.id}`) throw new Error(`URL edge-proxy inconsistente em ${media.id}.`);
+      }
+      checkedProxyRoutes += 1;
+    } else if (catalog.schemaVersion >= 6) {
       const media = product.media[index];
       if (!image.startsWith('./assets/media/web/') || media.url !== image) {
         throw new Error(`Imagem web divergente no produto ${product.id}.`);
@@ -85,6 +104,9 @@ for (const product of catalog.products) {
         checkedMediaFiles += 1;
       }
     } else {
+      if (!image.startsWith('./assets/')) {
+        throw new Error(`Imagem pública com caminho inválido no produto ${product.id || product.name}.`);
+      }
       if (catalog.schemaVersion >= 4 && !image.includes(`/assets/catalog/${product.id}/`)) {
         throw new Error(`Imagem pública fora do namespace opaco do produto ${product.id}.`);
       }
@@ -101,14 +123,17 @@ if (checkedImages === 0) throw new Error('Nenhuma imagem de produto foi validada
 console.log(JSON.stringify({
   ok: true,
   schemaVersion: catalog.schemaVersion,
+  mediaVersion: catalog.mediaVersion || null,
+  storageMode: catalog.storage?.mode || 'repository',
   products: catalog.products.length,
   checkedImages,
   checkedMediaFiles,
+  checkedProxyRoutes,
   jsBundle: true,
   cssBundle: true,
   supplierLeak: false,
   privateStatePublished: false,
   opaqueIds: catalog.schemaVersion >= 4,
-  contentAddressedMedia: catalog.schemaVersion >= 6,
+  edgeProxy,
   baseStrategy: 'relative'
 }, null, 2));
