@@ -123,19 +123,54 @@ function imageGroupKey(url) {
   }
 }
 
-function imageQualityScore(url, sourcePriority = 0) {
+function imageFilename(url) {
   try {
-    const filename = new URL(url).pathname.split('/').pop() || '';
-    let score = sourcePriority;
-    if (!derivativeNames.test(filename)) score += 1000;
-    else if (/^big\./i.test(filename)) score += 800;
-    else if (/^medium\./i.test(filename)) score += 600;
-    else if (/^small\./i.test(filename)) score += 400;
-    else if (/^square\./i.test(filename)) score += 200;
-    return score;
+    return new URL(url).pathname.split('/').pop() || '';
   } catch {
-    return sourcePriority;
+    return '';
   }
+}
+
+function fullQualityScore(url, sourcePriority = 0) {
+  const filename = imageFilename(url);
+  let score = sourcePriority;
+  if (!derivativeNames.test(filename)) score += 1200;
+  else if (/^big\./i.test(filename)) score += 1000;
+  else if (/^medium\./i.test(filename)) score += 800;
+  else if (/^small\./i.test(filename)) score += 500;
+  else if (/^square\./i.test(filename)) score += 300;
+  else score += 200;
+  return score;
+}
+
+function displayQualityScore(url, sourcePriority = 0) {
+  const filename = imageFilename(url);
+  let score = sourcePriority;
+  if (/^big\./i.test(filename)) score += 1200;
+  else if (/^medium\./i.test(filename)) score += 1100;
+  else if (!derivativeNames.test(filename)) score += 1000;
+  else if (/^small\./i.test(filename)) score += 700;
+  else if (/^square\./i.test(filename)) score += 500;
+  else score += 300;
+  return score;
+}
+
+function thumbnailQualityScore(url, sourcePriority = 0) {
+  const filename = imageFilename(url);
+  let score = sourcePriority;
+  if (/^small\./i.test(filename)) score += 1200;
+  else if (/^medium\./i.test(filename)) score += 1100;
+  else if (/^square\./i.test(filename)) score += 1000;
+  else if (/^(?:thumb|thumbnail|tiny)\./i.test(filename)) score += 950;
+  else if (/^big\./i.test(filename)) score += 700;
+  else if (!derivativeNames.test(filename)) score += 500;
+  else score += 400;
+  return score;
+}
+
+function keepBest(group, key, url, score) {
+  const previous = group[key];
+  if (!previous || previous.score < score) group[key] = { url, score };
 }
 
 function extractSourceImages(html, albumUrl) {
@@ -156,13 +191,21 @@ function extractSourceImages(html, albumUrl) {
       if (!url || /avatar|logo|icon|qrcode/i.test(url)) continue;
       const key = imageGroupKey(url);
       if (!key) continue;
-      const score = imageQualityScore(url, priority);
-      const previous = groups.get(key);
-      if (!previous || previous.score < score) groups.set(key, { url, score });
+      if (!groups.has(key)) groups.set(key, {});
+      const group = groups.get(key);
+      keepBest(group, 'full', url, fullQualityScore(url, priority));
+      keepBest(group, 'display', url, displayQualityScore(url, priority));
+      keepBest(group, 'thumbnail', url, thumbnailQualityScore(url, priority));
     }
   });
 
-  return [...groups.values()].map((entry) => entry.url);
+  return [...groups.values()]
+    .filter((group) => group.full?.url)
+    .map((group) => ({
+      sourceUrl: group.full.url,
+      displaySourceUrl: group.display?.url || group.full.url,
+      thumbnailSourceUrl: group.thumbnail?.url || group.display?.url || group.full.url
+    }));
 }
 
 function sha256(value) {
@@ -211,7 +254,7 @@ if (matchedAlbums.size !== productById.size) {
   throw new Error(`Migração abortada: ${missing.length} produto(s) do catálogo atual não foram reencontrados na fonte dentro de ${maxPages} página(s).`);
 }
 
-const queue = new PQueue({ concurrency: 3, intervalCap: 4, interval: 1000, timeout: 45_000 });
+const queue = new PQueue({ concurrency: 4, intervalCap: 6, interval: 1000, timeout: 45_000 });
 const remoteByProduct = new Map();
 await Promise.all(
   [...matchedAlbums.values()].map((album) =>
@@ -238,14 +281,16 @@ for (const product of products) {
 
   sql.push(`DELETE FROM product_media WHERE product_id = ${sqlString(publicId)};`);
 
-  const descriptors = remote.sourceImages.map((sourceImageUrl, position) => {
-    const id = mediaId(sourceImageUrl);
-    const publicUrl = `/media/${id}`;
+  const descriptors = remote.sourceImages.map((sourceImage, position) => {
+    const id = mediaId(sourceImage.sourceUrl);
+    const viewUrl = `/media/${id}/view`;
+    const thumbnailUrl = `/media/${id}/thumb`;
+    const downloadUrl = `/media/${id}`;
 
     sql.push(
-      `INSERT INTO media_sources (media_id, provider, source_url, referer_url, active, updated_at) VALUES (` +
-      `${sqlString(id)}, ${sqlString(provider)}, ${sqlString(sourceImageUrl)}, ${sqlString(remote.album.url)}, 1, CURRENT_TIMESTAMP) ` +
-      `ON CONFLICT(media_id) DO UPDATE SET provider=excluded.provider, source_url=excluded.source_url, referer_url=excluded.referer_url, active=1, updated_at=CURRENT_TIMESTAMP;`
+      `INSERT INTO media_sources (media_id, provider, source_url, display_source_url, thumbnail_source_url, referer_url, active, updated_at) VALUES (` +
+      `${sqlString(id)}, ${sqlString(provider)}, ${sqlString(sourceImage.sourceUrl)}, ${sqlString(sourceImage.displaySourceUrl)}, ${sqlString(sourceImage.thumbnailSourceUrl)}, ${sqlString(remote.album.url)}, 1, CURRENT_TIMESTAMP) ` +
+      `ON CONFLICT(media_id) DO UPDATE SET provider=excluded.provider, source_url=excluded.source_url, display_source_url=excluded.display_source_url, thumbnail_source_url=excluded.thumbnail_source_url, referer_url=excluded.referer_url, active=1, updated_at=CURRENT_TIMESTAMP;`
     );
     sql.push(
       `INSERT INTO product_media (product_id, media_id, position, updated_at) VALUES (` +
@@ -256,9 +301,9 @@ for (const product of products) {
     allMedia.push(id);
     return {
       id,
-      url: publicUrl,
-      thumbnailUrl: publicUrl,
-      downloadUrl: publicUrl,
+      url: viewUrl,
+      thumbnailUrl,
+      downloadUrl,
       storage: 'edge-proxy'
     };
   });
@@ -271,16 +316,23 @@ for (const product of products) {
 sql.push(`DELETE FROM media_sources WHERE provider = ${sqlString(provider)} AND media_id NOT IN (SELECT media_id FROM product_media);`);
 
 catalog.generatedAt = new Date().toISOString();
-catalog.mediaVersion = 2;
+catalog.mediaVersion = 3;
 catalog.storage = {
   mode: 'edge-proxy',
-  publicBase: '/media'
+  publicBase: '/media',
+  variants: {
+    view: 'view',
+    thumbnail: 'thumb',
+    download: 'original'
+  }
 };
 catalog.mediaStats = {
   storageMode: 'edge-proxy',
   logicalImages: allMedia.length,
   uniqueImages: new Set(allMedia).size,
   proxiedImages: new Set(allMedia).size,
+  optimizedDisplayVariants: allMedia.length,
+  optimizedThumbnailVariants: allMedia.length,
   repositoryImageBytes: 0
 };
 
@@ -288,7 +340,7 @@ const serialized = `${JSON.stringify(catalog, null, 2)}\n`;
 if (/x\.yupoo\.com|photo\.yupoo\.com/i.test(serialized)) {
   throw new Error('White-label gate: a saída pública contém hostname da fonte.');
 }
-if (products.some((product) => product.images.some((url) => !/^\/media\/m_[a-f0-9]{20}$/.test(url)))) {
+if (products.some((product) => product.images.some((url) => !/^\/media\/m_[a-f0-9]{20}\/view$/.test(url)))) {
   throw new Error('White-label gate: URL pública de mídia inválida após migração.');
 }
 
@@ -303,9 +355,10 @@ await writeFile(
     uniqueImages: new Set(allMedia).size,
     mediaVersion: catalog.mediaVersion,
     storageMode: catalog.storage.mode,
-    publicBase: catalog.storage.publicBase
+    publicBase: catalog.storage.publicBase,
+    variants: catalog.storage.variants
   }, null, 2)}\n`,
   'utf8'
 );
 
-console.log(`Migração preparada: ${products.length} produtos, ${allMedia.length} referências de mídia, ${new Set(allMedia).size} mídias únicas. Nenhuma imagem foi baixada.`);
+console.log(`Migração preparada: ${products.length} produtos, ${allMedia.length} referências de mídia, ${new Set(allMedia).size} mídias únicas com variantes rápidas. Nenhuma imagem foi baixada.`);
