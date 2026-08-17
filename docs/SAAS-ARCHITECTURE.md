@@ -29,6 +29,7 @@ The control plane owns low-volume SaaS metadata:
 - theme selection;
 - domains;
 - supplier connection metadata and sync health;
+- durable provisioning state;
 - data-plane locator/status;
 - audit events.
 
@@ -91,11 +92,13 @@ When the admin application is added:
 
 ## Provisioning lifecycle
 
-A future provisioning workflow should be durable and idempotent:
+Provisioning is modeled as a durable, idempotent state machine:
 
-`tenant created -> profile configured -> source connected -> data plane provisioned -> migrations -> initial import -> classification -> smoke tests -> publish`
+`tenant -> profile -> domain -> data plane -> source -> migrations -> import -> classify -> verify -> publish`
 
-Failure at a later stage must resume from the last safe checkpoint instead of starting the supplier import from zero.
+`tenant_provisioning_runs` stores the current checkpoint and overall state. `tenant_provisioning_steps` stores each step independently so a future background workflow can resume from the last safe checkpoint instead of starting the supplier import from zero.
+
+The provisioning planner uses stable opaque identities for the same owner/store request. Retrying the same request therefore targets the same tenant, data-plane locator, membership, domain and provisioning run instead of silently creating duplicates.
 
 Suggested states for the customer UI:
 
@@ -104,6 +107,14 @@ Suggested states for the customer UI:
 - `ready` — catalog is healthy but not public yet;
 - `published` — storefront is public;
 - `suspended` — intentionally unavailable.
+
+A platform subdomain can be reserved during provisioning, but it is not marked active until domain routing and storefront verification succeed.
+
+## Supplier connections
+
+Control-plane supplier connections store a private locator reference rather than putting the raw supplier URL into public configuration or logs. The future authenticated onboarding API will validate the pasted supplier URL, write the private source locator, and then advance the `source` provisioning step.
+
+The tenant data plane continues to own the detailed supplier index, fingerprints, delta events and media source registry.
 
 ## Supplier synchronization
 
@@ -141,6 +152,19 @@ A tenant can eventually own:
 
 Domain verification state belongs in the control plane. A hostname is unique across tenants.
 
+## Current scale checkpoint
+
+The repository now has a repeatable provisioning plan and a CI proof that two independent stores can coexist in the control plane with:
+
+- different tenant identities;
+- different data-plane locators;
+- different platform hostnames;
+- different owner memberships;
+- separate durable provisioning runs;
+- no duplicate tenant/provisioning records when the first request is retried.
+
+This proof is intentionally performed against a clean temporary database. It does not create fake customer stores in production.
+
 ## Scale checkpoints
 
 ### Phase 1 — reusable single-tenant deployments
@@ -149,10 +173,10 @@ Validate onboarding and sales with a small number of stores while each store has
 
 ### Phase 2 — automated provisioning
 
-Create the control-plane API, background provisioning workflow, source job queue, domain setup and customer admin app.
+Create the authenticated control-plane API, background provisioning workflow, source job queue, domain setup and customer admin app.
 
 ### Phase 3 — shared SaaS operations
 
 Add billing, fleet-level sync scheduling, observability, per-tenant quotas, retry/dead-letter handling and automated data-plane lifecycle.
 
-The rule for new engineering work is: build features for a tenant, even while only tenant #0001 exists.
+The rule for new engineering work is: build features for a tenant, even while tenant #0001 is the only production storefront.
