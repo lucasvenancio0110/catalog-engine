@@ -1,0 +1,48 @@
+name: Validate SaaS control plane
+
+on:
+  pull_request:
+    paths:
+      - 'migrations/**'
+      - 'src/domain/tenant-config.js'
+      - 'tests/tenant-config.test.mjs'
+      - 'docs/SAAS-ARCHITECTURE.md'
+      - 'AGENTS.md'
+      - '.github/workflows/validate-saas-control-plane.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Quality gate
+        run: npm run quality
+
+      - name: Apply all D1 migrations to clean SQLite database
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f /tmp/catalog-engine-ci.sqlite
+          for migration in migrations/*.sql; do
+            echo "Applying $migration"
+            sqlite3 /tmp/catalog-engine-ci.sqlite < "$migration"
+          done
+          sqlite3 /tmp/catalog-engine-ci.sqlite "PRAGMA foreign_key_check;"
+          sqlite3 /tmp/catalog-engine-ci.sqlite "SELECT tenant_id, store_name, theme_key, setup_status FROM tenant_store_profiles;"
+          sqlite3 /tmp/catalog-engine-ci.sqlite "SELECT tenant_id, data_plane_key, status, schema_version FROM tenant_catalog_instances;"
