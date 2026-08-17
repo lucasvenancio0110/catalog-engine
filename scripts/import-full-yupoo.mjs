@@ -421,6 +421,7 @@ const detailQueue = new PQueue({ concurrency: 6, intervalCap: 9, interval: 1000,
 const extracted = [];
 let skippedNavigation = 0;
 let skippedInformation = 0;
+let skippedNoMedia = 0;
 let failedAlbums = 0;
 
 await Promise.all(
@@ -438,7 +439,7 @@ await Promise.all(
           return;
         }
         if (!meta.name || !meta.images.length) {
-          failedAlbums += 1;
+          skippedNoMedia += 1;
           console.warn(`Ignorado sem mídia válida: ${album.sourceId}`);
           return;
         }
@@ -453,7 +454,7 @@ await Promise.all(
 );
 
 if (failedAlbums > 0) {
-  throw new Error(`Importação completa abortada: ${failedAlbums} álbum(ns) falharam. Reexecute para não publicar catálogo parcial.`);
+  throw new Error(`Importação completa abortada: ${failedAlbums} álbum(ns) falharam por erro de leitura. Reexecute para não publicar catálogo parcial.`);
 }
 if (!extracted.length) throw new Error('Nenhum produto comercial foi extraído.');
 extracted.sort((a, b) => a.sourceOrder - b.sourceOrder);
@@ -562,6 +563,7 @@ const catalog = {
     discoveredAlbums: albumList.length,
     skippedNavigation,
     skippedInformation,
+    skippedNoMedia,
     failedAlbums: 0,
     rootPagesScanned: rootResult.pages,
     taxonomyCategoriesScanned: rawTaxonomy.length
@@ -586,6 +588,7 @@ const summary = {
   products: products.length,
   skippedNavigation,
   skippedInformation,
+  skippedNoMedia,
   taxonomy: catalog.taxonomyStats,
   media: catalog.mediaStats,
   sqlChunks: sqlFiles.length,
