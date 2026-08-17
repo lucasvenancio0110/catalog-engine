@@ -41,8 +41,9 @@ export function buildTenantProvisioningSql(plan) {
     );
   }
 
+  const auditMetadata = JSON.stringify({ provisioningId: provisioning.provisioningId, slug: tenant.slug });
   statements.push(
-    `INSERT INTO tenant_audit_log (tenant_id, principal_id, action, target_type, target_id, metadata_json, created_at) VALUES (${sqlString(tenant.tenantId)}, ${sqlString(provisioning.requestedByPrincipalId)}, 'tenant.provision.requested', 'tenant', ${sqlString(tenant.tenantId)}, ${sqlString(JSON.stringify({ provisioningId: provisioning.provisioningId, slug: tenant.slug }))}, CURRENT_TIMESTAMP);`
+    `INSERT INTO tenant_audit_log (tenant_id, principal_id, action, target_type, target_id, metadata_json, created_at) SELECT ${sqlString(tenant.tenantId)}, ${sqlString(provisioning.requestedByPrincipalId)}, 'tenant.provision.requested', 'tenant', ${sqlString(tenant.tenantId)}, ${sqlString(auditMetadata)}, CURRENT_TIMESTAMP WHERE NOT EXISTS (SELECT 1 FROM tenant_audit_log WHERE tenant_id=${sqlString(tenant.tenantId)} AND action='tenant.provision.requested' AND metadata_json=${sqlString(auditMetadata)});`
   );
 
   return `PRAGMA foreign_keys = ON;\n${statements.join('\n')}\n`;
