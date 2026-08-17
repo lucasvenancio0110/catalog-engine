@@ -4,6 +4,17 @@ on:
   schedule:
     # 07:17 UTC = 04:17 in Brasília/Curitiba (UTC-3).
     - cron: "17 7 * * *"
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/sync-yupoo-incremental.yml"
+      - "migrations/0006_incremental_supplier_sync.sql"
+      - "scripts/incremental-sync-core.mjs"
+      - "scripts/scan-yupoo-listing-index.mjs"
+      - "scripts/plan-yupoo-incremental.mjs"
+      - "scripts/process-yupoo-delta.mjs"
+      - "scripts/yupoo-detail-core.mjs"
+      - "tests/incremental-sync.test.mjs"
   workflow_dispatch:
     inputs:
       source_url:
