@@ -1,40 +1,51 @@
-name: Importar catálogo Yupoo
+name: Import complete Yupoo catalog
 
 on:
   workflow_dispatch:
     inputs:
       source_url:
-        description: "URL pública Yupoo do catálogo geral (/albums/) ou de uma categoria (/categories/...)"
+        description: "Yupoo catalog source (/albums/)"
         required: true
         default: "https://zhouchangliang.x.yupoo.com/albums/"
         type: string
-      max_albums:
-        description: "Quantidade máxima de produtos comerciais neste escopo (até 120 enquanto usamos GitHub como storage)"
+      max_products:
+        description: "0 imports the complete catalog; use a positive number only for controlled testing"
         required: true
-        default: "40"
+        default: "0"
         type: string
-      max_pages:
-        description: "Quantidade máxima de páginas deste escopo para varrer"
-        required: true
-        default: "3"
-        type: string
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/import-yupoo.yml"
+      - "scripts/import-full-yupoo.mjs"
+      - "scripts/full-import-core.mjs"
+      - "scripts/yupoo-taxonomy.mjs"
+      - "scripts/yupoo-source-resolver.mjs"
+      - "tests/full-import-core.test.mjs"
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: complete-yupoo-catalog-import
+  cancel-in-progress: true
 
 jobs:
   import:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 90
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SOURCE_URL: ${{ inputs.source_url || 'https://zhouchangliang.x.yupoo.com/albums/' }}
+      MAX_PRODUCTS: ${{ inputs.max_products || '0' }}
+      MAX_ROOT_PAGES: "500"
+      MAX_CATEGORY_PAGES: "100"
+      CATALOG_SQL_DIR: /tmp/catalog-engine-full-sql
+      IMPORT_SUMMARY_OUT: /tmp/catalog-engine-full-summary.json
+      WRANGLER_VERSION: 4.123.0
+      PUBLIC_URL: https://catalog-engine.lucassantanals0110.workers.dev
+
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
@@ -47,102 +58,99 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Instalar exatamente pelo lockfile
+      - name: Validate Cloudflare credentials
+        shell: bash
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
+
+      - name: Install project dependencies
         run: npm ci
 
-      - name: Quality gate do motor
+      - name: Quality gate before external crawl
         run: npm run quality
 
-      - name: Guardar catálogo anterior para relatório
+      - name: Apply D1 migrations
+        run: npx --yes "wrangler@$WRANGLER_VERSION" d1 migrations apply CATALOG_DB --remote --config wrangler.jsonc
+
+      - name: Discover all products and map source categories
         run: |
-          if [ -f data/catalog.json ]; then
-            cp data/catalog.json /tmp/catalog-before.json
-          else
-            echo '{"products":[]}' > /tmp/catalog-before.json
-          fi
+          node scripts/import-full-yupoo.mjs "$SOURCE_URL"
+          cat "$IMPORT_SUMMARY_OUT"
+          cat "$IMPORT_SUMMARY_OUT" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Varrer, classificar, sincronizar e baixar fotos HD
-        env:
-          SOURCE_URL: ${{ inputs.source_url }}
-          MAX_ALBUMS: ${{ inputs.max_albums }}
-          MAX_PAGES: ${{ inputs.max_pages }}
-        run: npm run crawl -- "$SOURCE_URL"
-
-      - name: Enriquecer taxonomia pública real
-        run: npm run taxonomy:enrich
-
-      - name: Preservar HD e gerar mídia web content-addressed
-        run: npm run media:optimize
-
-      - name: Auditar catálogo, mídia, taxonomia e ledger
+      - name: Audit generated taxonomy and edge media
         run: |
-          npm run audit
-          npm run media:audit
           npm run taxonomy:audit
-          npm run sync:audit
+          node scripts/remote-media-audit.mjs
 
-      - name: Gerar relatório de mudanças
+      - name: Load private media registry into D1 in chunks
+        shell: bash
         run: |
-          node scripts/sync-report.mjs \
-            --before /tmp/catalog-before.json \
-            --after data/catalog.json \
-            --state data/sync-state.json \
-            --out /tmp/sync-report.md
-          cat /tmp/sync-report.md >> "$GITHUB_STEP_SUMMARY"
-          cat /tmp/sync-report.md
+          shopt -s nullglob
+          files=("$CATALOG_SQL_DIR"/*.sql)
+          test ${#files[@]} -gt 0 || { echo "No SQL chunks were generated"; exit 1; }
+          for file in "${files[@]}"; do
+            echo "Applying $(basename "$file")"
+            npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$file"
+          done
 
-      - name: Validar estado interno efêmero
+      - name: Verify remote media registry
+        run: |
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --command="SELECT COUNT(*) AS media_sources FROM media_sources; SELECT COUNT(*) AS product_media FROM product_media;"
+
+      - name: Build storefront
+        run: |
+          npm run build
+          npm run build:verify
+
+      - name: Deploy Worker and catalog
+        run: npx --yes "wrangler@$WRANGLER_VERSION" deploy --config wrangler.jsonc
+
+      - name: Smoke test catalog and optimized media
+        shell: bash
+        run: |
+          curl --fail --silent --show-error "$PUBLIC_URL/api/health"
+          node --input-type=module <<'NODE' > /tmp/smoke-media.txt
+          import fs from 'node:fs';
+          const catalog = JSON.parse(fs.readFileSync('data/catalog.json', 'utf8'));
+          if (!catalog.products?.length) process.exit(1);
+          const media = catalog.products[0]?.media?.[0];
+          if (!media?.thumbnailUrl || !media?.url || !media?.downloadUrl) process.exit(1);
+          console.log(media.thumbnailUrl);
+          console.log(media.url);
+          console.log(media.downloadUrl);
+          NODE
+          while IFS= read -r path; do
+            curl --fail --silent --show-error --head "$PUBLIC_URL$path"
+          done < /tmp/smoke-media.txt
+
+      - name: Warm first catalog screens in Cloudflare cache
+        shell: bash
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
-
-          if (!fs.existsSync('data/source-state.json')) {
-            throw new Error('Estado interno da fonte não foi gerado durante a execução.');
-          }
           const catalog = JSON.parse(fs.readFileSync('data/catalog.json', 'utf8'));
-          const syncState = JSON.parse(fs.readFileSync('data/sync-state.json', 'utf8'));
-          console.log(JSON.stringify({
-            publicProducts: catalog.products?.length || 0,
-            observedProducts: catalog.sync?.observedProducts || 0,
-            taxonomy: catalog.taxonomyStats || null,
-            media: catalog.mediaStats || null,
-            scopeKind: syncState.scope?.kind || null,
-            scopeComplete: syncState.scope?.complete || false,
-            scopes: Object.keys(syncState.scopes || {}).length,
-            stopReason: syncState.scope?.stopReason || null,
-            changes: syncState.summary
-          }, null, 2));
+          const products = catalog.products || [];
+          const thumbs = [...new Set(products.map((product) => product.media?.[0]?.thumbnailUrl).filter(Boolean))].slice(0, 120);
+          const views = [...new Set(products.map((product) => product.media?.[0]?.url).filter(Boolean))].slice(0, 30);
+          fs.writeFileSync('/tmp/warm-thumbs.txt', thumbs.map((url) => `${process.env.PUBLIC_URL}${url}`).join('\n') + '\n');
+          fs.writeFileSync('/tmp/warm-views.txt', views.map((url) => `${process.env.PUBLIC_URL}${url}`).join('\n') + '\n');
+          console.log(`Warming ${thumbs.length} thumbnails and ${views.length} display images.`);
           NODE
+          xargs -r -n1 -P10 curl --fail --silent --show-error --output /dev/null < /tmp/warm-thumbs.txt
+          xargs -r -n1 -P6 curl --fail --silent --show-error --output /dev/null < /tmp/warm-views.txt
 
-      - name: Build Vite de produção
-        run: npm run build
-
-      - name: Auditar dist publicável
-        run: npm run build:verify
-
-      - name: Verificar vulnerabilidades runtime
-        run: npm audit --omit=dev --audit-level=high
-
-      - name: Salvar catálogo, ledger, manifest e storage de mídia
+      - name: Persist sanitized complete catalog
+        shell: bash
         run: |
           git config user.name "catalog-engine-bot"
           git config user.email "catalog-engine-bot@users.noreply.github.com"
-          git add data/catalog.json data/sync-state.json data/media-manifest.json assets
+          git add data/catalog.json
           if git diff --cached --quiet; then
-            echo "Nenhuma alteração pública/sanitizada no catálogo."
+            echo "Complete catalog is already materialized."
           else
-            git commit -m "sync catalog and content-addressed media"
+            git commit -m "import complete catalog with source taxonomy"
+            git pull --rebase origin main
             git push origin HEAD:main
           fi
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload site Vite
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
