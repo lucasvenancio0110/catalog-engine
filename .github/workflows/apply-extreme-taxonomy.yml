@@ -1,0 +1,235 @@
+name: Apply extreme sports taxonomy
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/apply-extreme-taxonomy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: catalog-engine-extreme-taxonomy
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PUBLIC_CATALOG_SQL_DIR: /tmp/catalog-engine-public-api-sql
+      LOGO_PRIVATE_MANIFEST: /tmp/catalog-engine-logo-private.json
+      LOGO_SUMMARY_OUT: /tmp/catalog-engine-logo-summary.json
+      CLASSIFICATION_SUMMARY_OUT: /tmp/catalog-engine-classification-summary.json
+      WRANGLER_VERSION: 4.123.0
+      PUBLIC_URL: https://catalog-engine.lucassantanals0110.workers.dev
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Materialize canonical taxonomy patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .catalog-patch/part-* | base64 --decode > /tmp/catalog-engine-extreme.tar.gz
+          tar -xzf /tmp/catalog-engine-extreme.tar.gz -C .
+          cat .catalog-patch/fix-* | base64 --decode > /tmp/catalog-engine-fixes.tar.gz
+          tar -xzf /tmp/catalog-engine-fixes.tar.gz -C .
+          node --check src/domain/sports-taxonomy.js
+          node --check src/domain/catalog-normalization.js
+          node --check scripts/entity-logo-core.mjs
+          node --check scripts/sync-entity-logos.mjs
+          node --check scripts/classification-audit.mjs
+          node --check scripts/sync-public-catalog-d1.mjs
+          node --check worker/index.js
+          node --check src/main.js
+          echo "Patch materialized and syntax checked."
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate Cloudflare credentials
+        shell: bash
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Quality gate
+        run: npm run quality
+
+      - name: Audit complete sports classification
+        run: |
+          npm run catalog:classify:audit
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const report = JSON.parse(fs.readFileSync(process.env.CLASSIFICATION_SUMMARY_OUT, 'utf8'));
+          const summary = {
+            total: report.totalProducts,
+            automatic: report.automatic,
+            needsReview: report.needs_review,
+            unknown: report.unknown,
+            conflicts: report.conflicts,
+            automaticRate: report.automaticRate,
+            teams: report.teamsDetected,
+            competitions: report.competitionsDetected,
+            canonicalCategories: report.canonicalCategoriesDetected,
+            facets: report.facetsDetected
+          };
+          console.log(JSON.stringify(summary, null, 2));
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\n### Classificação esportiva\n\n\`\`\`json\n${JSON.stringify(summary, null, 2)}\n\`\`\`\n`);
+          NODE
+
+      - name: Import verified transparent entity crests
+        run: |
+          npm run logos:sync
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const report = JSON.parse(fs.readFileSync(process.env.LOGO_SUMMARY_OUT, 'utf8'));
+          const summary = {
+            detectedEntities: report.totalDetectedEntities,
+            processed: report.processed,
+            imported: report.imported,
+            reused: report.reused,
+            missing: report.missing,
+            needsReview: report.needsReview,
+            failed: report.failed
+          };
+          console.log(JSON.stringify(summary, null, 2));
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\n### Escudos/brasões\n\n\`\`\`json\n${JSON.stringify(summary, null, 2)}\n\`\`\`\n`);
+          NODE
+
+      - name: Apply D1 migrations
+        run: npx --yes "wrangler@$WRANGLER_VERSION" d1 migrations apply CATALOG_DB --remote --config wrangler.jsonc
+
+      - name: Generate canonical sports catalog SQL
+        run: node scripts/sync-public-catalog-d1.mjs
+
+      - name: Load canonical sports catalog into D1
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=("$PUBLIC_CATALOG_SQL_DIR"/*.sql)
+          test ${#files[@]} -gt 0 || { echo "No public catalog SQL chunks were generated"; exit 1; }
+          echo "SQL chunks: ${#files[@]}"
+          for file in "${files[@]}"; do
+            echo "Applying $(basename "$file")"
+            npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$file"
+          done
+
+      - name: Verify D1 canonical sports catalog
+        run: |
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --command="SELECT COUNT(*) AS products FROM catalog_products; SELECT COUNT(*) AS countries FROM catalog_countries WHERE club_product_count > 0 OR national_team_product_count > 0; SELECT COUNT(*) AS leagues FROM catalog_leagues; SELECT COUNT(*) AS teams FROM catalog_teams; SELECT COUNT(*) AS canonical_categories FROM catalog_canonical_categories; SELECT COUNT(*) AS facets FROM catalog_facets; SELECT COUNT(*) AS review_queue FROM catalog_classification_reviews; SELECT COUNT(*) AS teams_with_logos FROM catalog_teams WHERE logo_url IS NOT NULL; SELECT COUNT(*) AS private_logo_provenance FROM catalog_entity_logos;"
+
+      - name: Build storefront
+        run: |
+          npm run build
+          npm run build:verify
+
+      - name: Deploy Worker and catalog
+        run: npx --yes "wrangler@$WRANGLER_VERSION" deploy --config wrangler.jsonc
+
+      - name: Smoke test canonical sports API
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PUBLIC_URL/api/health" > /tmp/health.json
+          curl --fail --silent --show-error "$PUBLIC_URL/api/catalog/meta" > /tmp/meta.json
+          curl --fail --silent --show-error "$PUBLIC_URL/api/countries?entityType=club" > /tmp/countries.json
+          curl --fail --silent --show-error "$PUBLIC_URL/api/leagues?entityType=club" > /tmp/leagues.json
+          curl --fail --silent --show-error "$PUBLIC_URL/api/teams?entityType=club" > /tmp/teams.json
+          curl --fail --silent --show-error "$PUBLIC_URL/api/categories" > /tmp/categories.json
+          curl --fail --silent --show-error "$PUBLIC_URL/api/facets" > /tmp/facets.json
+          curl --fail --silent --show-error "$PUBLIC_URL/api/products?page=1&limit=15" > /tmp/products.json
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const health = JSON.parse(fs.readFileSync('/tmp/health.json', 'utf8'));
+          const meta = JSON.parse(fs.readFileSync('/tmp/meta.json', 'utf8'));
+          const countries = JSON.parse(fs.readFileSync('/tmp/countries.json', 'utf8'));
+          const leagues = JSON.parse(fs.readFileSync('/tmp/leagues.json', 'utf8'));
+          const teams = JSON.parse(fs.readFileSync('/tmp/teams.json', 'utf8'));
+          const categories = JSON.parse(fs.readFileSync('/tmp/categories.json', 'utf8'));
+          const facets = JSON.parse(fs.readFileSync('/tmp/facets.json', 'utf8'));
+          const products = JSON.parse(fs.readFileSync('/tmp/products.json', 'utf8'));
+          if (!health.ok || !health.catalogApi || !health.extremeSportsTaxonomy || health.taxonomyVersion !== 2) throw new Error('Canonical sports health check failed.');
+          if (!Number(meta.stats?.products) || meta.normalization?.version !== 2 || meta.navigation?.length !== 4) throw new Error('Canonical catalog meta is invalid.');
+          if (!countries.items?.length) throw new Error('Country navigation is empty.');
+          if (!leagues.items?.length) throw new Error('League navigation is empty.');
+          if (!teams.items?.length) throw new Error('Team navigation is empty.');
+          if (!categories.items?.length || !categories.groups?.length) throw new Error('Canonical categories are empty.');
+          if (!facets.items?.length) throw new Error('Facet navigation is empty.');
+          if (!products.items?.length || products.items.length > 15) throw new Error('Pagination did not return 1-15 products.');
+          if (products.total !== meta.stats.products) throw new Error('Catalog totals disagree.');
+          const firstTeam = teams.items[0];
+          const firstCategory = categories.items[0];
+          fs.writeFileSync('/tmp/smoke-values.json', JSON.stringify({ firstProductId: products.items[0]?.id, firstTeamId: firstTeam?.team_id, firstCategoryId: firstCategory?.category_id, firstLogo: teams.items.find((team) => team.logo_url)?.logo_url || '' }));
+          console.log(JSON.stringify({ products: meta.stats.products, countries: countries.items.length, leagues: leagues.items.length, teams: teams.items.length, categories: categories.items.length, facets: facets.items.length, firstLogo: teams.items.find((team) => team.logo_url)?.logo_url || null }, null, 2));
+          NODE
+          FIRST_PRODUCT_ID="$(node -p "JSON.parse(require('fs').readFileSync('/tmp/smoke-values.json')).firstProductId")"
+          FIRST_TEAM_ID="$(node -p "JSON.parse(require('fs').readFileSync('/tmp/smoke-values.json')).firstTeamId")"
+          FIRST_CATEGORY_ID="$(node -p "JSON.parse(require('fs').readFileSync('/tmp/smoke-values.json')).firstCategoryId")"
+          FIRST_LOGO="$(node -p "JSON.parse(require('fs').readFileSync('/tmp/smoke-values.json')).firstLogo")"
+          test -n "$FIRST_PRODUCT_ID" && test -n "$FIRST_TEAM_ID" && test -n "$FIRST_CATEGORY_ID"
+          curl --fail --silent --show-error "$PUBLIC_URL/api/products/$FIRST_PRODUCT_ID" > /tmp/product.json
+          curl --fail --silent --show-error "$PUBLIC_URL/api/teams/$FIRST_TEAM_ID" > /tmp/team.json
+          curl --fail --silent --show-error "$PUBLIC_URL/api/products?teamId=$FIRST_TEAM_ID&page=1&limit=15" > /tmp/team-products.json
+          curl --fail --silent --show-error "$PUBLIC_URL/api/products?canonicalCategoryId=$FIRST_CATEGORY_ID&page=1&limit=15" > /tmp/category-products.json
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const detail = JSON.parse(fs.readFileSync('/tmp/product.json', 'utf8'));
+          const team = JSON.parse(fs.readFileSync('/tmp/team.json', 'utf8'));
+          const teamProducts = JSON.parse(fs.readFileSync('/tmp/team-products.json', 'utf8'));
+          const categoryProducts = JSON.parse(fs.readFileSync('/tmp/category-products.json', 'utf8'));
+          if (!detail.product?.media?.length) throw new Error('Product detail media is empty.');
+          if (!team.team?.team_id) throw new Error('Team detail is empty.');
+          if (!teamProducts.items?.length) throw new Error('Team filter returned no products.');
+          if (!categoryProducts.items?.length) throw new Error('Canonical category filter returned no products.');
+          console.log(JSON.stringify({ productMedia: detail.product.media.length, teamFilterProducts: teamProducts.items.length, categoryFilterProducts: categoryProducts.items.length }, null, 2));
+          NODE
+          if [ -n "$FIRST_LOGO" ]; then
+            case "$FIRST_LOGO" in /logos/*) ;; *) echo "Unsafe logo path: $FIRST_LOGO"; exit 1 ;; esac
+            curl --fail --silent --show-error --head "$PUBLIC_URL$FIRST_LOGO"
+          fi
+
+      - name: Persist canonical taxonomy source and verified crests
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "catalog-engine-bot"
+          git config user.email "catalog-engine-bot@users.noreply.github.com"
+          git add \
+            package.json \
+            src/domain/sports-taxonomy.js \
+            src/domain/catalog-normalization.js \
+            src/main.js \
+            src/category-browser.css \
+            scripts/entity-logo-core.mjs \
+            scripts/sync-entity-logos.mjs \
+            scripts/classification-audit.mjs \
+            scripts/sync-public-catalog-d1.mjs \
+            migrations/0006_extreme_sports_taxonomy.sql \
+            tests/catalog-normalization.test.mjs \
+            tests/entity-logo-core.test.mjs \
+            worker/index.js \
+            .github/workflows/deploy-catalog-api.yml \
+            data/entity-logo-map.json || true
+          if [ -d public/logos/entities ]; then git add public/logos/entities; fi
+          git diff --cached --stat
+          git diff --cached --quiet && { echo "Nothing to persist"; exit 1; }
+          git commit -m "feat: build canonical sports taxonomy and verified crests"
+          git pull --rebase origin main
+          git push origin HEAD:main
