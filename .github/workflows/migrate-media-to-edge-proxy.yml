@@ -1,0 +1,129 @@
+name: Migrate catalog media to Cloudflare edge proxy
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_url:
+        description: "Yupoo catalog source"
+        required: true
+        default: "https://zhouchangliang.x.yupoo.com/albums/"
+        type: string
+      max_pages:
+        description: "Maximum catalog pages used to remap the current public products"
+        required: true
+        default: "10"
+        type: string
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/migrate-media-to-edge-proxy.yml"
+      - "scripts/migrate-remote-media.mjs"
+      - "scripts/remote-media-audit.mjs"
+      - "scripts/copy-storefront-data.mjs"
+      - "scripts/verify-dist.mjs"
+      - "migrations/0002_product_media.sql"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: catalog-media-edge-proxy
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SOURCE_URL: ${{ inputs.source_url || 'https://zhouchangliang.x.yupoo.com/albums/' }}
+      MAX_PAGES: ${{ inputs.max_pages || '10' }}
+      WRANGLER_VERSION: 4.123.0
+      PUBLIC_URL: https://catalog-engine.lucassantanals0110.workers.dev
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate Cloudflare credentials
+        shell: bash
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Apply D1 migrations
+        run: npx --yes "wrangler@$WRANGLER_VERSION" d1 migrations apply CATALOG_DB --remote --config wrangler.jsonc
+
+      - name: Build private source mapping without downloading images
+        env:
+          MEDIA_SQL_OUT: /tmp/media-sources.sql
+          MEDIA_SUMMARY_OUT: /tmp/media-proxy-summary.json
+        run: |
+          node scripts/migrate-remote-media.mjs "$SOURCE_URL"
+          cat /tmp/media-proxy-summary.json
+
+      - name: Remove repository-hosted supplier media
+        run: |
+          rm -rf assets/media
+          rm -f data/media-manifest.json
+
+      - name: Audit sanitized edge-proxy catalog
+        run: node scripts/remote-media-audit.mjs
+
+      - name: Load private media origins into D1
+        run: npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file=/tmp/media-sources.sql
+
+      - name: Verify D1 media registry
+        run: |
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --command="SELECT COUNT(*) AS media_sources FROM media_sources; SELECT COUNT(*) AS product_media FROM product_media;"
+
+      - name: Quality gate
+        run: npm run quality
+
+      - name: Build sanitized storefront
+        run: |
+          npm run build
+          npm run build:verify
+
+      - name: Deploy Worker and static storefront
+        run: npx --yes "wrangler@$WRANGLER_VERSION" deploy --config wrangler.jsonc
+
+      - name: Smoke test API and one proxied image
+        shell: bash
+        run: |
+          curl --fail --silent --show-error "$PUBLIC_URL/api/health"
+          MEDIA_ID=$(node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const catalog = JSON.parse(fs.readFileSync('data/catalog.json', 'utf8'));
+          const id = catalog.products?.[0]?.media?.[0]?.id;
+          if (!id) process.exit(1);
+          process.stdout.write(id);
+          NODE
+          )
+          curl --fail --silent --show-error --head "$PUBLIC_URL/media/$MEDIA_ID"
+
+      - name: Commit sanitized catalog and remove image binaries
+        shell: bash
+        run: |
+          git config user.name "catalog-engine-bot"
+          git config user.email "catalog-engine-bot@users.noreply.github.com"
+          git add data/catalog.json
+          git add -A assets/media data/media-manifest.json
+          if git diff --cached --quiet; then
+            echo "Edge-proxy catalog already materialized."
+          else
+            git commit -m "migrate catalog media to Cloudflare edge proxy"
+            git push origin HEAD:main
+          fi
