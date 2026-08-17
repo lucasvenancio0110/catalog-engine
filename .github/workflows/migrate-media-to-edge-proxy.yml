@@ -134,13 +134,12 @@ jobs:
           xargs -r -n1 -P8 curl --fail --silent --show-error --output /dev/null < /tmp/warm-thumbs.txt
           xargs -r -n1 -P6 curl --fail --silent --show-error --output /dev/null < /tmp/warm-views.txt
 
-      - name: Commit sanitized catalog and remove image binaries
+      - name: Commit sanitized catalog
         shell: bash
         run: |
           git config user.name "catalog-engine-bot"
           git config user.email "catalog-engine-bot@users.noreply.github.com"
           git add data/catalog.json
-          git add -A assets/media data/media-manifest.json
           if git diff --cached --quiet; then
             echo "Edge-proxy catalog already materialized."
           else
