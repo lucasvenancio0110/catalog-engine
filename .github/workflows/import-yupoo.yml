@@ -1,6 +1,10 @@
 name: Import complete Yupoo catalog
 
 on:
+  schedule:
+    # GitHub cron uses UTC. 07:17 UTC = 04:17 in Brasília/Curitiba (UTC-3).
+    # The non-round minute also reduces the chance of GitHub scheduler congestion.
+    - cron: "17 7 * * *"
   workflow_dispatch:
     inputs:
       source_url:
