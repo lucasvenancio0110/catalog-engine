@@ -2,8 +2,10 @@ name: Sync supplier catalog incrementally
 
 on:
   schedule:
-    # 07:17 UTC = 04:17 in Brasília/Curitiba (UTC-3).
-    - cron: "17 7 * * *"
+    # Mon-Sat: bounded recent discovery. 07:17 UTC = 04:17 in Brasília/Curitiba (UTC-3).
+    - cron: "17 7 * * 1-6"
+    # Sunday: complete listing reconciliation, still without opening unchanged album details.
+    - cron: "47 7 * * 0"
   push:
     branches: ["main"]
     paths:
@@ -22,6 +24,14 @@ on:
         required: false
         default: "https://zhouchangliang.x.yupoo.com/albums/"
         type: string
+      scan_mode:
+        description: "recent = fast delta discovery; complete = deletion-safe listing reconciliation"
+        required: true
+        default: "recent"
+        type: choice
+        options:
+          - recent
+          - complete
 
 permissions:
   contents: write
@@ -40,6 +50,9 @@ jobs:
       SOURCE_URL: ${{ inputs.source_url || 'https://zhouchangliang.x.yupoo.com/albums/' }}
       TENANT_ID: t_00000000000000000001
       SOURCE_KEY: primary
+      SCAN_MODE: recent
+      RECENT_ROOT_PAGES: "8"
+      RECENT_CATEGORY_PAGES: "2"
       REMOVAL_MISS_THRESHOLD: "3"
       SUPPLIER_INDEX_OUT: /tmp/catalog-engine-current-index.json
       SUPPLIER_PREVIOUS_INDEX: /tmp/catalog-engine-previous-index.json
@@ -66,6 +79,20 @@ jobs:
         with:
           node-version: 22
           cache: npm
+
+      - name: Resolve supplier scan mode
+        shell: bash
+        run: |
+          MODE="recent"
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            SCHEDULE="$(node -p "JSON.parse(require('fs').readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8')).schedule || ''")"
+            if [ "$SCHEDULE" = "47 7 * * 0" ]; then MODE="complete"; fi
+          elif [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            MODE="${{ inputs.scan_mode }}"
+          fi
+          case "$MODE" in recent|complete) ;; *) echo "Invalid scan mode: $MODE"; exit 1 ;; esac
+          echo "SCAN_MODE=$MODE" >> "$GITHUB_ENV"
+          echo "Supplier scan mode: $MODE"
 
       - name: Validate Cloudflare credentials
         shell: bash
@@ -105,7 +132,7 @@ jobs:
           import fs from 'node:fs';
           const report = JSON.parse(fs.readFileSync(process.env.SUPPLIER_PROCESS_SUMMARY_OUT, 'utf8'));
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `catalog_changed=${report.catalogChanged ? 'true' : 'false'}\n`);
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\n### Sync incremental\n\n\`\`\`json\n${JSON.stringify(report, null, 2)}\n\`\`\`\n`);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\n### Sync incremental (${process.env.SCAN_MODE})\n\n\`\`\`json\n${JSON.stringify(report, null, 2)}\n\`\`\`\n`);
           NODE
 
       - name: Audit public taxonomy after delta
