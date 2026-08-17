@@ -21,8 +21,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: complete-yupoo-catalog-import
-  cancel-in-progress: true
+  group: catalog-engine-production-d1
+  cancel-in-progress: false
 
 jobs:
   import:
