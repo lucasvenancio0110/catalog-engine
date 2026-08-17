@@ -1,9 +1,6 @@
-name: Reconcile complete Yupoo catalog
+name: Manual full Yupoo recovery
 
 on:
-  schedule:
-    # Weekly authoritative reconciliation. 07:17 UTC = 04:17 in Brasília/Curitiba (UTC-3).
-    - cron: "17 7 * * 0"
   workflow_dispatch:
     inputs:
       source_url:
@@ -159,7 +156,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "Complete catalog is already materialized."
           else
-            git commit -m "reconcile complete supplier catalog"
+            git commit -m "recover complete supplier catalog"
             git pull --rebase origin main
             git push origin HEAD:main
           fi
