@@ -20,10 +20,6 @@ const headers = {
 
 const derivativeNames = /^(?:small|medium|big|square|thumb|thumbnail|tiny)\.[a-z0-9]+$/i;
 
-function clean(value = '') {
-  return String(value).replace(/\s+/g, ' ').trim();
-}
-
 function absolute(base, value) {
   if (!value) return null;
   if (value.startsWith('//')) return `https:${value}`;
@@ -80,9 +76,7 @@ async function fetchWithRetry(url, options = {}) {
         redirect: 'follow',
         signal: controller.signal
       });
-      if (response.status === 429 || response.status >= 500) {
-        throw new Error(`HTTP ${response.status}`);
-      }
+      if (response.status === 429 || response.status >= 500) throw new Error(`HTTP ${response.status}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return response;
     } catch (error) {
@@ -168,9 +162,7 @@ function extractSourceImages(html, albumUrl) {
     }
   });
 
-  return [...groups.values()]
-    .sort((a, b) => a.url.localeCompare(b.url))
-    .map((entry) => entry.url);
+  return [...groups.values()].map((entry) => entry.url);
 }
 
 function sha256(value) {
@@ -233,7 +225,10 @@ await Promise.all(
   )
 );
 
-const sql = ['PRAGMA foreign_keys = ON;', 'BEGIN TRANSACTION;'];
+// Wrangler's remote D1 file executor applies the uploaded SQL safely as a batch.
+// Explicit BEGIN/COMMIT statements are intentionally avoided because remote D1
+// rejects user-managed SQL transactions in this execution path.
+const sql = ['PRAGMA foreign_keys = ON;'];
 const allMedia = [];
 
 for (const product of products) {
@@ -274,7 +269,6 @@ for (const product of products) {
 }
 
 sql.push(`DELETE FROM media_sources WHERE provider = ${sqlString(provider)} AND media_id NOT IN (SELECT media_id FROM product_media);`);
-sql.push('COMMIT;');
 
 catalog.generatedAt = new Date().toISOString();
 catalog.mediaVersion = 2;
