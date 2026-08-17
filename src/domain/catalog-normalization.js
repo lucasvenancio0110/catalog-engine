@@ -181,7 +181,7 @@ export function normalizeCatalogProduct(product = {}, categoryPathNames = []) {
   const path = categoryPathNames.filter(Boolean).map(String);
   const context = [sourceName, sourceCategoryName, ...path].join(' ');
   let league = detectLeague([sourceCategoryName, ...path].join(' ')) || detectLeague(sourceName);
-  let team = detectTeam({ sourceName, sourceCategoryName, categoryPathNames: path, leagueId: league?.id || null });
+  const team = detectTeam({ sourceName, sourceCategoryName, categoryPathNames: path, leagueId: league?.id || null });
   if (!league && team) league = LEAGUES.find((entry) => entry.id === team.leagueId) || null;
   if (team?.entityType === 'national_team' && !league) league = LEAGUES.find((entry) => entry.id === 'world-cup-2026');
   const facets = detectFacets(context);
