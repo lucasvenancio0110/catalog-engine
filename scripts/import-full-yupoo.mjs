@@ -21,7 +21,7 @@ const storePath = process.env.STORE_PATH || 'data/store.json';
 const sqlDir = process.env.CATALOG_SQL_DIR || '/tmp/catalog-engine-full-sql';
 const summaryPath = process.env.IMPORT_SUMMARY_OUT || '/tmp/catalog-engine-full-summary.json';
 const maxRootPages = Math.max(1, Number(process.env.MAX_ROOT_PAGES || 500));
-const maxCategoryPages = Math.max(1, Number(process.env.MAX_CATEGORY_PAGES || 100));
+const maxCategoryPages = Math.max(1, Number(process.env.MAX_CATEGORY_PAGES || 500));
 const maxProducts = Math.max(0, Number(process.env.MAX_PRODUCTS || 0));
 const sqlChunkStatements = Math.max(250, Number(process.env.SQL_CHUNK_STATEMENTS || 1200));
 const timeoutMs = 30_000;
@@ -392,7 +392,7 @@ if (!rootResult.naturalEnd && !rootResult.limited && rootResult.pages >= maxRoot
 }
 
 if (!(maxProducts > 0 && albums.size >= maxProducts)) {
-  const categoryQueue = new PQueue({ concurrency: 4, intervalCap: 6, interval: 1000, timeout: 180_000 });
+  const categoryQueue = new PQueue({ concurrency: 4, intervalCap: 6, interval: 1000, timeout: 900_000 });
   const categoriesBySpecificity = [...rawTaxonomy].sort((a, b) => (b.depth || 0) - (a.depth || 0));
   await Promise.all(
     categoriesBySpecificity.map((category) =>
@@ -417,7 +417,7 @@ const albumList = [...albums.values()]
   .slice(0, maxProducts > 0 ? maxProducts : undefined);
 console.log(`Descoberta concluída: ${albumList.length} álbuns únicos. Lendo detalhes sem baixar imagens...`);
 
-const detailQueue = new PQueue({ concurrency: 6, intervalCap: 9, interval: 1000, timeout: 60_000 });
+const detailQueue = new PQueue({ concurrency: 6, intervalCap: 9, interval: 1000, timeout: 180_000 });
 const extracted = [];
 let skippedNavigation = 0;
 let skippedInformation = 0;
