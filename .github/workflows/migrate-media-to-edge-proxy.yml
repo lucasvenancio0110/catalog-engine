@@ -22,6 +22,7 @@ on:
       - "scripts/copy-storefront-data.mjs"
       - "scripts/verify-dist.mjs"
       - "migrations/0002_product_media.sql"
+      - "migrations/0003_media_variants.sql"
 
 permissions:
   contents: write
@@ -100,19 +101,38 @@ jobs:
       - name: Deploy Worker and static storefront
         run: npx --yes "wrangler@$WRANGLER_VERSION" deploy --config wrangler.jsonc
 
-      - name: Smoke test API and one proxied image
+      - name: Smoke test optimized media variants
         shell: bash
         run: |
           curl --fail --silent --show-error "$PUBLIC_URL/api/health"
-          MEDIA_ID=$(node --input-type=module <<'NODE'
+          node --input-type=module <<'NODE' > /tmp/smoke-media.txt
           import fs from 'node:fs';
           const catalog = JSON.parse(fs.readFileSync('data/catalog.json', 'utf8'));
-          const id = catalog.products?.[0]?.media?.[0]?.id;
-          if (!id) process.exit(1);
-          process.stdout.write(id);
+          const media = catalog.products?.[0]?.media?.[0];
+          if (!media?.url || !media?.thumbnailUrl || !media?.downloadUrl) process.exit(1);
+          console.log(media.thumbnailUrl);
+          console.log(media.url);
+          console.log(media.downloadUrl);
           NODE
-          )
-          curl --fail --silent --show-error --head "$PUBLIC_URL/media/$MEDIA_ID"
+          while IFS= read -r path; do
+            curl --fail --silent --show-error --head "$PUBLIC_URL$path"
+          done < /tmp/smoke-media.txt
+
+      - name: Warm visible catalog media cache
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const catalog = JSON.parse(fs.readFileSync('data/catalog.json', 'utf8'));
+          const products = catalog.products || [];
+          const thumbs = [...new Set(products.map((product) => product.media?.[0]?.thumbnailUrl).filter(Boolean))].slice(0, 60);
+          const views = [...new Set(products.map((product) => product.media?.[0]?.url).filter(Boolean))].slice(0, 12);
+          fs.writeFileSync('/tmp/warm-thumbs.txt', thumbs.map((url) => `${process.env.PUBLIC_URL}${url}`).join('\n') + '\n');
+          fs.writeFileSync('/tmp/warm-views.txt', views.map((url) => `${process.env.PUBLIC_URL}${url}`).join('\n') + '\n');
+          console.log(`Warming ${thumbs.length} thumbnails and ${views.length} display images.`);
+          NODE
+          xargs -r -n1 -P8 curl --fail --silent --show-error --output /dev/null < /tmp/warm-thumbs.txt
+          xargs -r -n1 -P6 curl --fail --silent --show-error --output /dev/null < /tmp/warm-views.txt
 
       - name: Commit sanitized catalog and remove image binaries
         shell: bash
@@ -124,6 +144,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "Edge-proxy catalog already materialized."
           else
-            git commit -m "migrate catalog media to Cloudflare edge proxy"
+            git commit -m "migrate catalog media to optimized Cloudflare edge proxy"
             git push origin HEAD:main
           fi
