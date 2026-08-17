@@ -2,17 +2,12 @@ name: Bootstrap Cloudflare D1
 
 on:
   workflow_dispatch:
-  push:
-    branches: ["main"]
-    paths:
-      - ".github/workflows/cloudflare-d1-bootstrap.yml"
-      - "migrations/**"
 
 permissions:
   contents: write
 
 concurrency:
-  group: cloudflare-d1-bootstrap
+  group: catalog-engine-production-d1
   cancel-in-progress: false
 
 jobs:
