@@ -26,6 +26,7 @@ function previous(current, overrides = {}) {
     cover_source_url: current.coverUrl,
     image_count_hint: current.imageCountHint,
     listing_fingerprint: current.listingFingerprint,
+    detail_fingerprint: 'detail-known',
     status: 'active',
     miss_count: 0,
     ...overrides
@@ -40,11 +41,19 @@ describe('incremental supplier delta', () => {
     expect(plan.detailQueue).toEqual(['101']);
   });
 
-  it('does not re-read an unchanged album', () => {
+  it('does not re-read an unchanged album with known detail', () => {
     const current = entry('102');
     const plan = planIncrementalDelta([previous(current)], [current]);
     expect(plan.events).toEqual([]);
     expect(plan.detailQueue).toEqual([]);
+  });
+
+  it('retries an album whose detail never completed even if its listing is unchanged', () => {
+    const current = entry('108');
+    const plan = planIncrementalDelta([previous(current, { detail_fingerprint: null })], [current]);
+    expect(plan.events[0].type).toBe('CHANGED');
+    expect(plan.events[0].reason).toBe('detail-pending');
+    expect(plan.detailQueue).toEqual(['108']);
   });
 
   it('detects title/cover/listing changes and requests detail', () => {
@@ -87,6 +96,12 @@ describe('incremental supplier delta', () => {
     ], [], { removalMissThreshold: 3 });
     expect(thirdMiss.events[0].type).toBe('REMOVED');
     expect(thirdMiss.events[0].missCount).toBe(3);
+  });
+
+  it('never infers missing or removal from a partial discovery scan', () => {
+    const current = entry('109');
+    const plan = planIncrementalDelta([previous(current)], [], { inferMissing: false });
+    expect(plan.events).toEqual([]);
   });
 
   it('restores a previously missing album and re-reads its detail', () => {
