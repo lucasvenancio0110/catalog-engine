@@ -11,6 +11,7 @@ const catalogPath = process.env.CATALOG_PATH || 'data/catalog.json';
 const currentIndexPath = process.env.SUPPLIER_INDEX_OUT || '/tmp/catalog-engine-current-index.json';
 const deltaPath = process.env.SUPPLIER_DELTA_OUT || '/tmp/catalog-engine-delta.json';
 const mediaSqlDir = process.env.SUPPLIER_MEDIA_SQL_DIR || '/tmp/catalog-engine-delta-media-sql';
+const detailSqlPath = process.env.SUPPLIER_DETAIL_SQL_OUT || '/tmp/catalog-engine-detail-fingerprints.sql';
 const summaryPath = process.env.SUPPLIER_PROCESS_SUMMARY_OUT || '/tmp/catalog-engine-incremental-summary.json';
 const chunkStatements = Math.max(200, Number(process.env.SUPPLIER_MEDIA_SQL_CHUNK_STATEMENTS || 800));
 
@@ -49,6 +50,7 @@ const productById = new Map((catalog.products || []).map((product) => [product.i
 const originalOrder = (catalog.products || []).map((product) => product.id);
 const newProductIds = [];
 const mediaStatements = [];
+const detailIndexStatements = [];
 const detailEvents = delta.events.filter((event) => event.needsDetail && event.current);
 const queue = new PQueue({ concurrency: 6, intervalCap: 9, interval: 1000, timeout: 180_000 });
 const detailResults = new Map();
@@ -140,7 +142,10 @@ for (const event of delta.events) {
   } else {
     processing.updated += 1;
   }
-  mediaStatements.push(`UPDATE supplier_album_index SET detail_fingerprint=${sqlString(detail.detailFingerprint)}, last_detail_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE tenant_id=${sqlString(delta.tenantId)} AND source_key=${sqlString(delta.sourceKey)} AND album_source_id=${sqlString(sourceId)};`);
+  // This is deliberately staged separately from media writes. The source index is
+  // promoted only after public state and smoke tests succeed, so a retry cannot
+  // lose a supplier delta because the private cursor advanced too early.
+  detailIndexStatements.push(`UPDATE supplier_album_index SET detail_fingerprint=${sqlString(detail.detailFingerprint)}, last_detail_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE tenant_id=${sqlString(delta.tenantId)} AND source_key=${sqlString(delta.sourceKey)} AND album_source_id=${sqlString(sourceId)};`);
 }
 if (mediaStatements.length) mediaStatements.push(`DELETE FROM media_sources WHERE provider=${sqlString(provider)} AND media_id NOT IN (SELECT media_id FROM product_media);`);
 
@@ -197,6 +202,7 @@ if (catalogChanged) {
 }
 
 const sqlFiles = await writeSqlChunks(mediaStatements);
-const summary = { ok: true, runId: delta.runId, catalogChanged, products: finalProductCount, taxonomy: finalTaxonomyCount, detailFetches: detailEvents.length, mediaSqlChunks: sqlFiles.length, ...processing };
+await writeFile(detailSqlPath, `${detailIndexStatements.length ? detailIndexStatements.join('\n') : 'SELECT 1;'}\n`, 'utf8');
+const summary = { ok: true, runId: delta.runId, catalogChanged, products: finalProductCount, taxonomy: finalTaxonomyCount, detailFetches: detailEvents.length, mediaSqlChunks: sqlFiles.length, detailFingerprintUpdates: detailIndexStatements.length, ...processing };
 await writeFile(summaryPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
 console.log(JSON.stringify(summary, null, 2));
