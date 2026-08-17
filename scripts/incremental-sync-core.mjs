@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-const FINGERPRINT_NAMESPACE = 'catalog-engine:supplier-listing:v1';
+const FINGERPRINT_NAMESPACE = 'catalog-engine:supplier-listing:v2';
 
 function clean(value = '') {
   return String(value).replace(/\s+/g, ' ').trim();
@@ -11,10 +11,10 @@ function hash(value) {
 }
 
 export function listingFingerprint(entry = {}) {
+  // Source placement/category is deliberately excluded. A pure category move must
+  // not force a detail fetch; location is compared independently by the planner.
   const payload = {
     title: clean(entry.title),
-    categoryId: clean(entry.categoryId),
-    categoryPathIds: Array.isArray(entry.categoryPathIds) ? entry.categoryPathIds.map(clean).filter(Boolean) : [],
     coverUrl: clean(entry.coverUrl),
     listingSignal: clean(entry.listingSignal),
     imageCountHint: Number.isFinite(Number(entry.imageCountHint)) ? Number(entry.imageCountHint) : null
