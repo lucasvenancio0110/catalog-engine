@@ -55,7 +55,7 @@ if (catalog.schemaVersion >= 4) {
   }
 }
 
-const edgeProxy = catalog.storage?.mode === 'edge-proxy' || catalog.mediaVersion === 2;
+const edgeProxy = catalog.storage?.mode === 'edge-proxy' || Number(catalog.mediaVersion || 0) >= 2;
 if (edgeProxy) {
   if (catalog.storage?.publicBase !== '/media') throw new Error('Catálogo edge-proxy sem publicBase /media.');
   if (await exists(resolve(dist, 'assets/media'))) {
@@ -83,14 +83,18 @@ for (const product of catalog.products) {
 
     if (edgeProxy) {
       const media = product.media?.[index];
-      if (!/^\/media\/m_[a-f0-9]{20}$/.test(image)) {
-        throw new Error(`Rota de mídia edge-proxy inválida no produto ${product.id}.`);
+      if (!media || !/^m_[a-f0-9]{20}$/.test(String(media.id || ''))) {
+        throw new Error(`Descriptor edge-proxy inválido no produto ${product.id}.`);
       }
-      if (!media || !/^m_[a-f0-9]{20}$/.test(String(media.id || '')) || media.url !== image) {
-        throw new Error(`Descriptor edge-proxy divergente no produto ${product.id}.`);
+
+      const expectedView = catalog.mediaVersion >= 3 ? `/media/${media.id}/view` : `/media/${media.id}`;
+      const expectedThumb = catalog.mediaVersion >= 3 ? `/media/${media.id}/thumb` : `/media/${media.id}`;
+      const expectedDownload = `/media/${media.id}`;
+      if (image !== expectedView || media.url !== expectedView) {
+        throw new Error(`Rota de visualização edge-proxy inválida no produto ${product.id}.`);
       }
-      for (const url of [media.url, media.thumbnailUrl, media.downloadUrl]) {
-        if (url !== `/media/${media.id}`) throw new Error(`URL edge-proxy inconsistente em ${media.id}.`);
+      if (media.thumbnailUrl !== expectedThumb || media.downloadUrl !== expectedDownload) {
+        throw new Error(`Variantes edge-proxy inconsistentes em ${media.id}.`);
       }
       checkedProxyRoutes += 1;
     } else if (catalog.schemaVersion >= 6) {
