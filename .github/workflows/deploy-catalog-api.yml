@@ -19,8 +19,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: catalog-engine-cloudflare-deploy
-  cancel-in-progress: true
+  group: catalog-engine-production-d1
+  cancel-in-progress: false
 
 jobs:
   deploy:
