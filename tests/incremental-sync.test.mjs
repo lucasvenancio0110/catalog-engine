@@ -57,11 +57,23 @@ describe('incremental supplier delta', () => {
 
   it('detects a pure category move without opening the album detail', () => {
     const before = entry('104');
-    const afterBase = { ...before, categoryId: '20', categoryPathIds: ['2', '20'] };
-    const after = { ...afterBase, listingFingerprint: before.listingFingerprint };
+    const after = entry('104', { categoryId: '20', categoryPathIds: ['2', '20'] });
+    expect(after.listingFingerprint).toBe(before.listingFingerprint);
     const plan = planIncrementalDelta([previous(before)], [after]);
     expect(plan.events[0].type).toBe('MOVED');
     expect(plan.detailQueue).toEqual([]);
+  });
+
+  it('re-reads detail when content and category both changed', () => {
+    const before = entry('107');
+    const after = entry('107', {
+      categoryId: '20',
+      categoryPathIds: ['2', '20'],
+      title: 'Produto 107 2026 Player Version'
+    });
+    const plan = planIncrementalDelta([previous(before)], [after]);
+    expect(plan.events[0].type).toBe('CHANGED_MOVED');
+    expect(plan.detailQueue).toEqual(['107']);
   });
 
   it('requires repeated complete misses before confirmed removal', () => {
