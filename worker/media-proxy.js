@@ -71,7 +71,7 @@ export function publicMediaHeaders(originHeaders) {
 
   const headers = new Headers();
   headers.set('content-type', contentType);
-  headers.set('cache-control', 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800');
+  headers.set('cache-control', 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=2592000');
   headers.set('x-content-type-options', 'nosniff');
   headers.set('cross-origin-resource-policy', 'cross-origin');
 
