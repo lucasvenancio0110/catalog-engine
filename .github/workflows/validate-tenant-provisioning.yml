@@ -1,0 +1,92 @@
+name: Validate tenant provisioning
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'migrations/**'
+      - 'src/domain/tenant-*.js'
+      - 'scripts/provision-tenant-plan.mjs'
+      - 'scripts/tenant-provisioning-core.mjs'
+      - 'tests/tenant-*.test.mjs'
+      - 'package.json'
+      - '.github/workflows/validate-tenant-provisioning.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Quality gate
+        run: npm run quality
+
+      - name: Apply migrations to clean control-plane database
+        shell: bash
+        run: |
+          set -euo pipefail
+          DB=/tmp/catalog-control-plane.db
+          rm -f "$DB"
+          for file in migrations/*.sql; do
+            echo "Applying $file"
+            sqlite3 "$DB" < "$file"
+          done
+          sqlite3 "$DB" 'PRAGMA foreign_key_check;'
+
+      - name: Provision two isolated stores and retry first request
+        shell: bash
+        run: |
+          set -euo pipefail
+          DB=/tmp/catalog-control-plane.db
+
+          STORE_NAME='Loja Arena' \
+          STORE_SLUG='loja-arena' \
+          OWNER_PRINCIPAL_ID='principal:arena-owner' \
+          PLATFORM_BASE_DOMAIN='shops.example.com' \
+          THEME_KEY='stadium' \
+          TENANT_PROVISION_SQL_OUT=/tmp/arena.sql \
+          TENANT_PROVISION_PLAN_OUT=/tmp/arena.json \
+          npm run tenant:plan
+          sqlite3 "$DB" < /tmp/arena.sql
+          sqlite3 "$DB" < /tmp/arena.sql
+
+          STORE_NAME='Loja do Gol' \
+          STORE_SLUG='loja-do-gol' \
+          OWNER_PRINCIPAL_ID='principal:gol-owner' \
+          PLATFORM_BASE_DOMAIN='shops.example.com' \
+          THEME_KEY='clean' \
+          TENANT_PROVISION_SQL_OUT=/tmp/gol.sql \
+          TENANT_PROVISION_PLAN_OUT=/tmp/gol.json \
+          npm run tenant:plan
+          sqlite3 "$DB" < /tmp/gol.sql
+
+      - name: Assert multi-tenant isolation and idempotency
+        shell: bash
+        run: |
+          set -euo pipefail
+          DB=/tmp/catalog-control-plane.db
+
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM catalog_tenants WHERE slug IN ('loja-arena','loja-do-gol');")" = '2'
+          test "$(sqlite3 "$DB" "SELECT COUNT(DISTINCT data_plane_key) FROM tenant_catalog_instances i JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol');")" = '2'
+          test "$(sqlite3 "$DB" "SELECT COUNT(DISTINCT hostname) FROM tenant_domains d JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol');")" = '2'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_provisioning_runs r JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol');")" = '2'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_provisioning_steps s JOIN tenant_provisioning_runs r USING (provisioning_id) JOIN catalog_tenants t ON t.tenant_id=r.tenant_id WHERE t.slug IN ('loja-arena','loja-do-gol');")" = '20'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_memberships m JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol') AND m.role='owner';")" = '2'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_audit_log a JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol') AND a.action='tenant.provision.requested';")" = '2'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_source_connections c JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol');")" = '0'
+
+          echo 'Two-store provisioning isolation verified.'
