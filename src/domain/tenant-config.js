@@ -40,9 +40,8 @@ const whatsappSchema = z
 const instagramSchema = z
   .string()
   .trim()
-  .replace(/^@/, '')
-  .toLowerCase()
-  .regex(/^[a-z0-9._]{1,30}$/, 'Invalid Instagram handle.')
+  .transform((value) => value.replace(/^@/, '').toLowerCase())
+  .refine((value) => /^[a-z0-9._]{1,30}$/.test(value), 'Invalid Instagram handle.')
   .nullable()
   .default(null);
 
