@@ -29,7 +29,7 @@ permissions:
 
 concurrency:
   group: catalog-media-edge-proxy
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   migrate:
@@ -145,5 +145,6 @@ jobs:
             echo "Edge-proxy catalog already materialized."
           else
             git commit -m "migrate catalog media to optimized Cloudflare edge proxy"
+            git pull --rebase origin main
             git push origin HEAD:main
           fi
