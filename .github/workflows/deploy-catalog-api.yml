@@ -61,7 +61,7 @@ jobs:
       - name: Apply D1 migrations
         run: npx --yes "wrangler@$WRANGLER_VERSION" d1 migrations apply CATALOG_DB --remote --config wrangler.jsonc
 
-      - name: Generate paginated catalog SQL
+      - name: Generate professional catalog SQL
         run: node scripts/sync-public-catalog-d1.mjs
 
       - name: Load public catalog into D1
@@ -75,9 +75,9 @@ jobs:
             npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$file"
           done
 
-      - name: Verify D1 catalog
+      - name: Verify D1 professional catalog
         run: |
-          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --command="SELECT COUNT(*) AS products FROM catalog_products; SELECT COUNT(*) AS categories FROM catalog_categories;"
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --command="SELECT COUNT(*) AS products FROM catalog_products; SELECT COUNT(*) AS leagues FROM catalog_leagues; SELECT COUNT(*) AS teams FROM catalog_teams; SELECT COUNT(*) AS facets FROM catalog_facets; SELECT COUNT(*) AS aliases_searchable FROM catalog_products WHERE source_name IS NOT NULL AND display_name IS NOT NULL;"
 
       - name: Build storefront
         run: |
@@ -87,19 +87,28 @@ jobs:
       - name: Deploy Worker and catalog
         run: npx --yes "wrangler@$WRANGLER_VERSION" deploy --config wrangler.jsonc
 
-      - name: Smoke test paginated API
+      - name: Smoke test professional catalog API
         shell: bash
         run: |
           curl --fail --silent --show-error "$PUBLIC_URL/api/health" > /tmp/health.json
           curl --fail --silent --show-error "$PUBLIC_URL/api/catalog/meta" > /tmp/meta.json
+          curl --fail --silent --show-error "$PUBLIC_URL/api/leagues" > /tmp/leagues.json
+          curl --fail --silent --show-error "$PUBLIC_URL/api/teams?entityType=club" > /tmp/teams.json
+          curl --fail --silent --show-error "$PUBLIC_URL/api/facets" > /tmp/facets.json
           curl --fail --silent --show-error "$PUBLIC_URL/api/products?page=1&limit=15" > /tmp/products.json
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const health = JSON.parse(fs.readFileSync('/tmp/health.json', 'utf8'));
           const meta = JSON.parse(fs.readFileSync('/tmp/meta.json', 'utf8'));
+          const leagues = JSON.parse(fs.readFileSync('/tmp/leagues.json', 'utf8'));
+          const teams = JSON.parse(fs.readFileSync('/tmp/teams.json', 'utf8'));
+          const facets = JSON.parse(fs.readFileSync('/tmp/facets.json', 'utf8'));
           const products = JSON.parse(fs.readFileSync('/tmp/products.json', 'utf8'));
-          if (!health.ok || !health.catalogApi) throw new Error('Catalog API health check failed.');
-          if (!Number(meta.stats?.products) || !meta.taxonomy?.length) throw new Error('Catalog meta is empty.');
+          if (!health.ok || !health.catalogApi || !health.professionalTaxonomy) throw new Error('Professional catalog API health check failed.');
+          if (!Number(meta.stats?.products) || !meta.navigation?.length) throw new Error('Professional catalog meta is empty.');
+          if (!leagues.items?.length) throw new Error('League navigation is empty.');
+          if (!teams.items?.length) throw new Error('Team navigation is empty.');
+          if (!facets.items?.length) throw new Error('Facet navigation is empty.');
           if (!products.items?.length || products.items.length > 15) throw new Error('Pagination did not return 1-15 products.');
           if (products.total !== meta.stats.products) throw new Error('Catalog totals disagree.');
           const firstId = products.items[0]?.id;
