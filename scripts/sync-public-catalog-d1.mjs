@@ -31,11 +31,7 @@ async function writeSqlChunks(statements) {
   for (let index = 0; index < statements.length; index += chunkStatements) {
     const chunk = statements.slice(index, index + chunkStatements);
     const path = resolve(sqlDir, `${String(files.length + 1).padStart(4, '0')}.sql`);
-    await writeFile(
-      path,
-      `PRAGMA foreign_keys = ON;\nBEGIN;\n${chunk.join('\n')}\nCOMMIT;\n`,
-      'utf8'
-    );
+    await writeFile(path, `PRAGMA foreign_keys = ON;\n${chunk.join('\n')}\n`, 'utf8');
     files.push(path);
   }
   return files;
