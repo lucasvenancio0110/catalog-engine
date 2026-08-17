@@ -8,11 +8,15 @@ import { resolveYupooSourceUrl } from './yupoo-source-resolver.mjs';
 
 const sourceUrl = process.argv[2] || process.env.SOURCE_URL;
 const outputPath = process.env.SUPPLIER_INDEX_OUT || '/tmp/catalog-engine-current-index.json';
+const scanMode = String(process.env.SCAN_MODE || 'complete').toLowerCase();
 const maxRootPages = Math.max(1, Number(process.env.MAX_ROOT_PAGES || 500));
 const maxCategoryPages = Math.max(1, Number(process.env.MAX_CATEGORY_PAGES || 500));
+const recentRootPages = Math.max(1, Number(process.env.RECENT_ROOT_PAGES || 8));
+const recentCategoryPages = Math.max(1, Number(process.env.RECENT_CATEGORY_PAGES || 2));
 const timeoutMs = 30_000;
 const requestAttempts = 4;
 
+if (!['complete', 'recent'].includes(scanMode)) throw new Error(`SCAN_MODE inválido: ${scanMode}`);
 if (!sourceUrl) throw new Error('SOURCE_URL é obrigatório.');
 
 const source = new URL(sourceUrl);
@@ -151,10 +155,19 @@ function extractAlbumCards(html, baseUrl, category = null, rawById = new Map()) 
   return [...found.values()];
 }
 
+function placementKey(entry) {
+  return `${String(entry.categoryDepth || 0).padStart(4, '0')}|${(entry.categoryPathIds || []).join('/')}|${entry.categoryId || ''}`;
+}
+
 function chooseEntry(previous, candidate) {
   if (!previous) return candidate;
-  if ((candidate.categoryDepth || 0) > (previous.categoryDepth || 0)) return candidate;
-  if ((candidate.categoryDepth || 0) === (previous.categoryDepth || 0) && candidate.categoryId && !previous.categoryId) return candidate;
+  const previousDepth = Number(previous.categoryDepth || 0);
+  const candidateDepth = Number(candidate.categoryDepth || 0);
+  if (candidateDepth > previousDepth) return candidate;
+  if (candidateDepth === previousDepth) {
+    if (candidate.categoryId && !previous.categoryId) return candidate;
+    if (candidate.categoryId && previous.categoryId && placementKey(candidate).localeCompare(placementKey(previous)) < 0) return candidate;
+  }
   return {
     ...previous,
     title: previous.title || candidate.title,
@@ -180,9 +193,9 @@ async function scanScope({ baseUrl, maxPages, category, rawById, albums }) {
       albums.set(entry.sourceId, chooseEntry(albums.get(entry.sourceId), entry));
     }
     console.log(`${category ? `Categoria ${category.name}` : 'Catálogo'} · página ${page}: ${entries.length} cards, ${newInScope} novos no escopo.`);
-    if (entries.length === 0 || newInScope === 0) return { pages, complete: true };
+    if (entries.length === 0 || newInScope === 0) return { pages, naturalEnd: true };
   }
-  return { pages, complete: false };
+  return { pages, naturalEnd: false };
 }
 
 const startedAt = new Date().toISOString();
@@ -190,36 +203,45 @@ const taxonomyScan = await scanYupooTaxonomy(sourceUrl);
 const rawTaxonomy = taxonomyScan.categories;
 const rawById = new Map(rawTaxonomy.map((category) => [String(category.id), category]));
 const albums = new Map();
+const rootPageLimit = scanMode === 'recent' ? Math.min(maxRootPages, recentRootPages) : maxRootPages;
+const categoryPageLimit = scanMode === 'recent' ? Math.min(maxCategoryPages, recentCategoryPages) : maxCategoryPages;
 
-const rootResult = await scanScope({ baseUrl: sourceUrl, maxPages: maxRootPages, category: null, rawById, albums });
-if (!rootResult.complete) throw new Error(`Scan incremental abortado: catálogo geral atingiu MAX_ROOT_PAGES=${maxRootPages}.`);
+const rootResult = await scanScope({ baseUrl: sourceUrl, maxPages: rootPageLimit, category: null, rawById, albums });
+if (scanMode === 'complete' && !rootResult.naturalEnd) {
+  throw new Error(`Scan completo abortado: catálogo geral atingiu MAX_ROOT_PAGES=${maxRootPages}.`);
+}
 
 const queue = new PQueue({ concurrency: 4, intervalCap: 6, interval: 1000, timeout: 900_000 });
 const categoryResults = [];
 await Promise.all(
   [...rawTaxonomy]
-    .sort((a, b) => (b.depth || 0) - (a.depth || 0))
+    .sort((a, b) => (b.depth || 0) - (a.depth || 0) || String(a.id).localeCompare(String(b.id)))
     .map((category) => queue.add(async () => {
       const resolved = await resolveYupooSourceUrl(category.sourceUrl);
-      const result = await scanScope({ baseUrl: resolved, maxPages: maxCategoryPages, category, rawById, albums });
+      const result = await scanScope({ baseUrl: resolved, maxPages: categoryPageLimit, category, rawById, albums });
       categoryResults.push({ categoryId: String(category.id), ...result });
-      if (!result.complete) throw new Error(`Scan incremental abortado: categoria ${category.name} atingiu MAX_CATEGORY_PAGES=${maxCategoryPages}.`);
+      if (scanMode === 'complete' && !result.naturalEnd) {
+        throw new Error(`Scan completo abortado: categoria ${category.name} atingiu MAX_CATEGORY_PAGES=${maxCategoryPages}.`);
+      }
     }))
 );
 
+const deletionSafe = scanMode === 'complete' && rootResult.naturalEnd && categoryResults.every((result) => result.naturalEnd);
 const entries = [...albums.values()].map((entry) => ({ ...entry, listingFingerprint: listingFingerprint(entry) })).sort((a, b) => a.sourceId.localeCompare(b.sourceId));
 const output = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   provider: 'yupoo',
   sourceUrl,
+  scanMode,
   startedAt,
   finishedAt: new Date().toISOString(),
-  complete: true,
+  complete: deletionSafe,
   stats: {
     albums: entries.length,
     rootPages: rootResult.pages,
     taxonomyCategories: rawTaxonomy.length,
-    categoryPages: categoryResults.reduce((sum, item) => sum + item.pages, 0)
+    categoryPages: categoryResults.reduce((sum, item) => sum + item.pages, 0),
+    deletionSafe
   },
   taxonomy: rawTaxonomy,
   albums: entries
@@ -227,4 +249,4 @@ const output = {
 
 await mkdir(dirname(outputPath), { recursive: true });
 await writeFile(outputPath, `${JSON.stringify(output, null, 2)}\n`, 'utf8');
-console.log(JSON.stringify({ ok: true, complete: true, ...output.stats, outputPath }, null, 2));
+console.log(JSON.stringify({ ok: true, scanMode, complete: deletionSafe, ...output.stats, outputPath }, null, 2));
