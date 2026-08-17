@@ -37,9 +37,9 @@ const els = {
   heroTitle: document.querySelector('#heroTitle'),
   productCount: document.querySelector('#productCount'),
   searchInput: document.querySelector('#searchInput'),
-  categorySelect: document.querySelector('#categorySelect'),
   categoryBrowser: document.querySelector('#categoryBrowser'),
   categoryTitle: document.querySelector('#categoryTitle'),
+  categorySubtitle: document.querySelector('#categorySubtitle'),
   categoryBack: document.querySelector('#categoryBack'),
   categoryTrail: document.querySelector('#categoryTrail'),
   categoryChips: document.querySelector('#categoryChips'),
@@ -57,21 +57,12 @@ const els = {
   dialogCategory: document.querySelector('#dialogCategory'),
   dialogName: document.querySelector('#dialogName'),
   dialogDescription: document.querySelector('#dialogDescription'),
-  dialogPhotoCount: document.querySelector('#dialogPhotoCount'),
-  downloadImageButton: document.querySelector('#downloadImageButton'),
   whatsappButton: document.querySelector('#whatsappButton'),
   themeToggle: document.querySelector('#themeToggle')
 };
 
-function normalize(value = '') {
-  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-}
-
-function slugify(value = 'produto') {
-  return normalize(value)
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80) || 'produto';
+function formatCount(value) {
+  return Number(value || 0).toLocaleString('pt-BR');
 }
 
 function prefetchImage(url) {
@@ -95,22 +86,42 @@ function scheduleInitialViewPrefetch(products) {
   else setTimeout(run, 600);
 }
 
-function categoryButton(category, selectedId = '') {
+function createCategoryButton(category, { label = category.name, active = category.id === state.categoryId } = {}) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'category-chip';
   button.dataset.categoryId = category.id;
 
-  const label = document.createElement('span');
-  label.textContent = category.name;
-  const badge = document.createElement('small');
-  badge.textContent = String(state.taxonomy?.count(category.id) || 0);
-  button.append(label, badge);
+  const name = document.createElement('span');
+  name.className = 'category-chip-label';
+  name.textContent = label;
 
-  const active = category.id === selectedId;
+  const badge = document.createElement('small');
+  badge.textContent = formatCount(state.taxonomy?.count(category.id) || 0);
+
+  const hasChildren = (state.taxonomy?.children(category.id) || []).length > 0;
+  button.classList.toggle('has-children', hasChildren);
   button.classList.toggle('active', active);
   button.setAttribute('aria-current', active ? 'true' : 'false');
+  button.append(name, badge);
   button.addEventListener('click', () => setCategory(category.id));
+  return button;
+}
+
+function createAllCategoriesButton() {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'category-chip category-all active';
+  button.setAttribute('aria-current', 'true');
+
+  const label = document.createElement('span');
+  label.className = 'category-chip-label';
+  label.textContent = 'Todos';
+
+  const badge = document.createElement('small');
+  badge.textContent = formatCount(state.catalog.stats?.products || state.pagination.total || 0);
+  button.append(label, badge);
+  button.addEventListener('click', () => setCategory(''));
   return button;
 }
 
@@ -120,6 +131,13 @@ function renderCategoryTrail(selected) {
     els.categoryTrail.hidden = true;
     return;
   }
+
+  const allButton = document.createElement('button');
+  allButton.type = 'button';
+  allButton.textContent = 'Todas';
+  allButton.className = 'category-trail-item';
+  allButton.addEventListener('click', () => setCategory(''));
+  els.categoryTrail.appendChild(allButton);
 
   const trail = state.taxonomy.trail(selected.id);
   trail.forEach((category, index) => {
@@ -131,7 +149,7 @@ function renderCategoryTrail(selected) {
     button.addEventListener('click', () => setCategory(category.id));
     els.categoryTrail.appendChild(button);
   });
-  els.categoryTrail.hidden = trail.length === 0;
+  els.categoryTrail.hidden = false;
 }
 
 function renderCategoryBrowser() {
@@ -144,58 +162,37 @@ function renderCategoryBrowser() {
 
   els.categoryBrowser.hidden = false;
   const selected = state.categoryId ? model.byId.get(state.categoryId) : null;
-  const selectedCount = selected ? model.count(selected.id) : 0;
-  els.categoryTitle.textContent = selected
-    ? `${selected.name} · ${selectedCount} produto${selectedCount === 1 ? '' : 's'}`
-    : 'Todas as categorias';
+  const selectedCount = selected
+    ? model.count(selected.id)
+    : Number(state.catalog.stats?.products || state.pagination.total || 0);
+
+  els.categoryTitle.textContent = selected ? selected.name : 'Categorias';
+  els.categorySubtitle.textContent = `${formatCount(selectedCount)} produto${selectedCount === 1 ? '' : 's'}`;
   els.categoryBack.hidden = !selected;
   renderCategoryTrail(selected);
   els.categoryChips.innerHTML = '';
 
-  let entries = roots;
-  if (selected) {
-    const children = model.children(selected.id);
-    if (children.length) entries = children;
-    else if (selected.parentId) entries = model.children(selected.parentId);
-    else entries = roots;
+  if (!selected) {
+    els.categoryChips.appendChild(createAllCategoriesButton());
+    for (const category of roots) els.categoryChips.appendChild(createCategoryButton(category));
+    return;
   }
 
-  for (const category of entries) {
-    els.categoryChips.appendChild(categoryButton(category, state.categoryId));
+  const children = model.children(selected.id);
+  if (children.length) {
+    els.categoryChips.appendChild(createCategoryButton(selected, { label: 'Todos', active: true }));
+    for (const category of children) els.categoryChips.appendChild(createCategoryButton(category));
+    return;
   }
-}
 
-function renderCategorySelect() {
-  els.categorySelect.innerHTML = '<option value="">Todas</option>';
-  if (!state.taxonomy) return;
-
-  const categories = [...state.taxonomy.byId.values()]
-    .filter((category) => state.taxonomy.count(category.id) > 0)
-    .sort((a, b) => (a.depth || 0) - (b.depth || 0) || a.name.localeCompare(b.name));
-
-  for (const category of categories) {
-    const option = document.createElement('option');
-    option.value = category.id;
-    option.textContent = `${'— '.repeat(Math.min(category.depth || 0, 4))}${category.name} (${state.taxonomy.count(category.id)})`;
-    els.categorySelect.appendChild(option);
-  }
-  els.categorySelect.value = state.categoryId;
-}
-
-function syncCategoryControls() {
-  els.categorySelect.value = state.categoryId;
-  renderCategoryBrowser();
+  const siblings = selected.parentId ? model.children(selected.parentId) : roots;
+  for (const category of siblings) els.categoryChips.appendChild(createCategoryButton(category));
 }
 
 function setCategory(categoryId = '') {
   state.categoryId = categoryId && state.taxonomy?.byId.has(categoryId) ? categoryId : '';
-  syncCategoryControls();
-  void loadProducts(1, { scroll: true });
-}
-
-function renderCategoryControls() {
-  renderCategorySelect();
   renderCategoryBrowser();
+  void loadProducts(1, { scroll: true });
 }
 
 function renderPagination() {
@@ -206,12 +203,26 @@ function renderPagination() {
   els.nextPage.disabled = !hasMore || state.loading;
 }
 
+async function openFromCard(imageWrap, product) {
+  if (imageWrap.dataset.opening === 'true') return;
+  imageWrap.dataset.opening = 'true';
+  imageWrap.classList.add('is-loading');
+  imageWrap.setAttribute('aria-busy', 'true');
+  try {
+    await openProduct(product);
+  } finally {
+    imageWrap.dataset.opening = 'false';
+    imageWrap.classList.remove('is-loading');
+    imageWrap.removeAttribute('aria-busy');
+  }
+}
+
 function renderProducts() {
   const products = state.products;
   els.grid.innerHTML = '';
 
   const catalogTotal = Number(state.catalog.stats?.products || state.pagination.total || 0);
-  els.productCount.textContent = String(catalogTotal);
+  els.productCount.textContent = formatCount(catalogTotal);
 
   if (state.loading) {
     els.status.textContent = 'Carregando produtos…';
@@ -222,19 +233,20 @@ function renderProducts() {
   if (products.length) {
     const start = (state.pagination.page - 1) * state.pagination.pageSize + 1;
     const end = start + products.length - 1;
-    els.status.textContent = `Mostrando ${start}–${end} de ${state.pagination.total} produto${state.pagination.total === 1 ? '' : 's'}.`;
+    els.status.textContent = `Mostrando ${formatCount(start)}–${formatCount(end)} de ${formatCount(state.pagination.total)} produto${state.pagination.total === 1 ? '' : 's'}.`;
   } else {
     els.status.textContent = 'Nenhum produto encontrado com esses filtros.';
   }
 
   for (const [index, product] of products.entries()) {
     const node = els.template.content.cloneNode(true);
+    const imageWrap = node.querySelector('.image-wrap');
     const image = node.querySelector('.product-image');
     const fallback = node.querySelector('.image-fallback');
-    const photoCount = node.querySelector('.photo-count');
     const media = getProductMedia(product);
     const firstImage = media[0]?.thumbnailUrl || media[0]?.url;
-    const imageCount = Number(product.imageCount || media.length || 0);
+
+    imageWrap.setAttribute('aria-label', `Abrir ${product.name}`);
 
     if (firstImage) {
       image.loading = index < 4 ? 'eager' : 'lazy';
@@ -243,8 +255,6 @@ function renderProducts() {
       image.src = firstImage;
       image.alt = product.name;
       fallback.hidden = true;
-      photoCount.hidden = false;
-      photoCount.textContent = `${imageCount} foto${imageCount === 1 ? '' : 's'} HD`;
       image.addEventListener('error', () => {
         image.hidden = true;
         fallback.hidden = false;
@@ -252,30 +262,26 @@ function renderProducts() {
     } else {
       image.hidden = true;
       fallback.hidden = false;
-      photoCount.hidden = true;
     }
 
     node.querySelector('.category').textContent = product.category || 'Catálogo';
     node.querySelector('.product-name').textContent = product.name;
-    node.querySelector('.description').textContent =
-      product.description || `${imageCount} foto${imageCount === 1 ? '' : 's'} disponíveis em alta qualidade.`;
+    const description = node.querySelector('.description');
+    const descriptionText = String(product.description || '').trim();
+    description.textContent = descriptionText;
+    description.hidden = !descriptionText;
 
-    const details = node.querySelector('.details');
     const prefetchHero = () => prefetchImage(media[0]?.url);
-    details.addEventListener('pointerenter', prefetchHero, { once: true });
-    details.addEventListener('focus', prefetchHero, { once: true });
-    details.addEventListener('touchstart', prefetchHero, { once: true, passive: true });
-    details.addEventListener('click', async () => {
-      details.disabled = true;
-      const previousLabel = details.textContent;
-      details.textContent = 'Abrindo…';
-      try {
-        await openProduct(product);
-      } finally {
-        details.disabled = false;
-        details.textContent = previousLabel;
-      }
+    imageWrap.addEventListener('pointerenter', prefetchHero, { once: true });
+    imageWrap.addEventListener('focus', prefetchHero, { once: true });
+    imageWrap.addEventListener('touchstart', prefetchHero, { once: true, passive: true });
+    imageWrap.addEventListener('click', () => void openFromCard(imageWrap, product));
+    imageWrap.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      void openFromCard(imageWrap, product);
     });
+
     els.grid.appendChild(node);
   }
 
@@ -314,9 +320,7 @@ async function loadProducts(page = 1, { scroll = false } = {}) {
     state.loading = false;
     renderProducts();
 
-    if (scroll) {
-      els.status.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    if (scroll) els.status.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) {
     if (requestSequence !== state.requestSequence) return;
     console.error(error);
@@ -329,26 +333,8 @@ async function loadProducts(page = 1, { scroll = false } = {}) {
 }
 
 function syncActiveImage(index) {
-  const product = state.activeProduct;
-  if (!product) return;
-
-  const media = getProductMedia(product);
-  const image = media[index];
-  if (!image?.url) return;
-
+  if (!state.activeProduct) return;
   state.activeImageIndex = index;
-  const allowDownload = state.catalog.store?.showDownload !== false;
-  if (allowDownload) {
-    const downloadUrl = image.downloadUrl || image.url;
-    const extension = downloadUrl.split('.').pop()?.split('?')[0] || 'jpg';
-    els.downloadImageButton.href = downloadUrl;
-    els.downloadImageButton.download = `${slugify(product.name)}-${String(index + 1).padStart(2, '0')}.${extension}`;
-    els.downloadImageButton.hidden = false;
-  } else {
-    els.downloadImageButton.hidden = true;
-    els.downloadImageButton.removeAttribute('href');
-  }
-
   [...els.dialogThumbs.querySelectorAll('button')].forEach((button, buttonIndex) => {
     const active = buttonIndex === index;
     button.classList.toggle('active', active);
@@ -360,14 +346,14 @@ function renderThumbs(product) {
   const media = getProductMedia(product);
   els.dialogThumbs.innerHTML = '';
 
-  media.forEach((image, index) => {
+  media.forEach((entry, index) => {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'thumb-button';
     button.setAttribute('aria-label', `Abrir foto ${index + 1}`);
 
     const img = document.createElement('img');
-    img.src = image.thumbnailUrl || image.url;
+    img.src = entry.thumbnailUrl || entry.url;
     img.alt = '';
     img.loading = index === 0 ? 'eager' : 'lazy';
     img.decoding = 'async';
@@ -388,10 +374,10 @@ function showProduct(product) {
   const images = productGalleryUrls(product);
   els.dialogCategory.textContent = product.category || 'Catálogo';
   els.dialogName.textContent = product.name;
-  els.dialogDescription.textContent = product.description || 'Fotos disponíveis em alta qualidade.';
-  els.dialogPhotoCount.textContent = images.length
-    ? `${images.length} foto${images.length === 1 ? '' : 's'} em alta qualidade`
-    : 'Sem fotos disponíveis';
+
+  const description = String(product.description || '').trim();
+  els.dialogDescription.textContent = description;
+  els.dialogDescription.hidden = !description;
 
   renderThumbs(product);
 
@@ -401,7 +387,6 @@ function showProduct(product) {
     syncActiveImage(0);
   } else {
     els.productSwiper.hidden = true;
-    els.downloadImageButton.hidden = true;
   }
 
   const phone = (state.catalog.store?.whatsapp || '').replace(/\D/g, '');
@@ -495,7 +480,7 @@ async function init() {
     state.loading = false;
 
     applyStoreConfig();
-    renderCategoryControls();
+    renderCategoryBrowser();
     renderProducts();
   } catch (error) {
     console.error(error);
@@ -511,10 +496,6 @@ els.searchInput.addEventListener('input', (event) => {
   searchTimer = setTimeout(() => {
     void loadProducts(1);
   }, 300);
-});
-
-els.categorySelect.addEventListener('change', (event) => {
-  setCategory(event.target.value);
 });
 
 els.categoryBack.addEventListener('click', () => {

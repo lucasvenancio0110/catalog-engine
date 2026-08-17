@@ -18,6 +18,7 @@ export function mountProductGallery(container, images = [], productName = 'Produ
     image.src = src;
     image.alt = `${productName} — foto ${index + 1}`;
     image.loading = index === 0 ? 'eager' : 'lazy';
+    image.decoding = 'async';
 
     slide.appendChild(image);
     wrapper.appendChild(slide);
@@ -43,6 +44,8 @@ export function mountProductGallery(container, images = [], productName = 'Produ
     slidesPerView: 1,
     spaceBetween: 8,
     speed: 300,
+    touchStartPreventDefault: false,
+    touchStartForcePreventDefault: false,
     keyboard: { enabled: true },
     navigation: { prevEl: prev, nextEl: next },
     pagination: { el: pagination, clickable: true },

@@ -1,36 +1,44 @@
+.toolbar {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .category-browser {
-  margin: 4px 0 18px;
-  padding: 14px;
+  margin: 4px 0 22px;
+  padding: 16px;
   border: 1px solid var(--line);
-  border-radius: 20px;
-  background: color-mix(in srgb, var(--panel) 82%, transparent);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--panel) 86%, transparent);
 }
 
 .category-browser-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
+  gap: 14px;
+  margin-bottom: 12px;
 }
 
-.category-browser-head > div {
+.category-browser-copy {
   display: grid;
   gap: 4px;
   min-width: 0;
 }
 
 .category-browser-head strong {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: .94rem;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.category-subtitle {
+  color: var(--muted);
+  font-size: .76rem;
+  font-weight: 700;
 }
 
 .category-back {
   flex: 0 0 auto;
-  min-height: 34px;
-  padding: 0 12px;
+  min-height: 36px;
+  padding: 0 13px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--panel-2);
@@ -44,7 +52,8 @@
   align-items: center;
   gap: 4px;
   overflow-x: auto;
-  margin: 0 0 10px;
+  margin: 0 0 12px;
+  padding-bottom: 2px;
   scrollbar-width: none;
 }
 
@@ -70,28 +79,118 @@
   color: var(--text);
 }
 
-.category-chip {
-  display: inline-flex;
-  align-items: center;
+.category-chips {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
+  overflow: visible;
+  padding: 0;
+}
+
+.category-chip {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 52px;
+  gap: 9px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--panel-2);
+  color: var(--text);
+  text-align: left;
+  font-size: .82rem;
+  font-weight: 800;
+  transition: border-color .18s ease, background .18s ease, transform .18s ease;
+}
+
+.category-chip:hover {
+  border-color: color-mix(in srgb, var(--text) 26%, var(--line));
+}
+
+.category-chip:active {
+  transform: scale(.985);
+}
+
+.category-chip-label {
+  min-width: 0;
+  flex: 1;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
 }
 
 .category-chip small {
   display: inline-grid;
-  min-width: 22px;
-  height: 22px;
+  flex: 0 0 auto;
+  min-width: 25px;
+  height: 24px;
   padding: 0 6px;
   place-items: center;
   border-radius: 999px;
-  background: var(--panel-2);
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
   color: var(--muted);
-  font-size: .68rem;
+  font-size: .66rem;
   font-weight: 850;
 }
 
+.category-chip.has-children::after {
+  content: '›';
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.category-chip.active {
+  background: var(--accent);
+  color: var(--panel);
+  border-color: var(--accent);
+}
+
 .category-chip.active small {
-  background: color-mix(in srgb, var(--panel) 82%, transparent);
+  background: color-mix(in srgb, var(--panel) 14%, transparent);
   color: inherit;
+}
+
+.category-chip.active::after {
+  color: inherit;
+  opacity: .72;
+}
+
+.image-wrap {
+  cursor: zoom-in;
+  outline: none;
+}
+
+.image-wrap:focus-visible {
+  box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.product-image {
+  transition: transform .22s ease, opacity .18s ease;
+  -webkit-touch-callout: default;
+  user-select: auto;
+}
+
+.image-wrap:hover .product-image {
+  transform: scale(1.018);
+}
+
+.image-wrap.is-loading .product-image {
+  opacity: .7;
+}
+
+.product-swiper .swiper-slide img,
+.thumb-button img {
+  -webkit-touch-callout: default;
+  user-select: auto;
+}
+
+@media (max-width: 900px) {
+  .category-chips {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 620px) {
@@ -101,6 +200,30 @@
     border-radius: 18px;
   }
 
-  .category-browser-head strong { font-size: .88rem; }
-  .category-chip { min-height: 40px; }
+  .category-browser-head {
+    align-items: center;
+  }
+
+  .category-browser-head strong {
+    font-size: .94rem;
+  }
+
+  .category-chips {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    margin-inline: 0;
+  }
+
+  .category-chip {
+    min-height: 50px;
+    padding: 8px 10px;
+    border-radius: 14px;
+    font-size: .78rem;
+  }
+
+  .category-chip small {
+    min-width: 23px;
+    height: 22px;
+    font-size: .63rem;
+  }
 }

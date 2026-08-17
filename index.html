@@ -36,19 +36,14 @@
         <span>Buscar</span>
         <input id="searchInput" type="search" placeholder="Nome, modelo ou categoria" autocomplete="off" />
       </label>
-      <label class="category-filter">
-        <span>Categoria</span>
-        <select id="categorySelect">
-          <option value="">Todas</option>
-        </select>
-      </label>
     </section>
 
     <section id="categoryBrowser" class="category-browser" aria-label="Explorar categorias">
       <div class="category-browser-head">
-        <div>
+        <div class="category-browser-copy">
           <span class="eyebrow">EXPLORAR</span>
-          <strong id="categoryTitle">Todas as categorias</strong>
+          <strong id="categoryTitle">Categorias</strong>
+          <span id="categorySubtitle" class="category-subtitle"></span>
         </div>
         <button id="categoryBack" class="category-back" type="button" hidden>← Voltar</button>
       </div>
@@ -67,18 +62,14 @@
 
   <template id="productTemplate">
     <article class="card">
-      <div class="image-wrap">
+      <div class="image-wrap" role="button" tabindex="0">
         <img class="product-image" alt="" loading="lazy" />
         <div class="image-fallback">Sem imagem</div>
-        <span class="photo-count" hidden></span>
       </div>
       <div class="card-content">
         <span class="category"></span>
         <h3 class="product-name"></h3>
         <p class="description"></p>
-        <div class="card-actions">
-          <button class="details" type="button">Ver produto</button>
-        </div>
       </div>
     </article>
   </template>
@@ -89,7 +80,6 @@
     <div class="dialog-gallery">
       <div class="dialog-main-media">
         <div id="productSwiper" class="swiper product-swiper" aria-label="Galeria de fotos do produto"></div>
-        <a id="downloadImageButton" class="download-action" download>↓ Baixar foto HD</a>
       </div>
       <div id="dialogThumbs" class="dialog-thumbs" aria-label="Miniaturas do produto"></div>
     </div>
@@ -97,7 +87,6 @@
     <div class="dialog-copy">
       <span id="dialogCategory" class="category"></span>
       <h2 id="dialogName"></h2>
-      <p id="dialogPhotoCount" class="dialog-photo-count"></p>
       <p id="dialogDescription"></p>
       <a id="whatsappButton" class="primary-action" target="_blank" rel="noopener">Pedir no WhatsApp</a>
     </div>
