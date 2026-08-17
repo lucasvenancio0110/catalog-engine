@@ -35,7 +35,9 @@ async function writeSqlChunks(statements) {
 const catalog = JSON.parse(await readFile(catalogPath, 'utf8'));
 const current = JSON.parse(await readFile(currentIndexPath, 'utf8'));
 const delta = JSON.parse(await readFile(deltaPath, 'utf8'));
-if (!current.complete || !delta.complete) throw new Error('Processamento incremental exige scan completo.');
+if (!delta.complete || !Array.isArray(current.albums) || !current.albums.length) {
+  throw new Error('Processamento incremental recebeu um delta inválido.');
+}
 
 const uncategorizedSourceId = '__catalog_engine_uncategorized__';
 const taxonomyInput = [...(current.taxonomy || [])];
@@ -54,18 +56,17 @@ const detailIndexStatements = [];
 const detailEvents = delta.events.filter((event) => event.needsDetail && event.current);
 const queue = new PQueue({ concurrency: 6, intervalCap: 9, interval: 1000, timeout: 180_000 });
 const detailResults = new Map();
-let detailFailures = 0;
+const detailErrors = new Map();
 
 await Promise.all(detailEvents.map((event) => queue.add(async () => {
   try {
     const detail = await fetchYupooAlbumDetail(event.current.sourceUrl, delta.sourceUrl);
     detailResults.set(String(event.sourceId), detail);
   } catch (error) {
-    detailFailures += 1;
-    console.warn(`Falha no detalhe do álbum ${event.sourceId}: ${error?.message || error}`);
+    detailErrors.set(String(event.sourceId), error?.message || String(error));
+    console.warn(`Falha no detalhe do álbum ${event.sourceId}; será tentado novamente: ${error?.message || error}`);
   }
 })));
-if (detailFailures > 0) throw new Error(`Sync incremental abortado: ${detailFailures} detalhe(s) falharam. O índice não deve avançar.`);
 
 function categoryFields(entry) {
   const sourceCategoryId = entry?.categoryId ? String(entry.categoryId) : uncategorizedSourceId;
@@ -87,7 +88,21 @@ function mediaDescriptors(publicId, albumUrl, images) {
   });
 }
 
-const processing = { created: 0, updated: 0, moved: 0, removed: 0, skippedNonProduct: 0, baseline: delta.summary.BASELINE || 0 };
+function markDetailComplete(sourceId, detail) {
+  detailIndexStatements.push(`UPDATE supplier_album_index SET detail_fingerprint=${sqlString(detail.detailFingerprint)}, last_detail_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE tenant_id=${sqlString(delta.tenantId)} AND source_key=${sqlString(delta.sourceKey)} AND album_source_id=${sqlString(sourceId)};`);
+}
+
+const processing = {
+  created: 0,
+  updated: 0,
+  moved: 0,
+  removed: 0,
+  skippedNonProduct: 0,
+  deferredNoMedia: 0,
+  detailFailed: detailErrors.size,
+  baseline: delta.summary.BASELINE || 0
+};
+
 for (const event of delta.events) {
   const sourceId = String(event.sourceId);
   const publicId = publicProductId(provider, sourceId);
@@ -112,14 +127,29 @@ for (const event of delta.events) {
   }
 
   const detail = detailResults.get(sourceId);
-  if (!detail) throw new Error(`Detalhe ausente para evento ${event.type} do álbum ${sourceId}.`);
-  if (detail.classification.entityType !== 'product') {
-    if (productById.delete(publicId)) processing.removed += 1;
-    mediaStatements.push(`DELETE FROM product_media WHERE product_id=${sqlString(publicId)};`);
-    processing.skippedNonProduct += 1;
+  if (!detail) {
+    // The planner clears detail_fingerprint for detail-required events before the
+    // cursor is promoted. Leaving it empty intentionally schedules a retry.
     continue;
   }
-  if (!detail.name || !detail.images.length) throw new Error(`Álbum ${sourceId} ficou sem mídia válida; produto saudável anterior não será sobrescrito.`);
+
+  if (detail.classification.entityType !== 'product') {
+    if (productById.delete(publicId)) {
+      processing.removed += 1;
+      mediaStatements.push(`DELETE FROM product_media WHERE product_id=${sqlString(publicId)};`);
+    }
+    processing.skippedNonProduct += 1;
+    markDetailComplete(sourceId, detail);
+    continue;
+  }
+
+  if (!detail.name || !detail.images.length) {
+    // Supplier placeholders are common. Do not publish a broken product and do
+    // not advance detail_fingerprint; the next incremental scan retries it.
+    processing.deferredNoMedia += 1;
+    console.warn(`Álbum ${sourceId} sem mídia válida; mantido pendente para retry.`);
+    continue;
+  }
 
   const media = mediaDescriptors(publicId, entry.sourceUrl, detail.images);
   const product = {
@@ -142,14 +172,11 @@ for (const event of delta.events) {
   } else {
     processing.updated += 1;
   }
-  // This is deliberately staged separately from media writes. The source index is
-  // promoted only after public state and smoke tests succeed, so a retry cannot
-  // lose a supplier delta because the private cursor advanced too early.
-  detailIndexStatements.push(`UPDATE supplier_album_index SET detail_fingerprint=${sqlString(detail.detailFingerprint)}, last_detail_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE tenant_id=${sqlString(delta.tenantId)} AND source_key=${sqlString(delta.sourceKey)} AND album_source_id=${sqlString(sourceId)};`);
+  markDetailComplete(sourceId, detail);
 }
 if (mediaStatements.length) mediaStatements.push(`DELETE FROM media_sources WHERE provider=${sqlString(provider)} AND media_id NOT IN (SELECT media_id FROM product_media);`);
 
-const catalogChanged = delta.events.some((event) => !['BASELINE', 'MISSING'].includes(event.type));
+const catalogChanged = processing.created + processing.updated + processing.moved + processing.removed > 0;
 let finalProductCount = productById.size;
 let finalTaxonomyCount = (catalog.taxonomy || []).length;
 
@@ -186,6 +213,7 @@ if (catalogChanged) {
       sourceKey: delta.sourceKey,
       runId: delta.runId,
       completedAt: new Date().toISOString(),
+      scanComplete: delta.scanComplete === true,
       scannedAlbums: delta.scan?.albums || current.albums.length,
       detailFetches: detailEvents.length,
       summary: delta.summary,
@@ -203,6 +231,17 @@ if (catalogChanged) {
 
 const sqlFiles = await writeSqlChunks(mediaStatements);
 await writeFile(detailSqlPath, `${detailIndexStatements.length ? detailIndexStatements.join('\n') : 'SELECT 1;'}\n`, 'utf8');
-const summary = { ok: true, runId: delta.runId, catalogChanged, products: finalProductCount, taxonomy: finalTaxonomyCount, detailFetches: detailEvents.length, mediaSqlChunks: sqlFiles.length, detailFingerprintUpdates: detailIndexStatements.length, ...processing };
+const summary = {
+  ok: true,
+  runId: delta.runId,
+  scanComplete: delta.scanComplete === true,
+  catalogChanged,
+  products: finalProductCount,
+  taxonomy: finalTaxonomyCount,
+  detailFetches: detailEvents.length,
+  mediaSqlChunks: sqlFiles.length,
+  detailFingerprintUpdates: detailIndexStatements.length,
+  ...processing
+};
 await writeFile(summaryPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
 console.log(JSON.stringify(summary, null, 2));
