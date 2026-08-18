@@ -2,8 +2,8 @@ import { CloudflarePlatformError, queryD1Batch } from './cloudflare-platform.js'
 import { stableOpaqueId } from './runtime-identity.js';
 import {
   TENANT_DATA_PLANE_SCHEMA_VERSION,
-  tenantDataPlaneV1Batch
-} from './tenant-data-plane-schema.js';
+  tenantDataPlaneCurrentBatch
+} from './tenant-data-plane-schema-v2.js';
 
 const DEFAULT_DISPATCH_NAMESPACE = 'catalog-engine-production';
 const MAX_AUTOMATIC_ATTEMPTS = 6;
@@ -252,7 +252,7 @@ export async function processTenantDataPlaneMigration(
       syncStrategy: context.sync_strategy,
       removalMissThreshold: Number(context.removal_miss_threshold || 3)
     };
-    const batch = tenantDataPlaneV1Batch({ tenantId: job.tenant_id, source });
+    const batch = tenantDataPlaneCurrentBatch({ tenantId: job.tenant_id, source });
     await queryD1Batch(
       {
         ...config,
