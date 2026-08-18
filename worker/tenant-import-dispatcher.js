@@ -1,5 +1,6 @@
 import {
   assertPublicSafeImportMessage,
+  buildTenantImportFinalizeMessage,
   buildTenantImportScanMessage,
   initialTenantImportId
 } from './tenant-import-queue.js';
@@ -15,7 +16,13 @@ function boundedLimit(value) {
 }
 
 export function tenantImportQueueConfigured(env) {
-  return Boolean(env?.TENANT_IMPORT_QUEUE && typeof env.TENANT_IMPORT_QUEUE.send === 'function');
+  return Boolean(
+    env?.TENANT_IMPORT_QUEUE &&
+      typeof env.TENANT_IMPORT_QUEUE.send === 'function' &&
+      env?.TENANT_IMPORT_DETAIL_QUEUE &&
+      typeof env.TENANT_IMPORT_DETAIL_QUEUE.send === 'function' &&
+      typeof env.TENANT_IMPORT_DETAIL_QUEUE.sendBatch === 'function'
+  );
 }
 
 async function discoverImportCandidates(db, limit) {
@@ -32,7 +39,7 @@ async function discoverImportCandidates(db, limit) {
         WHERE r.current_step='import'
           AND r.status IN ('running','failed','blocked')
           AND i.status='provisioning'
-          AND i.schema_version >= 1
+          AND i.schema_version >= 2
           AND p.database_status='active'
           AND p.worker_status='active'
           AND p.d1_database_id IS NOT NULL
@@ -110,6 +117,24 @@ async function dueImportJobs(db, limit) {
   return result.results || [];
 }
 
+async function dueFinalizeJobs(db, limit) {
+  const result = await db
+    .prepare(
+      `SELECT import_id, tenant_id, source_key
+         FROM tenant_import_jobs
+        WHERE mode='initial'
+          AND status IN ('details','finalizing')
+          AND phase IN ('details','finalize')
+          AND discovered_count > 0
+          AND queued_detail_count = discovered_count
+        ORDER BY updated_at ASC
+        LIMIT ?1`
+    )
+    .bind(limit)
+    .all();
+  return result.results || [];
+}
+
 async function markQueued(db, job) {
   const statements = [
     db
@@ -161,6 +186,29 @@ async function markDispatchFailure(db, job, safeCode) {
     .run();
 }
 
+async function dispatchFinalizeMessages(env, jobs) {
+  const outcomes = [];
+  for (const job of jobs) {
+    try {
+      const message = assertPublicSafeImportMessage(
+        buildTenantImportFinalizeMessage({
+          importId: job.import_id,
+          tenantId: job.tenant_id,
+          sourceKey: job.source_key
+        })
+      );
+      await env.TENANT_IMPORT_DETAIL_QUEUE.send(message, {
+        contentType: 'json',
+        delaySeconds: 0
+      });
+      outcomes.push({ importId: job.import_id, outcome: 'queued' });
+    } catch {
+      outcomes.push({ importId: job.import_id, outcome: 'failed' });
+    }
+  }
+  return outcomes;
+}
+
 export async function runDueTenantImportDispatches(
   env,
   { limit = DEFAULT_LIMIT } = {}
@@ -197,12 +245,23 @@ export async function runDueTenantImportDispatches(
     }
   }
 
+  const finalizeDue = await dueFinalizeJobs(db, jobLimit);
+  const finalizeOutcomes = await dispatchFinalizeMessages(env, finalizeDue);
+  const scanQueued = outcomes.filter((entry) => entry.outcome === 'queued').length;
+  const finalizeQueued = finalizeOutcomes.filter((entry) => entry.outcome === 'queued').length;
+
   return {
     enabled: true,
     discovered: discovered.length,
     selected: due.length,
-    dispatched: outcomes.filter((entry) => entry.outcome === 'queued').length,
-    failed: outcomes.filter((entry) => entry.outcome === 'failed').length,
-    outcomes
+    finalizeSelected: finalizeDue.length,
+    dispatched: scanQueued + finalizeQueued,
+    scanDispatched: scanQueued,
+    finalizeDispatched: finalizeQueued,
+    failed:
+      outcomes.filter((entry) => entry.outcome === 'failed').length +
+      finalizeOutcomes.filter((entry) => entry.outcome === 'failed').length,
+    outcomes,
+    finalizeOutcomes
   };
 }
