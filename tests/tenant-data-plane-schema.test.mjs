@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   TENANT_DATA_PLANE_CURRENT_STATEMENTS,
   TENANT_DATA_PLANE_SCHEMA_VERSION,
-  TENANT_DATA_PLANE_V2_STATEMENTS,
+  TENANT_DATA_PLANE_V3_STATEMENTS,
   tenantDataPlaneCurrentBatch
-} from '../worker/tenant-data-plane-schema-v2.js';
+} from '../worker/tenant-data-plane-schema-v3.js';
 
 const tenantId = 't_0123456789abcdefabcd';
 const sourceUrl = 'https://private-supplier.x.yupoo.com/albums/';
@@ -23,9 +23,9 @@ function batch() {
 }
 
 describe('tenant data-plane schema', () => {
-  it('contains catalog/import/media structures but no SaaS control-plane tables', () => {
+  it('contains catalog/import/classification/media structures but no SaaS control-plane tables', () => {
     const sql = TENANT_DATA_PLANE_CURRENT_STATEMENTS.join('\n').toLowerCase();
-    expect(TENANT_DATA_PLANE_SCHEMA_VERSION).toBe(2);
+    expect(TENANT_DATA_PLANE_SCHEMA_VERSION).toBe(3);
     for (const required of [
       'media_sources',
       'product_media',
@@ -39,7 +39,9 @@ describe('tenant data-plane schema', () => {
       'supplier_category_index',
       'supplier_album_detail_state',
       'supplier_sync_runs',
-      'supplier_sync_events'
+      'supplier_sync_events',
+      'catalog_product_classification_state',
+      'catalog_product_classification_overrides'
     ]) {
       expect(sql).toContain(required);
     }
@@ -55,12 +57,13 @@ describe('tenant data-plane schema', () => {
     }
   });
 
-  it('adds private source taxonomy and idempotent detail state only in v2', () => {
-    const v2 = TENANT_DATA_PLANE_V2_STATEMENTS.join('\n').toLowerCase();
-    expect(v2).toContain('supplier_category_index');
-    expect(v2).toContain('supplier_album_detail_state');
-    expect(v2).toContain("'processing'");
-    expect(v2).toContain("'deferred'");
+  it('adds classifier version state and durable manual overrides in v3', () => {
+    const v3 = TENANT_DATA_PLANE_V3_STATEMENTS.join('\n').toLowerCase();
+    expect(v3).toContain('catalog_product_classification_state');
+    expect(v3).toContain('classifier_version');
+    expect(v3).toContain('override_applied');
+    expect(v3).toContain('catalog_product_classification_overrides');
+    expect(v3).toContain('override_json');
   });
 
   it('never embeds the private supplier URL into static migration SQL', () => {
@@ -72,12 +75,12 @@ describe('tenant data-plane schema', () => {
     expect(sourceInsert.params).toContain(sourceUrl);
   });
 
-  it('initializes one tenant/source then advances the identity and migration ledger to v2', () => {
+  it('initializes one tenant/source then advances identity and ledger through v3', () => {
     const migrationBatch = batch();
     const identityInsert = migrationBatch.find((query) =>
       query.sql.includes('INSERT INTO data_plane_identity')
     );
-    const identityUpdate = migrationBatch.find((query) =>
+    const identityUpdates = migrationBatch.filter((query) =>
       query.sql.includes('UPDATE data_plane_identity')
     );
     const source = migrationBatch.find((query) => query.sql.includes('INSERT INTO supplier_sources'));
@@ -86,7 +89,10 @@ describe('tenant data-plane schema', () => {
     );
 
     expect(identityInsert.params).toEqual([tenantId, 1]);
-    expect(identityUpdate.params).toEqual([tenantId, 2]);
+    expect(identityUpdates.map((query) => query.params)).toEqual([
+      [tenantId, 2],
+      [tenantId, 3]
+    ]);
     expect(source.params).toEqual([
       tenantId,
       'primary',
@@ -95,7 +101,7 @@ describe('tenant data-plane schema', () => {
       'incremental',
       3
     ]);
-    expect(ledgers.map((query) => query.params)).toEqual([[1], [2]]);
+    expect(ledgers.map((query) => query.params)).toEqual([[1], [2], [3]]);
   });
 
   it('is idempotent by construction for schema, identity, source and migration ledger writes', () => {
