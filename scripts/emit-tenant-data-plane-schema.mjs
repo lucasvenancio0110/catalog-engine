@@ -2,7 +2,7 @@ import { writeFile } from 'node:fs/promises';
 import {
   TENANT_DATA_PLANE_CURRENT_STATEMENTS,
   TENANT_DATA_PLANE_SCHEMA_VERSION
-} from '../worker/tenant-data-plane-schema-v2.js';
+} from '../worker/tenant-data-plane-schema-v3.js';
 
 const output = process.env.TENANT_DATA_PLANE_SQL_OUT || '/tmp/catalog-engine-tenant-data-plane.sql';
 const tenantId = process.env.TENANT_ID || 't_0123456789abcdefabcd';
@@ -20,13 +20,16 @@ function literal(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
 }
 
+const ledgerStatements = Array.from(
+  { length: TENANT_DATA_PLANE_SCHEMA_VERSION },
+  (_entry, index) => `INSERT OR IGNORE INTO data_plane_schema_migrations (version) VALUES (${index + 1});`
+);
 const sql = [
   'PRAGMA foreign_keys = ON;',
   ...TENANT_DATA_PLANE_CURRENT_STATEMENTS.map((statement) => `${statement};`),
   `INSERT INTO data_plane_identity (tenant_id, schema_version) VALUES (${literal(tenantId)}, ${TENANT_DATA_PLANE_SCHEMA_VERSION}) ON CONFLICT(tenant_id) DO UPDATE SET schema_version=excluded.schema_version, updated_at=CURRENT_TIMESTAMP;`,
   `INSERT INTO supplier_sources (tenant_id, source_key, provider, source_url, status, sync_strategy, removal_miss_threshold) VALUES (${literal(tenantId)}, 'primary', 'yupoo', ${literal(sourceUrl)}, 'active', 'incremental', 3) ON CONFLICT(tenant_id, source_key) DO UPDATE SET source_url=excluded.source_url, status='active', updated_at=CURRENT_TIMESTAMP;`,
-  `INSERT OR IGNORE INTO data_plane_schema_migrations (version) VALUES (1);`,
-  `INSERT OR IGNORE INTO data_plane_schema_migrations (version) VALUES (${TENANT_DATA_PLANE_SCHEMA_VERSION});`
+  ...ledgerStatements
 ].join('\n');
 
 await writeFile(output, `${sql}\n`, 'utf8');
