@@ -84,26 +84,55 @@ Themes are controlled presets. Customers can select and configure supported comp
 
 ## Authentication and authorization
 
-Authentication is deliberately not implemented in the catalog Worker yet.
+The Worker now contains a provider-neutral authenticated control-plane boundary under `/api/admin/*`.
 
-When the admin application is added:
+Authentication uses standards-compatible OIDC/JWT inputs and is deliberately fail-closed. The runtime requires:
 
-- identity must come from an external/authentication layer;
-- Catalog Engine stores an opaque `principal_id`, not passwords;
-- every admin operation resolves membership for the current tenant;
-- mutations require role checks;
-- sensitive mutations create an audit entry;
-- there are no unauthenticated public admin write endpoints.
+- `ADMIN_AUTH_ISSUER`;
+- `ADMIN_AUTH_AUDIENCE`;
+- `ADMIN_AUTH_JWKS_URL`.
+
+Only signed `RS256` bearer tokens from the configured issuer/JWKS are accepted. When those settings are absent or invalid, the admin API does not fall back to a development identity: it remains unavailable.
+
+The external identity provider owns login, password/MFA and account recovery. Catalog Engine stores only an opaque principal derived from the external issuer + subject.
+
+Authorization rules:
+
+- every tenant read resolves an active membership;
+- cross-tenant lookups return `store_not_found` rather than disclosing another tenant;
+- tenant mutations require `owner` or `admin`;
+- sensitive mutations write audit events;
+- admin responses use `no-store`;
+- supplier URLs and private locator references are never returned by the admin/public API.
+
+Implemented control-plane routes:
+
+- `GET /api/admin/session` — authenticated principal plus stores the principal can access;
+- `GET /api/admin/stores` — tenant list scoped by membership;
+- `POST /api/admin/stores` — idempotent merchant/store creation;
+- `GET /api/admin/stores/:tenantId/onboarding` — durable onboarding/provisioning status;
+- `POST /api/admin/stores/:tenantId/source` — owner/admin supplier connection.
+
+Production identity-provider values are intentionally not hard-coded in the repository. Configuring a real provider is a deployment decision before exposing the merchant admin UI.
 
 ## Provisioning lifecycle
 
 Provisioning is modeled as a durable, idempotent state machine:
 
-`tenant -> profile -> domain -> data plane -> source -> migrations -> import -> classify -> verify -> publish`
+`tenant -> profile -> source -> data plane -> migrations -> import -> classify -> verify/private preview -> customer domain -> publish`
 
-`tenant_provisioning_runs` stores the current checkpoint and overall state. `tenant_provisioning_steps` stores each step independently so a future background workflow can resume from the last safe checkpoint instead of starting the supplier import from zero.
+`tenant_provisioning_runs` stores the current checkpoint and overall state. `tenant_provisioning_steps` stores each step independently so a background workflow can resume from the last safe checkpoint instead of starting the supplier import from zero.
 
 The provisioning planner uses stable opaque identities for the same owner/store request. Retrying the same request therefore targets the same tenant, data-plane locator, membership, domain and provisioning run instead of silently creating duplicates.
+
+The admin store-creation endpoint persists `tenant` and `profile` as completed checkpoints because those records are created transactionally by that request. The next customer-visible onboarding checkpoint becomes `source`.
+
+The onboarding executor already enforces the resume rules:
+
+- successful checkpoints are not replayed;
+- a failed checkpoint resumes at that checkpoint;
+- after a healthy storefront verification the store can remain privately previewable while waiting for its custom domain;
+- publication is impossible until the custom domain is active and storefront verification succeeded.
 
 Suggested states for the customer UI:
 
@@ -113,11 +142,13 @@ Suggested states for the customer UI:
 - `published` — customer domain is verified and the storefront is public;
 - `suspended` — intentionally unavailable.
 
-Public publication requires a verified customer-owned domain, healthy routing/HTTPS and a successful storefront verification. Before that point the merchant reviews the store through a private preview in the admin experience.
-
 ## Supplier connections
 
-Control-plane supplier connections store a private locator reference rather than putting the raw supplier URL into public configuration or logs. The future authenticated onboarding API will validate the pasted supplier URL, write the private source locator, and then advance the `source` provisioning step.
+The authenticated source endpoint accepts a supported Yupoo URL, validates the provider/scope, performs bounded reachability checks and persists the real source URL only in private D1 state.
+
+Provider redirects are constrained to approved Yupoo hosts. A source that already owns imported albums cannot be silently replaced by a different supplier; changing it later requires an explicit reset/migration workflow.
+
+Public/admin source summaries contain safe fields such as provider, source key, status, sync strategy and health timestamps, but never the raw source URL or private locator reference.
 
 The tenant data plane continues to own the detailed supplier index, fingerprints, delta events and media source registry.
 
@@ -166,16 +197,20 @@ If the customer has not connected a domain yet, the store can be `ready` and pri
 
 ## Current scale checkpoint
 
-The repository now has a repeatable provisioning plan and a CI proof that two independent stores can coexist in the control plane with:
+The repository now proves all of the following in CI:
 
-- different tenant identities;
-- different data-plane locators;
-- different host/domain records;
-- different owner memberships;
-- separate durable provisioning runs;
-- no duplicate tenant/provisioning records when the first request is retried.
+- two independent tenant identities and memberships can coexist;
+- tenant/data-plane identities are deterministic and idempotent;
+- separate private supplier connections do not leak raw URLs into summaries/audit metadata;
+- the Worker-safe planner generates exactly the same durable IDs as the Node provisioning planner;
+- signed JWTs are validated for signature, issuer/audience and expiry;
+- missing authentication configuration fails closed;
+- provider redirects cannot escape the Yupoo host boundary;
+- source changes are guarded once imported albums exist;
+- the onboarding executor resumes from durable checkpoints;
+- all D1 migrations apply cleanly to a fresh database.
 
-This proof is intentionally performed against a clean temporary database. It does not create fake customer stores in production.
+These proofs run against test/temporary state. They do not create fake customer stores in production.
 
 ## Scale checkpoints
 
@@ -185,7 +220,7 @@ Validate onboarding and sales with a small number of stores while each store has
 
 ### Phase 2 — automated provisioning
 
-Create the authenticated control-plane API, background provisioning workflow, source job queue, custom-domain setup and customer admin app.
+Connect the authenticated control-plane API to background provisioning handlers, automate customer-domain activation and build the merchant admin app.
 
 ### Phase 3 — shared SaaS operations
 
