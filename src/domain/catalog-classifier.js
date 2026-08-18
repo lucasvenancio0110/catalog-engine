@@ -73,16 +73,20 @@ export function classifyCatalogRecord(product, categoryPathNames = [], overrideV
     };
   }
 
-  const team = Object.hasOwn(override, 'teamId')
+  const teamOverridden = Object.hasOwn(override, 'teamId');
+  const leagueOverridden = Object.hasOwn(override, 'leagueId');
+  const team = teamOverridden
     ? override.teamId
       ? teamById.get(override.teamId)
       : null
     : base.team;
-  const league = Object.hasOwn(override, 'leagueId')
+  const league = leagueOverridden
     ? override.leagueId
       ? leagueById.get(override.leagueId)
       : null
-    : base.league;
+    : teamOverridden && team?.leagueId
+      ? leagueById.get(team.leagueId) || base.league
+      : base.league;
   const facets = override.facetIds
     ? override.facetIds.map((id) => facetById.get(id))
     : base.facets;
