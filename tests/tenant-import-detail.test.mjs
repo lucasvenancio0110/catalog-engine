@@ -11,13 +11,6 @@ const importId = 'imp_0123456789abcdefabcd';
 const source = 'https://supplier.x.yupoo.com/albums/';
 const album = 'https://supplier.x.yupoo.com/albums/123?uid=1';
 
-function htmlResponse(html, status = 200, headers = {}) {
-  return new Response(html, {
-    status,
-    headers: { 'content-type': 'text/html; charset=utf-8', ...headers }
-  });
-}
-
 describe('Worker-safe tenant detail ingestion', () => {
   it('sanitizes public text and selects private Yupoo media variants deterministically', async () => {
     const detail = await parseYupooAlbumHtml(
