@@ -2,19 +2,9 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { normalizeTenantProvisionRequest } from './tenant-config.js';
 import { buildTenantCustomDomain } from './tenant-domain.js';
+import { TENANT_PROVISION_STEPS } from './tenant-provisioning-steps.js';
 
-export const TENANT_PROVISION_STEPS = [
-  'tenant',
-  'profile',
-  'source',
-  'data_plane',
-  'migrations',
-  'import',
-  'classify',
-  'verify',
-  'domain',
-  'publish'
-];
+export { TENANT_PROVISION_STEPS };
 
 const principalIdSchema = z.string().trim().min(3).max(160).nullable().default(null);
 const customDomainSchema = z.string().trim().min(3).max(253).nullable().default(null);
