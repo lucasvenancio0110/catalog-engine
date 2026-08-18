@@ -13,7 +13,7 @@ export function buildTenantSourceConnectionSql(plan, { provisioningId = null } =
   if (provisioningId) {
     statements.push(
       `UPDATE tenant_provisioning_steps SET status='success', attempt_count=CASE WHEN attempt_count < 1 THEN 1 ELSE attempt_count END, started_at=COALESCE(started_at, CURRENT_TIMESTAMP), finished_at=CURRENT_TIMESTAMP, last_error=NULL, metadata_json=${sqlString(JSON.stringify({ provider: connection.provider, sourceKey: connection.sourceKey, scopeKind: privateSource.scopeKind }))}, updated_at=CURRENT_TIMESTAMP WHERE provisioning_id=${sqlString(provisioningId)} AND step_key='source' AND provisioning_id IN (SELECT provisioning_id FROM tenant_provisioning_runs WHERE tenant_id=${sqlString(connection.tenantId)});`,
-      `UPDATE tenant_provisioning_runs SET status='running', current_step='data_plane', started_at=COALESCE(started_at, CURRENT_TIMESTAMP), last_error=NULL, updated_at=CURRENT_TIMESTAMP WHERE provisioning_id=${sqlString(provisioningId)} AND tenant_id=${sqlString(connection.tenantId)};`
+      `UPDATE tenant_provisioning_runs SET status='running', current_step='import', started_at=COALESCE(started_at, CURRENT_TIMESTAMP), last_error=NULL, updated_at=CURRENT_TIMESTAMP WHERE provisioning_id=${sqlString(provisioningId)} AND tenant_id=${sqlString(connection.tenantId)};`
     );
   }
 
