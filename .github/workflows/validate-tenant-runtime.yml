@@ -1,0 +1,73 @@
+name: Validate tenant runtime isolation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'migrations/0015_tenant_runtime_activation.sql'
+      - 'worker/tenant-catalog-runtime.js'
+      - 'worker/tenant-dispatch.js'
+      - 'worker/tenant-runtime-runner.js'
+      - 'worker/tenant-publish-gate.js'
+      - 'worker/tenant-routing.js'
+      - 'worker/domain-provider-runner.js'
+      - 'worker/cloudflare-platform.js'
+      - 'worker/entry.js'
+      - 'tests/tenant-runtime-*.test.mjs'
+      - 'tests/tenant-routing-dispatch.test.mjs'
+      - 'tests/tenant-publish-gate.test.mjs'
+      - '.github/workflows/validate-tenant-runtime.yml'
+      - 'wrangler.jsonc'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Quality gate
+        run: npm run quality
+
+      - name: Apply control-plane migrations and verify runtime state
+        shell: bash
+        run: |
+          set -euo pipefail
+          DB=/tmp/catalog-engine-runtime-control.sqlite
+          rm -f "$DB"
+          for migration in migrations/*.sql; do
+            sqlite3 "$DB" < "$migration"
+          done
+          sqlite3 "$DB" 'PRAGMA foreign_key_check;'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM pragma_table_info('tenant_data_plane_provider_state') WHERE name IN ('runtime_kind','runtime_status','runtime_version','runtime_verified_at','runtime_last_error_code');")" = '5'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='tenant_runtime_jobs';")" = '1'
+
+      - name: Prove production dispatch binding is still not activated by configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Eq 'TENANT_DISPATCH|dispatch_namespace' wrangler.jsonc; then
+            echo 'Runtime dispatch binding must remain an explicit later activation step.' >&2
+            exit 1
+          fi
+
+      - name: Run focused isolation tests
+        run: >-
+          npx vitest run
+          tests/tenant-runtime-dispatch.test.mjs
+          tests/tenant-runtime-runner.test.mjs
+          tests/tenant-routing-dispatch.test.mjs
+          tests/tenant-publish-gate.test.mjs

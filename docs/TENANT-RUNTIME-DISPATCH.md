@@ -1,0 +1,47 @@
+# Tenant runtime staging and dispatch
+
+After import, classification and verification, Catalog Engine still does not publish a merchant directly. The verified tenant D1 must first receive the full catalog runtime and pass a dispatch smoke test.
+
+## Runtime lifecycle
+
+`tenant_data_plane_provider_state` distinguishes the original bootstrap Worker from the full catalog runtime through `runtime_kind`, `runtime_status`, `runtime_version` and `runtime_verified_at`. `tenant_runtime_jobs` makes staging/retry state durable.
+
+The runtime runner discovers only tenants whose onboarding is already at `domain` and whose catalog verification job succeeded. It writes only public storefront profile metadata into the isolated D1, uploads the full tenant catalog Worker over the existing deterministic Workers for Platforms script name, and records it as `staged`.
+
+A staged Worker is **not routable to customers**. It becomes `verified` only after the platform can resolve that exact script through the dispatch binding and successfully smoke-test both `/api/health` and `/api/catalog/meta` with a non-empty catalog.
+
+## Tenant Worker boundary
+
+The full tenant Worker is self-contained and receives only:
+
+- that tenant's `CATALOG_DB` binding;
+- opaque `TENANT_ID`;
+- runtime version metadata.
+
+It exposes catalog/meta/category/team/league/facet/product APIs and the tenant media proxy. It does not expose admin, memberships, domains, audit logs, provisioning jobs or control-plane APIs. Static HTML/CSS/JS remain shared platform assets.
+
+Media source URLs stay private in the tenant D1. The runtime validates image upstreams as HTTPS `photo.yupoo.com` and never returns those source URLs to storefront JSON.
+
+## Dispatch safety
+
+`worker/tenant-dispatch.js` is the only module that knows the dispatch-binding contract. The platform router never accepts a script name from a client. It resolves the merchant hostname through the control plane and allows tenant dispatch only when:
+
+- custom domain is active;
+- store is published;
+- logical catalog instance is ready;
+- physical worker is active;
+- runtime kind is `catalog`;
+- runtime status is `verified`;
+- a controlled script name exists.
+
+API/media traffic is then sent only to that resolved tenant script. Static assets remain on the platform Worker. An unbound/missing dispatch namespace fails with a 503 and never falls through to tenant #0001.
+
+## Publish gate
+
+Custom-domain SSL readiness alone can no longer advance onboarding to `publish`. `tenant-publish-gate.js` requires **both** an active provider/SSL custom domain and a verified full tenant runtime. Whichever prerequisite completes last re-evaluates the shared gate.
+
+The final publish action remains a separate milestone. This runtime work does not mark a merchant profile published or a catalog instance ready automatically.
+
+## Production activation boundary
+
+This branch intentionally does not add a real `TENANT_DISPATCH` binding to `wrangler.jsonc`. CI explicitly fails if that binding appears before the isolated runtime path is reviewed. Dedicated Workers for Platforms credentials and the dispatch binding should be activated only when a real Cloudflare namespace is ready for an isolated two-tenant smoke test.
