@@ -1,3 +1,8 @@
+import {
+  TENANT_CATALOG_RUNTIME_VERSION,
+  tenantCatalogWorkerSource
+} from './tenant-catalog-runtime.js';
+
 const API_ORIGIN = 'https://api.cloudflare.com';
 const ACCOUNT_ID_PATTERN = /^[a-f0-9]{32}$/i;
 const RESOURCE_NAME_PATTERN = /^[a-z0-9][a-z0-9_-]{1,62}$/i;
@@ -45,6 +50,14 @@ function safeDatabaseId(value) {
     throw new CloudflarePlatformError('invalid_tenant_database_id', 500);
   }
   return normalized;
+}
+
+function safeTenantId(value) {
+  const tenantId = String(value || '').trim();
+  if (!/^t_[a-f0-9]{20}$/.test(tenantId)) {
+    throw new CloudflarePlatformError('invalid_tenant_id', 500);
+  }
+  return tenantId;
 }
 
 async function apiRequest(
@@ -207,7 +220,7 @@ export function tenantBootstrapWorkerSource() {
 };\n`;
 }
 
-export async function uploadTenantBootstrapWorker(
+async function uploadTenantWorker(
   {
     accountId,
     apiToken,
@@ -215,6 +228,8 @@ export async function uploadTenantBootstrapWorker(
     scriptName,
     databaseId,
     tenantId,
+    source,
+    runtimeVersion = 0,
     compatibilityDate = '2026-08-17'
   },
   { fetchImpl = fetch } = {}
@@ -222,8 +237,10 @@ export async function uploadTenantBootstrapWorker(
   const config = platformConfig({ accountId, apiToken, dispatchNamespace });
   const script = safeResourceName(scriptName, 'invalid_tenant_worker_name');
   const database = safeDatabaseId(databaseId);
-  if (!/^t_[a-f0-9]{20}$/.test(String(tenantId || ''))) {
-    throw new CloudflarePlatformError('invalid_tenant_id', 500);
+  const tenant = safeTenantId(tenantId);
+  const workerSource = String(source || '');
+  if (!workerSource || workerSource.length > 1_500_000) {
+    throw new CloudflarePlatformError('invalid_tenant_worker_source', 500);
   }
 
   const metadata = {
@@ -231,12 +248,13 @@ export async function uploadTenantBootstrapWorker(
     compatibility_date: compatibilityDate,
     bindings: [
       { type: 'd1', name: 'CATALOG_DB', database_id: database },
-      { type: 'plain_text', name: 'TENANT_ID', text: tenantId }
+      { type: 'plain_text', name: 'TENANT_ID', text: tenant },
+      { type: 'plain_text', name: 'TENANT_RUNTIME_VERSION', text: String(runtimeVersion) }
     ]
   };
   const form = new FormData();
   form.set('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-  form.set('worker.js', new Blob([tenantBootstrapWorkerSource()], { type: 'application/javascript+module' }), 'worker.js');
+  form.set('worker.js', new Blob([workerSource], { type: 'application/javascript+module' }), 'worker.js');
 
   const result = await apiRequest(
     `/client/v4/accounts/${config.accountId}/workers/dispatch/namespaces/${encodeURIComponent(config.dispatchNamespace)}/scripts/${encodeURIComponent(script)}`,
@@ -244,7 +262,30 @@ export async function uploadTenantBootstrapWorker(
   );
   return {
     scriptName: script,
+    runtimeVersion,
     startupTimeMs: Number(result?.startup_time_ms || 0),
     versionId: result?.version_id || result?.etag || null
   };
+}
+
+export async function uploadTenantBootstrapWorker(input, options = {}) {
+  return uploadTenantWorker(
+    {
+      ...input,
+      source: tenantBootstrapWorkerSource(),
+      runtimeVersion: 0
+    },
+    options
+  );
+}
+
+export async function uploadTenantCatalogWorker(input, options = {}) {
+  return uploadTenantWorker(
+    {
+      ...input,
+      source: tenantCatalogWorkerSource(),
+      runtimeVersion: TENANT_CATALOG_RUNTIME_VERSION
+    },
+    options
+  );
 }
