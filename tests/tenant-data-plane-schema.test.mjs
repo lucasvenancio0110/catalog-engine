@@ -65,7 +65,9 @@ describe('tenant data-plane schema', () => {
     const migrationBatch = batch();
     const identity = migrationBatch.find((query) => query.sql.includes('INSERT INTO data_plane_identity'));
     const source = migrationBatch.find((query) => query.sql.includes('INSERT INTO supplier_sources'));
-    const ledger = migrationBatch.find((query) => query.sql.includes('data_plane_schema_migrations'));
+    const ledger = migrationBatch.find((query) =>
+      query.sql.includes('INSERT OR IGNORE INTO data_plane_schema_migrations')
+    );
 
     expect(identity.params).toEqual([tenantId, 1]);
     expect(source.params).toEqual([
