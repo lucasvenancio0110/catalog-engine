@@ -35,11 +35,12 @@ export function normalizeYupooCatalogUrl(value) {
   if (url.protocol !== 'https:') {
     throw new Error('A fonte Yupoo precisa usar HTTPS.');
   }
-  if (url.username || url.password || url.port || url.hash) {
+  if (url.username || url.password || url.port) {
     throw new Error('A URL do fornecedor contém componentes não permitidos.');
   }
 
   url.hostname = url.hostname.toLowerCase();
+  url.hash = '';
   if (!yupooHostnamePattern.test(url.hostname)) {
     throw new Error('A fonte precisa ser um catálogo público do Yupoo (*.x.yupoo.com).');
   }
