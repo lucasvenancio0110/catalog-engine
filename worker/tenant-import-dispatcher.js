@@ -91,10 +91,26 @@ async function discoverImportCandidates(db, limit) {
   return created;
 }
 
+async function reclaimStaleScans(db) {
+  await db
+    .prepare(
+      `UPDATE tenant_import_jobs
+          SET status='failed', next_attempt_at=CURRENT_TIMESTAMP,
+              scan_lease_until=NULL, last_error_code='tenant_import_scan_lease_reclaimed',
+              updated_at=CURRENT_TIMESTAMP
+        WHERE mode='initial'
+          AND status='scanning'
+          AND phase IN ('scan','details')
+          AND scan_lease_until IS NOT NULL
+          AND scan_lease_until <= CURRENT_TIMESTAMP`
+    )
+    .run();
+}
+
 async function dueImportJobs(db, limit) {
   const result = await db
     .prepare(
-      `SELECT j.import_id, j.tenant_id, j.source_key, j.attempt_count,
+      `SELECT j.import_id, j.tenant_id, j.source_key, j.attempt_count, j.phase,
               r.provisioning_id
          FROM tenant_import_jobs j
          LEFT JOIN tenant_provisioning_runs r ON r.provisioning_id=(
@@ -105,10 +121,13 @@ async function dueImportJobs(db, limit) {
             LIMIT 1
          )
         WHERE j.mode='initial'
-          AND j.phase='scan'
-          AND j.status IN ('pending','failed')
           AND j.attempt_count < ?1
           AND (j.next_attempt_at IS NULL OR j.next_attempt_at <= CURRENT_TIMESTAMP)
+          AND (
+            (j.phase='scan' AND j.status IN ('pending','failed')) OR
+            (j.phase='details' AND j.status='failed'
+              AND j.detail_enqueue_cursor < j.discovered_count)
+          )
         ORDER BY j.created_at ASC
         LIMIT ?2`
     )
@@ -140,7 +159,7 @@ async function markQueued(db, job) {
     db
       .prepare(
         `UPDATE tenant_import_jobs
-            SET status='queued', phase='scan', attempt_count=attempt_count+1,
+            SET status='queued', attempt_count=attempt_count+1,
                 started_at=COALESCE(started_at,CURRENT_TIMESTAMP),
                 next_attempt_at=NULL, last_error_code=NULL, updated_at=CURRENT_TIMESTAMP
           WHERE import_id=?1 AND tenant_id=?2 AND status IN ('pending','failed')`
@@ -177,7 +196,7 @@ async function markDispatchFailure(db, job, safeCode) {
   await db
     .prepare(
       `UPDATE tenant_import_jobs
-          SET status='failed', phase='scan', attempt_count=attempt_count+1,
+          SET status='failed', attempt_count=attempt_count+1,
               next_attempt_at=datetime(CURRENT_TIMESTAMP,'+10 minutes'),
               last_error_code=?2, updated_at=CURRENT_TIMESTAMP
         WHERE import_id=?1 AND tenant_id=?3 AND status IN ('pending','failed')`
@@ -220,6 +239,7 @@ export async function runDueTenantImportDispatches(
 
   const db = env.CATALOG_DB;
   const jobLimit = boundedLimit(limit);
+  await reclaimStaleScans(db);
   const discovered = await discoverImportCandidates(db, jobLimit);
   const due = await dueImportJobs(db, jobLimit);
   const outcomes = [];
@@ -238,10 +258,10 @@ export async function runDueTenantImportDispatches(
         delaySeconds: 0
       });
       await markQueued(db, job);
-      outcomes.push({ importId: job.import_id, outcome: 'queued' });
+      outcomes.push({ importId: job.import_id, phase: job.phase, outcome: 'queued' });
     } catch {
       await markDispatchFailure(db, job, 'tenant_import_queue_send_failed');
-      outcomes.push({ importId: job.import_id, outcome: 'failed' });
+      outcomes.push({ importId: job.import_id, phase: job.phase, outcome: 'failed' });
     }
   }
 
