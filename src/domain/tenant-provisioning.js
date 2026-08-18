@@ -1,28 +1,23 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { normalizeTenantProvisionRequest } from './tenant-config.js';
+import { buildTenantCustomDomain } from './tenant-domain.js';
 
 export const TENANT_PROVISION_STEPS = [
   'tenant',
   'profile',
-  'domain',
-  'data_plane',
   'source',
+  'data_plane',
   'migrations',
   'import',
   'classify',
   'verify',
+  'domain',
   'publish'
 ];
 
 const principalIdSchema = z.string().trim().min(3).max(160).nullable().default(null);
-const platformBaseDomainSchema = z
-  .string()
-  .trim()
-  .toLowerCase()
-  .regex(/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/)
-  .nullable()
-  .default(null);
+const customDomainSchema = z.string().trim().min(3).max(253).nullable().default(null);
 
 const provisioningInputSchema = z.object({
   storeName: z.string(),
@@ -30,7 +25,7 @@ const provisioningInputSchema = z.object({
   themeKey: z.string().optional(),
   currency: z.string().optional(),
   ownerPrincipalId: principalIdSchema,
-  platformBaseDomain: platformBaseDomainSchema
+  customDomain: customDomainSchema
 });
 
 function hashHex(value) {
@@ -68,11 +63,12 @@ export function buildTenantProvisioningPlan(input) {
   const membershipId = raw.ownerPrincipalId
     ? stableOpaqueId('mem', `${tenantId}:${raw.ownerPrincipalId}`)
     : null;
-  const hostname = raw.platformBaseDomain ? `${store.slug}.${raw.platformBaseDomain}` : null;
-  const domainId = hostname ? stableOpaqueId('dom', `${tenantId}:${hostname}`) : null;
+  const domain = raw.customDomain
+    ? buildTenantCustomDomain({ tenantId, hostname: raw.customDomain })
+    : null;
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     tenant: {
       tenantId,
       slug: store.slug,
@@ -92,15 +88,7 @@ export function buildTenantProvisioningPlan(input) {
       status: 'provisioning',
       schemaVersion: 0
     },
-    domain: hostname
-      ? {
-          domainId,
-          tenantId,
-          hostname,
-          domainType: 'platform_subdomain',
-          status: 'pending'
-        }
-      : null,
+    domain,
     membership: raw.ownerPrincipalId
       ? {
           membershipId,
@@ -135,6 +123,7 @@ export function publicProvisioningSummary(plan) {
     currency: plan.profile.currency,
     dataPlaneKey: plan.dataPlane.dataPlaneKey,
     hostname: plan.domain?.hostname || null,
+    domainType: plan.domain?.domainType || null,
     provisioningId: plan.provisioning.provisioningId,
     status: plan.provisioning.status,
     currentStep: plan.provisioning.currentStep,

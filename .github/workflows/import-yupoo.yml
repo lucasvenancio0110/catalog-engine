@@ -3,11 +3,6 @@ name: Manual full Yupoo recovery
 on:
   workflow_dispatch:
     inputs:
-      source_url:
-        description: "Yupoo catalog source (/albums/)"
-        required: true
-        default: "https://zhouchangliang.x.yupoo.com/albums/"
-        type: string
       max_products:
         description: "0 imports the complete catalog; use a positive number only for controlled testing"
         required: true
@@ -28,7 +23,8 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      SOURCE_URL: ${{ inputs.source_url || 'https://zhouchangliang.x.yupoo.com/albums/' }}
+      TENANT_ID: t_00000000000000000001
+      SOURCE_KEY: primary
       MAX_PRODUCTS: ${{ inputs.max_products || '0' }}
       MAX_ROOT_PAGES: "500"
       MAX_CATEGORY_PAGES: "500"
@@ -64,6 +60,14 @@ jobs:
 
       - name: Apply D1 migrations
         run: npx --yes "wrangler@$WRANGLER_VERSION" d1 migrations apply CATALOG_DB --remote --config wrangler.jsonc
+
+      - name: Load supplier source from private tenant configuration
+        shell: bash
+        run: |
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --json \
+            --command="SELECT source_url FROM supplier_sources WHERE tenant_id='$TENANT_ID' AND source_key='$SOURCE_KEY' AND status IN ('active','error') LIMIT 1;" \
+            > /tmp/catalog-engine-private-source.json
+          node scripts/load-private-source-config.mjs /tmp/catalog-engine-private-source.json
 
       - name: Discover all products and map source categories
         run: |

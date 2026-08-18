@@ -8,6 +8,9 @@ on:
       - 'src/domain/tenant-*.js'
       - 'scripts/provision-tenant-plan.mjs'
       - 'scripts/tenant-provisioning-core.mjs'
+      - 'scripts/connect-tenant-source.mjs'
+      - 'scripts/tenant-source-connection-core.mjs'
+      - 'scripts/yupoo-source-resolver.mjs'
       - 'tests/tenant-*.test.mjs'
       - 'package.json'
       - '.github/workflows/validate-tenant-provisioning.yml'
@@ -56,7 +59,7 @@ jobs:
           STORE_NAME='Loja Arena' \
           STORE_SLUG='loja-arena' \
           OWNER_PRINCIPAL_ID='principal:arena-owner' \
-          PLATFORM_BASE_DOMAIN='shops.example.com' \
+          CUSTOM_DOMAIN='www.lojaarena.com.br' \
           THEME_KEY='stadium' \
           TENANT_PROVISION_SQL_OUT=/tmp/arena.sql \
           TENANT_PROVISION_PLAN_OUT=/tmp/arena.json \
@@ -67,14 +70,43 @@ jobs:
           STORE_NAME='Loja do Gol' \
           STORE_SLUG='loja-do-gol' \
           OWNER_PRINCIPAL_ID='principal:gol-owner' \
-          PLATFORM_BASE_DOMAIN='shops.example.com' \
+          CUSTOM_DOMAIN='lojodogol.com.br' \
           THEME_KEY='clean' \
           TENANT_PROVISION_SQL_OUT=/tmp/gol.sql \
           TENANT_PROVISION_PLAN_OUT=/tmp/gol.json \
           npm run tenant:plan
           sqlite3 "$DB" < /tmp/gol.sql
 
-      - name: Assert multi-tenant isolation and idempotency
+      - name: Connect separate private supplier sources and retry first connection
+        shell: bash
+        run: |
+          set -euo pipefail
+          DB=/tmp/catalog-control-plane.db
+          ARENA_TENANT_ID="$(node -p "JSON.parse(require('fs').readFileSync('/tmp/arena.json','utf8')).tenantId")"
+          ARENA_PROVISIONING_ID="$(node -p "JSON.parse(require('fs').readFileSync('/tmp/arena.json','utf8')).provisioningId")"
+          GOL_TENANT_ID="$(node -p "JSON.parse(require('fs').readFileSync('/tmp/gol.json','utf8')).tenantId")"
+          GOL_PROVISIONING_ID="$(node -p "JSON.parse(require('fs').readFileSync('/tmp/gol.json','utf8')).provisioningId")"
+
+          TENANT_ID="$ARENA_TENANT_ID" \
+          PROVISIONING_ID="$ARENA_PROVISIONING_ID" \
+          SOURCE_URL='https://supplier-a.x.yupoo.com/albums/' \
+          SOURCE_VALIDATE_NETWORK=0 \
+          TENANT_SOURCE_SQL_OUT=/tmp/arena-source.sql \
+          TENANT_SOURCE_SUMMARY_OUT=/tmp/arena-source.json \
+          npm run tenant:source:connect
+          sqlite3 "$DB" < /tmp/arena-source.sql
+          sqlite3 "$DB" < /tmp/arena-source.sql
+
+          TENANT_ID="$GOL_TENANT_ID" \
+          PROVISIONING_ID="$GOL_PROVISIONING_ID" \
+          SOURCE_URL='https://supplier-b.x.yupoo.com/albums/' \
+          SOURCE_VALIDATE_NETWORK=0 \
+          TENANT_SOURCE_SQL_OUT=/tmp/gol-source.sql \
+          TENANT_SOURCE_SUMMARY_OUT=/tmp/gol-source.json \
+          npm run tenant:source:connect
+          sqlite3 "$DB" < /tmp/gol-source.sql
+
+      - name: Assert multi-tenant isolation idempotency and private source state
         shell: bash
         run: |
           set -euo pipefail
@@ -82,11 +114,25 @@ jobs:
 
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM catalog_tenants WHERE slug IN ('loja-arena','loja-do-gol');")" = '2'
           test "$(sqlite3 "$DB" "SELECT COUNT(DISTINCT data_plane_key) FROM tenant_catalog_instances i JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol');")" = '2'
-          test "$(sqlite3 "$DB" "SELECT COUNT(DISTINCT hostname) FROM tenant_domains d JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol');")" = '2'
+          test "$(sqlite3 "$DB" "SELECT COUNT(DISTINCT hostname) FROM tenant_domains d JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol') AND d.domain_type='custom';")" = '2'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_provisioning_runs r JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol');")" = '2'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_provisioning_steps s JOIN tenant_provisioning_runs r USING (provisioning_id) JOIN catalog_tenants t ON t.tenant_id=r.tenant_id WHERE t.slug IN ('loja-arena','loja-do-gol');")" = '20'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_memberships m JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol') AND m.role='owner';")" = '2'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_source_connections c JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol') AND c.status='active';")" = '2'
+          test "$(sqlite3 "$DB" "SELECT COUNT(DISTINCT source_url) FROM supplier_sources s JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol');")" = '2'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_provisioning_steps s JOIN tenant_provisioning_runs r USING (provisioning_id) JOIN catalog_tenants t ON t.tenant_id=r.tenant_id WHERE t.slug IN ('loja-arena','loja-do-gol') AND s.step_key='source' AND s.status='success';")" = '2'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_provisioning_runs r JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol') AND r.current_step='data_plane';")" = '2'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_audit_log a JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol') AND a.action='tenant.provision.requested';")" = '2'
-          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_source_connections c JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol');")" = '0'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_audit_log a JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol') AND a.action='tenant.source.connected' AND metadata_json LIKE '%x.yupoo.com%';")" = '0'
 
-          echo 'Two-store provisioning isolation verified.'
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          for (const file of ['/tmp/arena-source.json', '/tmp/gol-source.json']) {
+            const text = fs.readFileSync(file, 'utf8');
+            if (/x\.yupoo\.com|sourceLocatorRef|canonicalUrl/i.test(text)) {
+              throw new Error(`Private source state leaked into ${file}`);
+            }
+          }
+          NODE
+
+          echo 'Two-store custom-domain + private-source onboarding isolation verified.'
