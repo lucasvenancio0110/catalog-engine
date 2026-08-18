@@ -9,18 +9,21 @@ import {
 export const CATALOG_CLASSIFIER_VERSION = 1;
 export const CATALOG_CLASSIFIER_KEY = 'professional-v1';
 
-const safePublicLabel = z
-  .string()
-  .trim()
-  .min(1)
-  .max(240)
-  .refine((value) => !/https?:\/\/|x\.yupoo\.com|photo\.yupoo\.com/i.test(value), {
-    message: 'classification_override_public_label_unsafe'
-  });
+function safePublicLabel(maxLength) {
+  return z
+    .string()
+    .trim()
+    .min(1)
+    .max(maxLength)
+    .refine((value) => !/https?:\/\/|x\.yupoo\.com|photo\.yupoo\.com/i.test(value), {
+      message: 'classification_override_public_label_unsafe'
+    });
+}
+
 const overrideSchema = z
   .object({
-    displayName: safePublicLabel.optional(),
-    displayCategoryName: safePublicLabel.max(160).optional(),
+    displayName: safePublicLabel(240).optional(),
+    displayCategoryName: safePublicLabel(160).optional(),
     teamId: z.string().trim().min(1).max(80).nullable().optional(),
     leagueId: z.string().trim().min(1).max(80).nullable().optional(),
     facetIds: z.array(z.string().trim().min(1).max(80)).max(24).optional(),
@@ -34,7 +37,7 @@ const leagueById = new Map(LEAGUES.map((entry) => [entry.id, entry]));
 const facetById = new Map(FACETS.map((entry) => [entry.id, entry]));
 
 function normalizedSearchText(parts) {
-  return [...new Set(parts.flatMap((value) => (Array.isArray(value) ? value : [value]))) ]
+  return [...new Set(parts.flatMap((value) => (Array.isArray(value) ? value : [value])))]
     .filter(Boolean)
     .join(' ')
     .normalize('NFD')
