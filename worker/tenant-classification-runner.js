@@ -10,6 +10,7 @@ import { stableOpaqueId } from './runtime-identity.js';
 const DEFAULT_DISPATCH_NAMESPACE = 'catalog-engine-production';
 const MAX_AUTOMATIC_ATTEMPTS = 5;
 const PRODUCT_PAGE_SIZE = 100;
+const PAGES_PER_RUN = 5;
 const D1_WRITE_BATCH_LIMIT = 90;
 
 function runtimeConfig(env) {
@@ -109,7 +110,7 @@ async function claimJob(db, job, context) {
   const result = await db
     .prepare(
       `UPDATE tenant_classification_jobs
-          SET status='running', attempt_count=attempt_count+1,
+          SET status='running',
               started_at=COALESCE(started_at,CURRENT_TIMESTAMP), finished_at=NULL,
               last_error_code=NULL, updated_at=CURRENT_TIMESTAMP
         WHERE job_id=?1 AND status IN ('pending','failed') AND attempt_count < ?2`
@@ -122,7 +123,7 @@ async function claimJob(db, job, context) {
       db
         .prepare(
           `UPDATE tenant_provisioning_steps
-              SET status='running', attempt_count=attempt_count+1,
+              SET status='running',
                   started_at=COALESCE(started_at,CURRENT_TIMESTAMP), finished_at=NULL,
                   last_error=NULL, updated_at=CURRENT_TIMESTAMP
             WHERE provisioning_id=?1 AND step_key='classify'`
@@ -161,7 +162,7 @@ async function sourceCategoryNames(platform, context, fetchImpl) {
   );
 }
 
-async function productPage(platform, context, offset, fetchImpl) {
+async function productPage(platform, context, cursor, fetchImpl) {
   const result = await queryD1Batch(
     {
       ...platform,
@@ -177,9 +178,10 @@ async function productPage(platform, context, offset, fetchImpl) {
                     ON a.tenant_id=?1 AND a.source_key=?2 AND a.public_product_id=p.product_id
                   LEFT JOIN catalog_product_classification_overrides o
                     ON o.product_id=p.product_id
+                 WHERE (?3 IS NULL OR p.product_id > ?3)
                  ORDER BY p.product_id ASC
-                 LIMIT ?3 OFFSET ?4`,
-          params: [context.tenant_id, context.source_key, PRODUCT_PAGE_SIZE, offset]
+                 LIMIT ?4`,
+          params: [context.tenant_id, context.source_key, cursor || null, PRODUCT_PAGE_SIZE]
         }
       ]
     },
@@ -269,12 +271,12 @@ async function runBoundedBatches(platform, databaseId, statements, fetchImpl) {
 }
 
 async function seedControlledEntities(platform, context, fetchImpl) {
-  const statements = [
-    ...LEAGUES.map(leagueStatement),
-    ...TEAMS.map(teamStatement),
-    ...FACETS.map(facetStatement)
-  ];
-  await runBoundedBatches(platform, context.d1_database_id, statements, fetchImpl);
+  await runBoundedBatches(
+    platform,
+    context.d1_database_id,
+    [...LEAGUES.map(leagueStatement), ...TEAMS.map(teamStatement), ...FACETS.map(facetStatement)],
+    fetchImpl
+  );
 }
 
 function productClassificationStatements(row, classified) {
@@ -298,10 +300,7 @@ function productClassificationStatements(row, classified) {
         classified.classificationConfidence
       ]
     },
-    {
-      sql: 'DELETE FROM catalog_product_facets WHERE product_id=?1',
-      params: [row.product_id]
-    }
+    { sql: 'DELETE FROM catalog_product_facets WHERE product_id=?1', params: [row.product_id] }
   ];
   for (const facet of classified.facets) {
     statements.push({
@@ -334,70 +333,103 @@ async function writeProductGroups(platform, databaseId, groups, fetchImpl) {
   for (const group of groups) {
     if (group.length > 100) throw new Error('tenant_classification_product_write_too_large');
     if (current.length && current.length + group.length > D1_WRITE_BATCH_LIMIT) {
-      await queryD1Batch(
-        { ...platform, databaseId, batch: current },
-        { fetchImpl }
-      );
+      await queryD1Batch({ ...platform, databaseId, batch: current }, { fetchImpl });
       current = [];
     }
     current.push(...group);
   }
   if (current.length) {
-    await queryD1Batch(
-      { ...platform, databaseId, batch: current },
-      { fetchImpl }
-    );
+    await queryD1Batch({ ...platform, databaseId, batch: current }, { fetchImpl });
   }
 }
 
-async function reclassifyAll(platform, context, fetchImpl) {
-  const categoryNames = await sourceCategoryNames(platform, context, fetchImpl);
-  await seedControlledEntities(platform, context, fetchImpl);
-  let offset = 0;
-  let productCount = 0;
+async function classifyPage(platform, context, categoryNames, cursor, fetchImpl) {
+  const rows = await productPage(platform, context, cursor, fetchImpl);
+  if (!rows.length) return { rows: 0, cursor, automatic: 0, review: 0, unknown: 0 };
+  const groups = [];
   let automatic = 0;
   let review = 0;
   let unknown = 0;
-
-  while (true) {
-    const rows = await productPage(platform, context, offset, fetchImpl);
-    if (!rows.length) break;
-    const groups = [];
-    for (const row of rows) {
-      const pathNames = categoryPathNames(row, categoryNames);
-      const classified = classifyCatalogRecord(
-        {
-          name: row.source_name || row.name,
-          sourceName: row.source_name || row.name,
-          category: row.source_category_name || row.category_name,
-          sourceCategoryName: row.source_category_name || row.category_name,
-          description: row.description || ''
-        },
-        pathNames,
-        row.override_json || null
-      );
-      groups.push(productClassificationStatements(row, classified));
-      productCount += 1;
-      if (classified.classificationStatus === 'automatic') automatic += 1;
-      else if (classified.classificationStatus === 'needs_review') review += 1;
-      else unknown += 1;
-    }
-    await writeProductGroups(platform, context.d1_database_id, groups, fetchImpl);
-    offset += rows.length;
-    if (rows.length < PRODUCT_PAGE_SIZE) break;
+  for (const row of rows) {
+    const classified = classifyCatalogRecord(
+      {
+        name: row.source_name || row.name,
+        sourceName: row.source_name || row.name,
+        category: row.source_category_name || row.category_name,
+        sourceCategoryName: row.source_category_name || row.category_name,
+        description: row.description || ''
+      },
+      categoryPathNames(row, categoryNames),
+      row.override_json || null
+    );
+    groups.push(productClassificationStatements(row, classified));
+    if (classified.classificationStatus === 'automatic') automatic += 1;
+    else if (classified.classificationStatus === 'needs_review') review += 1;
+    else unknown += 1;
   }
+  await writeProductGroups(platform, context.d1_database_id, groups, fetchImpl);
+  return {
+    rows: rows.length,
+    cursor: String(rows.at(-1).product_id),
+    automatic,
+    review,
+    unknown
+  };
+}
 
-  return { productCount, automatic, review, unknown };
+async function persistProgress(db, jobId, page) {
+  await db
+    .prepare(
+      `UPDATE tenant_classification_jobs
+          SET cursor_product_id=?2,
+              product_count=product_count+?3,
+              automatic_count=automatic_count+?4,
+              review_count=review_count+?5,
+              unknown_count=unknown_count+?6,
+              chunk_count=chunk_count+1,
+              updated_at=CURRENT_TIMESTAMP
+        WHERE job_id=?1 AND status='running'`
+    )
+    .bind(jobId, page.cursor, page.rows, page.automatic, page.review, page.unknown)
+    .run();
+}
+
+async function releasePartialJob(db, jobId) {
+  await db
+    .prepare(
+      `UPDATE tenant_classification_jobs
+          SET status='pending', next_attempt_at=CURRENT_TIMESTAMP,
+              last_error_code=NULL, updated_at=CURRENT_TIMESTAMP
+        WHERE job_id=?1 AND status='running'`
+    )
+    .bind(jobId)
+    .run();
+}
+
+async function currentCounters(db, jobId) {
+  return db
+    .prepare(
+      `SELECT product_count, automatic_count, review_count, unknown_count, cursor_product_id
+         FROM tenant_classification_jobs WHERE job_id=?1 LIMIT 1`
+    )
+    .bind(jobId)
+    .first();
 }
 
 async function finalizeD1Classification(platform, context, stats, fetchImpl) {
-  const meta = JSON.stringify({
+  const classificationMeta = JSON.stringify({
     version: CATALOG_CLASSIFIER_VERSION,
     key: CATALOG_CLASSIFIER_KEY,
     classified: stats.automatic,
     needsReview: stats.review,
     unknown: stats.unknown,
     products: stats.productCount
+  });
+  const normalizationMeta = JSON.stringify({
+    version: CATALOG_CLASSIFIER_VERSION,
+    classified: stats.automatic,
+    needsReview: stats.review,
+    unknown: stats.unknown
   });
   await queryD1Batch(
     {
@@ -429,7 +461,13 @@ async function finalizeD1Classification(platform, context, stats, fetchImpl) {
           sql: `INSERT INTO catalog_meta (key, value_json, updated_at)
                 VALUES ('classification', ?1, CURRENT_TIMESTAMP)
                 ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json, updated_at=CURRENT_TIMESTAMP`,
-          params: [meta]
+          params: [classificationMeta]
+        },
+        {
+          sql: `INSERT INTO catalog_meta (key, value_json, updated_at)
+                VALUES ('normalization', ?1, CURRENT_TIMESTAMP)
+                ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json, updated_at=CURRENT_TIMESTAMP`,
+          params: [normalizationMeta]
         }
       ]
     },
@@ -442,20 +480,21 @@ async function finishJob(db, job, context, stats) {
     db
       .prepare(
         `UPDATE tenant_classification_jobs
-            SET status='success', product_count=?2, automatic_count=?3,
-                review_count=?4, unknown_count=?5, next_attempt_at=NULL,
+            SET status='success', next_attempt_at=NULL,
                 finished_at=CURRENT_TIMESTAMP, last_error_code=NULL,
                 updated_at=CURRENT_TIMESTAMP
-          WHERE job_id=?1`
+          WHERE job_id=?1 AND status='running'`
       )
-      .bind(job.job_id, stats.productCount, stats.automatic, stats.review, stats.unknown)
+      .bind(job.job_id)
   ];
   if (context.provisioning_id) {
     statements.push(
       db
         .prepare(
           `UPDATE tenant_provisioning_steps
-              SET status='success', finished_at=CURRENT_TIMESTAMP, last_error=NULL,
+              SET status='success',
+                  attempt_count=CASE WHEN attempt_count < 1 THEN 1 ELSE attempt_count END,
+                  finished_at=CURRENT_TIMESTAMP, last_error=NULL,
                   metadata_json=?2, updated_at=CURRENT_TIMESTAMP
             WHERE provisioning_id=?1 AND step_key='classify'`
         )
@@ -486,7 +525,8 @@ async function failJob(db, job, context, safeCode) {
     db
       .prepare(
         `UPDATE tenant_classification_jobs
-            SET status='failed', finished_at=CURRENT_TIMESTAMP,
+            SET status='failed', attempt_count=attempt_count+1,
+                finished_at=CURRENT_TIMESTAMP,
                 next_attempt_at=datetime(CURRENT_TIMESTAMP,'+10 minutes'),
                 last_error_code=?2, updated_at=CURRENT_TIMESTAMP
           WHERE job_id=?1`
@@ -540,7 +580,43 @@ export async function processTenantClassification(db, { job, env }, { fetchImpl 
   if (!(await claimJob(db, job, context))) return { outcome: 'busy', jobId: job.job_id };
 
   try {
-    const stats = await reclassifyAll(platform, context, fetchImpl);
+    const categoryNames = await sourceCategoryNames(platform, context, fetchImpl);
+    if (!job.cursor_product_id) await seedControlledEntities(platform, context, fetchImpl);
+    let cursor = job.cursor_product_id || null;
+    let complete = false;
+
+    for (let pageIndex = 0; pageIndex < PAGES_PER_RUN; pageIndex += 1) {
+      const page = await classifyPage(platform, context, categoryNames, cursor, fetchImpl);
+      if (!page.rows) {
+        complete = true;
+        break;
+      }
+      await persistProgress(db, job.job_id, page);
+      cursor = page.cursor;
+      if (page.rows < PRODUCT_PAGE_SIZE) {
+        complete = true;
+        break;
+      }
+    }
+
+    if (!complete) {
+      await releasePartialJob(db, job.job_id);
+      const counters = await currentCounters(db, job.job_id);
+      return {
+        outcome: 'partial',
+        jobId: job.job_id,
+        processed: Number(counters?.product_count || 0),
+        cursor: counters?.cursor_product_id || cursor
+      };
+    }
+
+    const counters = await currentCounters(db, job.job_id);
+    const stats = {
+      productCount: Number(counters?.product_count || 0),
+      automatic: Number(counters?.automatic_count || 0),
+      review: Number(counters?.review_count || 0),
+      unknown: Number(counters?.unknown_count || 0)
+    };
     if (stats.productCount < 1) throw new Error('tenant_classification_empty_catalog');
     await finalizeD1Classification(platform, context, stats, fetchImpl);
     await finishJob(db, job, context, stats);
@@ -564,7 +640,8 @@ export async function runDueTenantClassifications(env, { fetchImpl = fetch, limi
   await db
     .prepare(
       `UPDATE tenant_classification_jobs
-          SET status='failed', next_attempt_at=CURRENT_TIMESTAMP,
+          SET status='failed', attempt_count=attempt_count+1,
+              next_attempt_at=CURRENT_TIMESTAMP,
               finished_at=CURRENT_TIMESTAMP, last_error_code='classification_job_stale_reclaimed',
               updated_at=CURRENT_TIMESTAMP
         WHERE status='running' AND updated_at <= datetime(CURRENT_TIMESTAMP,'-30 minutes')`
@@ -573,7 +650,8 @@ export async function runDueTenantClassifications(env, { fetchImpl = fetch, limi
 
   const due = await db
     .prepare(
-      `SELECT job_id, tenant_id, classifier_version, classifier_key
+      `SELECT job_id, tenant_id, classifier_version, classifier_key,
+              cursor_product_id, product_count, automatic_count, review_count, unknown_count
          FROM tenant_classification_jobs
         WHERE status IN ('pending','failed')
           AND attempt_count < ?1
@@ -595,6 +673,7 @@ export async function runDueTenantClassifications(env, { fetchImpl = fetch, limi
     discovered,
     selected: (due.results || []).length,
     processed: outcomes.length,
+    partial: outcomes.filter((item) => item.outcome === 'partial').length,
     succeeded: outcomes.filter((item) => item.outcome === 'success').length,
     failed: outcomes.filter((item) => item.outcome === 'failed').length,
     outcomes
