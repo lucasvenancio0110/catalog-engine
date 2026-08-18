@@ -7,10 +7,14 @@ on:
       - 'migrations/0012_tenant_import_jobs.sql'
       - 'migrations/0013_tenant_import_scan_resume.sql'
       - 'worker/ingestion/**'
-      - 'worker/import-scan-entry.js'
+      - 'worker/import-*-entry.js'
       - 'worker/tenant-import-*.js'
+      - 'worker/tenant-data-plane-schema*.js'
+      - 'worker/data-plane-migration-runner.js'
       - 'worker/cloudflare-platform.js'
+      - 'scripts/emit-tenant-data-plane-schema.mjs'
       - 'tests/tenant-import-*.test.mjs'
+      - 'tests/tenant-data-plane-schema.test.mjs'
       - 'docs/TENANT-IMPORT-*.md'
       - '.github/workflows/validate-tenant-ingestion.yml'
 
@@ -48,3 +52,20 @@ jobs:
           done
           sqlite3 "$DB" 'PRAGMA foreign_key_check;'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM pragma_table_info('tenant_import_jobs') WHERE name IN ('detail_enqueue_cursor','scan_completed_at','scan_lease_until');")" = '3'
+
+      - name: Verify tenant data-plane v2 import tables
+        shell: bash
+        run: |
+          set -euo pipefail
+          TENANT_DB=/tmp/catalog-engine-tenant-ingestion-ci.sqlite
+          SQL=/tmp/catalog-engine-tenant-ingestion.sql
+          rm -f "$TENANT_DB" "$SQL"
+          TENANT_DATA_PLANE_SQL_OUT="$SQL" \
+          TENANT_ID='t_0123456789abcdefabcd' \
+          SOURCE_URL='https://supplier-test.x.yupoo.com/albums/' \
+          node scripts/emit-tenant-data-plane-schema.mjs
+          sqlite3 "$TENANT_DB" < "$SQL"
+          test "$(sqlite3 "$TENANT_DB" "SELECT schema_version FROM data_plane_identity LIMIT 1;")" = '2'
+          test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='supplier_category_index';")" = '1'
+          test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='supplier_album_detail_state';")" = '1'
+          sqlite3 "$TENANT_DB" 'PRAGMA foreign_key_check;'
