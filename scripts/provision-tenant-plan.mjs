@@ -14,7 +14,7 @@ const plan = buildTenantProvisioningPlan({
   themeKey: process.env.THEME_KEY || 'premium-dark',
   currency: process.env.CURRENCY || 'BRL',
   ownerPrincipalId: process.env.OWNER_PRINCIPAL_ID || null,
-  platformBaseDomain: process.env.PLATFORM_BASE_DOMAIN || null
+  customDomain: process.env.CUSTOM_DOMAIN || null
 });
 
 if (process.env.TENANT_PROVISION_SQL_OUT) {
