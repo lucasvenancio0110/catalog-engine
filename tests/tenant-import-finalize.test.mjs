@@ -30,7 +30,7 @@ function contextRow(discovered = 3) {
     dispatch_namespace: dispatchNamespace,
     provisioning_id: 'pv_0123456789abcdefabcd',
     provisioning_step: 'import',
-    schema_version: 2
+    schema_version: 3
   };
 }
 
