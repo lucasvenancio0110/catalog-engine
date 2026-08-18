@@ -1,10 +1,24 @@
 import app from './index.js';
+import { runDueDataPlaneJobs } from './data-plane-provider-runner.js';
 import { runDueDomainJobs } from './domain-job-scheduler.js';
 import {
   isCatalogPlatformHost,
   resolveStorefrontTenant,
   storefrontRoutingError
 } from './tenant-routing.js';
+
+function safeScheduleSummary(summary) {
+  return {
+    enabled: summary.enabled,
+    reason: summary.reason || null,
+    discovered: summary.discovered || 0,
+    selected: summary.selected || 0,
+    processed: summary.processed || 0,
+    succeeded: summary.succeeded || 0,
+    failed: summary.failed || 0,
+    busy: summary.busy || 0
+  };
+}
 
 export default {
   async fetch(request, env, ctx) {
@@ -28,24 +42,18 @@ export default {
 
   async scheduled(_controller, env, ctx) {
     ctx.waitUntil(
-      runDueDomainJobs(env)
-        .then((summary) => {
-          console.log(
-            'domain_job_schedule',
-            JSON.stringify({
-              enabled: summary.enabled,
-              reason: summary.reason || null,
-              selected: summary.selected || 0,
-              processed: summary.processed || 0,
-              succeeded: summary.succeeded || 0,
-              failed: summary.failed || 0,
-              busy: summary.busy || 0
-            })
-          );
-        })
-        .catch((error) => {
-          console.error('domain_job_schedule_failed', String(error?.message || error).slice(0, 160));
-        })
+      Promise.allSettled([runDueDataPlaneJobs(env), runDueDomainJobs(env)]).then((results) => {
+        const labels = ['data_plane_job_schedule', 'domain_job_schedule'];
+        for (let index = 0; index < results.length; index += 1) {
+          const result = results[index];
+          const label = labels[index];
+          if (result.status === 'fulfilled') {
+            console.log(label, JSON.stringify(safeScheduleSummary(result.value)));
+          } else {
+            console.error(`${label}_failed`, String(result.reason?.message || result.reason).slice(0, 160));
+          }
+        }
+      })
     );
   }
 };

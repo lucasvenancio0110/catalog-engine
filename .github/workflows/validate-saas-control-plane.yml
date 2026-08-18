@@ -10,6 +10,9 @@ on:
       - 'worker/runtime-identity.js'
       - 'worker/custom-domain.js'
       - 'worker/cloudflare-saas.js'
+      - 'worker/cloudflare-platform.js'
+      - 'worker/tenant-data-plane.js'
+      - 'worker/data-plane-provider-runner.js'
       - 'worker/domain-provider-runner.js'
       - 'worker/domain-job-scheduler.js'
       - 'worker/tenant-routing.js'
@@ -19,9 +22,11 @@ on:
       - 'tests/tenant-routing.test.mjs'
       - 'tests/admin-*.test.mjs'
       - 'tests/custom-domain.test.mjs'
+      - 'tests/cloudflare-platform.test.mjs'
       - 'tests/domain-job-scheduler.test.mjs'
       - 'docs/SAAS-ARCHITECTURE.md'
       - 'docs/CUSTOM-DOMAINS.md'
+      - 'docs/TENANT-DATA-PLANES.md'
       - 'wrangler.jsonc'
       - 'AGENTS.md'
       - '.github/workflows/validate-saas-control-plane.yml'
@@ -76,4 +81,16 @@ jobs:
           sqlite3 "$DB" "INSERT INTO tenant_domain_jobs(job_id,tenant_id,domain_id,operation,status) VALUES('djob_0123456789abcdefabcd','$TENANT','$DOMAIN','provision','pending');"
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_domain_provider_state WHERE domain_id='$DOMAIN' AND provider='cloudflare';")" = '1'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_domain_jobs WHERE domain_id='$DOMAIN' AND operation='provision' AND status='pending';")" = '1'
+          sqlite3 "$DB" "PRAGMA foreign_key_check;"
+
+      - name: Verify durable isolated data-plane provider state
+        shell: bash
+        run: |
+          set -euo pipefail
+          DB=/tmp/catalog-engine-ci.sqlite
+          TENANT='t_00000000000000000001'
+          sqlite3 "$DB" "INSERT INTO tenant_data_plane_provider_state(tenant_id,provider,dispatch_namespace,worker_script_name,d1_database_name,worker_status,database_status) VALUES('$TENANT','cloudflare_wfp','catalog-engine-production','ce-default-ci','ce-default-ci','pending','pending');"
+          sqlite3 "$DB" "INSERT INTO tenant_data_plane_jobs(job_id,tenant_id,operation,status) VALUES('dpjob_0123456789abcdefabcd','$TENANT','provision','pending');"
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_data_plane_provider_state WHERE tenant_id='$TENANT' AND provider='cloudflare_wfp';")" = '1'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_data_plane_jobs WHERE tenant_id='$TENANT' AND operation='provision' AND status='pending';")" = '1'
           sqlite3 "$DB" "PRAGMA foreign_key_check;"
