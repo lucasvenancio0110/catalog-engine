@@ -2,7 +2,9 @@ import app from './index.js';
 import { runDueDataPlaneMigrations } from './data-plane-migration-runner.js';
 import { runDueDataPlaneJobs } from './data-plane-provider-runner.js';
 import { runDueDomainJobs } from './domain-job-scheduler.js';
+import { runDueTenantClassifications } from './tenant-classification-runner.js';
 import { runDueTenantImportDispatches } from './tenant-import-dispatcher.js';
+import { runDueTenantVerifications } from './tenant-verification-runner.js';
 import {
   isCatalogPlatformHost,
   resolveStorefrontTenant,
@@ -49,12 +51,16 @@ export default {
         runDueDataPlaneJobs(env),
         runDueDataPlaneMigrations(env),
         runDueTenantImportDispatches(env),
+        runDueTenantClassifications(env),
+        runDueTenantVerifications(env),
         runDueDomainJobs(env)
       ]).then((results) => {
         const labels = [
           'data_plane_job_schedule',
           'data_plane_migration_schedule',
           'tenant_import_dispatch_schedule',
+          'tenant_classification_schedule',
+          'tenant_verification_schedule',
           'domain_job_schedule'
         ];
         for (let index = 0; index < results.length; index += 1) {
