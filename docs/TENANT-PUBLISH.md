@@ -1,0 +1,46 @@
+# Final tenant publish checkpoint
+
+The tenant is not exposed to customers when import, classification, verification, runtime staging, or custom-domain SSL complete independently. The final `publish` checkpoint is the only place that flips the storefront from provisioning to live.
+
+## Preconditions
+
+A publish job is created only after the provisioning run reaches `publish` and all hard prerequisites are still true:
+
+- isolated tenant D1 schema is current;
+- latest catalog verification succeeded with zero findings under the current classifier version;
+- full tenant catalog Worker is active and `runtime_status=verified`;
+- custom hostname is active at both the business/domain state and provider/SSL state;
+- store is not suspended;
+- logical tenant catalog instance is still `provisioning`.
+
+The publish runner reloads those prerequisites immediately before activation. A stale job therefore cannot publish a tenant after a domain, runtime, or verification regression.
+
+## Last-mile smoke
+
+The publish runner requires the private Workers for Platforms dispatch binding. Immediately before activation it dispatches to the exact server-resolved tenant script and rechecks `/api/health` plus `/api/catalog/meta`. The runtime version, schema version, API/media capability flags and non-empty product count must match expectations.
+
+The client never supplies the script name or tenant ID used by this smoke.
+
+## Atomic exposure
+
+Only after the last-mile smoke succeeds does one control-plane D1 batch:
+
+1. mark `tenant_catalog_instances.status` as `ready`;
+2. mark `tenant_store_profiles.setup_status` as `published` and set `published_at`;
+3. keep the tenant account active;
+4. complete the `publish` provisioning step;
+5. complete the provisioning run;
+6. mark the durable publish job successful;
+7. append a deduplicated `tenant.store.published` audit event.
+
+Because hostname routing already requires both `setup_status=published` and catalog instance `status=ready`, the merchant hostname cannot enter the dispatch path before this batch finishes.
+
+## Failure behavior
+
+Missing dispatch bindings fail closed before candidate discovery. A runtime/domain/verification regression returns `blocked` without mutating storefront exposure state. A failed final smoke records only a stable safe error code and leaves the catalog in provisioning for a later retry.
+
+This milestone still does not configure the real production `TENANT_DISPATCH` binding. The publish scheduler can be deployed safely because it remains disabled until that provider binding is explicitly activated.
+
+## Next operational step
+
+After CI is green, the remaining infrastructure milestone is a controlled real Cloudflare activation: create/verify the production Workers for Platforms dispatch namespace and binding, provision two isolated test tenants, prove cross-tenant reads fail through the actual provider path, then enable merchant-facing onboarding/publish UI.

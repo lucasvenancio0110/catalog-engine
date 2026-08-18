@@ -1,0 +1,63 @@
+name: Validate tenant publish checkpoint
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'migrations/0016_tenant_publish_jobs.sql'
+      - 'worker/tenant-publish-runner.js'
+      - 'worker/entry-publish.js'
+      - 'tests/tenant-publish-runner.test.mjs'
+      - 'docs/TENANT-PUBLISH.md'
+      - 'wrangler.jsonc'
+      - '.github/workflows/validate-tenant-publish.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Quality gate
+        run: npm run quality
+
+      - name: Apply control-plane migrations and verify publish job state
+        shell: bash
+        run: |
+          set -euo pipefail
+          DB=/tmp/catalog-engine-publish-ci.sqlite
+          rm -f "$DB"
+          for migration in migrations/*.sql; do
+            sqlite3 "$DB" < "$migration"
+          done
+          sqlite3 "$DB" 'PRAGMA foreign_key_check;'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='tenant_publish_jobs';")" = '1'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM pragma_table_info('tenant_publish_jobs') WHERE name IN ('job_id','tenant_id','status','attempt_count','next_attempt_at','last_error_code');")" = '6'
+
+      - name: Verify production entry composes publish scheduler without dispatch activation
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q '"main": "./worker/entry-publish.js"' wrangler.jsonc
+          test -f worker/entry-publish.js
+          if grep -Eq 'TENANT_DISPATCH|dispatch_namespace' wrangler.jsonc; then
+            echo 'Publish scheduler may ship before dispatch activation, but the dispatch binding may not.' >&2
+            exit 1
+          fi
+
+      - name: Run focused publish tests
+        run: npx vitest run tests/tenant-publish-runner.test.mjs tests/tenant-publish-gate.test.mjs
