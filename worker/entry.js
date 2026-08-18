@@ -1,8 +1,30 @@
 import app from './index.js';
 import { runDueDomainJobs } from './domain-job-scheduler.js';
+import {
+  isCatalogPlatformHost,
+  resolveStorefrontTenant,
+  storefrontRoutingError
+} from './tenant-routing.js';
 
 export default {
-  fetch: app.fetch,
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+
+    // Health remains available for infrastructure probes. Admin APIs only exist on
+    // Catalog Engine platform/admin hosts, never on a merchant storefront domain.
+    if (url.pathname === '/api/health') return app.fetch(request, env, ctx);
+    if (url.pathname.startsWith('/api/admin/')) {
+      if (!isCatalogPlatformHost(request, env)) {
+        return storefrontRoutingError({ reason: 'not_found', status: 404 });
+      }
+      return app.fetch(request, env, ctx);
+    }
+
+    const tenant = await resolveStorefrontTenant(request, env);
+    if (!tenant.allowed) return storefrontRoutingError(tenant);
+
+    return app.fetch(request, env, ctx);
+  },
 
   async scheduled(_controller, env, ctx) {
     ctx.waitUntil(

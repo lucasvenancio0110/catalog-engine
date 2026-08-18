@@ -3,6 +3,9 @@
   "name": "catalog-engine",
   "main": "./worker/entry.js",
   "compatibility_date": "2026-08-17",
+  "vars": {
+    "CATALOG_PLATFORM_HOSTS": "catalog-engine.lucassantanals0110.workers.dev"
+  },
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
