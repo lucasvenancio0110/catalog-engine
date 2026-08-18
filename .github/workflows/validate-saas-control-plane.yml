@@ -17,12 +17,13 @@ on:
       - 'worker/data-plane-migration-runner.js'
       - 'worker/domain-provider-runner.js'
       - 'worker/domain-job-scheduler.js'
+      - 'worker/tenant-import-*.js'
       - 'worker/tenant-routing.js'
       - 'worker/entry.js'
       - 'worker/index.js'
       - 'scripts/emit-tenant-data-plane-schema.mjs'
       - 'tests/tenant-*.test.mjs'
-      - 'tests/tenant-routing.test.mjs'
+      - 'tests/data-plane-*.test.mjs'
       - 'tests/admin-*.test.mjs'
       - 'tests/custom-domain.test.mjs'
       - 'tests/cloudflare-platform.test.mjs'
@@ -30,6 +31,7 @@ on:
       - 'docs/SAAS-ARCHITECTURE.md'
       - 'docs/CUSTOM-DOMAINS.md'
       - 'docs/TENANT-DATA-PLANES.md'
+      - 'docs/TENANT-IMPORT-PIPELINE.md'
       - 'wrangler.jsonc'
       - 'AGENTS.md'
       - '.github/workflows/validate-saas-control-plane.yml'
@@ -86,7 +88,7 @@ jobs:
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_domain_jobs WHERE domain_id='$DOMAIN' AND operation='provision' AND status='pending';")" = '1'
           sqlite3 "$DB" "PRAGMA foreign_key_check;"
 
-      - name: Verify durable isolated data-plane provider and migration jobs
+      - name: Verify durable isolated data-plane provider migration and import jobs
         shell: bash
         run: |
           set -euo pipefail
@@ -95,9 +97,11 @@ jobs:
           sqlite3 "$DB" "INSERT INTO tenant_data_plane_provider_state(tenant_id,provider,dispatch_namespace,worker_script_name,d1_database_name,worker_status,database_status) VALUES('$TENANT','cloudflare_wfp','catalog-engine-production','ce-default-ci','ce-default-ci','pending','pending');"
           sqlite3 "$DB" "INSERT INTO tenant_data_plane_jobs(job_id,tenant_id,operation,status) VALUES('dpjob_0123456789abcdefabcd','$TENANT','provision','pending');"
           sqlite3 "$DB" "INSERT INTO tenant_data_plane_migration_jobs(job_id,tenant_id,target_schema_version,status) VALUES('dpmig_0123456789abcdefabcd','$TENANT',1,'pending');"
+          sqlite3 "$DB" "INSERT INTO tenant_import_jobs(import_id,tenant_id,source_key,mode,status,phase) VALUES('imp_0123456789abcdefabcd','$TENANT','primary','initial','pending','scan');"
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_data_plane_provider_state WHERE tenant_id='$TENANT' AND provider='cloudflare_wfp';")" = '1'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_data_plane_jobs WHERE tenant_id='$TENANT' AND operation='provision' AND status='pending';")" = '1'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_data_plane_migration_jobs WHERE tenant_id='$TENANT' AND target_schema_version=1 AND status='pending';")" = '1'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_import_jobs WHERE tenant_id='$TENANT' AND mode='initial' AND status='pending';")" = '1'
           sqlite3 "$DB" "PRAGMA foreign_key_check;"
 
       - name: Apply tenant-only catalog schema to an isolated SQLite database
