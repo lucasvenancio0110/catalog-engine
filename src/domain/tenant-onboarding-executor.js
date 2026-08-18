@@ -49,7 +49,7 @@ function nextIncompleteStep(byKey) {
   });
 }
 
-function domainBlockReason(state) {
+function publicationDomainBlockReason(state) {
   if (!state.domain) return 'custom_domain_required';
   if (state.domain.status !== 'active') return 'custom_domain_not_verified';
   return null;
@@ -74,13 +74,12 @@ export function nextTenantOnboardingAction(input) {
   const step = state.steps.find((candidate) => candidate.stepKey === state.currentStep);
   if (!step) return { type: 'complete', state };
 
-  if (step.stepKey === 'domain') {
-    const reason = domainBlockReason(state);
-    if (reason) return { type: 'blocked', stepKey: 'domain', reason, state };
+  if (step.stepKey === 'domain' && !state.domain) {
+    return { type: 'blocked', stepKey: 'domain', reason: 'custom_domain_required', state };
   }
 
   if (step.stepKey === 'publish') {
-    const reason = domainBlockReason(state);
+    const reason = publicationDomainBlockReason(state);
     if (reason) return { type: 'blocked', stepKey: 'publish', reason, state };
     const verify = state.steps.find((candidate) => candidate.stepKey === 'verify');
     if (verify?.status !== 'success') {
@@ -131,14 +130,14 @@ export async function executeTenantOnboarding(input, {
     try {
       const result = await handler({ state: structuredClone(state), stepKey: action.stepKey });
       if (result?.domain) state.domain = result.domain;
-      step.status = result?.status === 'skipped' ? 'skipped' : 'success';
+      const completedStatus = result?.status === 'skipped' ? 'skipped' : 'success';
+      step.status = completedStatus;
       step.lastError = null;
       executed += 1;
-      const normalized = normalizeTenantOnboardingState(state);
-      state = normalized;
+      state = normalizeTenantOnboardingState(state);
       if (state.status !== 'success') state.status = 'running';
       await onTransition({
-        type: step.status,
+        type: completedStatus,
         stepKey: action.stepKey,
         result: result?.metadata || null,
         state: structuredClone(state)
