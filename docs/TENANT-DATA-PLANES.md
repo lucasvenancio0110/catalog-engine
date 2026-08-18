@@ -36,7 +36,7 @@ Provider IDs such as the D1 UUID and Worker/version identifiers remain control-p
 - D1 database name/UUID/status;
 - last provider check and safe error code.
 
-`tenant_data_plane_jobs` records resumable `provision`, future `reconcile`, and future `delete` work.
+`tenant_data_plane_jobs` records resumable provider-resource work. `tenant_data_plane_migration_jobs` separately records schema migration attempts so an infrastructure retry and a database-schema retry cannot corrupt each other's state.
 
 ## Provisioning lifecycle
 
@@ -62,6 +62,34 @@ It then:
 
 The initial user Worker intentionally exposes only `/api/health`. Every catalog route returns `tenant_catalog_provisioning` until migrations/import/classification are complete. This prevents an empty or partially imported tenant catalog from being treated as ready.
 
+## Tenant-only schema migration
+
+Once the physical D1 and bootstrap Worker exist, a separate bounded runner discovers tenants at the `migrations` checkpoint. It reads the private supplier connection from the control plane and installs schema version 1 directly into that tenant D1 using Cloudflare's D1 Query API batch form.
+
+The tenant database contains only the high-volume/private catalog structures needed by ingestion and storefront serving:
+
+- media registry and product/media positions;
+- normalized public categories/products/meta;
+- leagues, teams and facets;
+- private supplier source configuration;
+- private supplier album fingerprints/retry state;
+- sync runs/events;
+- a tenant identity row and data-plane migration ledger.
+
+It deliberately does **not** contain SaaS control-plane tables such as memberships, domains, subscriptions, theme catalog, audit log or provisioning runs.
+
+The raw supplier URL is never embedded in static migration SQL. It is passed as a bound D1 query parameter at runtime and remains private tenant data.
+
+After the schema batch, the runner performs a second D1 query to verify both the expected tenant/schema identity and exactly one active source connection. Only then does it:
+
+- set the logical catalog instance schema version;
+- mark the `migrations` checkpoint successful;
+- advance onboarding to `import`.
+
+Migration jobs have bounded attempts, retry delay and stale-job recovery. The schema and source initialization are idempotent (`IF NOT EXISTS`, conflict-safe upserts and a migration ledger), so a Worker interruption can safely retry the same D1.
+
+CI additionally materializes the same tenant-only schema into a standalone SQLite database and asserts that required catalog/sync tables exist while control-plane tables do not.
+
 ## Idempotency and crash recovery
 
 D1 creation cannot be treated as a one-shot action. A Worker could create a database and terminate before persisting its UUID.
@@ -70,19 +98,19 @@ For that reason, provisioning always performs a deterministic D1 name lookup bef
 
 The user Worker upload uses a deterministic script name and an idempotent `PUT`, so retrying updates the same tenant Worker.
 
-Jobs have bounded automatic attempts, retry delays and stale-running reclamation. Provider error messages are collapsed to safe error codes before persistence.
+Provider jobs and schema-migration jobs have independent bounded automatic attempts, retry delays and stale-running reclamation. Provider error messages are collapsed to safe error codes before persistence.
 
 ## Runtime configuration
 
-Physical provisioning remains disabled unless dedicated platform credentials are supplied:
+Physical provisioning and remote tenant-D1 migration remain disabled unless dedicated platform credentials are supplied:
 
 - `CLOUDFLARE_PLATFORM_ACCOUNT_ID`;
 - `CLOUDFLARE_PLATFORM_API_TOKEN`;
 - `CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE` (defaults logically to `catalog-engine-production`).
 
-The token should be dedicated to this provisioning role and have only the permissions required to create/manage D1 resources and upload Workers for Platforms scripts. Do not reuse the broad deployment token in merchant-facing runtime code.
+The token should be dedicated to this provisioning role and have only the permissions required to create/manage D1 resources, query tenant D1 for migrations, and upload Workers for Platforms scripts. Do not reuse the broad deployment token in merchant-facing runtime code.
 
-No platform account ID/token is committed by this implementation. With the configuration absent, the scheduled data-plane provisioner exits before querying D1 control-plane state or making a Cloudflare API call.
+No platform account ID/token is committed by this implementation. With the configuration absent, both the physical provisioner and schema migration runner exit before querying control-plane D1 state or making a Cloudflare API call.
 
 ## Dispatch is a separate activation step
 
@@ -99,11 +127,21 @@ The next dispatch milestone is:
 5. add end-to-end isolation tests with two user Workers bound to two different D1 databases;
 6. only then change a new tenant catalog instance from `provisioning` to `ready`.
 
-## Migration/import milestone
+## Import milestone
 
-A newly created D1 is intentionally empty. The next provisioning checkpoint must install a **tenant-data-plane-only schema** before supplier import. Control-plane tables must not be copied into every tenant D1.
+After schema migration, onboarding advances to `import`. The next engine milestone is to adapt the existing Yupoo ingestion/classification pipeline so a newly provisioned tenant imports into **its isolated D1**, not the control-plane/default D1.
 
-The data-plane migration bundle needs to include only catalog/sync/media structures required by that tenant Worker and ingestion engine. Once schema migration succeeds, the existing supplier ingestion/classification pipeline can be adapted to write into that tenant D1 without refetching or mixing another tenant's state.
+The target import path must preserve the existing intelligent-sync properties:
+
+- bounded supplier concurrency;
+- private raw source state;
+- canonical Catalog Engine taxonomy;
+- media proxy registry inside the tenant data plane;
+- no public supplier URLs;
+- safe retry for incomplete albums;
+- future incremental sync continues from the tenant's private index without rereading every product detail.
+
+The tenant Worker remains in bootstrap/provisioning mode until that import, classification and verification are complete.
 
 ## Cost boundary
 
