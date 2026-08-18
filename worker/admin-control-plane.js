@@ -1,5 +1,11 @@
 import { AdminAuthError, authenticateAdminRequest } from './admin-auth.js';
 import {
+  attachTenantDomain,
+  disconnectTenantDomain,
+  readTenantDomain,
+  requestTenantDomainRefresh
+} from './admin-domain.js';
+import {
   SupplierSourceValidationError,
   buildWorkerTenantProvisioningPlan,
   buildWorkerTenantSourceConnection,
@@ -86,6 +92,13 @@ function domainFromRow(row) {
     status: row.domain_status || 'pending',
     domainType: 'custom'
   };
+}
+
+function publicOperationalError(value) {
+  const text = String(value || '').trim();
+  if (!text) return null;
+  if (/https?:\/\/|yupoo|credential|password|secret|token/i.test(text)) return 'operation_failed';
+  return text.replace(/[\r\n\t]+/g, ' ').slice(0, 160);
 }
 
 async function listStores(db, principalId) {
@@ -274,16 +287,10 @@ async function onboardingState(db, tenantId) {
     .prepare(
       `SELECT t.tenant_id, t.slug, t.display_name, t.status AS tenant_status,
               p.store_name, p.theme_key, p.currency, p.setup_status,
-              i.status AS data_plane_status, i.schema_version,
-              d.hostname AS domain_hostname, d.status AS domain_status
+              i.status AS data_plane_status, i.schema_version
          FROM catalog_tenants t
          LEFT JOIN tenant_store_profiles p ON p.tenant_id=t.tenant_id
          LEFT JOIN tenant_catalog_instances i ON i.tenant_id=t.tenant_id
-         LEFT JOIN tenant_domains d ON d.domain_id=(
-           SELECT d2.domain_id FROM tenant_domains d2
-            WHERE d2.tenant_id=t.tenant_id AND d2.domain_type='custom' AND d2.status!='disabled'
-            ORDER BY d2.updated_at DESC LIMIT 1
-         )
         WHERE t.tenant_id=?1
         LIMIT 1`
     )
@@ -322,6 +329,7 @@ async function onboardingState(db, tenantId) {
     )
     .bind(tenantId)
     .first();
+  const domain = await readTenantDomain(db, tenantId);
 
   return {
     tenantId: store.tenant_id,
@@ -335,7 +343,7 @@ async function onboardingState(db, tenantId) {
       status: store.data_plane_status || 'provisioning',
       schemaVersion: Number(store.schema_version || 0)
     },
-    domain: domainFromRow(store),
+    domain,
     source: source
       ? {
           provider: source.provider,
@@ -344,7 +352,7 @@ async function onboardingState(db, tenantId) {
           syncStrategy: source.sync_strategy,
           lastHealthAt: source.last_health_at || null,
           lastSuccessAt: source.last_success_at || null,
-          lastError: source.last_error || null
+          lastError: publicOperationalError(source.last_error)
         }
       : null,
     provisioning: run
@@ -354,14 +362,14 @@ async function onboardingState(db, tenantId) {
           currentStep: run.current_step,
           startedAt: run.started_at || null,
           finishedAt: run.finished_at || null,
-          lastError: run.last_error || null,
+          lastError: publicOperationalError(run.last_error),
           steps: (steps.results || []).map((step) => ({
             stepKey: step.step_key,
             status: step.status,
             attemptCount: Number(step.attempt_count || 0),
             startedAt: step.started_at || null,
             finishedAt: step.finished_at || null,
-            lastError: step.last_error || null
+            lastError: publicOperationalError(step.last_error)
           }))
         }
       : null
@@ -555,6 +563,13 @@ export async function handleAdminApi(request, env, { fetchImpl = fetch } = {}) {
         ownerPrincipalId: auth.principalId
       });
       await persistNewStore(db, plan);
+      if (plan.domain) {
+        await attachTenantDomain(db, {
+          tenantId: plan.tenant.tenantId,
+          principalId: auth.principalId,
+          hostname: plan.domain.hostname
+        });
+      }
       return adminJson({ store: storeCreationSummary(plan) }, 201);
     }
 
@@ -585,6 +600,43 @@ export async function handleAdminApi(request, env, { fetchImpl = fetch } = {}) {
       );
       await persistSourceConnection(db, tenantId, auth.principalId, plan);
       return adminJson({ source: publicWorkerTenantSourceSummary(plan) }, 200);
+    }
+
+    const domainRefreshMatch = url.pathname.match(
+      /^\/api\/admin\/stores\/(t_[a-f0-9]{20})\/domain\/refresh$/
+    );
+    if (domainRefreshMatch && request.method === 'POST') {
+      const tenantId = domainRefreshMatch[1];
+      await requireMembership(db, tenantId, auth.principalId, { mutate: true });
+      const domain = await requestTenantDomainRefresh(db, {
+        tenantId,
+        principalId: auth.principalId
+      });
+      return adminJson({ domain }, 202);
+    }
+
+    const domainMatch = url.pathname.match(/^\/api\/admin\/stores\/(t_[a-f0-9]{20})\/domain$/);
+    if (domainMatch) {
+      const tenantId = domainMatch[1];
+      if (request.method === 'GET') {
+        await requireMembership(db, tenantId, auth.principalId);
+        return adminJson({ domain: await readTenantDomain(db, tenantId) });
+      }
+      if (request.method === 'PUT') {
+        await requireMembership(db, tenantId, auth.principalId, { mutate: true });
+        const body = await readJsonBody(request);
+        const domain = await attachTenantDomain(db, {
+          tenantId,
+          principalId: auth.principalId,
+          hostname: body.hostname
+        });
+        return adminJson({ domain }, 202);
+      }
+      if (request.method === 'DELETE') {
+        await requireMembership(db, tenantId, auth.principalId, { mutate: true });
+        await disconnectTenantDomain(db, { tenantId, principalId: auth.principalId });
+        return adminJson({ domain: null }, 202);
+      }
     }
 
     return adminJson({ error: 'not_found' }, 404);
