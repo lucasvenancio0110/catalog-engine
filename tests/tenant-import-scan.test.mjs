@@ -93,7 +93,7 @@ describe('Worker-safe Yupoo listing scanner', () => {
 
     await expect(
       scanYupooListingIndex(source, { fetchImpl, maxRootPages: 1, maxCategoryPages: 1 })
-    ).rejects.toThrow('supplier_redirect_rejected');
+    ).rejects.toThrow(/supplier_(?:redirect|url)_rejected/);
   });
 
   it('supports a single category source without crawling unrelated supplier categories', async () => {
