@@ -7,6 +7,7 @@ import {
 } from './cloudflare-saas.js';
 import { readTenantDomain } from './admin-domain.js';
 import { stableOpaqueId } from './runtime-identity.js';
+import { maybeAdvanceTenantToPublish } from './tenant-publish-gate.js';
 
 function runtimeConfig(env) {
   const zoneId = String(env.CLOUDFLARE_SAAS_ZONE_ID || '').trim();
@@ -157,47 +158,13 @@ async function persistProviderState(db, record, state) {
       .bind(record.domain_id, nextDomainStatus, record.tenant_id)
   ]);
 
-  if (state.ready) await markDomainProvisioningReady(db, record.tenant_id, record.domain_id);
+  if (state.ready) await markDomainProvisioningReady(db, record.tenant_id);
 }
 
-async function markDomainProvisioningReady(db, tenantId, domainId) {
-  const run = await db
-    .prepare(
-      `SELECT provisioning_id, current_step
-         FROM tenant_provisioning_runs
-        WHERE tenant_id=?1
-        ORDER BY created_at DESC
-        LIMIT 1`
-    )
-    .bind(tenantId)
-    .first();
-  if (!run?.provisioning_id) return;
-
-  await db.batch([
-    db
-      .prepare(
-        `UPDATE tenant_provisioning_steps
-            SET status='success',
-                attempt_count=CASE WHEN attempt_count < 1 THEN 1 ELSE attempt_count END,
-                started_at=COALESCE(started_at,CURRENT_TIMESTAMP),
-                finished_at=CURRENT_TIMESTAMP,
-                last_error=NULL,
-                metadata_json=?2,
-                updated_at=CURRENT_TIMESTAMP
-          WHERE provisioning_id=?1 AND step_key='domain'`
-      )
-      .bind(run.provisioning_id, JSON.stringify({ domainId, verified: true })),
-    db
-      .prepare(
-        `UPDATE tenant_provisioning_runs
-            SET status=CASE WHEN current_step='domain' THEN 'running' ELSE status END,
-                current_step=CASE WHEN current_step='domain' THEN 'publish' ELSE current_step END,
-                last_error=CASE WHEN current_step='domain' THEN NULL ELSE last_error END,
-                updated_at=CURRENT_TIMESTAMP
-          WHERE provisioning_id=?1 AND tenant_id=?2`
-      )
-      .bind(run.provisioning_id, tenantId)
-  ]);
+async function markDomainProvisioningReady(db, tenantId) {
+  // Domain success alone is not enough anymore. Runtime dispatch smoke must also be
+  // verified before the provisioning run may cross the publish checkpoint.
+  await maybeAdvanceTenantToPublish(db, tenantId);
 }
 
 async function clearDeletedProviderState(db, record) {
