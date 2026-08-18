@@ -1,0 +1,50 @@
+name: Validate tenant ingestion
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'migrations/0012_tenant_import_jobs.sql'
+      - 'migrations/0013_tenant_import_scan_resume.sql'
+      - 'worker/ingestion/**'
+      - 'worker/import-scan-entry.js'
+      - 'worker/tenant-import-*.js'
+      - 'worker/cloudflare-platform.js'
+      - 'tests/tenant-import-*.test.mjs'
+      - 'docs/TENANT-IMPORT-*.md'
+      - '.github/workflows/validate-tenant-ingestion.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Quality gate
+        run: npm run quality
+
+      - name: Apply control-plane migrations including import resume state
+        shell: bash
+        run: |
+          set -euo pipefail
+          DB=/tmp/catalog-engine-ingestion-ci.sqlite
+          rm -f "$DB"
+          for migration in migrations/*.sql; do
+            sqlite3 "$DB" < "$migration"
+          done
+          sqlite3 "$DB" 'PRAGMA foreign_key_check;'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM pragma_table_info('tenant_import_jobs') WHERE name IN ('detail_enqueue_cursor','scan_completed_at','scan_lease_until');")" = '3'
