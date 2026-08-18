@@ -48,17 +48,17 @@ export async function loadTenantImportContext(db, { importId, tenantId, sourceKe
 
   if (!row) throw new TenantImportContextError('tenant_import_not_found', 404);
   if (row.mode !== 'initial') throw new TenantImportContextError('tenant_import_mode_not_supported');
-  if (!['queued', 'scanning', 'details'].includes(row.import_status)) {
+  if (!['queued', 'scanning', 'details', 'finalizing', 'failed'].includes(row.import_status)) {
     throw new TenantImportContextError('tenant_import_not_runnable');
   }
-  if (!['scan', 'details'].includes(row.phase)) {
-    throw new TenantImportContextError('tenant_import_phase_not_scannable');
+  if (!['scan', 'details', 'finalize'].includes(row.phase)) {
+    throw new TenantImportContextError('tenant_import_phase_not_runnable');
   }
   if (row.provider !== 'yupoo') throw new TenantImportContextError('tenant_import_provider_not_supported');
   if (row.database_status !== 'active' || row.worker_status !== 'active') {
     throw new TenantImportContextError('tenant_data_plane_not_ready');
   }
-  if (Number(row.schema_version || 0) < 1) {
+  if (Number(row.schema_version || 0) < 2) {
     throw new TenantImportContextError('tenant_schema_not_ready');
   }
   if (row.provisioning_step && row.provisioning_step !== 'import') {
