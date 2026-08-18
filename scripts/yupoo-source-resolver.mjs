@@ -1,10 +1,13 @@
+import { normalizeYupooCatalogUrl } from '../src/domain/tenant-source-connection.js';
+
 const probeHeaders = {
   'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36',
   'accept-language': 'pt-BR,pt;q=0.9,en;q=0.8'
 };
 
 export function subcategoryVariant(value) {
-  const url = new URL(value);
+  const normalized = normalizeYupooCatalogUrl(value);
+  const url = new URL(normalized.canonicalUrl);
   const pathname = url.pathname.replace(/\/+$/, '');
   if (!/\/categories\/\d+$/i.test(pathname)) return url.href;
   if (!url.searchParams.has('isSubCate')) url.searchParams.set('isSubCate', 'true');
@@ -20,6 +23,7 @@ async function probe(url, fetchImpl) {
       redirect: 'follow',
       signal: controller.signal
     });
+    if (response.url) normalizeYupooCatalogUrl(response.url);
     await response.body?.cancel().catch(() => {});
     return response.status;
   } finally {
@@ -28,12 +32,10 @@ async function probe(url, fetchImpl) {
 }
 
 export async function resolveYupooSourceUrl(value, { fetchImpl = fetch } = {}) {
-  const url = new URL(value);
-  if (!url.hostname.endsWith('.x.yupoo.com')) {
-    throw new Error('A fonte precisa ser um catálogo público do Yupoo (*.x.yupoo.com).');
-  }
-
+  const normalized = normalizeYupooCatalogUrl(value);
+  const url = new URL(normalized.canonicalUrl);
   const pathname = url.pathname.replace(/\/+$/, '');
+
   if (!/\/categories\/\d+$/i.test(pathname) || url.searchParams.has('isSubCate')) {
     return url.href;
   }
@@ -58,4 +60,13 @@ export async function resolveYupooSourceUrl(value, { fetchImpl = fetch } = {}) {
   }
 
   return candidate;
+}
+
+export async function verifyYupooSourceUrl(value, { fetchImpl = fetch } = {}) {
+  const resolved = await resolveYupooSourceUrl(value, { fetchImpl });
+  const status = await probe(resolved, fetchImpl);
+  if (status < 200 || status >= 400) {
+    throw new Error(`O catálogo Yupoo respondeu HTTP ${status}.`);
+  }
+  return resolved;
 }
