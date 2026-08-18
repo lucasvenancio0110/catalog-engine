@@ -68,6 +68,29 @@ async function releaseScanLease(db, importId, tenantId) {
     .run();
 }
 
+function categoryInsert(category, context, sortOrder) {
+  return {
+    sql: `INSERT INTO supplier_category_index
+      (tenant_id, source_key, category_source_id, name, parent_source_id, depth, sort_order, updated_at)
+      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, CURRENT_TIMESTAMP)
+      ON CONFLICT(tenant_id, source_key, category_source_id) DO UPDATE SET
+        name=excluded.name,
+        parent_source_id=excluded.parent_source_id,
+        depth=excluded.depth,
+        sort_order=excluded.sort_order,
+        updated_at=CURRENT_TIMESTAMP`,
+    params: [
+      context.tenantId,
+      context.sourceKey,
+      String(category.id),
+      String(category.name || '').trim() || `Categoria ${category.id}`,
+      category.parentId ? String(category.parentId) : null,
+      Math.max(0, Number(category.depth || 0)),
+      sortOrder
+    ]
+  };
+}
+
 function indexInsert(item, context) {
   return {
     sql: `INSERT INTO supplier_album_index
@@ -86,8 +109,12 @@ function indexInsert(item, context) {
         cover_source_url=excluded.cover_source_url,
         image_count_hint=excluded.image_count_hint,
         listing_fingerprint=excluded.listing_fingerprint,
+        detail_fingerprint=NULL,
         status='active',
         miss_count=0,
+        detail_retry_count=0,
+        detail_retry_after=NULL,
+        detail_last_error=NULL,
         last_seen_at=CURRENT_TIMESTAMP,
         last_changed_at=CASE
           WHEN supplier_album_index.listing_fingerprint != excluded.listing_fingerprint THEN CURRENT_TIMESTAMP
@@ -120,11 +147,27 @@ async function persistCompleteListingScan(context, scan, platform, fetchImpl) {
           sql: `DELETE FROM supplier_album_index
                  WHERE tenant_id=?1 AND source_key=?2`,
           params: [context.tenantId, context.sourceKey]
+        },
+        {
+          sql: `DELETE FROM supplier_category_index
+                 WHERE tenant_id=?1 AND source_key=?2`,
+          params: [context.tenantId, context.sourceKey]
         }
       ]
     },
     { fetchImpl }
   );
+
+  const categories = (scan.taxonomy || []).map((category, index) =>
+    categoryInsert(category, context, index)
+  );
+  for (const group of chunks(categories, INDEX_WRITE_BATCH)) {
+    if (!group.length) continue;
+    await queryD1Batch(
+      { ...platform, databaseId: context.dataPlane.databaseId, batch: group },
+      { fetchImpl }
+    );
+  }
 
   for (const group of chunks(scan.items, INDEX_WRITE_BATCH)) {
     await queryD1Batch(
@@ -146,6 +189,9 @@ async function markScanPersisted(db, context, scan) {
               discovered_count=?2,
               detail_enqueue_cursor=0,
               queued_detail_count=0,
+              completed_detail_count=0,
+              failed_detail_count=0,
+              deferred_detail_count=0,
               scan_completed_at=CURRENT_TIMESTAMP,
               scan_lease_until=datetime(CURRENT_TIMESTAMP, ?3),
               last_error_code=NULL,
