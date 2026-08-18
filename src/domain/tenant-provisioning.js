@@ -6,9 +6,9 @@ import { buildTenantCustomDomain } from './tenant-domain.js';
 export const TENANT_PROVISION_STEPS = [
   'tenant',
   'profile',
+  'source',
   'data_plane',
   'migrations',
-  'source',
   'import',
   'classify',
   'verify',
