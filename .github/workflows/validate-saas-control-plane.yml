@@ -10,11 +10,13 @@ on:
       - 'worker/runtime-identity.js'
       - 'worker/custom-domain.js'
       - 'worker/cloudflare-saas.js'
+      - 'worker/domain-provider-runner.js'
       - 'worker/index.js'
       - 'tests/tenant-*.test.mjs'
       - 'tests/admin-*.test.mjs'
       - 'tests/custom-domain.test.mjs'
       - 'docs/SAAS-ARCHITECTURE.md'
+      - 'docs/CUSTOM-DOMAINS.md'
       - 'AGENTS.md'
       - '.github/workflows/validate-saas-control-plane.yml'
   workflow_dispatch:
