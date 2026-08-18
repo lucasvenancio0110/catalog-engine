@@ -157,5 +157,7 @@ export async function executeTenantOnboarding(input, {
     }
   }
 
+  state = normalizeTenantOnboardingState(state);
+  if (state.status === 'success') return { outcome: 'success', state, executed };
   return { outcome: 'yielded', state, executed };
 }
