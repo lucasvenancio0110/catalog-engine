@@ -39,7 +39,7 @@ async function discoverImportCandidates(db, limit) {
         WHERE r.current_step='import'
           AND r.status IN ('running','failed','blocked')
           AND i.status='provisioning'
-          AND i.schema_version >= 2
+          AND i.schema_version >= 3
           AND p.database_status='active'
           AND p.worker_status='active'
           AND p.d1_database_id IS NOT NULL
