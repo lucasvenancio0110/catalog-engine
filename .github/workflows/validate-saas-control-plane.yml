@@ -8,9 +8,12 @@ on:
       - 'worker/admin-*.js'
       - 'worker/control-plane-plan.js'
       - 'worker/runtime-identity.js'
+      - 'worker/custom-domain.js'
+      - 'worker/cloudflare-saas.js'
       - 'worker/index.js'
       - 'tests/tenant-*.test.mjs'
       - 'tests/admin-*.test.mjs'
+      - 'tests/custom-domain.test.mjs'
       - 'docs/SAAS-ARCHITECTURE.md'
       - 'AGENTS.md'
       - '.github/workflows/validate-saas-control-plane.yml'
@@ -43,11 +46,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -f /tmp/catalog-engine-ci.sqlite
+          DB=/tmp/catalog-engine-ci.sqlite
+          rm -f "$DB"
           for migration in migrations/*.sql; do
             echo "Applying $migration"
-            sqlite3 /tmp/catalog-engine-ci.sqlite < "$migration"
+            sqlite3 "$DB" < "$migration"
           done
-          sqlite3 /tmp/catalog-engine-ci.sqlite "PRAGMA foreign_key_check;"
-          sqlite3 /tmp/catalog-engine-ci.sqlite "SELECT tenant_id, store_name, theme_key, setup_status FROM tenant_store_profiles;"
-          sqlite3 /tmp/catalog-engine-ci.sqlite "SELECT tenant_id, data_plane_key, status, schema_version FROM tenant_catalog_instances;"
+          sqlite3 "$DB" "PRAGMA foreign_key_check;"
+          sqlite3 "$DB" "SELECT tenant_id, store_name, theme_key, setup_status FROM tenant_store_profiles;"
+          sqlite3 "$DB" "SELECT tenant_id, data_plane_key, status, schema_version FROM tenant_catalog_instances;"
+
+      - name: Verify durable custom-domain provider state
+        shell: bash
+        run: |
+          set -euo pipefail
+          DB=/tmp/catalog-engine-ci.sqlite
+          TENANT='t_00000000000000000001'
+          DOMAIN='dom_0123456789abcdefabcd'
+          sqlite3 "$DB" "INSERT INTO tenant_domains(domain_id,tenant_id,hostname,domain_type,status) VALUES('$DOMAIN','$TENANT','www.example-store.test','custom','pending');"
+          sqlite3 "$DB" "INSERT INTO tenant_domain_provider_state(domain_id,tenant_id,provider,provider_status,ssl_status,cname_target) VALUES('$DOMAIN','$TENANT','cloudflare','pending','pending','shops.catalogengine.test');"
+          sqlite3 "$DB" "INSERT INTO tenant_domain_jobs(job_id,tenant_id,domain_id,operation,status) VALUES('djob_0123456789abcdefabcd','$TENANT','$DOMAIN','provision','pending');"
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_domain_provider_state WHERE domain_id='$DOMAIN' AND provider='cloudflare';")" = '1'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_domain_jobs WHERE domain_id='$DOMAIN' AND operation='provision' AND status='pending';")" = '1'
+          sqlite3 "$DB" "PRAGMA foreign_key_check;"
