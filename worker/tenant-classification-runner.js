@@ -10,6 +10,7 @@ import { stableOpaqueId } from './runtime-identity.js';
 const DEFAULT_DISPATCH_NAMESPACE = 'catalog-engine-production';
 const MAX_AUTOMATIC_ATTEMPTS = 5;
 const PRODUCT_PAGE_SIZE = 100;
+const D1_WRITE_BATCH_LIMIT = 90;
 
 function runtimeConfig(env) {
   const accountId = String(env.CLOUDFLARE_PLATFORM_ACCOUNT_ID || '').trim();
@@ -254,6 +255,28 @@ function facetStatement(facet) {
   };
 }
 
+async function runBoundedBatches(platform, databaseId, statements, fetchImpl) {
+  for (let index = 0; index < statements.length; index += D1_WRITE_BATCH_LIMIT) {
+    await queryD1Batch(
+      {
+        ...platform,
+        databaseId,
+        batch: statements.slice(index, index + D1_WRITE_BATCH_LIMIT)
+      },
+      { fetchImpl }
+    );
+  }
+}
+
+async function seedControlledEntities(platform, context, fetchImpl) {
+  const statements = [
+    ...LEAGUES.map(leagueStatement),
+    ...TEAMS.map(teamStatement),
+    ...FACETS.map(facetStatement)
+  ];
+  await runBoundedBatches(platform, context.d1_database_id, statements, fetchImpl);
+}
+
 function productClassificationStatements(row, classified) {
   const statements = [
     {
@@ -280,10 +303,7 @@ function productClassificationStatements(row, classified) {
       params: [row.product_id]
     }
   ];
-  if (classified.league) statements.push(leagueStatement(classified.league));
-  if (classified.team) statements.push(teamStatement(classified.team));
   for (const facet of classified.facets) {
-    statements.push(facetStatement(facet));
     statements.push({
       sql: 'INSERT OR IGNORE INTO catalog_product_facets (product_id, facet_id) VALUES (?1, ?2)',
       params: [row.product_id, facet.id]
@@ -309,8 +329,30 @@ function productClassificationStatements(row, classified) {
   return statements;
 }
 
+async function writeProductGroups(platform, databaseId, groups, fetchImpl) {
+  let current = [];
+  for (const group of groups) {
+    if (group.length > 100) throw new Error('tenant_classification_product_write_too_large');
+    if (current.length && current.length + group.length > D1_WRITE_BATCH_LIMIT) {
+      await queryD1Batch(
+        { ...platform, databaseId, batch: current },
+        { fetchImpl }
+      );
+      current = [];
+    }
+    current.push(...group);
+  }
+  if (current.length) {
+    await queryD1Batch(
+      { ...platform, databaseId, batch: current },
+      { fetchImpl }
+    );
+  }
+}
+
 async function reclassifyAll(platform, context, fetchImpl) {
   const categoryNames = await sourceCategoryNames(platform, context, fetchImpl);
+  await seedControlledEntities(platform, context, fetchImpl);
   let offset = 0;
   let productCount = 0;
   let automatic = 0;
@@ -320,7 +362,7 @@ async function reclassifyAll(platform, context, fetchImpl) {
   while (true) {
     const rows = await productPage(platform, context, offset, fetchImpl);
     if (!rows.length) break;
-    const batch = [];
+    const groups = [];
     for (const row of rows) {
       const pathNames = categoryPathNames(row, categoryNames);
       const classified = classifyCatalogRecord(
@@ -334,16 +376,13 @@ async function reclassifyAll(platform, context, fetchImpl) {
         pathNames,
         row.override_json || null
       );
-      batch.push(...productClassificationStatements(row, classified));
+      groups.push(productClassificationStatements(row, classified));
       productCount += 1;
       if (classified.classificationStatus === 'automatic') automatic += 1;
       else if (classified.classificationStatus === 'needs_review') review += 1;
       else unknown += 1;
     }
-    await queryD1Batch(
-      { ...platform, databaseId: context.d1_database_id, batch },
-      { fetchImpl }
-    );
+    await writeProductGroups(platform, context.d1_database_id, groups, fetchImpl);
     offset += rows.length;
     if (rows.length < PRODUCT_PAGE_SIZE) break;
   }
