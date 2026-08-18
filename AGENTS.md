@@ -100,9 +100,11 @@ Do not add Axios/Got only to replace native `fetch`. Do not add Lodash for trivi
 7. Tenant branding must be validated before persistence. Customer-selected themes are controlled presets/components, not arbitrary uploaded JavaScript or HTML.
 8. Supplier URLs/credentials/private source state remain private tenant configuration and must never be returned by public storefront APIs.
 9. A custom hostname belongs to only one tenant and is not activated until verified.
-10. Provisioning must be idempotent and resumable: tenant -> profile -> source -> data plane -> migrations -> import -> classification -> smoke test -> publish.
-11. A failed tenant sync/provisioning job must not corrupt another tenant or block unrelated tenants.
-12. See `docs/SAAS-ARCHITECTURE.md` before changing tenancy, provisioning, domains or authentication boundaries.
+10. Provisioning must be idempotent and resumable in this order: tenant -> profile -> source -> data plane -> migrations -> import -> classification -> storefront verification/private preview -> customer domain -> publish.
+11. Successful provisioning steps are checkpoints and must not be replayed on retry. A failed step resumes at that step; a missing/unverified customer domain blocks publication without restarting import/classification.
+12. Provisioning transition metadata must never contain supplier URLs, credentials, tokens, passwords or other private source state.
+13. A failed tenant sync/provisioning job must not corrupt another tenant or block unrelated tenants.
+14. See `docs/SAAS-ARCHITECTURE.md` before changing tenancy, provisioning, domains or authentication boundaries.
 
 ## Data rules
 
