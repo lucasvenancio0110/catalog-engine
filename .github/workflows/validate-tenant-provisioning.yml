@@ -121,7 +121,7 @@ jobs:
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_source_connections c JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol') AND c.status='active';")" = '2'
           test "$(sqlite3 "$DB" "SELECT COUNT(DISTINCT source_url) FROM supplier_sources s JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol');")" = '2'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_provisioning_steps s JOIN tenant_provisioning_runs r USING (provisioning_id) JOIN catalog_tenants t ON t.tenant_id=r.tenant_id WHERE t.slug IN ('loja-arena','loja-do-gol') AND s.step_key='source' AND s.status='success';")" = '2'
-          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_provisioning_runs r JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol') AND r.current_step='import';")" = '2'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_provisioning_runs r JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol') AND r.current_step='data_plane';")" = '2'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_audit_log a JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol') AND a.action='tenant.provision.requested';")" = '2'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_audit_log a JOIN catalog_tenants t USING (tenant_id) WHERE t.slug IN ('loja-arena','loja-do-gol') AND a.action='tenant.source.connected' AND metadata_json LIKE '%x.yupoo.com%';")" = '0'
 
