@@ -1,4 +1,5 @@
 -- Separate physical D1 schema migration work from provider resource provisioning.
+-- Jobs remain control-plane metadata; tenant catalog tables are created only in the isolated D1.
 
 CREATE TABLE IF NOT EXISTS tenant_data_plane_migration_jobs (
   job_id TEXT PRIMARY KEY,
