@@ -2,6 +2,7 @@ import app from './index.js';
 import { runDueDataPlaneMigrations } from './data-plane-migration-runner.js';
 import { runDueDataPlaneJobs } from './data-plane-provider-runner.js';
 import { runDueDomainJobs } from './domain-job-scheduler.js';
+import { runDueTenantImportDispatches } from './tenant-import-dispatcher.js';
 import {
   isCatalogPlatformHost,
   resolveStorefrontTenant,
@@ -15,6 +16,7 @@ function safeScheduleSummary(summary) {
     discovered: summary.discovered || 0,
     selected: summary.selected || 0,
     processed: summary.processed || 0,
+    dispatched: summary.dispatched || 0,
     succeeded: summary.succeeded || 0,
     failed: summary.failed || 0,
     busy: summary.busy || 0
@@ -46,11 +48,13 @@ export default {
       Promise.allSettled([
         runDueDataPlaneJobs(env),
         runDueDataPlaneMigrations(env),
+        runDueTenantImportDispatches(env),
         runDueDomainJobs(env)
       ]).then((results) => {
         const labels = [
           'data_plane_job_schedule',
           'data_plane_migration_schedule',
+          'tenant_import_dispatch_schedule',
           'domain_job_schedule'
         ];
         for (let index = 0; index < results.length; index += 1) {
