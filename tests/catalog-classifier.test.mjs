@@ -23,11 +23,10 @@ describe('versioned catalog classifier', () => {
     expect(result.overrideApplied).toBe(false);
   });
 
-  it('applies a valid manual override after automatic classification', () => {
+  it('applies a valid manual override after automatic classification and keeps it searchable', () => {
     const result = classifyCatalogRecord(product, path, {
       displayName: 'Camisa City Especial',
       teamId: 'arsenal',
-      leagueId: 'premier-league',
       facetIds: ['shirts', 'retro'],
       classificationStatus: 'automatic',
       classificationConfidence: 1
@@ -38,6 +37,8 @@ describe('versioned catalog classifier', () => {
     expect(result.league?.id).toBe('premier-league');
     expect(result.facets.map((facet) => facet.id)).toEqual(['shirts', 'retro']);
     expect(result.classificationConfidence).toBe(1);
+    expect(result.searchText).toContain('camisa city especial');
+    expect(result.searchText).toContain('arsenal');
     expect(result.overrideApplied).toBe(true);
   });
 
@@ -63,6 +64,14 @@ describe('versioned catalog classifier', () => {
     expect(() => parseCatalogClassificationOverride({ facetIds: ['unknown-facet'] })).toThrow(
       'classification_override_unknown_facet'
     );
+  });
+
+  it('rejects supplier/web URLs in public manual labels', () => {
+    expect(() =>
+      parseCatalogClassificationOverride({
+        displayName: 'Veja https://supplier.x.yupoo.com/albums/123'
+      })
+    ).toThrow();
   });
 
   it('does not introduce supplier URLs into the public classifier output', () => {
