@@ -3,6 +3,7 @@ import {
   CloudflareSaasError,
   cloudflareCustomHostnameState,
   createCloudflareCustomHostname,
+  deleteCloudflareCustomHostname,
   getCloudflareCustomHostname,
   restartCloudflareHttpDcv
 } from '../worker/cloudflare-saas.js';
@@ -91,12 +92,10 @@ describe('customer custom domains', () => {
     ]);
 
     const active = publicTenantDomainState({
-      ...{
-        domain_id: 'dom_0123456789abcdefabcd',
-        hostname: 'www.lojaarena.com.br',
-        provider: 'cloudflare',
-        cname_target: cnameTarget
-      },
+      domain_id: 'dom_0123456789abcdefabcd',
+      hostname: 'www.lojaarena.com.br',
+      provider: 'cloudflare',
+      cname_target: cnameTarget,
       domain_status: 'active',
       provider_status: 'active',
       ssl_status: 'active'
@@ -153,9 +152,12 @@ describe('customer custom domains', () => {
     ).toBe(true);
   });
 
-  it('reads and restarts HTTP DCV through the documented custom-hostname resource', async () => {
+  it('reads and restarts HTTP DCV through the custom-hostname resource', async () => {
     const fetchImpl = vi.fn(async (_url, options) =>
-      cloudflareResponse(providerResult({ status: 'active', ssl: { status: 'active' } }), options.method === 'PATCH' ? 202 : 200)
+      cloudflareResponse(
+        providerResult({ status: 'active', ssl: { status: 'active' } }),
+        options.method === 'PATCH' ? 202 : 200
+      )
     );
     const args = {
       zoneId,
@@ -174,6 +176,26 @@ describe('customer custom domains', () => {
     expect(JSON.parse(fetchImpl.mock.calls[1][1].body)).toEqual({
       ssl: { method: 'http', type: 'dv' }
     });
+  });
+
+  it('deletes the provider hostname without requiring a response result object', async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(JSON.stringify({ success: true, errors: [], messages: [], result: null }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' }
+      })
+    );
+    const result = await deleteCloudflareCustomHostname(
+      {
+        zoneId,
+        apiToken,
+        providerHostnameId: 'abcd1234abcd1234abcd1234abcd1234'
+      },
+      { fetchImpl }
+    );
+
+    expect(result.deleted).toBe(true);
+    expect(fetchImpl.mock.calls[0][1].method).toBe('DELETE');
   });
 
   it('maps Cloudflare failures to stable error codes without echoing provider messages or secrets', async () => {
