@@ -48,7 +48,7 @@ export async function loadTenantImportContext(db, { importId, tenantId, sourceKe
 
   if (!row) throw new TenantImportContextError('tenant_import_not_found', 404);
   if (row.mode !== 'initial') throw new TenantImportContextError('tenant_import_mode_not_supported');
-  if (!['queued', 'scanning', 'details', 'finalizing'].includes(row.import_status)) {
+  if (!['queued', 'scanning', 'details', 'finalizing', 'failed'].includes(row.import_status)) {
     throw new TenantImportContextError('tenant_import_not_runnable');
   }
   if (!['scan', 'details', 'finalize'].includes(row.phase)) {
