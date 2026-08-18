@@ -1,0 +1,47 @@
+name: Cloudflare activation readiness
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Quality gate
+        run: npm run quality
+
+      - name: Check dedicated Cloudflare activation prerequisites without mutation
+        env:
+          CLOUDFLARE_PLATFORM_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_PLATFORM_ACCOUNT_ID }}
+          CLOUDFLARE_PLATFORM_API_TOKEN: ${{ secrets.CLOUDFLARE_PLATFORM_API_TOKEN }}
+          CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE: ${{ vars.CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE }}
+          CLOUDFLARE_SAAS_ZONE_ID: ${{ secrets.CLOUDFLARE_SAAS_ZONE_ID }}
+          CLOUDFLARE_SAAS_API_TOKEN: ${{ secrets.CLOUDFLARE_SAAS_API_TOKEN }}
+          CLOUDFLARE_SAAS_CNAME_TARGET: ${{ vars.CLOUDFLARE_SAAS_CNAME_TARGET }}
+        run: node scripts/check-cloudflare-activation-readiness.mjs
+
+      - name: Confirm workflow contains no provider mutation command
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE=.github/workflows/cloudflare-activation-readiness.yml
+          if grep -Eq 'wrangler[[:space:]]+deploy|custom_hostnames.*POST|dispatch/namespaces.*scripts|d1[[:space:]]+create' "$FILE"; then
+            echo 'Readiness workflow must remain non-mutating.' >&2
+            exit 1
+          fi
