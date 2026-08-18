@@ -8,11 +8,16 @@ The customer experience should stay simple:
 2. create a store;
 3. choose branding and a controlled theme;
 4. connect a supported supplier source such as Yupoo;
-5. let Catalog Engine discover, classify and publish the catalog;
-6. keep the store updated through incremental sync;
-7. review only ambiguous classifications or supplier failures.
+5. let Catalog Engine discover and classify the catalog;
+6. preview the storefront privately;
+7. connect and verify the customer-owned domain;
+8. publish the storefront;
+9. keep the store updated through incremental sync;
+10. review only ambiguous classifications or supplier failures.
 
 The supplier is a private ingestion source. It is never the public information architecture of the store.
+
+A paid public storefront is white-label and uses the customer’s own domain. Catalog Engine domains are for the platform/admin experience, not the merchant’s public storefront.
 
 ## Control plane vs data plane
 
@@ -104,11 +109,11 @@ Suggested states for the customer UI:
 
 - `draft` — basic details not complete;
 - `configuring` — source/theme/configuration in progress;
-- `ready` — catalog is healthy but not public yet;
-- `published` — storefront is public;
+- `ready` — catalog is healthy and available for private preview, but not public yet;
+- `published` — customer domain is verified and the storefront is public;
 - `suspended` — intentionally unavailable.
 
-A platform subdomain can be reserved during provisioning, but it is not marked active until domain routing and storefront verification succeed.
+Public publication requires a verified customer-owned domain, healthy routing/HTTPS and a successful storefront verification. Before that point the merchant reviews the store through a private preview in the admin experience.
 
 ## Supplier connections
 
@@ -145,12 +150,19 @@ Manual overrides must survive future syncs and reclassification.
 
 ## Domains
 
-A tenant can eventually own:
+Public merchant storefronts use verified customer-owned custom domains.
 
-- one platform subdomain;
-- optional verified custom domains.
+Catalog Engine platform domains are reserved for first-party surfaces such as the marketing site and authenticated admin application. They are not the public address sold to merchants.
 
-Domain verification state belongs in the control plane. A hostname is unique across tenants.
+Domain ownership/renewal remains with the customer. Catalog Engine stores and manages the connection state, verification state and routing metadata needed to serve the storefront on that domain.
+
+A hostname is unique across tenants.
+
+The intended lifecycle is:
+
+`customer enters domain -> DNS instructions/verification -> routing + HTTPS healthy -> storefront smoke test -> publish`
+
+If the customer has not connected a domain yet, the store can be `ready` and privately previewable but not publicly `published`.
 
 ## Current scale checkpoint
 
@@ -158,7 +170,7 @@ The repository now has a repeatable provisioning plan and a CI proof that two in
 
 - different tenant identities;
 - different data-plane locators;
-- different platform hostnames;
+- different host/domain records;
 - different owner memberships;
 - separate durable provisioning runs;
 - no duplicate tenant/provisioning records when the first request is retried.
@@ -173,7 +185,7 @@ Validate onboarding and sales with a small number of stores while each store has
 
 ### Phase 2 — automated provisioning
 
-Create the authenticated control-plane API, background provisioning workflow, source job queue, domain setup and customer admin app.
+Create the authenticated control-plane API, background provisioning workflow, source job queue, custom-domain setup and customer admin app.
 
 ### Phase 3 — shared SaaS operations
 
