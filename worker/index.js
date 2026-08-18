@@ -1,3 +1,4 @@
+import { handleAdminApi } from './admin-control-plane.js';
 import {
   buildUpstreamHeaders,
   mediaCacheKey,
@@ -418,10 +419,12 @@ export default {
         mediaVariants: true,
         catalogApi: true,
         professionalTaxonomy: true,
+        adminControlPlane: true,
         pageSize: DEFAULT_PAGE_SIZE,
         database: env.CATALOG_DB ? 'bound' : 'unbound'
       });
     }
+    if (url.pathname.startsWith('/api/admin/')) return handleAdminApi(request, env);
     if (url.pathname === '/api/catalog/meta' && request.method === 'GET') return catalogMeta(env);
     if (url.pathname === '/api/leagues' && request.method === 'GET') return listLeagues(url, env);
     if (url.pathname === '/api/teams' && request.method === 'GET') return listTeams(url, env);
