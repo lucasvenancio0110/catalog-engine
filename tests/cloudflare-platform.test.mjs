@@ -3,6 +3,7 @@ import {
   CloudflarePlatformError,
   assertDispatchNamespace,
   ensureD1Database,
+  queryD1Batch,
   tenantBootstrapWorkerSource,
   uploadTenantBootstrapWorker
 } from '../worker/cloudflare-platform.js';
@@ -37,13 +38,8 @@ describe('Cloudflare Workers for Platforms adapter', () => {
   });
 
   it('reuses an existing D1 database by deterministic name instead of creating a duplicate', async () => {
-    const fetchImpl = vi.fn(async () =>
-      success([{ name: databaseName, uuid: databaseId }])
-    );
-    const result = await ensureD1Database(
-      { ...baseConfig, databaseName },
-      { fetchImpl }
-    );
+    const fetchImpl = vi.fn(async () => success([{ name: databaseName, uuid: databaseId }]));
+    const result = await ensureD1Database({ ...baseConfig, databaseName }, { fetchImpl });
 
     expect(result).toEqual({ databaseId, databaseName, created: false });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
@@ -63,12 +59,54 @@ describe('Cloudflare Workers for Platforms adapter', () => {
         return success({ name: databaseName, uuid: databaseId }, 200);
       });
 
-    const result = await ensureD1Database(
-      { ...baseConfig, databaseName },
-      { fetchImpl }
-    );
+    const result = await ensureD1Database({ ...baseConfig, databaseName }, { fetchImpl });
     expect(result).toEqual({ databaseId, databaseName, created: true });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('sends tenant schema operations through the D1 batch query API with bound params', async () => {
+    const batch = [
+      { sql: 'CREATE TABLE IF NOT EXISTS example(id TEXT PRIMARY KEY)', params: [] },
+      { sql: 'INSERT INTO example(id) VALUES (?1)', params: ['safe-opaque-id'] }
+    ];
+    const fetchImpl = vi.fn(async (url, options) => {
+      expect(url).toBe(
+        `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${databaseId}/query`
+      );
+      expect(options.method).toBe('POST');
+      expect(JSON.parse(options.body)).toEqual({ batch });
+      return success([
+        { success: true, results: [], meta: {} },
+        { success: true, results: [], meta: {} }
+      ]);
+    });
+
+    const result = await queryD1Batch(
+      { ...baseConfig, databaseId, batch },
+      { fetchImpl }
+    );
+    expect(result).toHaveLength(2);
+  });
+
+  it('rejects a partially failed D1 batch even if the envelope is successful', async () => {
+    const fetchImpl = async () =>
+      success([
+        { success: true, results: [] },
+        { success: false, results: [] }
+      ]);
+    await expect(
+      queryD1Batch(
+        {
+          ...baseConfig,
+          databaseId,
+          batch: [
+            { sql: 'SELECT 1', params: [] },
+            { sql: 'SELECT 2', params: [] }
+          ]
+        },
+        { fetchImpl }
+      )
+    ).rejects.toMatchObject({ code: 'tenant_d1_query_failed' });
   });
 
   it('uploads one tenant Worker with only that tenant D1 binding and opaque tenant id', async () => {
@@ -119,10 +157,7 @@ describe('Cloudflare Workers for Platforms adapter', () => {
   it('fails closed before any provider call when the platform runtime is absent', async () => {
     const fetchImpl = vi.fn();
     await expect(
-      assertDispatchNamespace(
-        { accountId: '', apiToken: '', dispatchNamespace },
-        { fetchImpl }
-      )
+      assertDispatchNamespace({ accountId: '', apiToken: '', dispatchNamespace }, { fetchImpl })
     ).rejects.toBeInstanceOf(CloudflarePlatformError);
     expect(fetchImpl).not.toHaveBeenCalled();
   });

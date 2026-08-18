@@ -1,6 +1,7 @@
 const API_ORIGIN = 'https://api.cloudflare.com';
 const ACCOUNT_ID_PATTERN = /^[a-f0-9]{32}$/i;
 const RESOURCE_NAME_PATTERN = /^[a-z0-9][a-z0-9_-]{1,62}$/i;
+const DATABASE_ID_PATTERN = /^[a-f0-9-]{32,40}$/i;
 const REQUEST_TIMEOUT_MS = 20_000;
 
 export class CloudflarePlatformError extends Error {
@@ -34,6 +35,14 @@ function safeResourceName(value, code) {
   const normalized = String(value || '').trim();
   if (!RESOURCE_NAME_PATTERN.test(normalized)) {
     throw new CloudflarePlatformError(code, 500);
+  }
+  return normalized;
+}
+
+function safeDatabaseId(value) {
+  const normalized = String(value || '').trim();
+  if (!DATABASE_ID_PATTERN.test(normalized)) {
+    throw new CloudflarePlatformError('invalid_tenant_database_id', 500);
   }
   return normalized;
 }
@@ -146,6 +155,46 @@ export async function ensureD1Database(input, options = {}) {
   return { ...created, created: true };
 }
 
+function normalizeD1Batch(batch) {
+  if (!Array.isArray(batch) || batch.length < 1 || batch.length > 100) {
+    throw new CloudflarePlatformError('invalid_tenant_d1_batch', 500);
+  }
+  return batch.map((query) => {
+    const sql = String(query?.sql || '').trim();
+    if (!sql || sql.length > 100_000) {
+      throw new CloudflarePlatformError('invalid_tenant_d1_query', 500);
+    }
+    const params = Array.isArray(query?.params)
+      ? query.params.map((value) => (value === null || value === undefined ? null : String(value)))
+      : [];
+    if (params.length > 100) throw new CloudflarePlatformError('invalid_tenant_d1_query', 500);
+    return { sql, params };
+  });
+}
+
+export async function queryD1Batch(
+  { accountId, apiToken, dispatchNamespace, databaseId, batch },
+  { fetchImpl = fetch } = {}
+) {
+  const config = platformConfig({ accountId, apiToken, dispatchNamespace });
+  const database = safeDatabaseId(databaseId);
+  const normalizedBatch = normalizeD1Batch(batch);
+  const result = await apiRequest(
+    `/client/v4/accounts/${config.accountId}/d1/database/${encodeURIComponent(database)}/query`,
+    {
+      method: 'POST',
+      config,
+      fetchImpl,
+      jsonBody: { batch: normalizedBatch }
+    }
+  );
+  const rows = Array.isArray(result) ? result : [];
+  if (rows.length !== normalizedBatch.length || rows.some((row) => row?.success === false)) {
+    throw new CloudflarePlatformError('tenant_d1_query_failed', 502);
+  }
+  return rows;
+}
+
 export function tenantBootstrapWorkerSource() {
   return `export default {
   async fetch(request, env) {
@@ -172,10 +221,7 @@ export async function uploadTenantBootstrapWorker(
 ) {
   const config = platformConfig({ accountId, apiToken, dispatchNamespace });
   const script = safeResourceName(scriptName, 'invalid_tenant_worker_name');
-  const database = String(databaseId || '').trim();
-  if (!/^[a-f0-9-]{32,40}$/i.test(database)) {
-    throw new CloudflarePlatformError('invalid_tenant_database_id', 500);
-  }
+  const database = safeDatabaseId(databaseId);
   if (!/^t_[a-f0-9]{20}$/.test(String(tenantId || ''))) {
     throw new CloudflarePlatformError('invalid_tenant_id', 500);
   }

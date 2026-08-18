@@ -1,4 +1,5 @@
 import app from './index.js';
+import { runDueDataPlaneMigrations } from './data-plane-migration-runner.js';
 import { runDueDataPlaneJobs } from './data-plane-provider-runner.js';
 import { runDueDomainJobs } from './domain-job-scheduler.js';
 import {
@@ -42,8 +43,16 @@ export default {
 
   async scheduled(_controller, env, ctx) {
     ctx.waitUntil(
-      Promise.allSettled([runDueDataPlaneJobs(env), runDueDomainJobs(env)]).then((results) => {
-        const labels = ['data_plane_job_schedule', 'domain_job_schedule'];
+      Promise.allSettled([
+        runDueDataPlaneJobs(env),
+        runDueDataPlaneMigrations(env),
+        runDueDomainJobs(env)
+      ]).then((results) => {
+        const labels = [
+          'data_plane_job_schedule',
+          'data_plane_migration_schedule',
+          'domain_job_schedule'
+        ];
         for (let index = 0; index < results.length; index += 1) {
           const result = results[index];
           const label = labels[index];
