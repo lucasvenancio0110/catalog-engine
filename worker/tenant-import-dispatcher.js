@@ -1,0 +1,208 @@
+import {
+  assertPublicSafeImportMessage,
+  buildTenantImportScanMessage,
+  initialTenantImportId
+} from './tenant-import-queue.js';
+
+const MAX_AUTOMATIC_ATTEMPTS = 6;
+const DEFAULT_LIMIT = 3;
+const MAX_LIMIT = 5;
+
+function boundedLimit(value) {
+  const parsed = Number.parseInt(value || '', 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return DEFAULT_LIMIT;
+  return Math.min(parsed, MAX_LIMIT);
+}
+
+export function tenantImportQueueConfigured(env) {
+  return Boolean(env?.TENANT_IMPORT_QUEUE && typeof env.TENANT_IMPORT_QUEUE.send === 'function');
+}
+
+async function discoverImportCandidates(db, limit) {
+  const result = await db
+    .prepare(
+      `SELECT DISTINCT r.tenant_id, s.source_key, r.provisioning_id
+         FROM tenant_provisioning_runs r
+         JOIN tenant_catalog_instances i ON i.tenant_id=r.tenant_id
+         JOIN tenant_data_plane_provider_state p ON p.tenant_id=r.tenant_id
+         JOIN supplier_sources s ON s.tenant_id=r.tenant_id AND s.status='active'
+         LEFT JOIN tenant_import_jobs j ON j.tenant_id=r.tenant_id
+           AND j.source_key=s.source_key
+           AND j.status IN ('pending','queued','scanning','details','finalizing')
+        WHERE r.current_step='import'
+          AND r.status IN ('running','failed','blocked')
+          AND i.status='provisioning'
+          AND i.schema_version >= 1
+          AND p.database_status='active'
+          AND p.worker_status='active'
+          AND p.d1_database_id IS NOT NULL
+          AND j.import_id IS NULL
+        ORDER BY r.created_at ASC, s.created_at ASC
+        LIMIT ?1`
+    )
+    .bind(limit)
+    .all();
+
+  const created = [];
+  for (const row of result.results || []) {
+    const importId = await initialTenantImportId({
+      tenantId: row.tenant_id,
+      sourceKey: row.source_key
+    });
+    await db
+      .prepare(
+        `INSERT INTO tenant_import_jobs
+          (import_id, tenant_id, source_key, mode, status, phase, attempt_count,
+           next_attempt_at, created_at, updated_at)
+         VALUES (?1, ?2, ?3, 'initial', 'pending', 'scan', 0,
+                 CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         ON CONFLICT(import_id) DO UPDATE SET
+           status=CASE
+             WHEN tenant_import_jobs.status IN ('success','cancelled') THEN tenant_import_jobs.status
+             WHEN tenant_import_jobs.status IN ('queued','scanning','details','finalizing') THEN tenant_import_jobs.status
+             ELSE 'pending'
+           END,
+           next_attempt_at=CASE
+             WHEN tenant_import_jobs.status IN ('success','cancelled','queued','scanning','details','finalizing') THEN tenant_import_jobs.next_attempt_at
+             ELSE CURRENT_TIMESTAMP
+           END,
+           last_error_code=CASE
+             WHEN tenant_import_jobs.status IN ('success','cancelled','queued','scanning','details','finalizing') THEN tenant_import_jobs.last_error_code
+             ELSE NULL
+           END,
+           updated_at=CURRENT_TIMESTAMP`
+      )
+      .bind(importId, row.tenant_id, row.source_key)
+      .run();
+    created.push({
+      importId,
+      tenantId: row.tenant_id,
+      sourceKey: row.source_key,
+      provisioningId: row.provisioning_id || null
+    });
+  }
+  return created;
+}
+
+async function dueImportJobs(db, limit) {
+  const result = await db
+    .prepare(
+      `SELECT j.import_id, j.tenant_id, j.source_key, j.attempt_count,
+              r.provisioning_id
+         FROM tenant_import_jobs j
+         LEFT JOIN tenant_provisioning_runs r ON r.provisioning_id=(
+           SELECT r2.provisioning_id
+             FROM tenant_provisioning_runs r2
+            WHERE r2.tenant_id=j.tenant_id
+            ORDER BY r2.created_at DESC
+            LIMIT 1
+         )
+        WHERE j.mode='initial'
+          AND j.phase='scan'
+          AND j.status IN ('pending','failed')
+          AND j.attempt_count < ?1
+          AND (j.next_attempt_at IS NULL OR j.next_attempt_at <= CURRENT_TIMESTAMP)
+        ORDER BY j.created_at ASC
+        LIMIT ?2`
+    )
+    .bind(MAX_AUTOMATIC_ATTEMPTS, limit)
+    .all();
+  return result.results || [];
+}
+
+async function markQueued(db, job) {
+  const statements = [
+    db
+      .prepare(
+        `UPDATE tenant_import_jobs
+            SET status='queued', phase='scan', attempt_count=attempt_count+1,
+                started_at=COALESCE(started_at,CURRENT_TIMESTAMP),
+                next_attempt_at=NULL, last_error_code=NULL, updated_at=CURRENT_TIMESTAMP
+          WHERE import_id=?1 AND tenant_id=?2 AND status IN ('pending','failed')`
+      )
+      .bind(job.import_id, job.tenant_id)
+  ];
+  if (job.provisioning_id) {
+    statements.push(
+      db
+        .prepare(
+          `UPDATE tenant_provisioning_steps
+              SET status='running',
+                  attempt_count=CASE WHEN attempt_count < 1 THEN 1 ELSE attempt_count END,
+                  started_at=COALESCE(started_at,CURRENT_TIMESTAMP),
+                  finished_at=NULL, last_error=NULL, updated_at=CURRENT_TIMESTAMP
+            WHERE provisioning_id=?1 AND step_key='import'`
+        )
+        .bind(job.provisioning_id)
+    );
+    statements.push(
+      db
+        .prepare(
+          `UPDATE tenant_provisioning_runs
+              SET status='running', current_step='import', last_error=NULL, updated_at=CURRENT_TIMESTAMP
+            WHERE provisioning_id=?1 AND tenant_id=?2`
+        )
+        .bind(job.provisioning_id, job.tenant_id)
+    );
+  }
+  await db.batch(statements);
+}
+
+async function markDispatchFailure(db, job, safeCode) {
+  await db
+    .prepare(
+      `UPDATE tenant_import_jobs
+          SET status='failed', phase='scan', attempt_count=attempt_count+1,
+              next_attempt_at=datetime(CURRENT_TIMESTAMP,'+10 minutes'),
+              last_error_code=?2, updated_at=CURRENT_TIMESTAMP
+        WHERE import_id=?1 AND tenant_id=?3 AND status IN ('pending','failed')`
+    )
+    .bind(job.import_id, safeCode, job.tenant_id)
+    .run();
+}
+
+export async function runDueTenantImportDispatches(
+  env,
+  { limit = DEFAULT_LIMIT } = {}
+) {
+  if (!env.CATALOG_DB) return { enabled: false, reason: 'database_unbound', dispatched: 0 };
+  if (!tenantImportQueueConfigured(env)) {
+    return { enabled: false, reason: 'tenant_import_queue_unbound', dispatched: 0 };
+  }
+
+  const db = env.CATALOG_DB;
+  const jobLimit = boundedLimit(limit);
+  const discovered = await discoverImportCandidates(db, jobLimit);
+  const due = await dueImportJobs(db, jobLimit);
+  const outcomes = [];
+
+  for (const job of due) {
+    try {
+      const message = assertPublicSafeImportMessage(
+        await buildTenantImportScanMessage({
+          tenantId: job.tenant_id,
+          sourceKey: job.source_key
+        })
+      );
+      if (message.importId !== job.import_id) throw new Error('tenant_import_identity_mismatch');
+      await env.TENANT_IMPORT_QUEUE.send(message, {
+        contentType: 'json',
+        delaySeconds: 0
+      });
+      await markQueued(db, job);
+      outcomes.push({ importId: job.import_id, outcome: 'queued' });
+    } catch {
+      await markDispatchFailure(db, job, 'tenant_import_queue_send_failed');
+      outcomes.push({ importId: job.import_id, outcome: 'failed' });
+    }
+  }
+
+  return {
+    enabled: true,
+    discovered: discovered.length,
+    selected: due.length,
+    dispatched: outcomes.filter((entry) => entry.outcome === 'queued').length,
+    failed: outcomes.filter((entry) => entry.outcome === 'failed').length,
+    outcomes
+  };
+}
