@@ -11,19 +11,17 @@ on:
     paths:
       - ".github/workflows/sync-yupoo-incremental.yml"
       - "migrations/0006_incremental_supplier_sync.sql"
+      - "src/domain/tenant-source-connection.js"
+      - "scripts/load-private-source-config.mjs"
       - "scripts/incremental-sync-core.mjs"
       - "scripts/scan-yupoo-listing-index.mjs"
       - "scripts/plan-yupoo-incremental.mjs"
       - "scripts/process-yupoo-delta.mjs"
       - "scripts/yupoo-detail-core.mjs"
       - "tests/incremental-sync.test.mjs"
+      - "tests/private-source-config.test.mjs"
   workflow_dispatch:
     inputs:
-      source_url:
-        description: "Yupoo catalog source (/albums/)"
-        required: false
-        default: "https://zhouchangliang.x.yupoo.com/albums/"
-        type: string
       scan_mode:
         description: "recent = fast delta discovery; complete = deletion-safe listing reconciliation"
         required: true
@@ -47,7 +45,6 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      SOURCE_URL: ${{ inputs.source_url || 'https://zhouchangliang.x.yupoo.com/albums/' }}
       TENANT_ID: t_00000000000000000001
       SOURCE_KEY: primary
       SCAN_MODE: recent
@@ -108,6 +105,14 @@ jobs:
 
       - name: Apply D1 migrations
         run: npx --yes "wrangler@$WRANGLER_VERSION" d1 migrations apply CATALOG_DB --remote --config wrangler.jsonc
+
+      - name: Load supplier source from private tenant configuration
+        shell: bash
+        run: |
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --json \
+            --command="SELECT source_url FROM supplier_sources WHERE tenant_id='$TENANT_ID' AND source_key='$SOURCE_KEY' AND status IN ('active','error') LIMIT 1;" \
+            > /tmp/catalog-engine-private-source.json
+          node scripts/load-private-source-config.mjs /tmp/catalog-engine-private-source.json
 
       - name: Load previous private supplier index
         shell: bash
