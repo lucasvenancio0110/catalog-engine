@@ -49,14 +49,14 @@ describe('tenant provisioning', () => {
     expect(publicProvisioningSummary(plan).hostname).toBeNull();
   });
 
-  it('creates every durable onboarding checkpoint in the private-preview-first order', () => {
+  it('creates every durable onboarding checkpoint in supplier-first private-preview order', () => {
     const plan = buildTenantProvisioningPlan(arenaRequest);
     expect(plan.provisioning.steps.map((step) => step.stepKey)).toEqual([
       'tenant',
       'profile',
+      'source',
       'data_plane',
       'migrations',
-      'source',
       'import',
       'classify',
       'verify',
