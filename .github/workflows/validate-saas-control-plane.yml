@@ -4,8 +4,13 @@ on:
   pull_request:
     paths:
       - 'migrations/**'
-      - 'src/domain/tenant-config.js'
-      - 'tests/tenant-config.test.mjs'
+      - 'src/domain/tenant-*.js'
+      - 'worker/admin-*.js'
+      - 'worker/control-plane-plan.js'
+      - 'worker/runtime-identity.js'
+      - 'worker/index.js'
+      - 'tests/tenant-*.test.mjs'
+      - 'tests/admin-*.test.mjs'
       - 'docs/SAAS-ARCHITECTURE.md'
       - 'AGENTS.md'
       - '.github/workflows/validate-saas-control-plane.yml'
