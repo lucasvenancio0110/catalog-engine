@@ -32,7 +32,10 @@ function validateConfig({ zoneId, apiToken, cnameTarget = null }) {
   return { zoneId: normalizedZoneId, apiToken: normalizedToken, cnameTarget: normalizedTarget };
 }
 
-async function cloudflareRequest(path, { method = 'GET', body = null, config, fetchImpl = fetch } = {}) {
+async function cloudflareRequest(
+  path,
+  { method = 'GET', body = null, config, fetchImpl = fetch, requireResult = true } = {}
+) {
   const url = new URL(path, API_ORIGIN);
   if (url.origin !== API_ORIGIN) throw new CloudflareSaasError('cloudflare_saas_invalid_request', 500);
   const controller = new AbortController();
@@ -63,13 +66,18 @@ async function cloudflareRequest(path, { method = 'GET', body = null, config, fe
     throw new CloudflareSaasError('cloudflare_saas_invalid_response');
   }
 
-  if (!response.ok || payload?.success !== true || !payload?.result) {
+  if (!response.ok || payload?.success !== true || (requireResult && !payload?.result)) {
     const providerCode = payload?.errors?.[0]?.code;
     const safeCode = Number.isFinite(Number(providerCode)) ? String(providerCode) : 'unknown';
-    const status = response.status === 429 ? 503 : response.status >= 400 && response.status < 500 ? 422 : 502;
+    const status =
+      response.status === 429
+        ? 503
+        : response.status >= 400 && response.status < 500
+          ? 422
+          : 502;
     throw new CloudflareSaasError(`cloudflare_custom_hostname_${safeCode}`, status);
   }
-  return payload.result;
+  return payload.result ?? null;
 }
 
 export async function createCloudflareCustomHostname(
@@ -94,15 +102,20 @@ export async function createCloudflareCustomHostname(
   return cloudflareCustomHostnameState(result, { cnameTarget: config.cnameTarget });
 }
 
+function normalizedHostnameId(value) {
+  const id = String(value || '').trim();
+  if (!/^[a-z0-9_-]{8,80}$/i.test(id)) {
+    throw new CloudflareSaasError('cloudflare_saas_invalid_hostname_id', 500);
+  }
+  return id;
+}
+
 export async function getCloudflareCustomHostname(
   { zoneId, apiToken, providerHostnameId, cnameTarget = null },
   { fetchImpl = fetch } = {}
 ) {
   const config = validateConfig({ zoneId, apiToken, cnameTarget });
-  const id = String(providerHostnameId || '').trim();
-  if (!/^[a-z0-9_-]{8,80}$/i.test(id)) {
-    throw new CloudflareSaasError('cloudflare_saas_invalid_hostname_id', 500);
-  }
+  const id = normalizedHostnameId(providerHostnameId);
   const result = await cloudflareRequest(
     `/client/v4/zones/${config.zoneId}/custom_hostnames/${encodeURIComponent(id)}`,
     { config, fetchImpl }
@@ -115,10 +128,7 @@ export async function restartCloudflareHttpDcv(
   { fetchImpl = fetch } = {}
 ) {
   const config = validateConfig({ zoneId, apiToken, cnameTarget });
-  const id = String(providerHostnameId || '').trim();
-  if (!/^[a-z0-9_-]{8,80}$/i.test(id)) {
-    throw new CloudflareSaasError('cloudflare_saas_invalid_hostname_id', 500);
-  }
+  const id = normalizedHostnameId(providerHostnameId);
   const result = await cloudflareRequest(
     `/client/v4/zones/${config.zoneId}/custom_hostnames/${encodeURIComponent(id)}`,
     {
@@ -129,6 +139,19 @@ export async function restartCloudflareHttpDcv(
     }
   );
   return cloudflareCustomHostnameState(result, { cnameTarget: config.cnameTarget });
+}
+
+export async function deleteCloudflareCustomHostname(
+  { zoneId, apiToken, providerHostnameId },
+  { fetchImpl = fetch } = {}
+) {
+  const config = validateConfig({ zoneId, apiToken });
+  const id = normalizedHostnameId(providerHostnameId);
+  await cloudflareRequest(
+    `/client/v4/zones/${config.zoneId}/custom_hostnames/${encodeURIComponent(id)}`,
+    { method: 'DELETE', config, fetchImpl, requireResult: false }
+  );
+  return { deleted: true, providerHostnameId: id };
 }
 
 function firstValidationRecord(ssl) {
