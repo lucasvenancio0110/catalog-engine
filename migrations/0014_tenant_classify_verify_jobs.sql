@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS tenant_classification_jobs (
   status TEXT NOT NULL DEFAULT 'pending'
     CHECK (status IN ('pending','running','success','failed','cancelled')),
   attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+  chunk_count INTEGER NOT NULL DEFAULT 0 CHECK (chunk_count >= 0),
+  cursor_product_id TEXT,
   product_count INTEGER NOT NULL DEFAULT 0 CHECK (product_count >= 0),
   automatic_count INTEGER NOT NULL DEFAULT 0 CHECK (automatic_count >= 0),
   review_count INTEGER NOT NULL DEFAULT 0 CHECK (review_count >= 0),
