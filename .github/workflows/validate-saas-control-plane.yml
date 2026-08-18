@@ -12,12 +12,15 @@ on:
       - 'worker/cloudflare-saas.js'
       - 'worker/cloudflare-platform.js'
       - 'worker/tenant-data-plane.js'
+      - 'worker/tenant-data-plane-schema.js'
       - 'worker/data-plane-provider-runner.js'
+      - 'worker/data-plane-migration-runner.js'
       - 'worker/domain-provider-runner.js'
       - 'worker/domain-job-scheduler.js'
       - 'worker/tenant-routing.js'
       - 'worker/entry.js'
       - 'worker/index.js'
+      - 'scripts/emit-tenant-data-plane-schema.mjs'
       - 'tests/tenant-*.test.mjs'
       - 'tests/tenant-routing.test.mjs'
       - 'tests/admin-*.test.mjs'
@@ -55,7 +58,7 @@ jobs:
       - name: Quality gate
         run: npm run quality
 
-      - name: Apply all D1 migrations to clean SQLite database
+      - name: Apply all control-plane D1 migrations to clean SQLite database
         shell: bash
         run: |
           set -euo pipefail
@@ -83,7 +86,7 @@ jobs:
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_domain_jobs WHERE domain_id='$DOMAIN' AND operation='provision' AND status='pending';")" = '1'
           sqlite3 "$DB" "PRAGMA foreign_key_check;"
 
-      - name: Verify durable isolated data-plane provider state
+      - name: Verify durable isolated data-plane provider and migration jobs
         shell: bash
         run: |
           set -euo pipefail
@@ -91,6 +94,29 @@ jobs:
           TENANT='t_00000000000000000001'
           sqlite3 "$DB" "INSERT INTO tenant_data_plane_provider_state(tenant_id,provider,dispatch_namespace,worker_script_name,d1_database_name,worker_status,database_status) VALUES('$TENANT','cloudflare_wfp','catalog-engine-production','ce-default-ci','ce-default-ci','pending','pending');"
           sqlite3 "$DB" "INSERT INTO tenant_data_plane_jobs(job_id,tenant_id,operation,status) VALUES('dpjob_0123456789abcdefabcd','$TENANT','provision','pending');"
+          sqlite3 "$DB" "INSERT INTO tenant_data_plane_migration_jobs(job_id,tenant_id,target_schema_version,status) VALUES('dpmig_0123456789abcdefabcd','$TENANT',1,'pending');"
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_data_plane_provider_state WHERE tenant_id='$TENANT' AND provider='cloudflare_wfp';")" = '1'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_data_plane_jobs WHERE tenant_id='$TENANT' AND operation='provision' AND status='pending';")" = '1'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_data_plane_migration_jobs WHERE tenant_id='$TENANT' AND target_schema_version=1 AND status='pending';")" = '1'
           sqlite3 "$DB" "PRAGMA foreign_key_check;"
+
+      - name: Apply tenant-only catalog schema to an isolated SQLite database
+        shell: bash
+        run: |
+          set -euo pipefail
+          TENANT_DB=/tmp/catalog-engine-tenant-ci.sqlite
+          SQL=/tmp/catalog-engine-tenant-schema.sql
+          rm -f "$TENANT_DB" "$SQL"
+          TENANT_DATA_PLANE_SQL_OUT="$SQL" \
+          TENANT_ID='t_0123456789abcdefabcd' \
+          SOURCE_URL='https://supplier-test.x.yupoo.com/albums/' \
+          node scripts/emit-tenant-data-plane-schema.mjs
+          sqlite3 "$TENANT_DB" < "$SQL"
+          sqlite3 "$TENANT_DB" "PRAGMA foreign_key_check;"
+          test "$(sqlite3 "$TENANT_DB" "SELECT schema_version FROM data_plane_identity WHERE tenant_id='t_0123456789abcdefabcd';")" = '1'
+          test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM supplier_sources WHERE tenant_id='t_0123456789abcdefabcd' AND source_key='primary';")" = '1'
+          test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM data_plane_schema_migrations WHERE version=1;")" = '1'
+          test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='catalog_products';")" = '1'
+          test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='supplier_album_index';")" = '1'
+          test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='tenant_memberships';")" = '0'
+          test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='tenant_domains';")" = '0'
