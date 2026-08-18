@@ -30,12 +30,16 @@ export default {
 
       if (['success', 'skipped', 'deferred'].includes(result.outcome)) {
         message.ack();
-      } else if (['busy', 'retry', 'not_ready'].includes(result.outcome)) {
-        message.retry({ delaySeconds: retryDelay(result, parsed.type === 'finalize' ? 90 : 120) });
       } else {
-        // Stable failures are acknowledged. Durable control-plane and tenant-D1 state
-        // preserves the failure code; scheduler/future recovery tooling owns replay.
-        message.ack();
+        // All valid detail/finalize failures are retry-safe: per-album claims are
+        // idempotent and finalization writes absolute aggregates. Queue policy can
+        // eventually dead-letter a persistently invalid message without losing work.
+        message.retry({
+          delaySeconds: retryDelay(
+            result,
+            parsed.type === 'finalize' ? 90 : result.outcome === 'failed' ? 300 : 120
+          )
+        });
       }
     }
   }
