@@ -58,7 +58,7 @@ export async function loadTenantImportContext(db, { importId, tenantId, sourceKe
   if (row.database_status !== 'active' || row.worker_status !== 'active') {
     throw new TenantImportContextError('tenant_data_plane_not_ready');
   }
-  if (Number(row.schema_version || 0) < 2) {
+  if (Number(row.schema_version || 0) < 3) {
     throw new TenantImportContextError('tenant_schema_not_ready');
   }
   if (row.provisioning_step && row.provisioning_step !== 'import') {

@@ -5,6 +5,7 @@ on:
     paths:
       - 'migrations/**'
       - 'src/domain/tenant-*.js'
+      - 'src/domain/catalog-classifier.js'
       - 'worker/admin-*.js'
       - 'worker/control-plane-plan.js'
       - 'worker/runtime-identity.js'
@@ -17,14 +18,14 @@ on:
       - 'worker/data-plane-migration-runner.js'
       - 'worker/domain-provider-runner.js'
       - 'worker/domain-job-scheduler.js'
-      - 'worker/tenant-import-*.js'
+      - 'worker/tenant-*.js'
       - 'worker/import-*-entry.js'
       - 'worker/ingestion/**'
-      - 'worker/tenant-routing.js'
       - 'worker/entry.js'
       - 'worker/index.js'
       - 'scripts/emit-tenant-data-plane-schema.mjs'
       - 'tests/tenant-*.test.mjs'
+      - 'tests/catalog-classifier.test.mjs'
       - 'tests/data-plane-*.test.mjs'
       - 'tests/admin-*.test.mjs'
       - 'tests/custom-domain.test.mjs'
@@ -90,7 +91,7 @@ jobs:
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_domain_jobs WHERE domain_id='$DOMAIN' AND operation='provision' AND status='pending';")" = '1'
           sqlite3 "$DB" "PRAGMA foreign_key_check;"
 
-      - name: Verify durable isolated data-plane provider migration and import jobs
+      - name: Verify durable isolated data-plane import classify and verify jobs
         shell: bash
         run: |
           set -euo pipefail
@@ -98,12 +99,16 @@ jobs:
           TENANT='t_00000000000000000001'
           sqlite3 "$DB" "INSERT INTO tenant_data_plane_provider_state(tenant_id,provider,dispatch_namespace,worker_script_name,d1_database_name,worker_status,database_status) VALUES('$TENANT','cloudflare_wfp','catalog-engine-production','ce-default-ci','ce-default-ci','pending','pending');"
           sqlite3 "$DB" "INSERT INTO tenant_data_plane_jobs(job_id,tenant_id,operation,status) VALUES('dpjob_0123456789abcdefabcd','$TENANT','provision','pending');"
-          sqlite3 "$DB" "INSERT INTO tenant_data_plane_migration_jobs(job_id,tenant_id,target_schema_version,status) VALUES('dpmig_0123456789abcdefabcd','$TENANT',2,'pending');"
+          sqlite3 "$DB" "INSERT INTO tenant_data_plane_migration_jobs(job_id,tenant_id,target_schema_version,status) VALUES('dpmig_0123456789abcdefabcd','$TENANT',3,'pending');"
           sqlite3 "$DB" "INSERT INTO tenant_import_jobs(import_id,tenant_id,source_key,mode,status,phase) VALUES('imp_0123456789abcdefabcd','$TENANT','primary','initial','pending','scan');"
+          sqlite3 "$DB" "INSERT INTO tenant_classification_jobs(job_id,tenant_id,classifier_version,classifier_key,status) VALUES('clsjob_0123456789abcdefab','$TENANT',1,'professional-v1','pending');"
+          sqlite3 "$DB" "INSERT INTO tenant_verification_jobs(job_id,tenant_id,classifier_version,status) VALUES('vrfjob_0123456789abcdefab','$TENANT',1,'pending');"
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_data_plane_provider_state WHERE tenant_id='$TENANT' AND provider='cloudflare_wfp';")" = '1'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_data_plane_jobs WHERE tenant_id='$TENANT' AND operation='provision' AND status='pending';")" = '1'
-          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_data_plane_migration_jobs WHERE tenant_id='$TENANT' AND target_schema_version=2 AND status='pending';")" = '1'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_data_plane_migration_jobs WHERE tenant_id='$TENANT' AND target_schema_version=3 AND status='pending';")" = '1'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_import_jobs WHERE tenant_id='$TENANT' AND mode='initial' AND status='pending';")" = '1'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_classification_jobs WHERE tenant_id='$TENANT' AND classifier_version=1;")" = '1'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_verification_jobs WHERE tenant_id='$TENANT' AND classifier_version=1;")" = '1'
           sqlite3 "$DB" "PRAGMA foreign_key_check;"
 
       - name: Apply tenant-only catalog schema to an isolated SQLite database
@@ -119,12 +124,12 @@ jobs:
           node scripts/emit-tenant-data-plane-schema.mjs
           sqlite3 "$TENANT_DB" < "$SQL"
           sqlite3 "$TENANT_DB" "PRAGMA foreign_key_check;"
-          test "$(sqlite3 "$TENANT_DB" "SELECT schema_version FROM data_plane_identity WHERE tenant_id='t_0123456789abcdefabcd';")" = '2'
+          test "$(sqlite3 "$TENANT_DB" "SELECT schema_version FROM data_plane_identity WHERE tenant_id='t_0123456789abcdefabcd';")" = '3'
           test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM supplier_sources WHERE tenant_id='t_0123456789abcdefabcd' AND source_key='primary';")" = '1'
-          test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM data_plane_schema_migrations WHERE version IN (1,2);")" = '2'
+          test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM data_plane_schema_migrations WHERE version IN (1,2,3);")" = '3'
           test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='catalog_products';")" = '1'
-          test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='supplier_album_index';")" = '1'
-          test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='supplier_category_index';")" = '1'
           test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='supplier_album_detail_state';")" = '1'
+          test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='catalog_product_classification_state';")" = '1'
+          test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='catalog_product_classification_overrides';")" = '1'
           test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='tenant_memberships';")" = '0'
           test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='tenant_domains';")" = '0'

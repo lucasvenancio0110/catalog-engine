@@ -3,7 +3,7 @@ import { stableOpaqueId } from './runtime-identity.js';
 import {
   TENANT_DATA_PLANE_SCHEMA_VERSION,
   tenantDataPlaneCurrentBatch
-} from './tenant-data-plane-schema-v2.js';
+} from './tenant-data-plane-schema-v3.js';
 
 const DEFAULT_DISPATCH_NAMESPACE = 'catalog-engine-production';
 const MAX_AUTOMATIC_ATTEMPTS = 6;
