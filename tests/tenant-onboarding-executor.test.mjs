@@ -115,7 +115,7 @@ describe('tenant onboarding executor', () => {
   });
 
   it('lets the domain handler verify a pending customer domain, then publishes only after it becomes active', async () => {
-    let state = succeedThrough(stateFromPlan({ customDomain: 'lojaarena.com.br' }), 'verify');
+    const state = succeedThrough(stateFromPlan({ customDomain: 'lojaarena.com.br' }), 'verify');
     const calls = [];
 
     const result = await executeTenantOnboarding(state, {
