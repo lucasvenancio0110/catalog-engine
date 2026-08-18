@@ -1,6 +1,6 @@
 {
   "name": "catalog-engine",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -19,6 +19,7 @@
     "sync:incremental:plan": "node scripts/plan-yupoo-incremental.mjs",
     "sync:incremental:apply": "node scripts/process-yupoo-delta.mjs",
     "tenant:plan": "node scripts/provision-tenant-plan.mjs",
+    "tenant:source:connect": "node scripts/connect-tenant-source.mjs",
     "taxonomy:audit": "node scripts/taxonomy-audit.mjs",
     "media:audit": "node scripts/media-audit.mjs",
     "deps:check": "node scripts/check-dependency-policy.mjs",
