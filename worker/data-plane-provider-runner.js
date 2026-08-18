@@ -23,7 +23,10 @@ export function cloudflarePlatformConfigured(env) {
   return Boolean(runtimeConfig(env));
 }
 
-export async function enqueueTenantDataPlaneProvisioning(db, { tenantId, dispatchNamespace = DEFAULT_DISPATCH_NAMESPACE }) {
+export async function enqueueTenantDataPlaneProvisioning(
+  db,
+  { tenantId, dispatchNamespace = DEFAULT_DISPATCH_NAMESPACE }
+) {
   const plan = await buildTenantDataPlanePlan({ tenantId, dispatchNamespace });
   await db.batch([
     db
@@ -45,10 +48,23 @@ export async function enqueueTenantDataPlaneProvisioning(db, { tenantId, dispatc
           (job_id, tenant_id, operation, status, attempt_count, next_attempt_at, created_at, updated_at)
          VALUES (?1, ?2, 'provision', 'pending', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
          ON CONFLICT(job_id) DO UPDATE SET
-           status=CASE WHEN tenant_data_plane_jobs.status='running' THEN 'running' ELSE 'pending' END,
-           next_attempt_at=CASE WHEN tenant_data_plane_jobs.status='running' THEN tenant_data_plane_jobs.next_attempt_at ELSE CURRENT_TIMESTAMP END,
-           finished_at=CASE WHEN tenant_data_plane_jobs.status='running' THEN tenant_data_plane_jobs.finished_at ELSE NULL END,
-           last_error_code=CASE WHEN tenant_data_plane_jobs.status='running' THEN tenant_data_plane_jobs.last_error_code ELSE NULL END,
+           status=CASE
+             WHEN tenant_data_plane_jobs.status='running' THEN 'running'
+             WHEN tenant_data_plane_jobs.status='success' THEN 'success'
+             ELSE 'pending'
+           END,
+           next_attempt_at=CASE
+             WHEN tenant_data_plane_jobs.status IN ('running','success') THEN tenant_data_plane_jobs.next_attempt_at
+             ELSE CURRENT_TIMESTAMP
+           END,
+           finished_at=CASE
+             WHEN tenant_data_plane_jobs.status IN ('running','success') THEN tenant_data_plane_jobs.finished_at
+             ELSE NULL
+           END,
+           last_error_code=CASE
+             WHEN tenant_data_plane_jobs.status IN ('running','success') THEN tenant_data_plane_jobs.last_error_code
+             ELSE NULL
+           END,
            updated_at=CURRENT_TIMESTAMP`
       )
       .bind(plan.job.jobId, tenantId)
@@ -210,7 +226,11 @@ export async function processTenantDataPlaneProvisioning(
 
     await assertDispatchNamespace(config, { fetchImpl });
     const database = state.d1_database_id
-      ? { databaseId: state.d1_database_id, databaseName: state.d1_database_name, created: false }
+      ? {
+          databaseId: state.d1_database_id,
+          databaseName: state.d1_database_name,
+          created: false
+        }
       : await ensureD1Database(
           { ...config, databaseName: state.d1_database_name },
           { fetchImpl }
@@ -244,16 +264,44 @@ export async function processTenantDataPlaneProvisioning(
   }
 }
 
+async function discoverUnprovisionedTenants(db, config, limit) {
+  const candidates = await db
+    .prepare(
+      `SELECT DISTINCT c.tenant_id
+         FROM tenant_source_connections c
+         JOIN tenant_catalog_instances i ON i.tenant_id=c.tenant_id
+         LEFT JOIN tenant_data_plane_provider_state s ON s.tenant_id=c.tenant_id
+        WHERE c.status='active'
+          AND i.status='provisioning'
+          AND s.tenant_id IS NULL
+        ORDER BY c.created_at ASC
+        LIMIT ?1`
+    )
+    .bind(limit)
+    .all();
+
+  for (const row of candidates.results || []) {
+    await enqueueTenantDataPlaneProvisioning(db, {
+      tenantId: row.tenant_id,
+      dispatchNamespace: config.dispatchNamespace
+    });
+  }
+  return (candidates.results || []).length;
+}
+
 export async function runDueDataPlaneJobs(
   env,
   { fetchImpl = fetch, limit = 3 } = {}
 ) {
   if (!env.CATALOG_DB) return { enabled: false, reason: 'database_unbound', processed: 0 };
-  if (!cloudflarePlatformConfigured(env)) {
+  const config = runtimeConfig(env);
+  if (!config) {
     return { enabled: false, reason: 'cloudflare_platform_unconfigured', processed: 0 };
   }
   const db = env.CATALOG_DB;
   const boundedLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 3, 1), 5);
+
+  const discovered = await discoverUnprovisionedTenants(db, config, boundedLimit);
 
   await db
     .prepare(
@@ -285,11 +333,17 @@ export async function runDueDataPlaneJobs(
       { jobId: job.job_id, tenantId: job.tenant_id, env },
       { fetchImpl }
     );
-    outcomes.push({ jobId: job.job_id, tenantId: job.tenant_id, outcome: result.outcome, error: result.error || null });
+    outcomes.push({
+      jobId: job.job_id,
+      tenantId: job.tenant_id,
+      outcome: result.outcome,
+      error: result.error || null
+    });
   }
 
   return {
     enabled: true,
+    discovered,
     selected: (due.results || []).length,
     processed: outcomes.length,
     succeeded: outcomes.filter((entry) => entry.outcome === 'success').length,
