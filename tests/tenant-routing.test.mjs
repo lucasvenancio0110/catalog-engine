@@ -51,7 +51,7 @@ describe('public tenant hostname routing', () => {
     );
 
     expect(response.status).toBe(200);
-    expect(await response.text()).toBe('/app.html');
+    expect(await response.text()).toBe('/app');
     expect(assetsFetch).toHaveBeenCalledTimes(1);
   });
 
