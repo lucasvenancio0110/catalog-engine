@@ -1,18 +1,18 @@
 # Catalog Engine — Design Foundation Audit
 
-Status: **M3 implementation audit / decision record**  
+Status: **M3 foundation + iconography/dependency hardening implemented**  
 Audit date: **2026-08-19**  
-Scope: current storefront/portal UI structure, responsive debt and library ownership before UX 2.0 work.
+Scope: storefront/portal UI structure, responsive foundation and frontend library ownership before UX 2.0 work.
 
 ## Purpose
 
-This document translates the post-audit `DESIGN-SYSTEM.md` contract into an implementation starting point. It records what exists now, what should be preserved, what should be rebuilt and which library decisions are justified at this stage.
+This document translates the post-audit `DESIGN-SYSTEM.md` contract into the implemented frontend foundation. It records what now exists, what is deliberately preserved and what remains for the later storefront/portal UX milestones.
 
 It does not replace the normative design contract.
 
 ## Current frontend architecture
 
-The repository currently uses:
+The repository uses:
 
 - Vite;
 - browser ES modules;
@@ -20,50 +20,17 @@ The repository currently uses:
 - no React/Vue/Svelte/Angular application;
 - Motion for selected reveal/microinteraction behavior;
 - Swiper for product media galleries;
+- Lucide for framework-neutral SVG iconography;
 - server/API-backed storefront product search/filter loading;
-- a legacy `src/catalog/search.js` Fuse.js helper that is not part of the current storefront entry graph.
+- shared brand-neutral UI foundations under `src/ui/`.
 
-`src/ui/` contained only the Motion wrapper before this M3 foundation work. There was no shared token/primitives layer.
+Fuse.js and the unused `src/catalog/search.js` helper were removed in M3 because the production storefront does not use that client-side search path.
 
-## Design-system fragmentation found
+## Shared foundation, separate brands
 
-### Storefront
+Catalog Engine does not force storefront and portal into one visual skin.
 
-The storefront had its own root values for:
-
-- dark/light colors;
-- panel/background colors;
-- muted text;
-- borders;
-- accent;
-- local radii/spacing;
-- two main responsive breakpoints (`900px`, `620px`).
-
-Product-grid behavior was effectively:
-
-- 4 columns on desktop;
-- 2 columns below 900px;
-- 2 compact columns below 620px.
-
-This worked as an MVP, but it did not express the broader responsive verification contract required for 320px through 1920px+.
-
-### Customer portal
-
-The portal had a separate visual vocabulary:
-
-- different root colors and brand tokens;
-- different radii/shadows;
-- separate focus treatment;
-- separate desktop/mobile shell behavior;
-- symbol-character icon placeholders.
-
-The portal is visually more productized than the storefront foundation, but shared decisions such as spacing, control sizing, focus, safe areas and motion were duplicated rather than owned centrally.
-
-## Decision: shared foundation, separate brands
-
-Catalog Engine will not force storefront and portal into one visual skin.
-
-Shared layer owns:
+The shared layer owns:
 
 - typography/spacing scales;
 - geometry/control sizes;
@@ -72,7 +39,8 @@ Shared layer owns:
 - focus/accessibility behavior;
 - touch behavior;
 - safe-area behavior;
-- responsive quality primitives.
+- responsive quality primitives;
+- common icon geometry.
 
 Surface layers own:
 
@@ -89,175 +57,124 @@ Surface layers own:
 - operational/status language;
 - onboarding/admin information architecture.
 
-This first implementation lives in `src/ui/foundation.css` and is scoped through `body.ce-storefront` / `body.ce-portal`.
+The shared implementation lives primarily in `src/ui/foundation.css` and `src/ui/iconography.css`, scoped through `body.ce-storefront` / `body.ce-portal`.
 
 ## Component audit
 
 ### Storefront shell/header
 
-Status: **IMPROVE / later REBUILD in M9**
+Status: **FOUNDATION IMPROVED / full composition later in M9**
 
-Keep:
+M3 completed:
 
-- sticky header concept;
-- merchant name/logo boundary;
-- compact mobile footprint.
+- responsive/safe-area foundation;
+- professional theme-toggle iconography;
+- shared focus/touch behavior.
 
-Change later:
-
-- replace glyph theme control with consistent iconography;
-- improve mobile search/navigation hierarchy;
-- support theme/brand engine tokens;
-- improve semantic/deep-link navigation.
-
-### Hero/stats
-
-Status: **IMPROVE**
-
-Keep product-count/value context, but future layout should become theme-aware rather than one fixed editorial hero.
+M9 still owns search/navigation hierarchy, theme-engine integration and deeper merchandising composition.
 
 ### Search
 
-Status: **REBUILD EXPERIENCE, KEEP API DIRECTION**
+Status: **API DIRECTION CONFIRMED / UX later in M9**
 
-Current storefront submits search through `/api/products` rather than loading the whole ~17k catalog into Fuse in the current entry path.
+The storefront submits search through `/api/products` rather than loading the complete catalog into a browser-side fuzzy index.
 
-Decision:
+M3 decision:
 
-- do not reintroduce client-side full-catalog Fuse merely because the dependency is installed;
-- preserve a UI contract independent of search implementation;
-- later benchmark server-side vs hybrid typo tolerance before final removal/retention of Fuse.
+- Fuse.js removed as an unused runtime dependency;
+- the search contract now tests that trimmed query, page and active filters are sent to the products API;
+- the interactive input keeps the existing 300 ms debounce;
+- typo-tolerance improvements, if needed later, belong to the server/search architecture rather than an accidental duplicate full-catalog client index.
 
 ### Category browser
 
-Status: **IMPROVE / CEI-AWARE EVOLUTION**
+Status: **FOUNDATION IMPROVED / CEI-aware evolution later**
 
-Keep:
+M3 completed:
 
-- progressive drill-down;
-- team/league/facet navigation;
-- counts;
-- server-backed entity loading.
+- removed emoji and OS-dependent flag iconography;
+- introduced Lucide category/navigation icons;
+- kept progressive drill-down, counts and server-backed entity loading.
 
-Change:
-
-- replace emoji/glyph iconography;
-- stronger responsive layout behavior;
-- clearer selected/path state;
-- use CEI merchandising output as the domain-aware navigation model.
+Later work still owns stronger selected/path state and CEI merchandising output.
 
 ### Product grid
 
-Status: **FOUNDATION IMPROVED NOW, FULL REBUILD M9**
+Status: **FOUNDATION IMPROVED / full rebuild M9**
 
-M3 foundation changes grid sizing from one fixed 4-column desktop rule to intrinsic `auto-fill/minmax` behavior, with intentional two-column narrow-phone behavior and a controlled six-column large-desktop ceiling.
+M3 changed grid sizing from one fixed four-column desktop rule to intrinsic `auto-fill/minmax` behavior, with intentional two-column narrow-phone behavior and a controlled large-desktop density ceiling.
 
-M9 still owns:
-
-- card hierarchy;
-- badges/facets;
-- quick view decision;
-- richer states;
-- skeletons;
-- theme-aware merchandising.
-
-### Product card
-
-Status: **REBUILD M9**
-
-Current card is intentionally simple. Preserve opaque public data/media and safe text rendering, but redesign interaction, typography, image state, badges and actionable information.
+M9 still owns card hierarchy, badges/facets, richer states, skeletons and theme-aware merchandising.
 
 ### Product dialog/gallery
 
 Status: **IMPROVE / evaluate route-first product detail in M9**
 
-Keep Swiper for the current touch gallery because it already owns the problem. Improve:
-
-- mobile safe-area behavior;
-- direct product routes/deep links;
-- dialog focus semantics;
-- sticky CTA only if UX evidence supports it;
-- thumbnails/controls/iconography.
+Swiper remains the gallery owner. M3 added consistent close/CTA iconography and safe-area foundations. M9 owns deep links, focus semantics and final mobile product-detail composition.
 
 ### Portal shell/sidebar/mobile nav
 
-Status: **KEEP ARCHITECTURE, IMPROVE VISUAL/INTERACTION**
+Status: **KEEP ARCHITECTURE / iconography standardized**
 
-Portal already distinguishes desktop sidebar and mobile navigation rather than shrinking desktop directly. Preserve that direction.
+Portal continues to distinguish desktop sidebar and mobile navigation rather than shrinking desktop directly.
 
-Change:
+M3 replaced placeholder Unicode glyphs with Lucide SVGs and moved common geometry/accessibility behavior into the shared foundation.
 
-- replace placeholder glyph icons;
-- establish shared token use;
-- make active/disabled future routes semantically correct when pages become functional;
-- validate 320/360/390/430 and tablet behavior through E2E later.
+## Library decisions after M3
 
-### Store cards / empty / loading / error
+### Vite — KEEP, PINNED
 
-Status: **KEEP CONCEPT, STANDARDIZE**
+Current architecture remains appropriate. The previously mutable `latest` specifier was replaced with the already-working lockfile version `8.2.1`; this was a pin, not a bundler upgrade.
 
-These already reflect the product's action-oriented portal philosophy. M11 will make them data-rich and operational rather than decorative.
+### Motion — KEEP, PINNED
 
-## Library decisions after audit
+Owns purposeful microinteractions. The already-resolved `13.1.0` version is now explicit instead of `latest`.
 
-### Vite — KEEP
+### Swiper — KEEP, PINNED
 
-Current architecture is functioning and build output is healthy. No framework/bundler migration is justified by the design goal alone.
-
-### Motion — KEEP
-
-Owns purposeful microinteractions. Continue using it selectively and keep the CSS `prefers-reduced-motion` baseline.
-
-### Swiper — KEEP
-
-Swiper remains appropriate for touch product-media navigation and supports modular/vanilla usage. Do not add Embla while Swiper already owns the gallery responsibility without a measured problem.
+Owns touch product-media navigation. The already-resolved `14.1.0` version is now explicit instead of `latest`.
 
 ### Zod — KEEP
 
-Not a visual library, but remains the trust-boundary/schema owner for future theme/brand/form configuration.
+Remains the trust-boundary/schema owner for future theme/brand/form configuration.
 
-### Fuse.js — INVESTIGATE / POSSIBLE REMOVE
+### Fuse.js — REMOVED
 
-The file `src/catalog/search.js` imports Fuse, but current storefront entry/main does not import that module and current product search queries the Worker API.
+The helper was not part of the production storefront entry graph and duplicated the server-backed search direction. Both the package and orphan helper module were removed; tests now assert the actual API search contract.
 
-Do not add new Fuse-dependent UX until the M3/M9 search benchmark decides whether:
+### Lucide — ADOPTED
 
-- server search is sufficient;
-- hybrid fuzzy suggestions are useful;
-- Fuse should be removed as dead runtime dependency.
+Lucide is now the shared framework-neutral icon library.
 
-### Lucide — APPROVE AS NEXT ICONOGRAPHY CANDIDATE
+Implementation rules:
 
-Reason:
-
-- framework-neutral web/JavaScript package exists;
-- package has zero runtime dependencies at the current reviewed release;
-- consistent SVG icon language is preferable to mixed emoji/text glyphs;
-- fits the existing Vite module graph without requiring React.
-
-Adoption should happen in a focused follow-up with bundle measurement and lockfile-safe dependency update. Do not use CDN loading.
+- exact version `1.31.0`;
+- no CDN loading;
+- direct named imports only;
+- separate storefront and portal icon packs;
+- no all-icons namespace import;
+- SVGs hydrated only inside the relevant surface/dynamic subtree;
+- bundle cost reported by CI after every relevant frontend build.
 
 ### Radix / Base UI / Ark UI / Headless UI — DO NOT ADOPT NOW
 
-The obvious packages in these families target framework ecosystems, especially React. Adding a frontend framework solely to gain primitives violates current architecture policy.
-
-Native/custom primitives remain acceptable for the current vanilla surface. If portal complexity later objectively justifies a framework migration, primitive-library selection is reevaluated as part of that architecture decision.
+Adding a frontend framework solely to gain primitives is not justified. Native/custom primitives remain appropriate for the current vanilla architecture; this can be revisited only with a real architecture need.
 
 ### Tailwind / shadcn — DO NOT ADOPT NOW
 
-The current problem is lack of a coherent design contract, not inability to write CSS. Introducing another styling/runtime convention before tokens/components are stabilized would increase migration surface without solving a proven blocker.
+The problem being solved is coherent product architecture and design contracts, not inability to write CSS. Do not introduce another styling convention without a demonstrated need.
 
 ### TanStack / React Hook Form / Sonner / cmdk / Vaul — NOT CURRENTLY APPLICABLE
 
-These become candidates only if a future portal architecture/framework and real product complexity gives them a clear responsibility. Do not pre-install future architecture.
+These become candidates only if future portal complexity and architecture give them a clear responsibility.
 
-### Playwright — APPROVE FOR LATER M20 TEST TOOLING
+### Playwright — LATER M20 TEST TOOLING
 
-Browser automation for E2E product validation is distinct from browser automation for scraping. Playwright remains a launch-quality testing candidate and should be introduced with explicit browser CI/budget work, not into the scraper.
+Browser E2E validation remains a launch-quality testing milestone, distinct from scraper automation.
 
 ## Responsive implementation decision
 
-The M3 shared foundation verifies/supports these representative widths conceptually:
+The shared foundation is intended to validate representative widths:
 
 - 320;
 - 360;
@@ -269,26 +186,33 @@ The M3 shared foundation verifies/supports these representative widths conceptua
 - 1440;
 - 1920+.
 
-The CSS does not create one breakpoint per device. It uses:
+It does not create one breakpoint per device. It relies on intrinsic grid sizing, fluid gutters/type/spacing, explicit narrow-phone behavior, a large-desktop density ceiling, safe-area environment variables and hover behavior only for hover-capable fine pointers.
 
-- intrinsic grid sizing;
-- fluid gutters/type/spacing;
-- explicit narrow-phone behavior;
-- explicit large-desktop density ceiling;
-- safe-area environment variables;
-- hover behavior only for hover-capable fine pointers.
+## CI contracts added by M3
 
-## M3 follow-up sequence
+Frontend changes are now checked with a secret-free workflow that performs:
 
-1. merge shared design foundation if quality/build gates pass;
-2. add Lucide in a focused dependency/icon migration with bundle measurement;
-3. remove/replace storefront emoji and portal glyph icon placeholders;
-4. benchmark current API search and decide Fuse retention/removal;
-5. pin/define explicit version ranges for `latest` dependencies;
-6. create first reusable DOM/UI primitives only when a second consumer proves reuse;
-7. execute full M9 Storefront UX 2.0 after core/provider/import safety work progresses;
-8. execute M11 Portal UX 2.0 using the same foundation.
+1. `npm ci`;
+2. dependency policy validation;
+3. all Vitest tests;
+4. lint;
+5. Vite build for storefront and portal;
+6. raw/gzip bundle reporting per generated JS/CSS asset;
+7. public artifact verification.
+
+Additional regression tests reject reintroduction of `latest`, Fuse, all-icons Lucide imports and legacy emoji/glyph iconography.
+
+## What remains after M3
+
+M3 is foundation, not the final visual redesign. Later milestones still own:
+
+- M9 Storefront UX 2.0;
+- M10 Theme Engine;
+- M11 Portal UX 2.0;
+- M20 browser E2E/accessibility/performance launch gates.
+
+The next architecture milestone after M3 is M4 Provider Engine.
 
 ## Final decision
 
-The design redesign is now a product architecture track, not a late styling task. The foundation is shared; the merchant and Catalog Engine brands remain deliberately distinct.
+The redesign is a product-architecture track, not a late styling task. The foundation and icon language are shared; merchant and Catalog Engine branding remain deliberately separate, and frontend dependencies are now explicit rather than floating on `latest`.
