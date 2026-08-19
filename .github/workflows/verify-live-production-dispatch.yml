@@ -91,6 +91,15 @@ jobs:
           const health = JSON.parse(fs.readFileSync('/tmp/health.json', 'utf8'));
           const meta = JSON.parse(fs.readFileSync('/tmp/meta.json', 'utf8'));
           const products = JSON.parse(fs.readFileSync('/tmp/products.json', 'utf8'));
+          console.log(JSON.stringify({
+            healthOk: Boolean(health.ok),
+            healthCatalogApi: Boolean(health.catalogApi),
+            metaKeys: Object.keys(meta || {}).sort(),
+            metaStats: meta?.stats ?? null,
+            metaNavigationCount: Array.isArray(meta?.navigation) ? meta.navigation.length : null,
+            listedTotal: Number(products?.total ?? 0),
+            listedItemCount: Array.isArray(products?.items) ? products.items.length : null
+          }));
           if (!health.ok || !health.catalogApi) throw new Error('live_health_failed');
           if (!Number(meta.stats?.products)) throw new Error('live_catalog_meta_empty');
           if (!Array.isArray(products.items) || products.items.length !== 1) throw new Error('live_catalog_products_empty');
