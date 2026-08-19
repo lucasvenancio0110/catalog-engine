@@ -1,5 +1,6 @@
 const DEFAULT_TENANT_ID = 't_00000000000000000001';
 const DEFAULT_DATA_PLANE_KEY = 'catalog-engine-default';
+const DEFAULT_ADMIN_HOST = 'app.catalogoengine.com';
 
 function normalizeHostname(value) {
   return String(value || '').trim().toLowerCase().replace(/\.$/, '');
@@ -21,6 +22,12 @@ function isLocalDevelopmentHost(hostname) {
 export function isCatalogPlatformHost(request, env) {
   const hostname = normalizeHostname(new URL(request.url).hostname);
   return isLocalDevelopmentHost(hostname) || platformHosts(env).has(hostname);
+}
+
+export function isCatalogAdminHost(request, env) {
+  const hostname = normalizeHostname(new URL(request.url).hostname);
+  const adminHost = normalizeHostname(env.CATALOG_ADMIN_HOST || DEFAULT_ADMIN_HOST);
+  return Boolean(adminHost) && hostname === adminHost;
 }
 
 export async function resolveStorefrontTenant(request, env) {
