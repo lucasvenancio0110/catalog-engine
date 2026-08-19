@@ -38,7 +38,11 @@ function looksLikeAssetPath(pathname) {
 
 function adminShellRequest(request) {
   const url = new URL(request.url);
-  url.pathname = '/app.html';
+  // Cloudflare Static Assets defaults to auto-trailing-slash HTML handling.
+  // Requesting /app.html therefore produces a 307 canonical redirect to /app.
+  // Fetch the canonical extensionless path internally so the customer portal
+  // shell is returned as a 200 without creating a redirect loop at the admin host.
+  url.pathname = '/app';
   url.search = '';
   return new Request(url.toString(), request);
 }
