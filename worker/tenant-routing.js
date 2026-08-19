@@ -46,10 +46,13 @@ export async function resolveStorefrontTenant(request, env) {
     row = await env.CATALOG_DB.prepare(
       `SELECT d.tenant_id, d.status AS domain_status,
               i.data_plane_key, i.status AS data_plane_status,
-              p.setup_status
+              p.setup_status,
+              s.worker_script_name, s.worker_status,
+              s.runtime_kind, s.runtime_status, s.runtime_version
          FROM tenant_domains d
          LEFT JOIN tenant_catalog_instances i ON i.tenant_id=d.tenant_id
          LEFT JOIN tenant_store_profiles p ON p.tenant_id=d.tenant_id
+         LEFT JOIN tenant_data_plane_provider_state s ON s.tenant_id=d.tenant_id
         WHERE d.hostname=?1 AND d.domain_type='custom'
         LIMIT 1`
     )
@@ -71,18 +74,39 @@ export async function resolveStorefrontTenant(request, env) {
     return { allowed: false, reason: 'storefront_not_ready', status: 503 };
   }
 
-  // The current Worker has one concrete D1 catalog binding. Until a dispatch/data-plane
-  // adapter is installed, a future tenant must never fall through to tenant #0001 data.
-  if (row.tenant_id !== DEFAULT_TENANT_ID || row.data_plane_key !== DEFAULT_DATA_PLANE_KEY) {
+  if (row.tenant_id === DEFAULT_TENANT_ID && row.data_plane_key === DEFAULT_DATA_PLANE_KEY) {
+    return {
+      allowed: true,
+      mode: 'custom_domain',
+      hostname,
+      tenantId: row.tenant_id,
+      dataPlaneKey: row.data_plane_key
+    };
+  }
+
+  // Future tenants are never allowed to fall through to the concrete tenant #0001 D1.
+  // They become routable only when their server-resolved Workers for Platforms runtime
+  // is active and verified. The client never supplies the script name.
+  if (!row.worker_script_name || !row.worker_status || !row.runtime_kind || !row.runtime_status) {
     return { allowed: false, reason: 'tenant_data_plane_not_attached', status: 503 };
+  }
+  if (
+    row.worker_status !== 'active' ||
+    row.runtime_kind !== 'catalog' ||
+    row.runtime_status !== 'verified' ||
+    Number(row.runtime_version || 0) < 1
+  ) {
+    return { allowed: false, reason: 'tenant_runtime_not_ready', status: 503 };
   }
 
   return {
     allowed: true,
-    mode: 'custom_domain',
+    mode: 'dispatch',
     hostname,
     tenantId: row.tenant_id,
-    dataPlaneKey: row.data_plane_key
+    dataPlaneKey: row.data_plane_key,
+    dispatchScriptName: row.worker_script_name,
+    runtimeVersion: Number(row.runtime_version)
   };
 }
 
