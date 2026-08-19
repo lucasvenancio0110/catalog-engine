@@ -6,8 +6,6 @@ on:
     paths:
       - ".github/workflows/cloudflare-platform-hosts.yml"
       - "scripts/configure-cloudflare-platform-hosts.mjs"
-      - "scripts/diagnose-cloudflare-token-scope.mjs"
-      - "scripts/bootstrap-cloudflare-zone-scope.mjs"
       - "tests/cloudflare-platform-hosts.test.mjs"
       - "docs/CUSTOM-DOMAINS.md"
       - "docs/TENANT-PUBLISH.md"
@@ -51,52 +49,58 @@ jobs:
       - name: Validate platform-host automation
         run: |
           node --check scripts/configure-cloudflare-platform-hosts.mjs
-          node --check scripts/diagnose-cloudflare-token-scope.mjs
-          node --check scripts/bootstrap-cloudflare-zone-scope.mjs
           npx vitest run tests/cloudflare-platform-hosts.test.mjs
 
   apply:
-    # One-time controlled live activation branch. This temporary allowance is removed before merge.
-    if: github.event_name != 'pull_request' || github.head_ref == 'ops/app-host-live-activation-v1'
+    # One-time verification for the manually-created app DNS record.
+    # This branch-specific allowance is not intended to merge to main.
+    if: github.event_name == 'pull_request' && github.head_ref == 'ops/app-host-live-activation-v1'
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 5
     env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      CLOUDFLARE_PLATFORM_ZONE: catalogoengine.com
-      CLOUDFLARE_APP_HOST: app.catalogoengine.com
-      CLOUDFLARE_APP_TARGET: origin.catalogoengine.com
+      APP_HOST: app.catalogoengine.com
     steps:
-      - name: Checkout main
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Validate credentials exist
+      - name: Verify public DNS, HTTPS, portal and health
         shell: bash
         run: |
-          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
-          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
+          set -u
+          ROOT_URL="https://${APP_HOST}/"
+          HEALTH_URL="https://${APP_HOST}/api/health"
 
-      - name: Install dependencies
-        run: npm ci
+          for attempt in $(seq 1 12); do
+            echo "Public app verification attempt ${attempt}/12"
 
-      - name: Validate platform-host automation
-        run: |
-          node --check scripts/configure-cloudflare-platform-hosts.mjs
-          node --check scripts/diagnose-cloudflare-token-scope.mjs
-          node --check scripts/bootstrap-cloudflare-zone-scope.mjs
-          npx vitest run tests/cloudflare-platform-hosts.test.mjs
+            root_status="$(curl --silent --show-error --max-time 15 --output /tmp/app-root.html --write-out '%{http_code}' "$ROOT_URL" || true)"
+            health_status="$(curl --silent --show-error --max-time 15 --output /tmp/app-health.json --write-out '%{http_code}' "$HEALTH_URL" || true)"
 
-      - name: Bootstrap Cloudflare zone scope
-        run: node scripts/bootstrap-cloudflare-zone-scope.mjs
+            echo "root=${root_status:-curl_failed} health=${health_status:-curl_failed}"
 
-      - name: Diagnose Cloudflare token scope
-        run: node scripts/diagnose-cloudflare-token-scope.mjs
+            if test "$root_status" = "200" \
+              && test "$health_status" = "200" \
+              && grep -q "Catalog Engine" /tmp/app-root.html \
+              && grep -q '"ok":true' /tmp/app-health.json \
+              && grep -q '"service":"catalog-engine"' /tmp/app-health.json; then
+              echo "app.catalogoengine.com is live and serving the customer portal."
+              echo "Health response:"
+              cat /tmp/app-health.json
+              exit 0
+            fi
 
-      - name: Configure and verify app.catalogoengine.com
-        run: node scripts/configure-cloudflare-platform-hosts.mjs
+            if test -s /tmp/app-root.html; then
+              echo "Root body (first 240 bytes):"
+              head -c 240 /tmp/app-root.html
+              echo
+            fi
+            if test -s /tmp/app-health.json; then
+              echo "Health body (first 240 bytes):"
+              head -c 240 /tmp/app-health.json
+              echo
+            fi
+
+            if test "$attempt" -lt 12; then
+              sleep 5
+            fi
+          done
+
+          echo "app.catalogoengine.com did not become healthy within the verification window." >&2
+          exit 1
