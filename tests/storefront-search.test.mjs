@@ -1,25 +1,22 @@
+import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import { createProductSearch } from '../src/catalog/search.js';
 
-const products = [
-  { id: '1', name: 'Real Madrid 26/27 Home Jersey', category: 'Real Madrid', description: 'Camisa branca' },
-  { id: '2', name: 'Barcelona Away Jersey', category: 'Barcelona', description: 'Camisa visitante' },
-  { id: '3', name: 'Flamengo Home Jersey', category: 'Flamengo', description: 'Camisa rubro-negra' }
-];
+const source = await readFile('src/main.js', 'utf8');
 
-describe('storefront fuzzy search', () => {
-  it('finds a product even with a realistic typo', () => {
-    const search = createProductSearch(products);
-    expect(search('real madri')[0]?.id).toBe('1');
+describe('storefront server-backed search contract', () => {
+  it('sends the trimmed user query to the products API', () => {
+    expect(source).toContain("if (state.query.trim()) params.set('q', state.query.trim());");
+    expect(source).toContain('fetchJson(`/api/products?${params}`)');
   });
 
-  it('searches category names', () => {
-    const search = createProductSearch(products);
-    expect(search('flamengo')[0]?.id).toBe('3');
+  it('debounces interactive search requests', () => {
+    expect(source).toContain("els.searchInput.addEventListener('input'");
+    expect(source).toContain('clearTimeout(searchTimer)');
+    expect(source).toContain('setTimeout(() => void loadProducts(1), 300)');
   });
 
-  it('returns the original collection for an empty query', () => {
-    const search = createProductSearch(products);
-    expect(search('')).toEqual(products);
+  it('keeps page and active catalog filters in the same API query', () => {
+    expect(source).toContain("new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) })");
+    expect(source).toContain("for (const [key, value] of Object.entries(state.filters)) if (value) params.set(key, value);");
   });
 });
