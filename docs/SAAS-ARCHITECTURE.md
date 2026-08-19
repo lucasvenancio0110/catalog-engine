@@ -1,23 +1,59 @@
 # Catalog Engine SaaS Architecture
 
+Status: **Normative architecture contract**  
+Scope: control plane, tenant data plane, authentication, provisioning, routing, domains and runtime boundaries.  
+Related product contracts: `TENANCY.md`, `CUSTOMER-PORTAL.md`, `BILLING-PAYMENTS.md`, `CEI.md`.
+
 ## Product contract
 
-The customer experience should stay simple:
+The self-service customer experience is:
 
-1. create an account;
-2. create a store;
-3. choose branding and a controlled theme;
-4. connect a supported supplier source such as Yupoo;
-5. let Catalog Engine discover and classify the catalog;
-6. preview the storefront privately;
-7. connect and verify the customer-owned domain;
-8. publish the storefront;
-9. keep the store updated through incremental sync;
-10. review only ambiguous classifications or supplier failures.
+1. discover Catalog Engine at `catalogoengine.com`;
+2. choose a recurring plan and complete checkout;
+3. trusted billing state grants account entitlements;
+4. enter `app.catalogoengine.com`;
+5. create a store under the available entitlement;
+6. configure basic branding/contact information;
+7. connect a supported catalog source;
+8. Catalog Engine provisions the isolated tenant data plane/runtime;
+9. source data is discovered/normalized;
+10. CEI understands/classifies/merchandises the catalog;
+11. customer previews the store privately;
+12. customer connects/verifies their own domain;
+13. storefront/runtime/domain smoke checks pass;
+14. store is published;
+15. incremental sync keeps it current;
+16. customer reviews only exceptions/ambiguities that automation cannot safely resolve.
 
-The supplier is a private ingestion source. It is never the public information architecture of the store.
+A real tenant/store is not provisioned in the normal self-service path until server-side entitlement evaluation permits it.
 
-A paid public storefront is white-label and uses the customer’s own domain. Catalog Engine domains are for the platform/admin experience, not the merchant’s public storefront.
+The supplier/source is private ingestion evidence. It is never automatically the public information architecture of the store.
+
+## Platform domain roles
+
+Current domain roles are:
+
+- `catalogoengine.com` — marketing/sales;
+- `app.catalogoengine.com` — customer admin portal;
+- `edge.catalogoengine.com` — stable SaaS/custom-domain CNAME target;
+- `origin.catalogoengine.com` — Cloudflare for SaaS fallback/internal origin;
+- customer-owned custom hostname — public merchant storefront.
+
+Public merchant storefronts are white-label and use verified customer-owned domains.
+
+## Account, subscription and tenant
+
+The relationship is:
+
+`account -> subscription/entitlements -> one or more tenant stores`
+
+Billing belongs to the account. A tenant is one isolated merchant store.
+
+Do not hard-code `one principal = one tenant` or `one subscription row = one catalog database`.
+
+Store creation checks entitlements server-side before provisioning begins.
+
+See `TENANCY.md` and `BILLING-PAYMENTS.md`.
 
 ## Control plane vs data plane
 
@@ -27,203 +63,279 @@ Catalog Engine is split logically into two planes.
 
 The control plane owns low-volume SaaS metadata:
 
+- accounts/principals;
+- billing customer/subscription mirror;
+- entitlements;
 - tenants;
 - memberships and roles;
-- plan/subscription references;
-- store profile and branding;
-- theme selection;
+- store profile/branding;
 - domains;
-- supplier connection metadata and sync health;
+- source connection metadata/health;
 - durable provisioning state;
-- data-plane locator/status;
-- audit events.
+- data-plane/runtime locator/status;
+- audit events;
+- high-level CEI/job state that must coordinate tenant workflows.
 
-During the current single-tenant transition these tables can live in `CATALOG_DB`. Their schema must remain portable to a future dedicated `CONTROL_DB`.
+During transition, these tables can remain in the current `CATALOG_DB` where implemented, but schema boundaries must remain portable to a future dedicated `CONTROL_DB`.
 
 ### Tenant data plane
 
-The data plane owns the high-volume catalog for exactly one tenant deployment/database:
+The tenant data plane owns high-volume/private catalog state for exactly one tenant deployment/database:
 
 - normalized products;
 - canonical categories;
-- teams, competitions and facets;
+- merchandising entities/facets;
 - product/media mappings;
-- private supplier index and fingerprints;
-- sync events and reconciliation state;
-- media proxy registry.
+- private source index/fingerprints;
+- sync events/reconciliation state;
+- media proxy registry;
+- CEI classification output and tenant-scoped memory where appropriate.
 
-The intended scale model is one isolated catalog database per tenant (or another explicitly isolated shard), rather than adding `tenant_id` to every high-volume public catalog query in a single shared database.
+The intended scale model is one isolated catalog database per tenant (or another explicitly isolated shard), rather than relying on a `tenant_id` predicate in every public catalog query.
 
-This keeps storefront queries simple and prevents a missing SQL predicate from leaking products between stores.
+This reduces cross-store leakage risk and keeps storefront queries/runtime boundaries explicit.
 
-## Tenant #0001
+## Current production tenant
 
-The existing catalog is the first tenant:
+The original production catalog is one tenant instance:
 
 - tenant ID: `t_00000000000000000001`;
-- current data plane: `catalog-engine-default`;
-- existing supplier connection: `primary`.
+- current data plane/runtime name: `catalog-engine-default`;
+- existing source connection: `primary`.
 
-New code must treat this as a tenant instance, not as a permanent global singleton.
+It is not global catalog truth. New code must work for future tenants.
 
-## Store configuration
+## Workers for Platforms runtime
 
-Store branding is validated at a trust boundary before persistence. Public configuration contains only fields required by the storefront, such as:
+Current architecture uses Cloudflare Workers for Platforms for non-default tenant runtimes.
 
-- store name;
-- same-origin logo path;
-- public WhatsApp/Instagram values;
-- theme key;
-- currency;
-- controlled colors;
-- ordered home sections.
+Production dispatch namespace:
 
-Supplier URLs, credentials, raw provider identifiers and private sync state are never part of public store configuration.
+`catalog-engine-production`
 
-Themes are controlled presets. Customers can select and configure supported components, but cannot upload arbitrary JavaScript/HTML into the storefront.
+The platform Worker has a dispatch binding:
+
+`TENANT_DISPATCH -> catalog-engine-production`
+
+Tenant routing resolves a server-owned runtime script name/provider state and dispatches only after tenant/domain/runtime requirements are satisfied.
+
+Never accept an arbitrary client-supplied Worker script name as the routing authority.
+
+## Storefront routing
+
+Normal storefront routing follows:
+
+`hostname -> control-plane tenant/domain resolution -> verified tenant state -> dispatch/runtime -> isolated tenant D1/API`
+
+It fails closed.
+
+An unknown custom hostname must not fall through to another tenant/default catalog.
+
+Platform hosts such as `catalogoengine.com`/`app.catalogoengine.com` follow first-party platform behavior and are not merchant custom hostnames.
+
+Infrastructure health probes may be intentionally outside tenant routing, but they must not expose tenant data or be mistaken for proof of tenant isolation.
+
+## Proven live isolation checkpoint
+
+The platform has already proven live custom-hostname tenant dispatch using `teste.loja.catalogoengine.com`:
+
+- Cloudflare Custom Hostname/TLS active;
+- hostname routed through the platform Worker;
+- control plane resolved a dedicated smoke tenant;
+- Workers for Platforms dispatched to the tenant runtime;
+- tenant used its own D1;
+- tenant could read its own product;
+- tenant could not read a default-catalog product (`404`);
+- default catalog could not read the tenant product (`404`);
+- default catalog remained independently populated.
+
+This smoke tenant is test infrastructure/state, not a customer product contract. The architectural conclusion is that custom-domain -> tenant resolution -> dispatch -> isolated D1 has been proven end-to-end.
 
 ## Authentication and authorization
 
-The Worker now contains a provider-neutral authenticated control-plane boundary under `/api/admin/*`.
+The Worker contains a provider-neutral authenticated control-plane boundary under `/api/admin/*`.
 
-Authentication uses standards-compatible OIDC/JWT inputs and is deliberately fail-closed. The runtime requires:
+Authentication uses standards-compatible OIDC/JWT inputs and fails closed. The current implementation expects deployment configuration such as:
 
 - `ADMIN_AUTH_ISSUER`;
 - `ADMIN_AUTH_AUDIENCE`;
 - `ADMIN_AUTH_JWKS_URL`.
 
-Only signed `RS256` bearer tokens from the configured issuer/JWKS are accepted. When those settings are absent or invalid, the admin API does not fall back to a development identity: it remains unavailable.
+Only valid signed tokens from the configured identity layer are accepted according to implementation rules.
 
-The external identity provider owns login, password/MFA and account recovery. Catalog Engine stores only an opaque principal derived from the external issuer + subject.
+The identity provider owns login/password/MFA/account recovery. Catalog Engine stores opaque principal identities and authorization metadata rather than customer passwords.
 
 Authorization rules:
 
-- every tenant read resolves an active membership;
-- cross-tenant lookups return `store_not_found` rather than disclosing another tenant;
-- tenant mutations require `owner` or `admin`;
+- every tenant read resolves active membership;
+- cross-tenant lookups must not disclose another tenant;
+- tenant mutations require appropriate role;
 - sensitive mutations write audit events;
-- admin responses use `no-store`;
-- supplier URLs and private locator references are never returned by the admin/public API.
+- admin responses use safe/no-store behavior as appropriate;
+- private source URLs/credentials/runtime locators are not public API data.
 
-Implemented control-plane routes:
+## Existing control-plane routes
 
-- `GET /api/admin/session` — authenticated principal plus stores the principal can access;
-- `GET /api/admin/stores` — tenant list scoped by membership;
-- `POST /api/admin/stores` — idempotent merchant/store creation;
-- `GET /api/admin/stores/:tenantId/onboarding` — durable onboarding/provisioning status;
-- `POST /api/admin/stores/:tenantId/source` — owner/admin supplier connection.
+Implemented routes include concepts such as:
 
-Production identity-provider values are intentionally not hard-coded in the repository. Configuring a real provider is a deployment decision before exposing the merchant admin UI.
+- `GET /api/admin/session`;
+- `GET /api/admin/stores`;
+- `POST /api/admin/stores`;
+- `GET /api/admin/stores/:tenantId/onboarding`;
+- `POST /api/admin/stores/:tenantId/source`.
+
+As billing is integrated, `POST /api/admin/stores` must enforce normalized account entitlements before a new tenant is provisioned. Existing test/internal/default flows must not become a production billing bypass.
 
 ## Provisioning lifecycle
 
-Provisioning is modeled as a durable, idempotent state machine:
+Provisioning is a durable, idempotent state machine.
 
-`tenant -> profile -> source -> data plane -> migrations -> import -> classify -> verify/private preview -> customer domain -> publish`
+Canonical product-level order:
 
-`tenant_provisioning_runs` stores the current checkpoint and overall state. `tenant_provisioning_steps` stores each step independently so a background workflow can resume from the last safe checkpoint instead of starting the supplier import from zero.
+`billing entitlement -> tenant -> profile -> source -> data plane/runtime -> migrations -> import -> CEI/classify -> verify/private preview -> customer domain -> publish`
 
-The provisioning planner uses stable opaque identities for the same owner/store request. Retrying the same request therefore targets the same tenant, data-plane locator, membership, domain and provisioning run instead of silently creating duplicates.
+`tenant_provisioning_runs` and step state/checkpoints should preserve progress so retries resume safely.
 
-The admin store-creation endpoint persists `tenant` and `profile` as completed checkpoints because those records are created transactionally by that request. The next customer-visible onboarding checkpoint becomes `source`.
+Rules:
 
-The onboarding executor already enforces the resume rules:
+- successful checkpoints are not replayed unnecessarily;
+- a failed checkpoint resumes at/after the failed boundary;
+- repeated idempotent create requests do not create duplicate stores/resources;
+- a healthy store may remain privately previewable while waiting for domain configuration;
+- publication requires verified custom domain + storefront/runtime health;
+- one tenant's failure does not block other tenant jobs;
+- transition metadata never contains secrets/private source URLs.
 
-- successful checkpoints are not replayed;
-- a failed checkpoint resumes at that checkpoint;
-- after a healthy storefront verification the store can remain privately previewable while waiting for its custom domain;
-- publication is impossible until the custom domain is active and storefront verification succeeded.
+## Store lifecycle states
 
-Suggested states for the customer UI:
+Customer-facing state can normalize to concepts such as:
 
-- `draft` — basic details not complete;
-- `configuring` — source/theme/configuration in progress;
-- `ready` — catalog is healthy and available for private preview, but not public yet;
-- `published` — customer domain is verified and the storefront is public;
-- `suspended` — intentionally unavailable.
+- `draft`;
+- `configuring` / `provisioning`;
+- `ready` (private preview healthy);
+- `published`;
+- `attention`;
+- `suspended`.
 
-## Supplier connections
+Subsystems should retain their own detailed states for billing, source, domain, runtime and CEI rather than overloading one string.
 
-The authenticated source endpoint accepts a supported Yupoo URL, validates the provider/scope, performs bounded reachability checks and persists the real source URL only in private D1 state.
+## Source connections
 
-Provider redirects are constrained to approved Yupoo hosts. A source that already owns imported albums cannot be silently replaced by a different supplier; changing it later requires an explicit reset/migration workflow.
+Source connectors are tenant-owned private configuration.
 
-Public/admin source summaries contain safe fields such as provider, source key, status, sync strategy and health timestamps, but never the raw source URL or private locator reference.
+The currently implemented Yupoo path validates provider/scope and keeps real source URLs in private state.
 
-The tenant data plane continues to own the detailed supplier index, fingerprints, delta events and media source registry.
+The architecture must remain source-neutral so future adapters can support Shopify, WooCommerce, CSV/Excel, PDF, API, website and other catalog providers.
 
-## Supplier synchronization
+After adapter normalization, CEI consumes source-neutral evidence.
 
-The daily path is incremental:
+Source changes that would destroy/replace an already imported catalog require explicit migration/reset semantics rather than silently replacing private source identity.
+
+## Catalog Engine Intelligence integration
+
+CEI owns catalog understanding/classification/learning according to `CEI.md`.
+
+Architecture principles:
+
+- CEI runs in explicit tenant context;
+- global knowledge is separate from tenant memory;
+- normal operation does not require paid token-based LLM calls;
+- research/model escalation is optional and bounded;
+- results are schema-validated before persistence/publication;
+- unknown/conflicting technical claims remain unresolved/review rather than guessed;
+- classification/CEI versioning must permit safe reprocessing without losing merchant overrides.
+
+## Supplier/source synchronization
+
+The normal synchronization path is incremental:
 
 1. lightweight source listing scan;
-2. compare listing fingerprints with the private index;
-3. create a delta queue for `NEW`, `CHANGED`, `MOVED` and safe restoration events;
-4. fetch album detail only for that queue;
-5. run canonical classification only for affected products;
-6. update the tenant catalog and affected aggregates;
-7. smoke test;
-8. promote the private cursor only after success.
+2. compare fingerprints/private index;
+3. create delta queue for new/changed/moved/restored candidates;
+4. fetch product detail only for the delta;
+5. invoke CEI only for affected/new knowledge where possible;
+6. update tenant catalog/aggregates safely;
+7. smoke check;
+8. promote cursor/state after success.
 
-A complete listing reconciliation runs periodically to detect removals safely. Full detail re-import is recovery tooling, not the normal schedule.
+A complete reconciliation can run periodically for safe removal detection. Full detail re-import is recovery/manual tooling, not routine daily behavior.
 
-Incomplete supplier albums use bounded retry/backoff and must not overwrite a healthy published product.
-
-## Canonical classification
-
-Source taxonomy is evidence, not truth.
-
-The ingestion layer preserves source categories privately for diagnostics. The public catalog uses Catalog Engine's canonical merchandising model derived from weighted evidence such as product title, source path, aliases, known entities and explicit rules.
-
-Ambiguous cases are classified as `review`/`unknown` rather than forcing a wrong team or competition.
-
-Manual overrides must survive future syncs and reclassification.
+Partial scans never infer deletion; see `AGENTS.md`.
 
 ## Domains
 
-Public merchant storefronts use verified customer-owned custom domains.
+Cloudflare for SaaS/custom-hostname behavior is documented in `CUSTOM-DOMAINS.md`.
 
-Catalog Engine platform domains are reserved for first-party surfaces such as the marketing site and authenticated admin application. They are not the public address sold to merchants.
+Current production infrastructure includes:
 
-Domain ownership/renewal remains with the customer. Catalog Engine stores and manages the connection state, verification state and routing metadata needed to serve the storefront on that domain.
+- fallback origin `origin.catalogoengine.com`;
+- edge target `edge.catalogoengine.com`;
+- Worker route capable of receiving custom merchant hostnames;
+- active custom-hostname proof using the test hostname.
 
-A hostname is unique across tenants.
+Desired customer lifecycle:
 
-The intended lifecycle is:
+`enter domain -> exact DNS instruction -> automatic DNS/hostname/certificate checks -> storefront runtime smoke -> publish`
 
-`customer enters domain -> DNS instructions/verification -> routing + HTTPS healthy -> storefront smoke test -> publish`
+Customer domain ownership/renewal remains with the customer.
 
-If the customer has not connected a domain yet, the store can be `ready` and privately previewable but not publicly `published`.
+## Billing integration
 
-## Current scale checkpoint
+Billing is account-level control-plane state.
 
-The repository now proves all of the following in CI:
+The payment provider is authoritative for monetary/subscription facts. Catalog Engine mirrors normalized state and derives entitlements.
 
-- two independent tenant identities and memberships can coexist;
-- tenant/data-plane identities are deterministic and idempotent;
-- separate private supplier connections do not leak raw URLs into summaries/audit metadata;
-- the Worker-safe planner generates exactly the same durable IDs as the Node provisioning planner;
-- signed JWTs are validated for signature, issuer/audience and expiry;
-- missing authentication configuration fails closed;
-- provider redirects cannot escape the Yupoo host boundary;
-- source changes are guarded once imported albums exist;
-- the onboarding executor resumes from durable checkpoints;
-- all D1 migrations apply cleanly to a fresh database.
+Store provisioning, multi-store limits and restricted states consume entitlements, not raw provider fields.
 
-These proofs run against test/temporary state. They do not create fake customer stores in production.
+Payment failure must not immediately delete tenant data. Grace/suspension/reactivation follow `BILLING-PAYMENTS.md`.
 
-## Scale checkpoints
+## Background execution
 
-### Phase 1 — reusable single-tenant deployments
+Long-running work should become durable/queued rather than tied to a browser request or one GitHub Action per customer.
 
-Validate onboarding and sales with a small number of stores while each store has an isolated deployment/data plane.
+Candidate tenant jobs include:
 
-### Phase 2 — automated provisioning
+- data-plane/runtime provisioning;
+- source scan/import;
+- CEI research/classification;
+- sync delta processing;
+- domain verification polling;
+- publication smoke;
+- billing reconciliation/recovery;
+- cleanup/retention when future explicit policies exist.
 
-Connect the authenticated control-plane API to background provisioning handlers, automate customer-domain activation and build the merchant admin app.
+Jobs require bounded retry/backoff, idempotency and per-tenant isolation.
 
-### Phase 3 — shared SaaS operations
+## Automation-first architecture
 
-Add billing, fleet-level sync scheduling, observability, per-tenant quotas, retry/dead-letter handling and automated data-plane lifecycle.
+The target operating model is:
 
-The rule for new engineering work is: build features for a tenant, even while tenant #0001 is the only production storefront.
+> automate normal paths; expose exceptions.
+
+The owner should not manually create each tenant D1/Worker, run each import, classify each catalog, verify every ordinary payment or execute recurring syncs.
+
+If a per-customer manual step is introduced, document whether it is temporary and what boundary will eventually automate it.
+
+## Current scale direction
+
+### Current checkpoint
+
+The repository/prod infrastructure already proves tenant-aware control-plane behavior, isolated tenant runtime/data-plane behavior and live custom-hostname dispatch.
+
+### Next productization checkpoint
+
+Build the authenticated/billing-gated `app.catalogoengine.com` flow that invokes those capabilities automatically.
+
+### Growth checkpoint
+
+As customer count increases, add fleet-level queues/workflows, observability, quotas, dead-letter handling, automated domain/runtime lifecycle and cost controls.
+
+Do not over-engineer for 100,000 tenants today, but do not choose designs that require a rewrite to reach 100 or 1,000.
+
+## Final architecture rule
+
+For every change ask:
+
+> Which account/tenant owns this, what entitlement permits it, what data plane handles it, what trust boundary authorizes it, and how does it recover automatically when something fails?
+
+If any answer is unclear, the architecture is incomplete.

@@ -2,6 +2,24 @@
 
 These rules apply to all human and AI contributors working in this repository.
 
+## Mandatory document-read protocol
+
+Documentation is part of the implementation contract.
+
+Before changing or adding anything in this repository, contributors must:
+
+1. read this `AGENTS.md`;
+2. read `docs/DOCUMENT-GOVERNANCE.md`;
+3. read `docs/DOCUMENT-MAP.md`;
+4. read every document mapped to the affected product/technical area;
+5. compare the proposed change with documented invariants before coding;
+6. update the owning document in the same PR when the intended behavior changes;
+7. never silently implement a decision that contradicts current documentation.
+
+If a new product decision should replace an old instruction, change the instruction deliberately and explain that change in the PR. Code and documentation must merge together when they define the same behavior.
+
+For every change ask: **which tenant/account owns this, which documented contract does it touch, and does it introduce manual per-customer work that should be automated?**
+
 ## Dependency policy
 
 Use the smallest approved library that owns the problem. Do not add a second package for a responsibility already covered below unless there is a documented technical reason and a migration plan.
@@ -104,7 +122,8 @@ Do not add Axios/Got only to replace native `fetch`. Do not add Lodash for trivi
 11. Successful provisioning steps are checkpoints and must not be replayed on retry. A failed step resumes at that step; a missing/unverified customer domain blocks publication without restarting import/classification.
 12. Provisioning transition metadata must never contain supplier URLs, credentials, tokens, passwords or other private source state.
 13. A failed tenant sync/provisioning job must not corrupt another tenant or block unrelated tenants.
-14. See `docs/SAAS-ARCHITECTURE.md` before changing tenancy, provisioning, domains or authentication boundaries.
+14. Before changing tenancy, provisioning, domains, authentication or billing gates, read `docs/TENANCY.md`, `docs/SAAS-ARCHITECTURE.md` and every additional document required by `docs/DOCUMENT-MAP.md`.
+15. The self-service store/tenant creation path must enforce account entitlements server-side; frontend visibility alone is never sufficient authorization to provision a tenant.
 
 ## Data rules
 
@@ -146,4 +165,4 @@ npm run sync:audit
 npm run taxonomy:audit
 ```
 
-A feature is not complete because it works once. It is complete when its behavior is tested, its output is validated, and its failure mode is understood.
+A feature is not complete because it works once. It is complete when its behavior is tested, its output is validated, its documentation still matches, and its failure mode is understood.
