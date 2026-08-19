@@ -17,7 +17,10 @@
         <h1 id="storeName">Catálogo</h1>
       </div>
     </div>
-    <button id="themeToggle" class="ghost" type="button" aria-label="Alternar tema">◐</button>
+    <button id="themeToggle" class="ghost theme-toggle" type="button" aria-label="Alternar tema">
+      <i class="theme-icon theme-icon--sun" data-lucide="sun"></i>
+      <i class="theme-icon theme-icon--moon" data-lucide="moon"></i>
+    </button>
   </header>
 
   <main>
@@ -46,7 +49,10 @@
           <strong id="categoryTitle">Categorias</strong>
           <span id="categorySubtitle" class="category-subtitle"></span>
         </div>
-        <button id="categoryBack" class="category-back" type="button" hidden>← Voltar</button>
+        <button id="categoryBack" class="category-back" type="button" hidden>
+          <i data-lucide="chevron-left"></i>
+          <span>Voltar</span>
+        </button>
       </div>
       <nav id="categoryTrail" class="category-trail" aria-label="Caminho da categoria" hidden></nav>
       <nav id="categoryChips" class="category-chips" aria-label="Categorias disponíveis"></nav>
@@ -55,9 +61,15 @@
     <div id="status" class="status">Carregando catálogo…</div>
     <section id="productGrid" class="grid" aria-live="polite"></section>
     <nav id="pagination" class="pagination" aria-label="Paginação do catálogo" hidden>
-      <button id="previousPage" class="pagination-button" type="button">← Anterior</button>
+      <button id="previousPage" class="pagination-button" type="button">
+        <i data-lucide="chevron-left"></i>
+        <span>Anterior</span>
+      </button>
       <span id="pageInfo" class="page-info"></span>
-      <button id="nextPage" class="pagination-button" type="button">Próxima →</button>
+      <button id="nextPage" class="pagination-button" type="button">
+        <span>Próxima</span>
+        <i data-lucide="chevron-right"></i>
+      </button>
     </nav>
   </main>
 
@@ -76,7 +88,9 @@
   </template>
 
   <dialog id="productDialog">
-    <button id="dialogClose" class="dialog-close" type="button" aria-label="Fechar">×</button>
+    <button id="dialogClose" class="dialog-close" type="button" aria-label="Fechar">
+      <i data-lucide="x"></i>
+    </button>
 
     <div class="dialog-gallery">
       <div class="dialog-main-media">
@@ -89,7 +103,10 @@
       <span id="dialogCategory" class="category"></span>
       <h2 id="dialogName"></h2>
       <p id="dialogDescription"></p>
-      <a id="whatsappButton" class="primary-action" target="_blank" rel="noopener">Pedir no WhatsApp</a>
+      <a id="whatsappButton" class="primary-action" target="_blank" rel="noopener">
+        <i data-lucide="message-circle"></i>
+        <span>Pedir no WhatsApp</span>
+      </a>
     </div>
   </dialog>
 
