@@ -1,5 +1,7 @@
 # Final tenant publish checkpoint
 
+Status: **Normative implementation contract**
+
 The tenant is not exposed to customers when import, classification, verification, runtime staging, or custom-domain SSL complete independently. The final `publish` checkpoint is the only place that flips the storefront from provisioning to live.
 
 ## Preconditions
@@ -39,8 +41,17 @@ Because hostname routing already requires both `setup_status=published` and cata
 
 Missing dispatch bindings fail closed before candidate discovery. A runtime/domain/verification regression returns `blocked` without mutating storefront exposure state. A failed final smoke records only a stable safe error code and leaves the catalog in provisioning for a later retry.
 
-This milestone still does not configure the real production `TENANT_DISPATCH` binding. The publish scheduler can be deployed safely because it remains disabled until that provider binding is explicitly activated.
+## Production activation state
 
-## Next operational step
+The production Workers for Platforms dispatch path is active:
 
-After CI is green, the remaining infrastructure milestone is a controlled real Cloudflare activation: create/verify the production Workers for Platforms dispatch namespace and binding, provision two isolated test tenants, prove cross-tenant reads fail through the actual provider path, then enable merchant-facing onboarding/publish UI.
+- dispatch namespace: `catalog-engine-production`;
+- platform binding: `TENANT_DISPATCH -> catalog-engine-production`;
+- live isolated custom-hostname smoke: `teste.loja.catalogoengine.com`;
+- cross-tenant reads were verified to fail with `404` in both directions while each tenant retained its own catalog.
+
+This activation does not weaken the publish gate. A future merchant still requires its own verified runtime, domain, catalog verification and publish checkpoint before public exposure.
+
+## Next productization step
+
+The remaining product milestone is not provider activation. It is the authenticated, billing-entitled `app.catalogoengine.com` journey that invokes tenant creation/provisioning/import/domain/publication automatically and exposes only merchant-facing progress and exceptions.
