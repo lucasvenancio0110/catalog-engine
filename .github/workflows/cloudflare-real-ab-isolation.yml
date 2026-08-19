@@ -79,7 +79,7 @@ jobs:
             "$schema": "../node_modules/wrangler/config-schema.json",
             "name": "catalog-engine-local-isolation-probe",
             "main": "./dispatcher.mjs",
-            "compatibility_date": "2026-08-19",
+            "compatibility_date": "2026-08-18",
             "dispatch_namespaces": [
               {
                 "binding": "TENANT_DISPATCH",
