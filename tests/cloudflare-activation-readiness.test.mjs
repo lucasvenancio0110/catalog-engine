@@ -1,6 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  CATALOGOENGINE_DISPATCH_BINDING,
   CATALOGOENGINE_DISPATCH_NAMESPACE,
   CATALOGOENGINE_SAAS_CNAME_TARGET,
   checkCloudflareActivationReadiness,
@@ -47,7 +48,7 @@ describe('Cloudflare activation readiness', () => {
     expect(validateActivationConfig(config)).toContain('saas_cname_target_mismatch');
   });
 
-  it('becomes activation-ready only when provider namespace is reachable and repo boundary remains inert', async () => {
+  it('is activation-ready before binding when provider namespace is reachable and repo boundary is safe', async () => {
     const path = '/tmp/catalog-engine-readiness-wrangler.jsonc';
     await writeFile(
       path,
@@ -65,6 +66,8 @@ describe('Cloudflare activation readiness', () => {
       readyForControlledActivation: true,
       namespaceReachable: true,
       repositoryBoundarySafe: true,
+      dispatchBindingConfigured: false,
+      activationPhase: 'pre_dispatch',
       customDomainRuntimeConfigured: true,
       expectedSaasCnameTarget: CATALOGOENGINE_SAAS_CNAME_TARGET,
       recommendedDispatchNamespace: CATALOGOENGINE_DISPATCH_NAMESPACE,
@@ -73,13 +76,42 @@ describe('Cloudflare activation readiness', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
-  it('refuses readiness if a dispatch binding appears in the committed wrangler config', async () => {
+  it('accepts only the exact production dispatch binding after the real isolation gate', async () => {
     const path = '/tmp/catalog-engine-readiness-wrangler-bound.jsonc';
     await writeFile(
       path,
       JSON.stringify({
         main: './worker/entry-publish.js',
-        dispatch_namespace: { binding: 'TENANT_DISPATCH' }
+        dispatch_namespaces: [
+          {
+            binding: CATALOGOENGINE_DISPATCH_BINDING,
+            namespace: CATALOGOENGINE_DISPATCH_NAMESPACE
+          }
+        ]
+      }),
+      'utf8'
+    );
+    const fetchImpl = vi.fn(async () =>
+      success({ namespace_name: CATALOGOENGINE_DISPATCH_NAMESPACE, namespace_id: 'namespace-id' })
+    );
+    const result = await checkCloudflareActivationReadiness(
+      { env: validEnv, wranglerPath: path },
+      { fetchImpl }
+    );
+    expect(result.readyForControlledActivation).toBe(true);
+    expect(result.repositoryBoundarySafe).toBe(true);
+    expect(result.dispatchBindingConfigured).toBe(true);
+    expect(result.activationPhase).toBe('dispatch_bound');
+    expect(result.findings).toEqual([]);
+  });
+
+  it('rejects a dispatch binding that points anywhere except the production namespace', async () => {
+    const path = '/tmp/catalog-engine-readiness-wrangler-invalid-bound.jsonc';
+    await writeFile(
+      path,
+      JSON.stringify({
+        main: './worker/entry-publish.js',
+        dispatch_namespaces: [{ binding: CATALOGOENGINE_DISPATCH_BINDING, namespace: 'wrong-namespace' }]
       }),
       'utf8'
     );
@@ -92,7 +124,7 @@ describe('Cloudflare activation readiness', () => {
     );
     expect(result.readyForControlledActivation).toBe(false);
     expect(result.repositoryBoundarySafe).toBe(false);
-    expect(result.findings).toContain('dispatch_binding_already_committed');
+    expect(result.findings).toContain('dispatch_binding_invalid');
   });
 
   it('does not leak provider messages or secrets when namespace access fails', async () => {
