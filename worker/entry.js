@@ -1,6 +1,7 @@
 import app from './index.js';
 import { runDueDataPlaneMigrations } from './data-plane-migration-runner.js';
 import { runDueDataPlaneJobs } from './data-plane-provider-runner.js';
+import { dispatchTenantRequest } from './tenant-dispatch.js';
 import { runDueDomainJobs } from './domain-job-scheduler.js';
 import { runDueTenantClassifications } from './tenant-classification-runner.js';
 import { runDueTenantImportDispatches } from './tenant-import-dispatcher.js';
@@ -25,12 +26,16 @@ function safeScheduleSummary(summary) {
   };
 }
 
+function shouldDispatchTenantRequest(pathname) {
+  return pathname.startsWith('/api/') || pathname.startsWith('/media/');
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     // Health remains available for infrastructure probes. Admin APIs only exist on
-    // Catalog Engine platform/admin hosts, never on a merchant storefront domain.
+    // Catálogo Engine platform/admin hosts, never on a merchant storefront domain.
     if (url.pathname === '/api/health') return app.fetch(request, env, ctx);
     if (url.pathname.startsWith('/api/admin/')) {
       if (!isCatalogPlatformHost(request, env)) {
@@ -41,6 +46,20 @@ export default {
 
     const tenant = await resolveStorefrontTenant(request, env);
     if (!tenant.allowed) return storefrontRoutingError(tenant);
+
+    // HTML/CSS/JS stay on the shared platform Worker. Only catalog API/media traffic
+    // for a verified non-default tenant enters its isolated Workers for Platforms script.
+    if (tenant.mode === 'dispatch' && shouldDispatchTenantRequest(url.pathname)) {
+      try {
+        return await dispatchTenantRequest(request, env, tenant.dispatchScriptName);
+      } catch (error) {
+        console.error(
+          'tenant_dispatch_failed',
+          String(error?.code || 'tenant_dispatch_unavailable').slice(0, 80)
+        );
+        return storefrontRoutingError({ reason: 'tenant_dispatch_unavailable', status: 503 });
+      }
+    }
 
     return app.fetch(request, env, ctx);
   },

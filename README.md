@@ -1,6 +1,6 @@
-# Catalog Engine
+# Catálogo Engine
 
-Catalog Engine is a white-label SaaS platform that transforms an authorized supplier catalog into a professional storefront under the merchant’s own brand and domain, then keeps that storefront synchronized automatically.
+Catálogo Engine is a white-label SaaS platform that transforms an authorized supplier catalog into a professional storefront under the merchant’s own brand and domain, then keeps that storefront synchronized automatically.
 
 The product is not “a Yupoo importer” and is not a one-off website generator. The target customer experience is:
 
@@ -10,13 +10,21 @@ The product is not “a Yupoo importer” and is not a one-off website generator
 
 Public customer storefronts use the customer’s **own domain**.
 
-Catalog Engine domains are for the platform/admin experience only. Paid storefronts should not require a public `*.catalogengine.com.br` address and should not expose the supplier or require “Powered by Catalog Engine” branding.
+The platform identity is:
+
+- `catalogoengine.com` — public product/company domain;
+- `app.catalogoengine.com` — customer administration;
+- `edge.catalogoengine.com` — technical Cloudflare for SaaS CNAME target only.
+
+`edge.catalogoengine.com` is infrastructure, not a merchant-facing storefront URL. A customer domain points to it through DNS while the browser continues to show the customer’s own domain.
+
+Paid storefronts should not expose the supplier or require “Powered by Catálogo Engine” branding.
 
 Before the customer domain is connected, the storefront is reviewed through a private preview.
 
 ## Current architecture
 
-Catalog Engine is being split into two logical planes:
+Catálogo Engine is being split into two logical planes:
 
 ### Control plane
 
@@ -50,7 +58,7 @@ The existing production catalog is **Tenant #0001**, not a permanent global sing
 
 The supplier is a private ingestion source, not the authority for the public storefront structure.
 
-Raw supplier taxonomy is kept privately as evidence. Catalog Engine builds a canonical merchandising layer from product text, source path, aliases, known sports entities, facets, explicit rules and future manual overrides.
+Raw supplier taxonomy is kept privately as evidence. Catálogo Engine builds a canonical merchandising layer from product text, source path, aliases, known sports entities, facets, explicit rules and future manual overrides.
 
 Ambiguous products should be sent to review/unknown instead of being confidently misclassified.
 
@@ -82,15 +90,17 @@ If a later step fails, onboarding must resume from the last safe checkpoint inst
 
 - **GitHub** — source code, review and CI/CD; not one repository per customer.
 - **Cloudflare Workers** — APIs, storefront routing, media proxy and orchestration endpoints.
+- **Cloudflare Workers for Platforms** — isolated tenant Workers and dynamic dispatch.
+- **Cloudflare for SaaS** — customer-owned custom domains routed through `edge.catalogoengine.com`.
 - **Cloudflare D1** — control-plane metadata and isolated/explicit tenant catalog data planes.
 - **Cloudflare R2** — first-party assets such as logos/banners and controlled media copies when needed.
-- **Queues / durable workflows** — future tenant-level onboarding and synchronization jobs at scale.
+- **Queues / durable workflows** — tenant-level onboarding and synchronization jobs at scale.
 
 Customers should not need GitHub or Cloudflare accounts to operate their stores.
 
 ## Commercial direction
 
-Catalog Engine is sold as a recurring SaaS subscription.
+Catálogo Engine is sold as a recurring SaaS subscription.
 
 Positioning:
 
@@ -104,6 +114,7 @@ Pricing, trial duration and plan packaging are hypotheses to validate with real 
 
 - [`docs/PRODUCT-BUSINESS-BLUEPRINT.md`](docs/PRODUCT-BUSINESS-BLUEPRINT.md) — product, business model, hosting, sales, pricing hypotheses, ownership model and roadmap.
 - [`docs/SAAS-ARCHITECTURE.md`](docs/SAAS-ARCHITECTURE.md) — multi-tenant/control-plane/data-plane architecture and provisioning model.
+- [`docs/CLOUDFLARE-ACTIVATION-READINESS.md`](docs/CLOUDFLARE-ACTIVATION-READINESS.md) — controlled production activation and `edge.catalogoengine.com` infrastructure identity.
 - [`AGENTS.md`](AGENTS.md) — engineering rules and repository policy.
 - [`docs/JAVASCRIPT_LIBRARIES.md`](docs/JAVASCRIPT_LIBRARIES.md) — approved JavaScript-library guidance.
 

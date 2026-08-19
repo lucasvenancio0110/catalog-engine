@@ -22,7 +22,7 @@ describe('custom-domain background runner', () => {
     const result = await runDueDomainJobs({
       CLOUDFLARE_SAAS_ZONE_ID: '0123456789abcdef0123456789abcdef',
       CLOUDFLARE_SAAS_API_TOKEN: 'token-that-is-long-enough-to-be-a-secret',
-      CLOUDFLARE_SAAS_CNAME_TARGET: 'shops.catalogengine.com.br'
+      CLOUDFLARE_SAAS_CNAME_TARGET: 'edge.catalogoengine.com'
     });
     expect(result).toEqual({ enabled: false, reason: 'database_unbound', processed: 0 });
   });
@@ -32,9 +32,9 @@ describe('custom-domain background runner', () => {
     expect(typeof workerEntry.scheduled).toBe('function');
   });
 
-  it('registers a five-minute cron through wrangler as the deployment source of truth', async () => {
+  it('registers a five-minute cron through the publish-aware entry', async () => {
     const config = JSON.parse(await readFile('wrangler.jsonc', 'utf8'));
-    expect(config.main).toBe('./worker/entry.js');
+    expect(config.main).toBe('./worker/entry-publish.js');
     expect(config.triggers?.crons).toEqual(['*/5 * * * *']);
   });
 });

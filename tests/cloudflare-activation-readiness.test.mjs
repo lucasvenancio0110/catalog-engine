@@ -1,6 +1,8 @@
 import { writeFile } from 'node:fs/promises';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  CATALOGOENGINE_DISPATCH_NAMESPACE,
+  CATALOGOENGINE_SAAS_CNAME_TARGET,
   checkCloudflareActivationReadiness,
   cloudflareActivationConfig,
   validateActivationConfig
@@ -9,10 +11,10 @@ import {
 const validEnv = {
   CLOUDFLARE_PLATFORM_ACCOUNT_ID: '0123456789abcdef0123456789abcdef',
   CLOUDFLARE_PLATFORM_API_TOKEN: 'platform-token-that-is-long-enough-for-tests',
-  CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE: 'catalog-engine-production',
+  CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE: CATALOGOENGINE_DISPATCH_NAMESPACE,
   CLOUDFLARE_SAAS_ZONE_ID: 'fedcba9876543210fedcba9876543210',
   CLOUDFLARE_SAAS_API_TOKEN: 'saas-token-that-is-long-enough-for-tests',
-  CLOUDFLARE_SAAS_CNAME_TARGET: 'shops.catalogengine.example'
+  CLOUDFLARE_SAAS_CNAME_TARGET: CATALOGOENGINE_SAAS_CNAME_TARGET
 };
 
 function success(result) {
@@ -37,6 +39,14 @@ describe('Cloudflare activation readiness', () => {
     );
   });
 
+  it('rejects a valid-looking SaaS target that is not the production edge hostname', () => {
+    const config = cloudflareActivationConfig({
+      ...validEnv,
+      CLOUDFLARE_SAAS_CNAME_TARGET: 'shops.catalogoengine.com'
+    });
+    expect(validateActivationConfig(config)).toContain('saas_cname_target_mismatch');
+  });
+
   it('becomes activation-ready only when provider namespace is reachable and repo boundary remains inert', async () => {
     const path = '/tmp/catalog-engine-readiness-wrangler.jsonc';
     await writeFile(
@@ -45,7 +55,7 @@ describe('Cloudflare activation readiness', () => {
       'utf8'
     );
     const fetchImpl = vi.fn(async () =>
-      success({ namespace_name: 'catalog-engine-production', namespace_id: 'namespace-id' })
+      success({ namespace_name: CATALOGOENGINE_DISPATCH_NAMESPACE, namespace_id: 'namespace-id' })
     );
     const result = await checkCloudflareActivationReadiness(
       { env: validEnv, wranglerPath: path },
@@ -56,6 +66,8 @@ describe('Cloudflare activation readiness', () => {
       namespaceReachable: true,
       repositoryBoundarySafe: true,
       customDomainRuntimeConfigured: true,
+      expectedSaasCnameTarget: CATALOGOENGINE_SAAS_CNAME_TARGET,
+      recommendedDispatchNamespace: CATALOGOENGINE_DISPATCH_NAMESPACE,
       findings: []
     });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
@@ -72,7 +84,7 @@ describe('Cloudflare activation readiness', () => {
       'utf8'
     );
     const fetchImpl = vi.fn(async () =>
-      success({ namespace_name: 'catalog-engine-production', namespace_id: 'namespace-id' })
+      success({ namespace_name: CATALOGOENGINE_DISPATCH_NAMESPACE, namespace_id: 'namespace-id' })
     );
     const result = await checkCloudflareActivationReadiness(
       { env: validEnv, wranglerPath: path },

@@ -115,12 +115,13 @@ describe('Cloudflare Workers for Platforms adapter', () => {
       expect(options.body).toBeInstanceOf(FormData);
       const form = options.body;
       const metadata = JSON.parse(await form.get('metadata').text());
-      expect(metadata).toMatchObject({
+      expect(metadata).toEqual({
         main_module: 'worker.js',
         compatibility_date: '2026-08-17',
         bindings: [
           { type: 'd1', name: 'CATALOG_DB', database_id: databaseId },
-          { type: 'plain_text', name: 'TENANT_ID', text: tenantId }
+          { type: 'plain_text', name: 'TENANT_ID', text: tenantId },
+          { type: 'plain_text', name: 'TENANT_RUNTIME_VERSION', text: '0' }
         ]
       });
       const module = await form.get('worker.js').text();
@@ -141,6 +142,7 @@ describe('Cloudflare Workers for Platforms adapter', () => {
 
     expect(result).toEqual({
       scriptName: 'ce-0123456789abcdefabcd',
+      runtimeVersion: 0,
       startupTimeMs: 3,
       versionId: 'version-1'
     });
