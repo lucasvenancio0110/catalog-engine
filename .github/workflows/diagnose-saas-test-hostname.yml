@@ -1,0 +1,120 @@
+name: Diagnose SaaS test hostname
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-saas-test-hostname.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      ZONE_NAME: catalogoengine.com
+      TEST_HOSTNAME: teste.loja.catalogoengine.com
+      EDGE_HOSTNAME: edge.catalogoengine.com
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$CLOUDFLARE_API_TOKEN"
+
+      - name: Inspect public DNS
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== CNAME ==='
+          dig +short CNAME "$TEST_HOSTNAME" @1.1.1.1 || true
+          echo '=== A ==='
+          dig +short A "$TEST_HOSTNAME" @1.1.1.1 || true
+          echo '=== AAAA ==='
+          dig +short AAAA "$TEST_HOSTNAME" @1.1.1.1 || true
+          echo '=== EDGE A ==='
+          dig +short A "$EDGE_HOSTNAME" @1.1.1.1 || true
+          echo '=== CAA host ==='
+          dig +short CAA "$TEST_HOSTNAME" @1.1.1.1 || true
+          echo '=== CAA zone ==='
+          dig +short CAA "$ZONE_NAME" @1.1.1.1 || true
+
+      - name: Inspect Cloudflare custom hostname and HTTP DCV
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          const headers = {
+            authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`,
+            accept: 'application/json'
+          };
+
+          const zonesUrl = new URL('https://api.cloudflare.com/client/v4/zones');
+          zonesUrl.searchParams.set('name', process.env.ZONE_NAME);
+          zonesUrl.searchParams.set('account.id', process.env.CLOUDFLARE_ACCOUNT_ID);
+          zonesUrl.searchParams.set('status', 'active');
+          const zonesResponse = await fetch(zonesUrl, { headers });
+          const zonesPayload = await zonesResponse.json();
+          if (!zonesResponse.ok || !zonesPayload?.success || zonesPayload.result?.length !== 1) {
+            throw new Error('zone_lookup_failed');
+          }
+          const zoneId = zonesPayload.result[0].id;
+
+          const customUrl = new URL(`https://api.cloudflare.com/client/v4/zones/${zoneId}/custom_hostnames`);
+          customUrl.searchParams.set('hostname', process.env.TEST_HOSTNAME);
+          const customResponse = await fetch(customUrl, { headers });
+          const customPayload = await customResponse.json();
+          if (!customResponse.ok || !customPayload?.success || customPayload.result?.length !== 1) {
+            throw new Error('custom_hostname_lookup_failed');
+          }
+          const item = customPayload.result[0];
+          const records = Array.isArray(item.ssl?.validation_records) ? item.ssl.validation_records : [];
+          const record = records.find((entry) => entry?.http_url && entry?.http_body) || null;
+          console.log(JSON.stringify({
+            hostname: item.hostname,
+            hostnameStatus: item.status,
+            sslStatus: item.ssl?.status || null,
+            sslMethod: item.ssl?.method || null,
+            sslAuthority: item.ssl?.certificate_authority || null,
+            verificationErrors: item.verification_errors || [],
+            sslValidationErrors: item.ssl?.validation_errors || [],
+            hasHttpValidationRecord: Boolean(record)
+          }));
+
+          if (!record) process.exit(0);
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 15000);
+          try {
+            const response = await fetch(record.http_url, {
+              redirect: 'follow',
+              signal: controller.signal,
+              headers: { 'user-agent': 'Cloudflare Custom Hostname Verification' }
+            });
+            const text = await response.text();
+            console.log(JSON.stringify({
+              dcvHttpReachable: true,
+              dcvHttpStatus: response.status,
+              dcvFinalUrlHost: new URL(response.url).host,
+              dcvBodyMatchesExpected: text.trim() === String(record.http_body).trim(),
+              dcvBodyLength: text.trim().length,
+              expectedBodyLength: String(record.http_body).trim().length
+            }));
+          } catch (error) {
+            console.log(JSON.stringify({
+              dcvHttpReachable: false,
+              dcvHttpError: error?.name || 'request_failed'
+            }));
+          } finally {
+            clearTimeout(timer);
+          }
+          NODE
