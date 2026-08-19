@@ -1,0 +1,89 @@
+name: Configure Cloudflare platform hosts
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/cloudflare-platform-hosts.yml"
+      - "scripts/configure-cloudflare-platform-hosts.mjs"
+      - "tests/cloudflare-platform-hosts.test.mjs"
+      - "docs/CUSTOM-DOMAINS.md"
+      - "docs/TENANT-PUBLISH.md"
+      - "docs/TENANT-RUNTIME-DISPATCH.md"
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/cloudflare-platform-hosts.yml"
+      - "scripts/configure-cloudflare-platform-hosts.mjs"
+      - "tests/cloudflare-platform-hosts.test.mjs"
+      - "docs/CUSTOM-DOMAINS.md"
+      - "docs/TENANT-PUBLISH.md"
+      - "docs/TENANT-RUNTIME-DISPATCH.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: catalog-engine-platform-hosts
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate platform-host automation
+        run: |
+          node --check scripts/configure-cloudflare-platform-hosts.mjs
+          npx vitest run tests/cloudflare-platform-hosts.test.mjs
+
+  apply:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_PLATFORM_ZONE: catalogoengine.com
+      CLOUDFLARE_APP_HOST: app.catalogoengine.com
+      CLOUDFLARE_APP_TARGET: origin.catalogoengine.com
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate credentials exist
+        shell: bash
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate platform-host automation
+        run: |
+          node --check scripts/configure-cloudflare-platform-hosts.mjs
+          npx vitest run tests/cloudflare-platform-hosts.test.mjs
+
+      - name: Configure and verify app.catalogoengine.com
+        run: node scripts/configure-cloudflare-platform-hosts.mjs
