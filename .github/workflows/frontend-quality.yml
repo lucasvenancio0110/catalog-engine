@@ -1,0 +1,61 @@
+name: Frontend quality
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/frontend-quality.yml"
+      - "index.html"
+      - "app.html"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.*"
+      - "config/dependency-policy.json"
+      - "scripts/copy-storefront-data.mjs"
+      - "scripts/verify-dist.mjs"
+      - "src/**"
+      - "tests/**"
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/frontend-quality.yml"
+      - "index.html"
+      - "app.html"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.*"
+      - "config/dependency-policy.json"
+      - "scripts/copy-storefront-data.mjs"
+      - "scripts/verify-dist.mjs"
+      - "src/**"
+      - "tests/**"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Quality gate
+        run: npm run quality
+
+      - name: Build application surfaces
+        run: npm run build
+
+      - name: Verify public artifact
+        run: npm run build:verify
