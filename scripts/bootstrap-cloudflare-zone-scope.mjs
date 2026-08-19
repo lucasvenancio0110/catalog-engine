@@ -70,16 +70,15 @@ async function main() {
   );
   if (!zone?.id) throw new Error('cloudflare_zone_resolution_failed');
 
-  const zoneResource = `com.cloudflare.api.account.zone.${zone.id}`;
+  const accountResource = `com.cloudflare.api.account.${accountId}`;
   const currentPolicies = Array.isArray(token?.policies) ? token.policies : [];
   const alreadyAuthorized = currentPolicies.some((policy) => {
-    const resources = policy?.resources || {};
-    return Object.prototype.hasOwnProperty.call(resources, zoneResource) ||
-      Object.prototype.hasOwnProperty.call(resources, 'com.cloudflare.api.account.zone.*');
+    const scoped = policy?.resources?.[accountResource];
+    return scoped && typeof scoped === 'object' && scoped['com.cloudflare.api.account.zone.*'] === '*';
   });
 
   if (alreadyAuthorized) {
-    console.log(JSON.stringify({ ok: true, changed: false, reason: 'zone_scope_already_present', zone: zoneName }, null, 2));
+    console.log(JSON.stringify({ ok: true, changed: false, reason: 'all_account_zones_scope_already_present', zone: zoneName }, null, 2));
     return;
   }
 
@@ -99,7 +98,11 @@ async function main() {
   const policies = normalizePolicies(currentPolicies);
   policies.push({
     effect: 'allow',
-    resources: { [zoneResource]: '*' },
+    resources: {
+      [accountResource]: {
+        'com.cloudflare.api.account.zone.*': '*'
+      }
+    },
     permission_groups: permissionGroupsForZone.map((group) => ({ id: group.id }))
   });
 
@@ -118,14 +121,16 @@ async function main() {
   });
 
   const updated = await request(apiToken, `/accounts/${encodeURIComponent(accountId)}/tokens/${encodeURIComponent(tokenId)}`);
-  const authorized = (Array.isArray(updated?.policies) ? updated.policies : []).some((policy) =>
-    Object.prototype.hasOwnProperty.call(policy?.resources || {}, zoneResource)
-  );
-  if (!authorized) throw new Error('cloudflare_zone_scope_update_not_observed');
+  const authorized = (Array.isArray(updated?.policies) ? updated.policies : []).some((policy) => {
+    const scoped = policy?.resources?.[accountResource];
+    return scoped && typeof scoped === 'object' && scoped['com.cloudflare.api.account.zone.*'] === '*';
+  });
+  if (!authorized) throw new Error('cloudflare_all_account_zones_scope_update_not_observed');
 
   console.log(JSON.stringify({
     ok: true,
     changed: true,
+    scope: 'all_zones_in_account',
     zone: zoneName,
     permissions: permissionGroupsForZone.map((group) => group.name)
   }, null, 2));
