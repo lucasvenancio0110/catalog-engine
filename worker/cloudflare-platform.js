@@ -220,6 +220,13 @@ export function tenantBootstrapWorkerSource() {
 };\n`;
 }
 
+export function namespacedTenantCatalogWorkerSource() {
+  // Workers for Platforms disables caches.default for namespaced User Workers in
+  // untrusted mode. Shadow the global Cache API so the shared runtime naturally
+  // takes its no-cache path while preserving the stronger namespace isolation.
+  return `const caches = undefined;\n${tenantCatalogWorkerSource()}`;
+}
+
 async function uploadTenantWorker(
   {
     accountId,
@@ -283,7 +290,7 @@ export async function uploadTenantCatalogWorker(input, options = {}) {
   return uploadTenantWorker(
     {
       ...input,
-      source: tenantCatalogWorkerSource(),
+      source: namespacedTenantCatalogWorkerSource(),
       runtimeVersion: TENANT_CATALOG_RUNTIME_VERSION
     },
     options
