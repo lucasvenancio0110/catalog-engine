@@ -28,9 +28,10 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       PUBLIC_CATALOG_SQL_DIR: /tmp/catalog-engine-public-api-sql
+      WRANGLER_VERSION: 4.123.0
 
     steps:
       - name: Checkout
@@ -60,6 +61,54 @@ jobs:
           grep -q '"publicationMode": "atomic-d1-import"' /tmp/catalog-publication-summary.json
           grep -q '"sqlFiles": 1' /tmp/catalog-publication-summary.json
           echo "Atomic public catalog SQL size: $(wc -c < "${files[0]}") bytes"
+
+      - name: Exercise atomic import against local D1
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=("$PUBLIC_CATALOG_SQL_DIR"/*.sql)
+          test ${#files[@]} -eq 1
+          file="${files[0]}"
+
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 migrations apply CATALOG_DB --local --config wrangler.jsonc
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --local --config wrangler.jsonc --file="$file"
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --local --config wrangler.jsonc --json \
+            --command="SELECT COUNT(*) AS products FROM catalog_products; SELECT COUNT(*) AS leagues FROM catalog_leagues; SELECT COUNT(*) AS teams FROM catalog_teams; SELECT COUNT(*) AS facets FROM catalog_facets;" \
+            > /tmp/catalog-publication-local-d1.json
+
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const expected = JSON.parse(fs.readFileSync('/tmp/catalog-publication-summary.json', 'utf8'));
+          const payload = JSON.parse(fs.readFileSync('/tmp/catalog-publication-local-d1.json', 'utf8'));
+          const rows = [];
+          const visit = (value) => {
+            if (!value) return;
+            if (Array.isArray(value)) {
+              value.forEach(visit);
+              return;
+            }
+            if (Array.isArray(value.results)) rows.push(...value.results);
+            if (value.result) visit(value.result);
+          };
+          visit(payload);
+
+          const count = (key) => Number(rows.find((row) => Object.prototype.hasOwnProperty.call(row, key))?.[key] ?? -1);
+          const actual = {
+            products: count('products'),
+            leagues: count('leagues'),
+            teams: count('teams'),
+            facets: count('facets')
+          };
+
+          for (const key of Object.keys(actual)) {
+            if (actual[key] !== Number(expected[key])) {
+              throw new Error(`local_d1_catalog_count_mismatch:${key}:${actual[key]}:${expected[key]}`);
+            }
+          }
+          console.log(JSON.stringify({ localD1AtomicImport: true, ...actual }));
+          NODE
 
       - name: Build and verify storefront artifact
         run: |
