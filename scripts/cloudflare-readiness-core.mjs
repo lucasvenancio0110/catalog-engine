@@ -2,6 +2,8 @@ import { readFile } from 'node:fs/promises';
 import { assertDispatchNamespace } from '../worker/cloudflare-platform.js';
 
 const HOSTNAME_PATTERN = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i;
+export const CATALOGOENGINE_SAAS_CNAME_TARGET = 'edge.catalogoengine.com';
+export const CATALOGOENGINE_DISPATCH_NAMESPACE = 'catalog-engine-production';
 
 function nonEmpty(value) {
   return String(value || '').trim();
@@ -30,7 +32,11 @@ export function validateActivationConfig(config) {
   }
   if (!/^[a-f0-9]{32}$/i.test(config.saas.zoneId)) findings.push('saas_zone_id_missing');
   if (config.saas.apiToken.length < 20) findings.push('saas_api_token_missing');
-  if (!HOSTNAME_PATTERN.test(config.saas.cnameTarget)) findings.push('saas_cname_target_missing');
+  if (!HOSTNAME_PATTERN.test(config.saas.cnameTarget)) {
+    findings.push('saas_cname_target_missing');
+  } else if (config.saas.cnameTarget !== CATALOGOENGINE_SAAS_CNAME_TARGET) {
+    findings.push('saas_cname_target_mismatch');
+  }
   return findings;
 }
 
@@ -68,6 +74,8 @@ export async function checkCloudflareActivationReadiness(
     namespaceReachable,
     repositoryBoundarySafe: repo.usesPublishEntry && !repo.dispatchBindingCommitted,
     customDomainRuntimeConfigured: !findings.some((code) => code.startsWith('saas_')),
+    expectedSaasCnameTarget: CATALOGOENGINE_SAAS_CNAME_TARGET,
+    recommendedDispatchNamespace: CATALOGOENGINE_DISPATCH_NAMESPACE,
     findings: [...new Set(findings)]
   };
 }
