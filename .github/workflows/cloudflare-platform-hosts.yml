@@ -52,7 +52,8 @@ jobs:
           npx vitest run tests/cloudflare-platform-hosts.test.mjs
 
   apply:
-    if: github.event_name != 'pull_request'
+    # One-time controlled live activation branch. This temporary allowance is removed before merge.
+    if: github.event_name != 'pull_request' || github.head_ref == 'ops/app-host-live-activation-v1'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
