@@ -12,6 +12,7 @@ on:
       - "vite.config.*"
       - "config/dependency-policy.json"
       - "scripts/copy-storefront-data.mjs"
+      - "scripts/report-frontend-bundle.mjs"
       - "scripts/verify-dist.mjs"
       - "src/**"
       - "tests/**"
@@ -26,6 +27,7 @@ on:
       - "vite.config.*"
       - "config/dependency-policy.json"
       - "scripts/copy-storefront-data.mjs"
+      - "scripts/report-frontend-bundle.mjs"
       - "scripts/verify-dist.mjs"
       - "src/**"
       - "tests/**"
@@ -56,6 +58,9 @@ jobs:
 
       - name: Build application surfaces
         run: npm run build
+
+      - name: Report frontend bundle
+        run: node scripts/report-frontend-bundle.mjs
 
       - name: Verify public artifact
         run: npm run build:verify
