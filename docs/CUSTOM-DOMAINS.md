@@ -1,5 +1,7 @@
 # Customer-owned custom domains
 
+Status: **Normative architecture/product contract**
+
 Catalog Engine public storefronts are sold on customer-owned domains. Platform hostnames are reserved for the Catalog Engine marketing/admin surfaces and private preview infrastructure.
 
 ## Product lifecycle
@@ -53,17 +55,36 @@ The create request uses HTTP domain validation, DV certificates, no wildcard, an
 
 A hostname is **not** considered ready merely because one provider status is green. Catalog Engine requires both the custom-hostname status and SSL status to be `active`. Publication still needs a successful request to the actual customer hostname after routing is configured.
 
-## One-time Cloudflare platform setup
+## Current Cloudflare platform setup
 
-Before real customer domain automation is enabled, the Catalog Engine SaaS zone needs its Cloudflare for SaaS platform setup completed. The intended architecture uses the Catalog Engine Worker as the fallback origin. A wildcard Worker route on the SaaS zone can receive traffic from all activated customer custom hostnames, so individual Worker routes do not need to be created for every merchant.
+The production SaaS zone has completed the platform setup required for the proven custom-hostname path.
 
-The runtime contract is intentionally configuration-only:
+Current roles are:
+
+- `origin.catalogoengine.com` — active Cloudflare for SaaS fallback/internal origin;
+- `edge.catalogoengine.com` — stable proxied CNAME target customers can be instructed to use;
+- wildcard/platform Worker routing — receives activated merchant hostnames;
+- `teste.loja.catalogoengine.com` — retained smoke hostname that proved end-to-end custom-hostname routing, TLS, tenant resolution, Workers for Platforms dispatch and isolated D1 behavior.
+
+The runtime/provider contract remains configuration-only:
 
 - `CLOUDFLARE_SAAS_ZONE_ID` — SaaS zone identifier;
-- `CLOUDFLARE_SAAS_API_TOKEN` — dedicated least-privilege secret for Custom Hostnames;
+- `CLOUDFLARE_SAAS_API_TOKEN` — dedicated least-privilege secret for Custom Hostnames in the long-running application path;
 - `CLOUDFLARE_SAAS_CNAME_TARGET` — managed CNAME/fallback target customers point at.
 
-Do not reuse or hard-code a broad account token in source. Do not return any Cloudflare token from an API response, log, audit record or error.
+Do not hard-code tokens in source. Do not return any Cloudflare token from an API response, log, audit record or error. Broad bootstrap/CI credentials, when temporarily used for platform administration, must remain secret and must not become the customer-runtime credential model.
+
+## Platform-owned hostnames
+
+Catalog Engine also owns first-party platform hostnames such as `app.catalogoengine.com`.
+
+These are not merchant custom hostnames and therefore are not entries in `tenant_domains`. Their DNS can be managed idempotently by platform automation as long as the automation:
+
+- changes only explicitly declared Catalog Engine hostnames;
+- fails closed when a conflicting DNS record type exists;
+- never deletes unrelated records to make a desired state fit;
+- verifies the live HTTPS surface after the DNS change;
+- keeps provider credentials in CI/runtime secrets only.
 
 ## Apex/root domains
 
@@ -71,6 +92,6 @@ Subdomain CNAME onboarding (for example `www.customer.com`) is the baseline path
 
 ## Current activation boundary
 
-The repository now contains the durable domain model, authenticated control-plane endpoints, provider adapter and a resumable provider runner. The real Cloudflare for SaaS runtime values are deliberately not committed or assumed.
+The provider path for customer custom hostnames is **production-activated and technically proven** through the retained isolated smoke tenant.
 
-Until the production SaaS zone/token/CNAME target are configured and an end-to-end custom hostname is verified, custom-domain automation is considered **implemented but not production-activated**.
+What is not yet product-complete is the self-service customer journey in `app.catalogoengine.com`: authenticated merchant access, billing entitlements, domain entry/status UX and automatic invocation of the already-proven provider/runtime capabilities. Technical activation must not be confused with sellable customer onboarding completeness.
