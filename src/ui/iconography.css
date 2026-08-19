@@ -1,0 +1,82 @@
+.ce-storefront .theme-toggle {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.ce-storefront .theme-icon,
+.ce-storefront .category-back svg,
+.ce-storefront .pagination-button svg,
+.ce-storefront .primary-action svg,
+.ce-storefront .dialog-close svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.ce-storefront .theme-icon {
+  position: absolute;
+}
+
+.ce-storefront .theme-icon--moon {
+  display: none;
+}
+
+:root.light .ce-storefront .theme-icon--sun {
+  display: none;
+}
+
+:root.light .ce-storefront .theme-icon--moon {
+  display: block;
+}
+
+.ce-storefront .category-back,
+.ce-storefront .pagination-button,
+.ce-storefront .primary-action {
+  gap: 8px;
+}
+
+.ce-storefront .category-icon svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.ce-storefront .category-arrow {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.ce-storefront .dialog-close {
+  display: grid;
+  place-items: center;
+}
+
+.ce-portal .ce-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
+.ce-portal .access-mark .ce-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.ce-portal .store-card-action .ce-icon {
+  width: 16px;
+  height: 16px;
+}
+
+@media (max-width: 360px) {
+  .ce-storefront .pagination-button {
+    gap: 5px;
+  }
+
+  .ce-storefront .pagination-button svg {
+    width: 16px;
+    height: 16px;
+  }
+}

@@ -1,10 +1,10 @@
 import './styles.css';
 import { getProductMedia, productGalleryUrls } from './catalog/media.js';
 import { mountProductGallery } from './product/gallery.js';
+import { hydrateStorefrontIcons } from './ui/storefront-icons.js';
 import { revealCards, revealDialog } from './ui/motion.js';
 
 const PAGE_SIZE = 15;
-const FLAG_BY_COUNTRY = { BR: '🇧🇷', 'GB-ENG': '🏴', ES: '🇪🇸', IT: '🇮🇹', DE: '🇩🇪', FR: '🇫🇷', US: '🇺🇸', INT: '🌍', OTHER: '🌍' };
 
 const state = {
   catalog: { store: {}, stats: {}, navigation: [] },
@@ -96,7 +96,26 @@ function setFilter(next) {
   void loadProducts(1, { scroll: true });
 }
 
-function cardButton({ title, count = null, subtitle = '', icon = '', kind = '', onClick, initials = '', logoUrl = null, arrow = true }) {
+function iconNode(name, className = '') {
+  const node = document.createElement('i');
+  if (className) node.className = className;
+  node.dataset.lucide = name;
+  node.setAttribute('aria-hidden', 'true');
+  return node;
+}
+
+function navigationIconName(item) {
+  if (item.kind === 'teams') return 'users';
+  if (item.kind === 'national_teams') return 'flag';
+  if (item.facetId === 'kits') return 'shirt';
+  if (item.facetId === 'kids') return 'baby';
+  if (item.facetId === 'women') return 'users';
+  if (item.facetId === 'shoes') return 'footprints';
+  if (item.facetId === 'retro') return 'history';
+  return 'tag';
+}
+
+function cardButton({ title, count = null, subtitle = '', iconName = '', kind = '', onClick, initials = '', logoUrl = null, arrow = true }) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = `category-chip ${kind}`.trim();
@@ -116,11 +135,11 @@ function cardButton({ title, count = null, subtitle = '', icon = '', kind = '', 
       mark.textContent = initials || title.slice(0, 3).toUpperCase();
     }
     lead.appendChild(mark);
-  } else if (icon) {
-    const iconEl = document.createElement('span');
-    iconEl.className = 'category-icon';
-    iconEl.textContent = icon;
-    lead.appendChild(iconEl);
+  } else if (iconName) {
+    const iconWrap = document.createElement('span');
+    iconWrap.className = 'category-icon';
+    iconWrap.appendChild(iconNode(iconName));
+    lead.appendChild(iconWrap);
   }
 
   const copy = document.createElement('span');
@@ -143,10 +162,7 @@ function cardButton({ title, count = null, subtitle = '', icon = '', kind = '', 
     button.appendChild(badge);
   }
   if (arrow) {
-    const arrowEl = document.createElement('span');
-    arrowEl.className = 'category-arrow';
-    arrowEl.textContent = '›';
-    button.appendChild(arrowEl);
+    button.appendChild(iconNode('chevron-right', 'category-arrow'));
   }
   button.addEventListener('click', onClick);
   return button;
@@ -195,17 +211,10 @@ async function renderExplorer() {
   try {
     if (view.kind === 'root') {
       for (const item of state.catalog.navigation || []) {
-        const icon = item.kind === 'teams' ? '⚽'
-          : item.kind === 'national_teams' ? '🌎'
-            : item.facetId === 'kits' ? '👕'
-              : item.facetId === 'kids' ? '🧒'
-                : item.facetId === 'women' ? '👩'
-                  : item.facetId === 'shoes' ? '👟'
-                    : item.facetId === 'retro' ? '🕰️' : '•';
         els.categoryChips.appendChild(cardButton({
           title: item.name,
           count: item.count,
-          icon,
+          iconName: navigationIconName(item),
           kind: 'root-card',
           onClick: () => {
             if (item.kind === 'teams') {
@@ -234,7 +243,7 @@ async function renderExplorer() {
           title: group.countryName,
           count: group.count,
           subtitle: `${group.leagues} liga${group.leagues === 1 ? '' : 's'}`,
-          icon: FLAG_BY_COUNTRY[group.countryCode] || '🌍',
+          iconName: 'globe',
           kind: 'country-card',
           onClick: () => pushExplorer({ kind: 'leagues', title: group.countryName, crumb: group.countryName, subtitle: 'Escolha a competição.', countryCode: group.countryCode })
         }));
@@ -246,7 +255,7 @@ async function renderExplorer() {
           title: league.name,
           count: league.product_count,
           subtitle: league.country_name,
-          icon: '🏆',
+          iconName: 'trophy',
           kind: 'league-card',
           onClick: () => pushExplorer({ kind: 'teams', title: league.name, crumb: league.name, subtitle: 'Escolha o time.', leagueId: league.league_id })
         }));
@@ -304,6 +313,8 @@ async function renderExplorer() {
     console.error('explorer_failed', error);
     els.categorySubtitle.textContent = 'Não foi possível carregar esta seção.';
   }
+
+  hydrateStorefrontIcons(els.categoryChips);
 }
 
 function openTeam(team) {
@@ -564,4 +575,5 @@ els.dialog.addEventListener('click', (event) => {
 });
 els.themeToggle.addEventListener('click', () => document.documentElement.classList.toggle('light'));
 
+hydrateStorefrontIcons(document);
 init();

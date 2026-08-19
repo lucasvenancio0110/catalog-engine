@@ -1,7 +1,7 @@
 {
   "runtime": [
     "cheerio",
-    "fuse.js",
+    "lucide",
     "motion",
     "p-queue",
     "sharp",

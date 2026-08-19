@@ -35,17 +35,17 @@
   },
   "dependencies": {
     "cheerio": "^1.2.0",
-    "fuse.js": "latest",
-    "motion": "latest",
+    "lucide": "1.31.0",
+    "motion": "13.1.0",
     "p-queue": "^9.3.3",
     "sharp": "^0.35.3",
-    "swiper": "latest",
+    "swiper": "14.1.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "eslint": "^10.8.0",
     "prettier": "^3.9.6",
-    "vite": "latest",
+    "vite": "8.2.1",
     "vitest": "^4.1.10"
   }
 }
