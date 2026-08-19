@@ -7,6 +7,7 @@ import { runDueTenantClassifications } from './tenant-classification-runner.js';
 import { runDueTenantImportDispatches } from './tenant-import-dispatcher.js';
 import { runDueTenantVerifications } from './tenant-verification-runner.js';
 import {
+  isCatalogAdminHost,
   isCatalogPlatformHost,
   resolveStorefrontTenant,
   storefrontRoutingError
@@ -30,18 +31,53 @@ function shouldDispatchTenantRequest(pathname) {
   return pathname.startsWith('/api/') || pathname.startsWith('/media/');
 }
 
+function looksLikeAssetPath(pathname) {
+  const last = pathname.split('/').pop() || '';
+  return /\.[a-z0-9]{1,12}$/i.test(last);
+}
+
+function adminShellRequest(request) {
+  const url = new URL(request.url);
+  url.pathname = '/app.html';
+  url.search = '';
+  return new Request(url.toString(), request);
+}
+
+async function serveAdminSurface(request, env, ctx) {
+  const url = new URL(request.url);
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    return storefrontRoutingError({ reason: 'not_found', status: 404 });
+  }
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/media/')) {
+    return storefrontRoutingError({ reason: 'not_found', status: 404 });
+  }
+  if (looksLikeAssetPath(url.pathname) && url.pathname !== '/app.html') {
+    return app.fetch(request, env, ctx);
+  }
+  return env.ASSETS.fetch(adminShellRequest(request));
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     // Health remains available for infrastructure probes. Admin APIs only exist on
-    // Catálogo Engine platform/admin hosts, never on a merchant storefront domain.
+    // Catalog Engine platform/admin hosts, never on a merchant storefront domain.
     if (url.pathname === '/api/health') return app.fetch(request, env, ctx);
     if (url.pathname.startsWith('/api/admin/')) {
       if (!isCatalogPlatformHost(request, env)) {
         return storefrontRoutingError({ reason: 'not_found', status: 404 });
       }
       return app.fetch(request, env, ctx);
+    }
+
+    // app.catalogoengine.com is a first-party product surface, not a storefront
+    // preview of tenant #0001. Its navigation always resolves to the portal entry.
+    if (isCatalogAdminHost(request, env)) return serveAdminSurface(request, env, ctx);
+
+    // Do not expose the portal HTML entry from merchant custom domains.
+    if (url.pathname === '/app.html') {
+      return storefrontRoutingError({ reason: 'not_found', status: 404 });
     }
 
     const tenant = await resolveStorefrontTenant(request, env);
