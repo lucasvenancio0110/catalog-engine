@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/workflows/cloudflare-platform-hosts.yml"
       - "scripts/configure-cloudflare-platform-hosts.mjs"
+      - "scripts/diagnose-cloudflare-token-scope.mjs"
       - "tests/cloudflare-platform-hosts.test.mjs"
       - "docs/CUSTOM-DOMAINS.md"
       - "docs/TENANT-PUBLISH.md"
@@ -49,6 +50,7 @@ jobs:
       - name: Validate platform-host automation
         run: |
           node --check scripts/configure-cloudflare-platform-hosts.mjs
+          node --check scripts/diagnose-cloudflare-token-scope.mjs
           npx vitest run tests/cloudflare-platform-hosts.test.mjs
 
   apply:
@@ -84,7 +86,11 @@ jobs:
       - name: Validate platform-host automation
         run: |
           node --check scripts/configure-cloudflare-platform-hosts.mjs
+          node --check scripts/diagnose-cloudflare-token-scope.mjs
           npx vitest run tests/cloudflare-platform-hosts.test.mjs
+
+      - name: Diagnose Cloudflare token scope
+        run: node scripts/diagnose-cloudflare-token-scope.mjs
 
       - name: Configure and verify app.catalogoengine.com
         run: node scripts/configure-cloudflare-platform-hosts.mjs
