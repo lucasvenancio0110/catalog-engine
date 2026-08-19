@@ -28,5 +28,11 @@
       "database_id": "12ac414c-4aef-4668-a8f9-dc63d57d449f",
       "migrations_dir": "migrations"
     }
+  ],
+  "dispatch_namespaces": [
+    {
+      "binding": "TENANT_DISPATCH",
+      "namespace": "catalog-engine-production"
+    }
   ]
 }
