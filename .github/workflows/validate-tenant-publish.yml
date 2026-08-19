@@ -48,16 +48,27 @@ jobs:
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='tenant_publish_jobs';")" = '1'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM pragma_table_info('tenant_publish_jobs') WHERE name IN ('job_id','tenant_id','status','attempt_count','next_attempt_at','last_error_code');")" = '6'
 
-      - name: Verify production entry composes publish scheduler without dispatch activation
+      - name: Verify production entry and approved dispatch binding
         shell: bash
         run: |
           set -euo pipefail
-          grep -q '"main": "./worker/entry-publish.js"' wrangler.jsonc
           test -f worker/entry-publish.js
-          if grep -Eq 'TENANT_DISPATCH|dispatch_namespace' wrangler.jsonc; then
-            echo 'Publish scheduler may ship before dispatch activation, but the dispatch binding may not.' >&2
-            exit 1
-          fi
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const config = JSON.parse(fs.readFileSync('wrangler.jsonc', 'utf8'));
+          if (config.main !== './worker/entry-publish.js') {
+            throw new Error('Publish-aware production entry is not active.');
+          }
+          const bindings = Array.isArray(config.dispatch_namespaces) ? config.dispatch_namespaces : [];
+          if (
+            bindings.length !== 1 ||
+            bindings[0]?.binding !== 'TENANT_DISPATCH' ||
+            bindings[0]?.namespace !== 'catalog-engine-production' ||
+            bindings[0]?.remote === true
+          ) {
+            throw new Error('Only the approved production dispatch binding may ship with publish.');
+          }
+          NODE
 
       - name: Run focused publish tests
         run: npx vitest run tests/tenant-publish-runner.test.mjs tests/tenant-publish-gate.test.mjs
