@@ -52,55 +52,104 @@ jobs:
           npx vitest run tests/cloudflare-platform-hosts.test.mjs
 
   apply:
-    # One-time verification for the manually-created app DNS record.
-    # This branch-specific allowance is not intended to merge to main.
+    # Controlled one-time production activation. The workflow definition lives on
+    # the dedicated ops PR, but production code is checked out from trusted main.
     if: github.event_name == 'pull_request' && github.head_ref == 'ops/app-host-live-activation-v1'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_VERSION: 4.123.0
       APP_HOST: app.catalogoengine.com
+      DEFAULT_HOST: catalog-engine.lucassantanals0110.workers.dev
+      SMOKE_HOST: teste.loja.catalogoengine.com
+      SMOKE_PRODUCT_ID: p_cccccccccccccccccccc
     steps:
-      - name: Verify public DNS, HTTPS, portal and health
+      - name: Checkout trusted main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate credentials exist
         shell: bash
         run: |
-          set -u
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Quality gate
+        run: npm run quality
+
+      - name: Build storefront and customer portal
+        run: |
+          npm run build
+          npm run build:verify
+          test -f dist/app.html
+          grep -q "Catalog Engine" dist/app.html
+
+      - name: Deploy current main Worker and assets
+        run: npx --yes "wrangler@$WRANGLER_VERSION" deploy --config wrangler.jsonc
+
+      - name: Verify app portal, default catalog and retained isolated tenant
+        shell: bash
+        run: |
+          set -euo pipefail
+
           ROOT_URL="https://${APP_HOST}/"
           HEALTH_URL="https://${APP_HOST}/api/health"
 
           for attempt in $(seq 1 12); do
-            echo "Public app verification attempt ${attempt}/12"
-
+            echo "Live verification attempt ${attempt}/12"
             root_status="$(curl --silent --show-error --max-time 15 --output /tmp/app-root.html --write-out '%{http_code}' "$ROOT_URL" || true)"
             health_status="$(curl --silent --show-error --max-time 15 --output /tmp/app-health.json --write-out '%{http_code}' "$HEALTH_URL" || true)"
 
-            echo "root=${root_status:-curl_failed} health=${health_status:-curl_failed}"
-
             if test "$root_status" = "200" \
               && test "$health_status" = "200" \
-              && grep -q "Catalog Engine" /tmp/app-root.html \
+              && grep -q "Catalog Engine — Portal" /tmp/app-root.html \
               && grep -q '"ok":true' /tmp/app-health.json \
               && grep -q '"service":"catalog-engine"' /tmp/app-health.json; then
-              echo "app.catalogoengine.com is live and serving the customer portal."
-              echo "Health response:"
-              cat /tmp/app-health.json
-              exit 0
+              break
             fi
 
-            if test -s /tmp/app-root.html; then
-              echo "Root body (first 240 bytes):"
-              head -c 240 /tmp/app-root.html
+            echo "app root=${root_status:-curl_failed} health=${health_status:-curl_failed}"
+            if test "$attempt" -eq 12; then
+              echo "Customer portal did not become live after deployment." >&2
+              head -c 400 /tmp/app-root.html || true
               echo
+              exit 1
             fi
-            if test -s /tmp/app-health.json; then
-              echo "Health body (first 240 bytes):"
-              head -c 240 /tmp/app-health.json
-              echo
-            fi
-
-            if test "$attempt" -lt 12; then
-              sleep 5
-            fi
+            sleep 5
           done
 
-          echo "app.catalogoengine.com did not become healthy within the verification window." >&2
-          exit 1
+          curl --fail --silent --show-error "https://${DEFAULT_HOST}/api/products?page=1&limit=1" > /tmp/default-products.json
+          curl --fail --silent --show-error "https://${SMOKE_HOST}/api/products?page=1&limit=15" > /tmp/smoke-products.json
+
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const def = JSON.parse(fs.readFileSync('/tmp/default-products.json', 'utf8'));
+          const smoke = JSON.parse(fs.readFileSync('/tmp/smoke-products.json', 'utf8'));
+          if (!Number(def.total) || !def.items?.[0]?.id) throw new Error('default_catalog_unhealthy');
+          if (smoke.total !== 1 || smoke.items?.[0]?.id !== process.env.SMOKE_PRODUCT_ID) {
+            throw new Error(`smoke_tenant_unhealthy:${JSON.stringify({total: smoke.total, id: smoke.items?.[0]?.id || null})}`);
+          }
+          fs.writeFileSync('/tmp/default-product-id.txt', def.items[0].id);
+          NODE
+
+          DEFAULT_PRODUCT_ID="$(cat /tmp/default-product-id.txt)"
+          tenant_on_default="$(curl --silent --show-error --output /tmp/tenant-on-default.json --write-out '%{http_code}' "https://${DEFAULT_HOST}/api/products/${SMOKE_PRODUCT_ID}" || true)"
+          default_on_tenant="$(curl --silent --show-error --output /tmp/default-on-tenant.json --write-out '%{http_code}' "https://${SMOKE_HOST}/api/products/${DEFAULT_PRODUCT_ID}" || true)"
+
+          test "$tenant_on_default" = "404" || { echo "Tenant product leaked into default catalog: HTTP $tenant_on_default"; exit 1; }
+          test "$default_on_tenant" = "404" || { echo "Default product leaked into smoke tenant: HTTP $default_on_tenant"; exit 1; }
+
+          echo "app.catalogoengine.com portal is live."
+          echo "Default catalog and retained smoke tenant remain isolated."
