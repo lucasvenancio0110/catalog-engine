@@ -1,0 +1,67 @@
+name: Catalog publication quality
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/catalog-publication-quality.yml"
+      - ".github/workflows/deploy-catalog-api.yml"
+      - ".github/workflows/import-yupoo.yml"
+      - ".github/workflows/sync-yupoo-incremental.yml"
+      - "scripts/public-catalog-import-core.mjs"
+      - "scripts/sync-public-catalog-d1.mjs"
+      - "tests/public-catalog-import.test.mjs"
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/catalog-publication-quality.yml"
+      - ".github/workflows/deploy-catalog-api.yml"
+      - ".github/workflows/import-yupoo.yml"
+      - ".github/workflows/sync-yupoo-incremental.yml"
+      - "scripts/public-catalog-import-core.mjs"
+      - "scripts/sync-public-catalog-d1.mjs"
+      - "tests/public-catalog-import.test.mjs"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PUBLIC_CATALOG_SQL_DIR: /tmp/catalog-engine-public-api-sql
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Quality gate
+        run: npm run quality
+
+      - name: Materialize complete atomic public catalog import
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/sync-public-catalog-d1.mjs | tee /tmp/catalog-publication-summary.json
+          shopt -s nullglob
+          files=("$PUBLIC_CATALOG_SQL_DIR"/*.sql)
+          test ${#files[@]} -eq 1 || { echo "Expected exactly one atomic public catalog SQL file, found ${#files[@]}"; exit 1; }
+          test -s "${files[0]}" || { echo "Atomic public catalog SQL file is empty"; exit 1; }
+          grep -q '"publicationMode": "atomic-d1-import"' /tmp/catalog-publication-summary.json
+          grep -q '"sqlFiles": 1' /tmp/catalog-publication-summary.json
+          echo "Atomic public catalog SQL size: $(wc -c < "${files[0]}") bytes"
+
+      - name: Build and verify storefront artifact
+        run: |
+          npm run build
+          npm run build:verify
