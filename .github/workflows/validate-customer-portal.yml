@@ -1,0 +1,57 @@
+name: Validate customer portal
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "app.html"
+      - "src/app/**"
+      - "vite.config.js"
+      - "worker/entry.js"
+      - "worker/tenant-routing.js"
+      - "wrangler.jsonc"
+      - "tests/customer-portal-model.test.mjs"
+      - "tests/tenant-routing.test.mjs"
+      - "tests/vite-config.test.mjs"
+      - ".github/workflows/validate-customer-portal.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Quality gate
+        run: npm run quality
+
+      - name: Build storefront and portal
+        run: npm run build
+
+      - name: Verify public build
+        run: npm run build:verify
+
+      - name: Verify portal artifact
+        shell: bash
+        run: |
+          test -f dist/app.html
+          grep -q "Catalog Engine" dist/app.html
+          if grep -q "/src/app/main.js" dist/app.html; then
+            echo "Portal production HTML still references source modules"
+            exit 1
+          fi
+          test -d dist/assets
