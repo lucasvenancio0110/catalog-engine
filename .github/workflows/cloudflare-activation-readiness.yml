@@ -102,7 +102,9 @@ jobs:
         run: |
           set -euo pipefail
           FILE=.github/workflows/cloudflare-activation-readiness.yml
-          if grep -Eq 'wrangler[[:space:]]+deploy|custom_hostnames.*POST|dispatch/namespaces.*scripts|d1[[:space:]]+create' "$FILE"; then
+          matches="$(grep -En 'wrangler[[:space:]]+deploy|custom_hostnames.*POST|dispatch/namespaces.*scripts|d1[[:space:]]+create' "$FILE" | grep -v 'matches=.*grep -En' || true)"
+          if [ -n "$matches" ]; then
             echo 'Readiness workflow must remain non-mutating.' >&2
+            echo "$matches" >&2
             exit 1
           fi
