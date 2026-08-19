@@ -5,7 +5,7 @@ on:
     branches: ["main"]
     paths:
       - ".github/workflows/catalog-publication-quality.yml"
-      - ".github/workflows/deploy-catalog-api.yml"
+      - ".github/workflows/publish-default-catalog.yml"
       - ".github/workflows/import-yupoo.yml"
       - ".github/workflows/sync-yupoo-incremental.yml"
       - "scripts/public-catalog-import-core.mjs"
@@ -15,7 +15,7 @@ on:
     branches: ["main"]
     paths:
       - ".github/workflows/catalog-publication-quality.yml"
-      - ".github/workflows/deploy-catalog-api.yml"
+      - ".github/workflows/publish-default-catalog.yml"
       - ".github/workflows/import-yupoo.yml"
       - ".github/workflows/sync-yupoo-incremental.yml"
       - "scripts/public-catalog-import-core.mjs"
