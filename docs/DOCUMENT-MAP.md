@@ -136,6 +136,25 @@ Required:
 - relevant scan/detail/import documents
 - `docs/CEI.md` if sync triggers reclassification/learning
 - `docs/CURRENT-STATE.md` when changing a production/default-catalog publication path
+- `docs/DEPLOYMENT-PIPELINES.md` when sync/publication ownership or production D1 mutation ordering changes
+
+## Deployment / CI / catalog publication
+
+Required:
+
+- `AGENTS.md`
+- `docs/DEPLOYMENT-PIPELINES.md`
+- `docs/CURRENT-STATE.md`
+- `docs/DEVELOPMENT-ROADMAP.md` for the active safety milestone
+
+Additionally:
+
+- application/Worker/static-asset changes → inspect `wrangler.jsonc`, build/verify scripts and application deploy workflow;
+- D1 schema migration behavior → inspect the affected migration contracts and tenant/control-plane architecture documents;
+- catalog publication/sync/recovery → also read synchronization/source contracts;
+- production Cloudflare secret boundaries → inspect the relevant trusted/manual workflow and security rules.
+
+Do not re-couple application deployment and commercial catalog replacement merely because both happen to use the same D1 binding.
 
 ## Storefront / themes / merchandising UX
 
