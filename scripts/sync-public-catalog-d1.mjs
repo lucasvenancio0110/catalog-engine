@@ -1,5 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { readFile } from 'node:fs/promises';
 import {
   FACETS,
   LEAGUES,
@@ -7,27 +6,14 @@ import {
   normalizeCatalogProduct,
   professionalNavigationDefinition
 } from '../src/domain/catalog-normalization.js';
+import { writeAtomicCatalogImport } from './public-catalog-import-core.mjs';
 
 const catalogPath = process.env.CATALOG_PATH || 'data/catalog.json';
 const sqlDir = process.env.PUBLIC_CATALOG_SQL_DIR || '/tmp/catalog-engine-public-api-sql';
-const chunkStatements = Math.max(250, Number(process.env.PUBLIC_CATALOG_SQL_CHUNK_STATEMENTS || 900));
 
 function sqlString(value) {
   if (value === null || value === undefined) return 'NULL';
   return `'${String(value).replaceAll("'", "''")}'`;
-}
-
-async function writeSqlChunks(statements) {
-  await rm(sqlDir, { recursive: true, force: true });
-  await mkdir(sqlDir, { recursive: true });
-  const files = [];
-  for (let index = 0; index < statements.length; index += chunkStatements) {
-    const chunk = statements.slice(index, index + chunkStatements);
-    const path = resolve(sqlDir, `${String(files.length + 1).padStart(4, '0')}.sql`);
-    await writeFile(path, `PRAGMA foreign_keys = ON;\n${chunk.join('\n')}\n`, 'utf8');
-    files.push(path);
-  }
-  return files;
 }
 
 const catalog = JSON.parse(await readFile(catalogPath, 'utf8'));
@@ -115,5 +101,21 @@ const meta = {
 };
 for (const [key, value] of Object.entries(meta)) statements.push(`INSERT INTO catalog_meta (key, value_json, updated_at) VALUES (${sqlString(key)}, ${sqlString(JSON.stringify(value))}, CURRENT_TIMESTAMP);`);
 
-const files = await writeSqlChunks(statements);
-console.log(JSON.stringify({ ok: true, products: products.length, sourceCategories: taxonomy.length, leagues: leagueCounts.size, teams: teamCounts.size, facets: facetCounts.size, automatic: meta.normalization.classified, needsReview: meta.normalization.needsReview, unknown: meta.normalization.unknown, sqlChunks: files.length, sqlDir }, null, 2));
+const atomicImport = await writeAtomicCatalogImport(statements, { sqlDir });
+console.log(JSON.stringify({
+  ok: true,
+  products: products.length,
+  sourceCategories: taxonomy.length,
+  leagues: leagueCounts.size,
+  teams: teamCounts.size,
+  facets: facetCounts.size,
+  automatic: meta.normalization.classified,
+  needsReview: meta.normalization.needsReview,
+  unknown: meta.normalization.unknown,
+  publicationMode: 'atomic-d1-import',
+  sqlFiles: 1,
+  sqlStatements: atomicImport.statementCount,
+  sqlBytes: atomicImport.bytes,
+  sqlFile: atomicImport.path,
+  sqlDir
+}, null, 2));
