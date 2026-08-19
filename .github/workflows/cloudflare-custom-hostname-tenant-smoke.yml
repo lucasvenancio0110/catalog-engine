@@ -1,0 +1,64 @@
+name: Cloudflare custom hostname tenant smoke
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/cloudflare-custom-hostname-tenant-smoke.yml'
+      - 'scripts/cloudflare-custom-hostname-tenant-smoke.mjs'
+      - 'worker/cloudflare-platform.js'
+      - 'worker/tenant-catalog-runtime.js'
+      - 'worker/tenant-routing.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-custom-hostname-tenant-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE: catalog-engine-production
+      CATALOG_ENGINE_TEST_HOSTNAME: teste.loja.catalogoengine.com
+      CATALOG_ENGINE_DEFAULT_URL: https://catalog-engine.lucassantanals0110.workers.dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Quality gate
+        run: npm run quality
+
+      - name: Validate Cloudflare credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo 'CLOUDFLARE_ACCOUNT_ID is missing' >&2; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo 'CLOUDFLARE_API_TOKEN is missing' >&2; exit 1; }
+
+      - name: Provision isolated tenant behind active Custom Hostname
+        run: node scripts/cloudflare-custom-hostname-tenant-smoke.mjs setup
+
+      - name: Prove live hostname dispatch and cross-tenant isolation
+        run: node scripts/cloudflare-custom-hostname-tenant-smoke.mjs verify
+
+      - name: Keep smoke tenant available for manual Safari verification
+        run: |
+          echo 'teste.loja.catalogoengine.com remains attached to the isolated smoke tenant.'
+          echo 'Run: node scripts/cloudflare-custom-hostname-tenant-smoke.mjs cleanup when the manual test is finished.'
