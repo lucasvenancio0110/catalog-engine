@@ -91,19 +91,18 @@ jobs:
             npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$file"
           done
 
-      - name: Rebuild normalized public catalog SQL
+      - name: Build atomic normalized public catalog SQL
         run: node scripts/sync-public-catalog-d1.mjs
 
-      - name: Load normalized public catalog into D1
+      - name: Atomically replace normalized public catalog in D1
         shell: bash
         run: |
           shopt -s nullglob
           files=("$PUBLIC_CATALOG_SQL_DIR"/*.sql)
-          test ${#files[@]} -gt 0 || { echo "No public catalog SQL chunks were generated"; exit 1; }
-          for file in "${files[@]}"; do
-            echo "Applying public $(basename "$file")"
-            npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$file"
-          done
+          test ${#files[@]} -eq 1 || { echo "Expected exactly one atomic public catalog SQL file, found ${#files[@]}"; exit 1; }
+          file="${files[0]}"
+          echo "Applying atomic public catalog $(basename "$file")"
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$file"
 
       - name: Verify remote catalog
         run: |
