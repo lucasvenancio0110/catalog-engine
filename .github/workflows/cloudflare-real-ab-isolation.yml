@@ -1,0 +1,127 @@
+name: Cloudflare real A/B isolation smoke
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/cloudflare-real-ab-isolation.yml"
+      - "scripts/cloudflare-real-ab-isolation.mjs"
+      - "worker/cloudflare-platform.js"
+      - "worker/tenant-catalog-runtime.js"
+      - "worker/tenant-data-plane-schema*.js"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-real-ab-isolation
+  cancel-in-progress: false
+
+jobs:
+  isolation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE: catalog-engine-production
+      ISOLATION_STATE_PATH: /tmp/catalog-engine-isolation-state.json
+      WRANGLER_VERSION: 4.123.0
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Quality gate
+        run: npm run quality
+
+      - name: Validate reusable Cloudflare credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo 'CLOUDFLARE_ACCOUNT_ID is missing' >&2; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo 'CLOUDFLARE_API_TOKEN is missing' >&2; exit 1; }
+
+      - name: Create disposable tenant A/B resources
+        run: node scripts/cloudflare-real-ab-isolation.mjs setup
+
+      - name: Prepare local dispatcher bound to remote production namespace
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .tmp-isolation
+          cat > .tmp-isolation/dispatcher.mjs <<'EOF'
+          export default {
+            async fetch(request, env) {
+              const url = new URL(request.url);
+              const scriptName = url.searchParams.get('__script') || '';
+              if (!/^ceiso-[ab]-[a-z0-9]+$/.test(scriptName)) {
+                return new Response('invalid_probe_script', { status: 400 });
+              }
+              url.searchParams.delete('__script');
+              const userWorker = env.TENANT_DISPATCH.get(scriptName);
+              const target = new URL(url.pathname + url.search, 'https://tenant-isolation.invalid');
+              return userWorker.fetch(new Request(target, request));
+            }
+          };
+          EOF
+          cat > .tmp-isolation/wrangler.jsonc <<'EOF'
+          {
+            "$schema": "../node_modules/wrangler/config-schema.json",
+            "name": "catalog-engine-local-isolation-probe",
+            "main": "./dispatcher.mjs",
+            "compatibility_date": "2026-08-19",
+            "dispatch_namespaces": [
+              {
+                "binding": "TENANT_DISPATCH",
+                "namespace": "catalog-engine-production",
+                "remote": true
+              }
+            ]
+          }
+          EOF
+
+      - name: Start local dispatcher with remote dispatch binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@$WRANGLER_VERSION" dev --config .tmp-isolation/wrangler.jsonc --ip 127.0.0.1 --port 8787 > /tmp/catalog-engine-isolation-wrangler.log 2>&1 &
+          echo $! > /tmp/catalog-engine-isolation-wrangler.pid
+          for attempt in $(seq 1 45); do
+            if curl --silent --output /dev/null --max-time 2 "http://127.0.0.1:8787/api/health?__script=$CEISO_SCRIPT_A"; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/catalog-engine-isolation-wrangler.log >&2 || true
+          exit 1
+
+      - name: Prove tenant A/B product and media isolation
+        run: node scripts/cloudflare-real-ab-isolation.mjs verify http://127.0.0.1:8787
+
+      - name: Show local dispatcher log
+        if: always()
+        shell: bash
+        run: |
+          tail -n 120 /tmp/catalog-engine-isolation-wrangler.log 2>/dev/null || true
+
+      - name: Stop local dispatcher
+        if: always()
+        shell: bash
+        run: |
+          if [ -f /tmp/catalog-engine-isolation-wrangler.pid ]; then
+            kill "$(cat /tmp/catalog-engine-isolation-wrangler.pid)" 2>/dev/null || true
+          fi
+
+      - name: Delete disposable tenant A/B resources
+        if: always()
+        run: node scripts/cloudflare-real-ab-isolation.mjs cleanup
