@@ -1,0 +1,102 @@
+name: Verify live production dispatch
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-live-production-dispatch.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-live-production-dispatch
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      WORKER_NAME: catalog-engine
+      EXPECTED_BINDING: TENANT_DISPATCH
+      EXPECTED_NAMESPACE: catalog-engine-production
+      PUBLIC_URL: https://catalog-engine.lucassantanals0110.workers.dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate reusable Cloudflare credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo 'CLOUDFLARE_ACCOUNT_ID is missing' >&2; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo 'CLOUDFLARE_API_TOKEN is missing' >&2; exit 1; }
+
+      - name: Wait for exact dispatch binding on live Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 90); do
+            if node --input-type=module <<'NODE'
+          const url = `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${encodeURIComponent(process.env.WORKER_NAME)}/settings`;
+          const response = await fetch(url, {
+            headers: {
+              authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`,
+              accept: 'application/json'
+            }
+          });
+          const payload = await response.json().catch(() => null);
+          if (!response.ok || !payload?.success) process.exit(2);
+          const bindings = Array.isArray(payload.result?.bindings) ? payload.result.bindings : [];
+          const dispatch = bindings.filter((binding) => binding?.type === 'dispatch_namespace');
+          const exact = dispatch.length === 1 &&
+            dispatch[0]?.name === process.env.EXPECTED_BINDING &&
+            dispatch[0]?.namespace === process.env.EXPECTED_NAMESPACE;
+          if (!exact) process.exit(3);
+          console.log(JSON.stringify({
+            liveDispatchBinding: true,
+            worker: process.env.WORKER_NAME,
+            binding: dispatch[0].name,
+            namespace: dispatch[0].namespace
+          }));
+          NODE
+            then
+              exit 0
+            fi
+            echo "Live binding not visible yet (attempt $attempt/90); waiting for main deployment..."
+            sleep 10
+          done
+          echo 'Timed out waiting for exact live TENANT_DISPATCH binding.' >&2
+          exit 1
+
+      - name: Smoke live Worker after dispatch activation
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PUBLIC_URL/api/health" > /tmp/health.json
+          curl --fail --silent --show-error "$PUBLIC_URL/api/catalog/meta" > /tmp/meta.json
+          curl --fail --silent --show-error "$PUBLIC_URL/api/products?page=1&limit=1" > /tmp/products.json
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const health = JSON.parse(fs.readFileSync('/tmp/health.json', 'utf8'));
+          const meta = JSON.parse(fs.readFileSync('/tmp/meta.json', 'utf8'));
+          const products = JSON.parse(fs.readFileSync('/tmp/products.json', 'utf8'));
+          if (!health.ok || !health.catalogApi) throw new Error('live_health_failed');
+          if (!Number(meta.stats?.products)) throw new Error('live_catalog_meta_empty');
+          if (!Array.isArray(products.items) || products.items.length !== 1) throw new Error('live_catalog_products_empty');
+          console.log(JSON.stringify({
+            liveWorkerHealthy: true,
+            catalogProducts: meta.stats.products,
+            sampleProductId: products.items[0]?.id || null
+          }));
+          NODE
