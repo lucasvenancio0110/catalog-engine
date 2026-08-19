@@ -56,7 +56,32 @@ jobs:
         run: node scripts/cloudflare-custom-hostname-tenant-smoke.mjs setup
 
       - name: Prove live hostname dispatch and cross-tenant isolation
-        run: node scripts/cloudflare-custom-hostname-tenant-smoke.mjs verify
+        shell: bash
+        run: |
+          set -u
+          META_URL="https://${CATALOG_ENGINE_TEST_HOSTNAME}/api/catalog/meta"
+
+          for attempt in 1 2 3 4 5 6 7 8; do
+            echo "Live verification attempt ${attempt}/8"
+            if node scripts/cloudflare-custom-hostname-tenant-smoke.mjs verify; then
+              exit 0
+            fi
+
+            status="$(curl --silent --show-error --max-time 15 --output /tmp/custom-meta-body.txt --write-out '%{http_code}' "$META_URL" || true)"
+            echo "Custom hostname meta diagnostic: HTTP ${status:-curl_failed}"
+            if test -s /tmp/custom-meta-body.txt; then
+              echo 'Response body (first 400 bytes):'
+              head -c 400 /tmp/custom-meta-body.txt
+              echo
+            fi
+
+            if test "$attempt" -lt 8; then
+              sleep "$((attempt * 2))"
+            fi
+          done
+
+          echo 'Live custom-hostname verification did not become healthy within the bounded propagation window.' >&2
+          exit 1
 
       - name: Keep smoke tenant available for manual Safari verification
         run: |

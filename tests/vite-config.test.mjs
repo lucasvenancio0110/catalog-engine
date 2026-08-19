@@ -10,4 +10,11 @@ describe('Vite storefront config', () => {
     expect(viteConfig.publicDir).toBe(false);
     expect(viteConfig.build?.outDir).toBe('dist');
   });
+
+  it('builds separate storefront and customer portal html entries', () => {
+    const input = viteConfig.build?.rollupOptions?.input;
+    expect(Object.keys(input || {}).sort()).toEqual(['portal', 'storefront']);
+    expect(input.storefront.endsWith('/index.html')).toBe(true);
+    expect(input.portal.endsWith('/app.html')).toBe(true);
+  });
 });

@@ -4,7 +4,8 @@
   "main": "./worker/entry-publish.js",
   "compatibility_date": "2026-08-17",
   "vars": {
-    "CATALOG_PLATFORM_HOSTS": "catalog-engine.lucassantanals0110.workers.dev,catalogoengine.com,app.catalogoengine.com"
+    "CATALOG_PLATFORM_HOSTS": "catalog-engine.lucassantanals0110.workers.dev,catalogoengine.com,app.catalogoengine.com",
+    "CATALOG_ADMIN_HOST": "app.catalogoengine.com"
   },
   "assets": {
     "directory": "./dist",

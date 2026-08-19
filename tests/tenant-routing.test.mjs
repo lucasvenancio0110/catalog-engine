@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import workerEntry from '../worker/entry.js';
 import {
+  isCatalogAdminHost,
   isCatalogPlatformHost,
   resolveStorefrontTenant
 } from '../worker/tenant-routing.js';
 
 const platformEnv = {
-  CATALOG_PLATFORM_HOSTS: 'catalog-engine.lucassantanals0110.workers.dev'
+  CATALOG_PLATFORM_HOSTS:
+    'catalog-engine.lucassantanals0110.workers.dev,catalogoengine.com,app.catalogoengine.com',
+  CATALOG_ADMIN_HOST: 'app.catalogoengine.com'
 };
 
 function fakeDb(row) {
@@ -28,6 +31,28 @@ describe('public tenant hostname routing', () => {
       tenantId: 't_00000000000000000001',
       dataPlaneKey: 'catalog-engine-default'
     });
+  });
+
+  it('recognizes app.catalogoengine.com as the dedicated customer portal host', () => {
+    expect(
+      isCatalogAdminHost(new Request('https://app.catalogoengine.com/'), platformEnv)
+    ).toBe(true);
+    expect(
+      isCatalogAdminHost(new Request('https://catalogoengine.com/'), platformEnv)
+    ).toBe(false);
+  });
+
+  it('serves the customer portal shell instead of tenant #0001 storefront on the app host', async () => {
+    const assetsFetch = vi.fn(async (request) => new Response(new URL(request.url).pathname));
+    const response = await workerEntry.fetch(
+      new Request('https://app.catalogoengine.com/lojas'),
+      { ...platformEnv, ASSETS: { fetch: assetsFetch } },
+      { waitUntil: vi.fn() }
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('/app.html');
+    expect(assetsFetch).toHaveBeenCalledTimes(1);
   });
 
   it('allows an active published custom hostname only when it resolves to the attached current data plane', async () => {
@@ -104,5 +129,14 @@ describe('public tenant hostname routing', () => {
     );
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: 'not_found' });
+  });
+
+  it('does not expose the portal html entry on merchant storefront domains', async () => {
+    const response = await workerEntry.fetch(
+      new Request('https://merchant.example.com/app.html'),
+      { ...platformEnv },
+      { waitUntil: vi.fn() }
+    );
+    expect(response.status).toBe(404);
   });
 });
