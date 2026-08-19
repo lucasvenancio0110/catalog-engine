@@ -1,5 +1,7 @@
 # Tenant runtime staging and dispatch
 
+Status: **Normative implementation contract**
+
 After import, classification and verification, Catalog Engine still does not publish a merchant directly. The verified tenant D1 must first receive the full catalog runtime and pass a dispatch smoke test.
 
 ## Runtime lifecycle
@@ -40,8 +42,17 @@ API/media traffic is then sent only to that resolved tenant script. Static asset
 
 Custom-domain SSL readiness alone can no longer advance onboarding to `publish`. `tenant-publish-gate.js` requires **both** an active provider/SSL custom domain and a verified full tenant runtime. Whichever prerequisite completes last re-evaluates the shared gate.
 
-The final publish action remains a separate milestone. This runtime work does not mark a merchant profile published or a catalog instance ready automatically.
+The final publish action remains a separate milestone. Runtime verification does not mark a merchant profile published or a catalog instance ready automatically.
 
-## Production activation boundary
+## Production activation state
 
-This branch intentionally does not add a real `TENANT_DISPATCH` binding to `wrangler.jsonc`. CI explicitly fails if that binding appears before the isolated runtime path is reviewed. Dedicated Workers for Platforms credentials and the dispatch binding should be activated only when a real Cloudflare namespace is ready for an isolated two-tenant smoke test.
+The production dispatch boundary is active and proven:
+
+- `wrangler.jsonc` binds `TENANT_DISPATCH` to `catalog-engine-production`;
+- the platform resolves the Worker script name from trusted control-plane provider state;
+- `teste.loja.catalogoengine.com` proved custom hostname -> platform router -> Workers for Platforms -> isolated tenant D1 end to end;
+- the smoke tenant could read its own product but not a default-tenant product;
+- the default tenant could not read the smoke-tenant product;
+- missing or invalid tenant routing still fails closed.
+
+The retained smoke tenant is validation infrastructure, not a shortcut for future merchant publication. Every real tenant must pass the same runtime/domain/publish gates independently.
