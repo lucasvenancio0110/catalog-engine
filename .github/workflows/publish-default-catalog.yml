@@ -1,0 +1,164 @@
+name: Publish default catalog snapshot
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type PUBLISH to replace the default public D1 catalog with data/catalog.json"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: catalog-engine-production-d1
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PUBLIC_CATALOG_SQL_DIR: /tmp/catalog-engine-public-api-sql
+      WRANGLER_VERSION: 4.123.0
+      PUBLIC_URL: https://catalog-engine.lucassantanals0110.workers.dev
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate explicit publication confirmation
+        shell: bash
+        run: |
+          test "${{ inputs.confirmation }}" = "PUBLISH" || {
+            echo "Publication not confirmed. Type PUBLISH exactly.";
+            exit 1;
+          }
+
+      - name: Validate Cloudflare credentials
+        shell: bash
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Quality gate
+        run: npm run quality
+
+      - name: Materialize atomic catalog publication artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/sync-public-catalog-d1.mjs | tee /tmp/catalog-publication-summary.json
+          shopt -s nullglob
+          files=("$PUBLIC_CATALOG_SQL_DIR"/*.sql)
+          test ${#files[@]} -eq 1 || { echo "Expected exactly one atomic public catalog SQL file, found ${#files[@]}"; exit 1; }
+          test -s "${files[0]}" || { echo "Atomic public catalog SQL file is empty"; exit 1; }
+          grep -q '"publicationMode": "atomic-d1-import"' /tmp/catalog-publication-summary.json
+          grep -q '"sqlFiles": 1' /tmp/catalog-publication-summary.json
+          echo "Atomic public catalog SQL size: $(wc -c < "${files[0]}") bytes"
+
+      # Preflight the exact publication artifact against local D1 before touching
+      # production. Remote schema migrations are deliberately NOT applied here;
+      # application/schema deployment is a separate responsibility.
+      - name: Exercise publication artifact against local D1
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=("$PUBLIC_CATALOG_SQL_DIR"/*.sql)
+          test ${#files[@]} -eq 1
+          file="${files[0]}"
+
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 migrations apply CATALOG_DB --local --config wrangler.jsonc
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --local --config wrangler.jsonc --file="$file"
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --local --config wrangler.jsonc --json \
+            --command="SELECT COUNT(*) AS products FROM catalog_products; SELECT COUNT(*) AS leagues FROM catalog_leagues; SELECT COUNT(*) AS teams FROM catalog_teams; SELECT COUNT(*) AS facets FROM catalog_facets;" \
+            > /tmp/catalog-publication-local-d1.json
+
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const expected = JSON.parse(fs.readFileSync('/tmp/catalog-publication-summary.json', 'utf8'));
+          const payload = JSON.parse(fs.readFileSync('/tmp/catalog-publication-local-d1.json', 'utf8'));
+          const rows = [];
+          const visit = (value) => {
+            if (!value) return;
+            if (Array.isArray(value)) return value.forEach(visit);
+            if (Array.isArray(value.results)) rows.push(...value.results);
+            if (value.result) visit(value.result);
+          };
+          visit(payload);
+          const count = (key) => Number(rows.find((row) => Object.prototype.hasOwnProperty.call(row, key))?.[key] ?? -1);
+          for (const key of ['products', 'leagues', 'teams', 'facets']) {
+            const actual = count(key);
+            if (actual !== Number(expected[key])) throw new Error(`local_d1_catalog_count_mismatch:${key}:${actual}:${expected[key]}`);
+          }
+          NODE
+
+      - name: Atomically publish catalog to remote D1
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=("$PUBLIC_CATALOG_SQL_DIR"/*.sql)
+          test ${#files[@]} -eq 1
+          file="${files[0]}"
+          echo "Publishing atomic default catalog $(basename "$file")"
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$file"
+
+      - name: Verify remote catalog counts
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --json \
+            --command="SELECT COUNT(*) AS products FROM catalog_products; SELECT COUNT(*) AS leagues FROM catalog_leagues; SELECT COUNT(*) AS teams FROM catalog_teams; SELECT COUNT(*) AS facets FROM catalog_facets;" \
+            > /tmp/catalog-publication-remote-d1.json
+
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const expected = JSON.parse(fs.readFileSync('/tmp/catalog-publication-summary.json', 'utf8'));
+          const payload = JSON.parse(fs.readFileSync('/tmp/catalog-publication-remote-d1.json', 'utf8'));
+          const rows = [];
+          const visit = (value) => {
+            if (!value) return;
+            if (Array.isArray(value)) return value.forEach(visit);
+            if (Array.isArray(value.results)) rows.push(...value.results);
+            if (value.result) visit(value.result);
+          };
+          visit(payload);
+          const count = (key) => Number(rows.find((row) => Object.prototype.hasOwnProperty.call(row, key))?.[key] ?? -1);
+          const actual = Object.fromEntries(['products', 'leagues', 'teams', 'facets'].map((key) => [key, count(key)]));
+          for (const key of Object.keys(actual)) {
+            if (actual[key] !== Number(expected[key])) throw new Error(`remote_d1_catalog_count_mismatch:${key}:${actual[key]}:${expected[key]}`);
+          }
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\n### Default catalog publication\n\n${JSON.stringify(actual, null, 2)}\n`);
+          NODE
+
+      - name: Smoke existing application against published catalog
+        shell: bash
+        run: |
+          curl --fail --silent --show-error "$PUBLIC_URL/api/health" > /tmp/health.json
+          curl --fail --silent --show-error "$PUBLIC_URL/api/catalog/meta" > /tmp/meta.json
+          curl --fail --silent --show-error "$PUBLIC_URL/api/products?page=1&limit=15" > /tmp/products.json
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const health = JSON.parse(fs.readFileSync('/tmp/health.json', 'utf8'));
+          const meta = JSON.parse(fs.readFileSync('/tmp/meta.json', 'utf8'));
+          const products = JSON.parse(fs.readFileSync('/tmp/products.json', 'utf8'));
+          if (!health.ok || !health.catalogApi) throw new Error('Catalog API health failed after publication.');
+          if (!Number(meta.stats?.products)) throw new Error('Catalog metadata is empty after publication.');
+          if (!products.items?.length || products.total !== meta.stats.products) throw new Error('Published catalog API verification failed.');
+          NODE

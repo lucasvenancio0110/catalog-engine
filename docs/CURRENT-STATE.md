@@ -19,13 +19,15 @@ Do not leave temporary activation statements inside durable normative documents 
 
 Audit checkpoint date: **2026-08-19**.
 
-Current repository baseline after the P0 safety merges:
+Current repository baseline after the P0 safety/realignment work:
 
 - repository: `lucasvenancio0110/catalog-engine`;
 - default branch: `main`;
 - application package version: `0.9.0`;
 - PR #47 merged: Cloudflare production credentials/actions isolated from ordinary pull-request validation;
-- PR #48 merged: public catalog D1 replacement is emitted/applied as one validated atomic publication artifact.
+- PR #48 merged: public catalog D1 replacement is emitted/applied as one validated atomic publication artifact;
+- PR #49 merged: post-audit current-state, roadmap and responsive/design-system contracts established;
+- application deployment and default catalog-data publication are now separate workflow responsibilities in the current post-audit pipeline design.
 
 The audit intentionally did **not** prove a complete account-wide Cloudflare inventory. Only resources evidenced through repository configuration, deployment logs and controlled live tests are treated as confirmed here.
 
@@ -129,7 +131,7 @@ The tenant-only schema is deliberately separated from SaaS control-plane tables 
 
 The strategic model remains one isolated catalog data plane per store/tenant.
 
-## Catalog publication safety
+## Catalog publication and application deployment safety
 
 The original/default public catalog currently contains roughly 17k products and tens of thousands of media references.
 
@@ -141,7 +143,38 @@ PR #48 changed the destructive public-catalog replacement path so that:
 - trusted workflows require exactly one public publication file;
 - the production-sized artifact was executed successfully against local D1 via Wrangler before merge.
 
-Private media/index delta chunking is a separate concern and was intentionally not collapsed by that P0 fix.
+The post-audit M2 pipeline boundary further separates responsibilities:
+
+### Application deploy
+
+`.github/workflows/deploy-catalog-api.yml` owns application/schema deployment:
+
+`quality -> build -> build:verify -> remote schema migrations -> Worker/assets deploy -> smoke existing catalog`
+
+It no longer generates `sync-public-catalog-d1.mjs` output or replaces public catalog business data.
+
+Build/verification happens before the first production mutation.
+
+### Manual default catalog snapshot publication
+
+`.github/workflows/publish-default-catalog.yml` owns deliberate publication of the checked-in sanitized default snapshot:
+
+- manual-only;
+- explicit `PUBLISH` confirmation;
+- quality gate;
+- one atomic SQL artifact;
+- local D1 preflight of the exact artifact;
+- no remote migrations;
+- remote atomic publication;
+- remote count verification;
+- API smoke;
+- no Worker deploy.
+
+Default supplier sync/recovery continue to publish their own source-driven catalog changes while the future tenant Queue pipeline is not yet the normal path.
+
+Private media/index delta chunking is a separate concern and was intentionally not collapsed by the atomic public-catalog fix.
+
+The exact boundary is documented in `DEPLOYMENT-PIPELINES.md` and protected by `tests/deployment-pipeline-boundary.test.mjs`.
 
 ## What is implemented but not yet product-complete
 
@@ -206,8 +239,9 @@ It is **not yet the launch-quality design target**.
 
 Major remaining product work includes:
 
-- unified design system/tokens;
-- full responsive behavior contract;
+- unified design system/tokens implemented in code;
+- complete library ownership/evaluation for the post-audit UI architecture;
+- full responsive behavior implementation;
 - premium product cards/product detail/navigation;
 - deep-link/URL-state behavior;
 - loading/empty/error states;
@@ -238,13 +272,16 @@ Confirmed improvements:
 
 - ordinary PR validation no longer executes the targeted live Cloudflare production jobs from PR context;
 - production-live Cloudflare checks require trusted/manual paths as defined by the updated workflows;
-- public catalog publication now has an atomic import boundary.
+- public catalog publication has an atomic import boundary;
+- ordinary application deployment no longer owns public catalog replacement;
+- build/verify precedes remote migration/deploy in the application deployment path;
+- a dedicated manual workflow exists for deliberate default-snapshot publication;
+- automated regression tests enforce the application-vs-catalog workflow boundary.
 
 Important remaining work:
 
 - protect `main` with required checks/review policy;
 - pin or deliberately govern third-party Action versions;
-- split application deployment from catalog data publication;
 - prevent routine sync automation from direct-pushing business-data snapshots to `main`;
 - validate production D1 migration parity independently;
 - formalize rollback/backup/recovery runbooks;
@@ -265,19 +302,24 @@ Do not claim these as proven without new evidence:
 
 ## Current highest-priority path
 
+Completed post-audit foundations:
+
+- documentation/current-state/roadmap/design contract realignment;
+- Cloudflare PR credential boundary;
+- atomic default public catalog publication;
+- application deployment separated from catalog-data publication.
+
 The approved next sequence is:
 
-1. post-audit documentation realignment;
-2. separate application deploy from catalog publication;
-3. protect `main` and finish production-safety controls;
-4. establish design/library/responsive foundation;
-5. formalize provider/source-neutral evidence boundary;
-6. activate and prove tenant queue ingestion;
-7. build CEI core + Sports Knowledge Pack v1;
-8. harden intelligent sync/media;
-9. rebuild storefront/theme experience;
-10. complete portal/auth/billing/onboarding/domain self-service;
-11. observability/security/performance/E2E;
-12. closed beta -> release candidate -> public launch.
+1. protect `main` and finish remaining production-safety controls;
+2. establish the implemented design/library/responsive foundation;
+3. formalize provider/source-neutral evidence boundary;
+4. activate and prove tenant Queue ingestion;
+5. build CEI Core + Sports Knowledge Pack v1;
+6. harden intelligent sync/media;
+7. rebuild storefront/theme experience;
+8. complete portal/auth/billing/onboarding/domain self-service;
+9. observability/security/performance/E2E;
+10. closed beta -> release candidate -> public launch.
 
 The detailed execution order and gates live in `DEVELOPMENT-ROADMAP.md`.

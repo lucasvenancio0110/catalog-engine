@@ -1,4 +1,4 @@
-name: Deploy paginated catalog API
+name: Deploy Catalog Engine application
 
 on:
   push:
@@ -6,9 +6,12 @@ on:
     paths:
       - ".github/workflows/deploy-catalog-api.yml"
       - "index.html"
+      - "app.html"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.*"
+      - "config/dependency-policy.json"
       - "migrations/**"
-      - "scripts/public-catalog-import-core.mjs"
-      - "scripts/sync-public-catalog-d1.mjs"
       - "scripts/copy-storefront-data.mjs"
       - "scripts/verify-dist.mjs"
       - "src/**"
@@ -19,6 +22,9 @@ on:
 permissions:
   contents: read
 
+# This workflow may apply schema migrations, so it shares the production-D1
+# serialization group with catalog publication/sync jobs. It must not rebuild or
+# replace catalog business data.
 concurrency:
   group: catalog-engine-production-d1
   cancel-in-progress: false
@@ -30,7 +36,6 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      PUBLIC_CATALOG_SQL_DIR: /tmp/catalog-engine-public-api-sql
       WRANGLER_VERSION: 4.123.0
       PUBLIC_URL: https://catalog-engine.lucassantanals0110.workers.dev
 
@@ -58,35 +63,22 @@ jobs:
       - name: Quality gate
         run: npm run quality
 
-      - name: Apply D1 migrations
-        run: npx --yes "wrangler@$WRANGLER_VERSION" d1 migrations apply CATALOG_DB --remote --config wrangler.jsonc
-
-      - name: Generate atomic professional catalog SQL
-        run: node scripts/sync-public-catalog-d1.mjs
-
-      - name: Atomically replace public catalog in D1
-        shell: bash
-        run: |
-          shopt -s nullglob
-          files=("$PUBLIC_CATALOG_SQL_DIR"/*.sql)
-          test ${#files[@]} -eq 1 || { echo "Expected exactly one atomic public catalog SQL file, found ${#files[@]}"; exit 1; }
-          file="${files[0]}"
-          echo "Applying atomic public catalog $(basename "$file")"
-          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$file"
-
-      - name: Verify D1 professional catalog
-        run: |
-          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --command="SELECT COUNT(*) AS products FROM catalog_products; SELECT COUNT(*) AS leagues FROM catalog_leagues; SELECT COUNT(*) AS teams FROM catalog_teams; SELECT COUNT(*) AS facets FROM catalog_facets; SELECT COUNT(*) AS aliases_searchable FROM catalog_products WHERE source_name IS NOT NULL AND display_name IS NOT NULL;"
-
-      - name: Build storefront
+      # Build/verify before the first production mutation. A broken frontend or
+      # public artifact must fail before migrations/deploy touch production.
+      - name: Build and verify application artifact
         run: |
           npm run build
           npm run build:verify
 
-      - name: Deploy Worker and catalog
+      - name: Apply D1 schema migrations
+        run: npx --yes "wrangler@$WRANGLER_VERSION" d1 migrations apply CATALOG_DB --remote --config wrangler.jsonc
+
+      - name: Deploy Worker and static application assets
         run: npx --yes "wrangler@$WRANGLER_VERSION" deploy --config wrangler.jsonc
 
-      - name: Smoke test professional catalog API
+      # The catalog is expected to already exist through its own publication/sync
+      # path. This smoke verifies compatibility but never generates/replaces data.
+      - name: Smoke test deployed application against existing catalog
         shell: bash
         run: |
           curl --fail --silent --show-error "$PUBLIC_URL/api/health" > /tmp/health.json
