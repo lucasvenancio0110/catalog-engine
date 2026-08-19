@@ -8,6 +8,7 @@ import {
   portalStoreCountLabel,
   portalStoreStatus
 } from './portal-model.js';
+import { hydratePortalIcons } from '../ui/portal-icons.js';
 
 const root = document.querySelector('#app');
 
@@ -32,18 +33,22 @@ function element(tag, options = {}, children = []) {
 }
 
 function icon(name) {
-  const glyphs = {
-    stores: '▦',
-    plus: '+',
-    catalog: '◇',
-    appearance: '◐',
-    domain: '◎',
-    billing: '◫',
-    account: '○',
-    arrow: '→',
-    shield: '◆'
+  const iconNames = {
+    stores: 'store',
+    catalog: 'layout-grid',
+    appearance: 'palette',
+    domain: 'globe',
+    billing: 'credit-card',
+    account: 'user-round',
+    arrow: 'arrow-right',
+    shield: 'shield-check'
   };
-  return element('span', { className: 'ce-icon', text: glyphs[name] || '•', ariaLabel: '' });
+  const node = element('i', {
+    className: 'ce-icon',
+    dataset: { lucide: iconNames[name] || 'layout-grid' }
+  });
+  node.setAttribute('aria-hidden', 'true');
+  return node;
 }
 
 function brand() {
@@ -295,6 +300,7 @@ function errorState(message) {
 
 function render(node) {
   root.replaceChildren(node);
+  hydratePortalIcons(root);
 }
 
 async function accessToken() {
