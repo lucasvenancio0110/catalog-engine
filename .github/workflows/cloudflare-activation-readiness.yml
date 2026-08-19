@@ -2,6 +2,13 @@ name: Cloudflare activation readiness
 
 on:
   workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/cloudflare-activation-readiness.yml"
+      - "scripts/check-cloudflare-activation-readiness.mjs"
+      - "scripts/cloudflare-readiness-core.mjs"
+      - "worker/cloudflare-platform.js"
 
 permissions:
   contents: read
@@ -10,6 +17,14 @@ jobs:
   readiness:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      CLOUDFLARE_PLATFORM_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_PLATFORM_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_PLATFORM_API_TOKEN: ${{ secrets.CLOUDFLARE_PLATFORM_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE: ${{ vars.CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE || 'catalog-engine-production' }}
+      CLOUDFLARE_SAAS_API_TOKEN: ${{ secrets.CLOUDFLARE_SAAS_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_SAAS_CNAME_TARGET: ${{ vars.CLOUDFLARE_SAAS_CNAME_TARGET || 'edge.catalogoengine.com' }}
+      CLOUDFLARE_ZONE_NAME: catalogoengine.com
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,14 +41,53 @@ jobs:
       - name: Quality gate
         run: npm run quality
 
+      - name: Confirm reusable Cloudflare credentials exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_PLATFORM_ACCOUNT_ID" || { echo 'Cloudflare account id is missing.' >&2; exit 1; }
+          test -n "$CLOUDFLARE_PLATFORM_API_TOKEN" || { echo 'Cloudflare API token is missing.' >&2; exit 1; }
+          test -n "$CLOUDFLARE_SAAS_API_TOKEN" || { echo 'Cloudflare SaaS API token is missing.' >&2; exit 1; }
+
+      - name: Resolve catalogoengine.com zone id without mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+
+          const url = new URL('https://api.cloudflare.com/client/v4/zones');
+          url.searchParams.set('name', process.env.CLOUDFLARE_ZONE_NAME);
+          url.searchParams.set('account.id', process.env.CLOUDFLARE_PLATFORM_ACCOUNT_ID);
+          url.searchParams.set('status', 'active');
+          url.searchParams.set('per_page', '5');
+
+          const response = await fetch(url, {
+            headers: {
+              authorization: `Bearer ${process.env.CLOUDFLARE_SAAS_API_TOKEN}`,
+              accept: 'application/json'
+            }
+          });
+          const payload = await response.json().catch(() => null);
+          if (!response.ok || !payload?.success) {
+            throw new Error('cloudflare_zone_lookup_failed');
+          }
+
+          const zones = (payload.result || []).filter(
+            (zone) =>
+              zone?.name === process.env.CLOUDFLARE_ZONE_NAME &&
+              zone?.account?.id === process.env.CLOUDFLARE_PLATFORM_ACCOUNT_ID &&
+              zone?.status === 'active'
+          );
+          if (zones.length !== 1 || !/^[a-f0-9]{32}$/i.test(zones[0]?.id || '')) {
+            throw new Error('catalogoengine_zone_not_uniquely_resolved');
+          }
+
+          appendFileSync(process.env.GITHUB_ENV, `CLOUDFLARE_SAAS_ZONE_ID=${zones[0].id}\n`);
+          console.log(JSON.stringify({ zone: zones[0].name, status: zones[0].status, zoneIdResolved: true }));
+          NODE
+
       - name: Check dedicated Cloudflare activation prerequisites without mutation
-        env:
-          CLOUDFLARE_PLATFORM_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_PLATFORM_ACCOUNT_ID }}
-          CLOUDFLARE_PLATFORM_API_TOKEN: ${{ secrets.CLOUDFLARE_PLATFORM_API_TOKEN }}
-          CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE: ${{ vars.CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE }}
-          CLOUDFLARE_SAAS_ZONE_ID: ${{ secrets.CLOUDFLARE_SAAS_ZONE_ID }}
-          CLOUDFLARE_SAAS_API_TOKEN: ${{ secrets.CLOUDFLARE_SAAS_API_TOKEN }}
-          CLOUDFLARE_SAAS_CNAME_TARGET: ${{ vars.CLOUDFLARE_SAAS_CNAME_TARGET }}
         run: node scripts/check-cloudflare-activation-readiness.mjs
 
       - name: Confirm workflow contains no provider mutation command
