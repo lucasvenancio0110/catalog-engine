@@ -7,6 +7,7 @@ on:
       - ".github/workflows/deploy-catalog-api.yml"
       - "index.html"
       - "migrations/**"
+      - "scripts/public-catalog-import-core.mjs"
       - "scripts/sync-public-catalog-d1.mjs"
       - "scripts/copy-storefront-data.mjs"
       - "scripts/verify-dist.mjs"
@@ -60,19 +61,18 @@ jobs:
       - name: Apply D1 migrations
         run: npx --yes "wrangler@$WRANGLER_VERSION" d1 migrations apply CATALOG_DB --remote --config wrangler.jsonc
 
-      - name: Generate professional catalog SQL
+      - name: Generate atomic professional catalog SQL
         run: node scripts/sync-public-catalog-d1.mjs
 
-      - name: Load public catalog into D1
+      - name: Atomically replace public catalog in D1
         shell: bash
         run: |
           shopt -s nullglob
           files=("$PUBLIC_CATALOG_SQL_DIR"/*.sql)
-          test ${#files[@]} -gt 0 || { echo "No public catalog SQL chunks were generated"; exit 1; }
-          for file in "${files[@]}"; do
-            echo "Applying $(basename "$file")"
-            npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$file"
-          done
+          test ${#files[@]} -eq 1 || { echo "Expected exactly one atomic public catalog SQL file, found ${#files[@]}"; exit 1; }
+          file="${files[0]}"
+          echo "Applying atomic public catalog $(basename "$file")"
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$file"
 
       - name: Verify D1 professional catalog
         run: |

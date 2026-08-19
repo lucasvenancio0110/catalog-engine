@@ -18,8 +18,11 @@ on:
       - "scripts/plan-yupoo-incremental.mjs"
       - "scripts/process-yupoo-delta.mjs"
       - "scripts/yupoo-detail-core.mjs"
+      - "scripts/public-catalog-import-core.mjs"
+      - "scripts/sync-public-catalog-d1.mjs"
       - "tests/incremental-sync.test.mjs"
       - "tests/private-source-config.test.mjs"
+      - "tests/public-catalog-import.test.mjs"
   workflow_dispatch:
     inputs:
       scan_mode:
@@ -155,21 +158,20 @@ jobs:
             npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$file"
           done
 
-      - name: Generate normalized public catalog SQL
+      - name: Generate atomic normalized public catalog SQL
         if: steps.process_delta.outputs.catalog_changed == 'true'
         run: node scripts/sync-public-catalog-d1.mjs
 
-      - name: Update normalized public D1 catalog
+      - name: Atomically update normalized public D1 catalog
         if: steps.process_delta.outputs.catalog_changed == 'true'
         shell: bash
         run: |
           shopt -s nullglob
           files=("$PUBLIC_CATALOG_SQL_DIR"/*.sql)
-          test ${#files[@]} -gt 0 || { echo "No public catalog SQL generated"; exit 1; }
-          for file in "${files[@]}"; do
-            echo "Applying public catalog $(basename "$file")"
-            npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$file"
-          done
+          test ${#files[@]} -eq 1 || { echo "Expected exactly one atomic public catalog SQL file, found ${#files[@]}"; exit 1; }
+          file="${files[0]}"
+          echo "Applying atomic public catalog $(basename "$file")"
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --file="$file"
 
       - name: Smoke test public catalog before cursor promotion
         shell: bash
