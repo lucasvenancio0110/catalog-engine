@@ -55,14 +55,23 @@ jobs:
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM pragma_table_info('tenant_data_plane_provider_state') WHERE name IN ('runtime_kind','runtime_status','runtime_version','runtime_verified_at','runtime_last_error_code');")" = '5'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='tenant_runtime_jobs';")" = '1'
 
-      - name: Prove production dispatch binding is still not activated by configuration
+      - name: Prove production dispatch binding is exact and fail-closed
         shell: bash
         run: |
           set -euo pipefail
-          if grep -Eq 'TENANT_DISPATCH|dispatch_namespace' wrangler.jsonc; then
-            echo 'Runtime dispatch binding must remain an explicit later activation step.' >&2
-            exit 1
-          fi
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const config = JSON.parse(fs.readFileSync('wrangler.jsonc', 'utf8'));
+          const bindings = Array.isArray(config.dispatch_namespaces) ? config.dispatch_namespaces : [];
+          if (
+            bindings.length !== 1 ||
+            bindings[0]?.binding !== 'TENANT_DISPATCH' ||
+            bindings[0]?.namespace !== 'catalog-engine-production' ||
+            bindings[0]?.remote === true
+          ) {
+            throw new Error('Production TENANT_DISPATCH binding must point only to catalog-engine-production.');
+          }
+          NODE
 
       - name: Run focused isolation tests
         run: >-
