@@ -11,6 +11,13 @@ Before any repository change:
 2. `docs/DOCUMENT-GOVERNANCE.md`
 3. this file
 
+For any material product/architecture change, also inspect:
+
+- `docs/CURRENT-STATE.md` — what is actually implemented/proven now;
+- `docs/DEVELOPMENT-ROADMAP.md` — the current execution milestone/order.
+
+The state/roadmap documents do not override focused normative contracts. They prevent a contributor from treating a completed activation as future work or building a future milestone out of order without an explicit decision.
+
 Then read the documents mapped to the affected area below.
 
 ## CEI / classification / learning / research
@@ -31,7 +38,7 @@ Required:
 - `docs/BUSINESS-MODEL.md`
 - `docs/SALES-SUBSCRIPTIONS.md`
 
-Also read `docs/PRODUCT-BUSINESS-BLUEPRINT.md` for historical/overview context.
+Also read `docs/PRODUCT-BUSINESS-BLUEPRINT.md` for overview context and `docs/DEVELOPMENT-ROADMAP.md` before turning a long-term capability into launch scope.
 
 ## Landing page / marketing / conversion
 
@@ -40,7 +47,10 @@ Required:
 - `docs/LANDING-PAGE.md`
 - `docs/BUSINESS-MODEL.md`
 - `docs/SALES-SUBSCRIPTIONS.md`
+- `docs/DESIGN-SYSTEM.md`
 - `docs/BILLING-PAYMENTS.md` when checkout/pricing/payment behavior is shown
+
+Marketing claims must be checked against `docs/CURRENT-STATE.md` so future/experimental capabilities are not presented as production features.
 
 ## Billing / checkout / subscriptions / entitlements
 
@@ -50,12 +60,14 @@ Required:
 - `docs/SALES-SUBSCRIPTIONS.md`
 - `docs/TENANCY.md`
 - `docs/SAAS-ARCHITECTURE.md`
+- `docs/CUSTOMER-PORTAL.md` for customer-facing billing/recovery UX
 
 ## Customer portal / `app.catalogoengine.com`
 
 Required:
 
 - `docs/CUSTOMER-PORTAL.md`
+- `docs/DESIGN-SYSTEM.md`
 - `docs/TENANCY.md`
 - `docs/SAAS-ARCHITECTURE.md`
 
@@ -88,6 +100,8 @@ Required:
 
 If a domain is touched, also read `docs/CUSTOM-DOMAINS.md`.
 
+If customer-facing progress/onboarding changes, also read `docs/DESIGN-SYSTEM.md`.
+
 ## Domains / Cloudflare for SaaS / publication
 
 Required:
@@ -97,6 +111,9 @@ Required:
 - `docs/TENANT-RUNTIME-DISPATCH.md`
 - `docs/TENANCY.md`
 - `docs/SAAS-ARCHITECTURE.md`
+- `docs/CURRENT-STATE.md` for the currently proven production activation boundary
+
+Historical activation/readiness documents may explain how a milestone was reached but must not be used as the source of current production truth.
 
 ## Source connectors / importers
 
@@ -118,15 +135,29 @@ Required:
 - `docs/TENANT-IMPORT-PIPELINE.md`
 - relevant scan/detail/import documents
 - `docs/CEI.md` if sync triggers reclassification/learning
+- `docs/CURRENT-STATE.md` when changing a production/default-catalog publication path
 
 ## Storefront / themes / merchandising UX
 
 Required:
 
+- `docs/DESIGN-SYSTEM.md`
 - `docs/CEI.md` for canonical merchandising output
 - `docs/BUSINESS-MODEL.md` for white-label/customer promise
 - `docs/CUSTOMER-PORTAL.md` when appearance configuration changes
 - `AGENTS.md` Vite/storefront rules
+
+Customer-facing work must meet the responsive/loading/empty/error/touch/keyboard/accessibility Definition of Done defined by `DESIGN-SYSTEM.md`.
+
+## Design system / responsive behavior / interaction
+
+Required:
+
+- `docs/DESIGN-SYSTEM.md`
+- `AGENTS.md`
+- the focused product contract for the affected surface (`CUSTOMER-PORTAL.md`, `LANDING-PAGE.md`, CEI/storefront docs as applicable)
+
+If the change introduces a new dependency, also follow the dependency/library mapping below.
 
 ## Authentication / authorization
 
@@ -142,7 +173,20 @@ Required:
 
 - `AGENTS.md`
 - `docs/JAVASCRIPT_LIBRARIES.md`
+- `docs/DESIGN-SYSTEM.md` for customer-facing UI/test-tooling dependencies
 - the owning product/technical document for the feature that needs the dependency
+
+A library is approved by responsibility, not because it is fashionable or visually attractive in isolation.
+
+## Roadmap / launch-scope changes
+
+Required:
+
+- `docs/DEVELOPMENT-ROADMAP.md`
+- `docs/CURRENT-STATE.md`
+- every focused normative document whose product behavior/scope changes
+
+If a roadmap decision changes a durable product contract (for example introducing trial before payment), the focused normative documents must be updated in the same PR. The roadmap alone cannot override them.
 
 ## Rule for cross-cutting changes
 

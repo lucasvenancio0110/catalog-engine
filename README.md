@@ -1,144 +1,177 @@
-# Catálogo Engine
+# Catalog Engine
 
-Catálogo Engine is a white-label SaaS platform that transforms an authorized supplier catalog into a professional storefront under the merchant’s own brand and domain, then keeps that storefront synchronized automatically.
+Catalog Engine is a white-label B2B SaaS platform that transforms an authorized product source into a professional merchant storefront under the merchant's own brand/domain, then keeps that catalog synchronized automatically.
 
-The product is not “a Yupoo importer” and is not a one-off website generator. The target customer experience is:
+The product is not a "Yupoo importer" and is not a one-off website generator. Yupoo is the first major source connector; the architecture is being built around source-neutral ingestion, Catalog Engine Intelligence (CEI), isolated tenant data planes and automated publication/synchronization.
 
-`create account -> create store -> configure brand -> connect supplier -> classify -> preview -> connect own domain -> publish -> Intelligent Sync`
+## Product flow
 
-## Product rule
+The intended self-service journey is:
 
-Public customer storefronts use the customer’s **own domain**.
+`account/entitlement -> create store -> connect source -> isolated import -> CEI/classify -> verify/private preview -> appearance -> runtime/domain readiness -> publish -> Intelligent Sync`
 
-The platform identity is:
+The exact commercial gate for launch (payment-before-store vs controlled trial entitlement) is an explicit product decision tracked in `docs/DEVELOPMENT-ROADMAP.md`; durable billing rules remain in the billing/sales contracts until changed deliberately.
 
-- `catalogoengine.com` — public product/company domain;
-- `app.catalogoengine.com` — customer administration;
-- `edge.catalogoengine.com` — technical Cloudflare for SaaS CNAME target only.
+## Platform identity
 
-`edge.catalogoengine.com` is infrastructure, not a merchant-facing storefront URL. A customer domain points to it through DNS while the browser continues to show the customer’s own domain.
+- `catalogoengine.com` — Catalog Engine marketing/company surface;
+- `app.catalogoengine.com` — authenticated customer administration;
+- `edge.catalogoengine.com` — technical Cloudflare for SaaS CNAME target;
+- customer-owned verified domain — public merchant storefront.
 
-Paid storefronts should not expose the supplier or require “Powered by Catálogo Engine” branding.
-
-Before the customer domain is connected, the storefront is reviewed through a private preview.
+Paid/public merchant storefronts are white-label and should not expose supplier identity or require Catalog Engine branding.
 
 ## Current architecture
 
-Catálogo Engine is being split into two logical planes:
+Catalog Engine uses two logical planes.
 
 ### Control plane
 
-Owns low-volume SaaS state:
+Owns low-volume SaaS state such as:
 
-- tenants/stores;
-- memberships and roles;
-- store branding and theme;
-- custom domains;
-- supplier connection metadata;
-- provisioning state;
-- subscription references;
-- audit history;
-- tenant data-plane locator/status.
+- tenant/store identity;
+- memberships/roles;
+- profile/branding;
+- source connections;
+- domains/provider state;
+- provisioning checkpoints;
+- data-plane/runtime locator state;
+- import/classify/verify/runtime/publish job state;
+- audit-oriented state;
+- future normalized billing/entitlements.
 
 ### Tenant data plane
 
-Owns the high-volume catalog for a tenant:
+Owns the high-volume/private catalog state for one merchant store, including:
 
 - normalized products;
 - canonical categories;
-- teams, leagues and facets;
+- teams/leagues/facets;
 - product/media mappings;
-- private supplier index and fingerprints;
+- private supplier/source index and fingerprints;
 - sync state/events;
+- classification state and durable overrides;
 - media proxy registry.
 
-The existing production catalog is **Tenant #0001**, not a permanent global singleton.
+The strategic model is one isolated catalog data plane per tenant/store rather than one giant shared public catalog filtered only by `tenant_id`.
 
-## Supplier philosophy
+## Proven production boundary
 
-The supplier is a private ingestion source, not the authority for the public storefront structure.
+The repository/prod path has already proven:
 
-Raw supplier taxonomy is kept privately as evidence. Catálogo Engine builds a canonical merchandising layer from product text, source path, aliases, known sports entities, facets, explicit rules and future manual overrides.
+`custom hostname -> platform Worker -> trusted tenant resolution -> Workers for Platforms dispatch -> isolated tenant Worker -> isolated D1`
 
-Ambiguous products should be sent to review/unknown instead of being confidently misclassified.
+The production dispatch namespace is `catalog-engine-production`, and `wrangler.jsonc` binds it as `TENANT_DISPATCH`.
+
+The retained smoke tenant proved cross-tenant product access fails closed in both directions. This proves the isolation primitive; it does not mean the full self-service customer journey is finished.
+
+See `docs/CURRENT-STATE.md` for the audited implementation truth.
+
+## Catalog Engine Intelligence
+
+CEI is the proprietary intelligence layer for understanding, validating, classifying and merchandising normalized catalog evidence.
+
+The long-term CEI contract includes domain/context detection, Knowledge Packs, confidence/evidence, conflict handling, learning/research and tenant-scoped memory.
+
+The launch roadmap deliberately narrows implementation to a strong source-neutral CEI Core plus **Sports Knowledge Pack v1** before expanding into other retail domains.
+
+## Supplier/source philosophy
+
+The supplier/source is private ingestion evidence, not public storefront truth.
+
+Raw provider taxonomy/IDs/URLs remain private. Catalog Engine produces canonical merchant-facing names/categories/entities/facets and sends ambiguous cases to review rather than confidently guessing.
 
 ## Intelligent Sync
 
-Routine sync must not re-read every product detail.
+Routine sync is incremental:
 
-The intended flow is:
+1. lightweight source listing scan;
+2. compare private fingerprints/state;
+3. detect NEW/CHANGED/MOVED/RESTORED and safe removal signals;
+4. fetch detail only for the delta/retry queue;
+5. reclassify affected products/knowledge where needed;
+6. verify the effective catalog;
+7. promote state only after success.
 
-1. lightweight supplier listing scan;
-2. compare listing fingerprints;
-3. detect `NEW`, `CHANGED`, `MOVED`, restoration and safe removal signals;
-4. fetch album detail only for the delta queue;
-5. reclassify/update only affected products where possible;
-6. smoke test the public state;
-7. promote private cursors only after success.
+Partial scans never infer deletion. The launch roadmap also requires a catastrophic-diff/suspicious-run circuit breaker so an abnormal scan cannot silently remove most of a healthy catalog.
 
-Complete listing reconciliation runs periodically for safe removal detection. Full detail crawling is recovery/manual tooling, not the normal daily path.
+## Store provisioning
 
-## Durable store provisioning
+Provisioning is idempotent and resumable. The canonical product-level order is:
 
-Store creation is modeled as an idempotent, resumable workflow:
+`entitlement -> tenant -> profile -> source -> data plane -> migrations -> import -> classification -> storefront verification/private preview -> runtime/domain readiness -> publish`
 
-`tenant -> profile -> domain -> data plane -> source -> migrations -> import -> classify -> verify -> publish`
-
-If a later step fails, onboarding must resume from the last safe checkpoint instead of restarting the full supplier import.
+A failed step resumes safely from durable checkpoints instead of restarting the whole import.
 
 ## Hosting direction
 
-- **GitHub** — source code, review and CI/CD; not one repository per customer.
-- **Cloudflare Workers** — APIs, storefront routing, media proxy and orchestration endpoints.
-- **Cloudflare Workers for Platforms** — isolated tenant Workers and dynamic dispatch.
-- **Cloudflare for SaaS** — customer-owned custom domains routed through `edge.catalogoengine.com`.
-- **Cloudflare D1** — control-plane metadata and isolated/explicit tenant catalog data planes.
-- **Cloudflare R2** — first-party assets such as logos/banners and controlled media copies when needed.
-- **Queues / durable workflows** — tenant-level onboarding and synchronization jobs at scale.
+- **GitHub** — source, review and CI/CD; never one repository per customer.
+- **Cloudflare Workers** — platform APIs/routing/media/orchestration.
+- **Workers for Platforms** — isolated tenant Workers + dynamic dispatch.
+- **Cloudflare for SaaS** — customer-owned custom domains.
+- **Cloudflare D1** — control-plane state and isolated tenant catalog data planes.
+- **R2 / Cloudflare Images / validated remote proxy+cache** — media strategies selected deliberately by reliability/cost/transform needs.
+- **Queues / durable jobs** — tenant ingestion/synchronization/background operations at scale.
 
 Customers should not need GitHub or Cloudflare accounts to operate their stores.
 
-## Commercial direction
+## Frontend / design direction
 
-Catálogo Engine is sold as a recurring SaaS subscription.
+Current frontend architecture is Vite + browser ES modules without React/Vue/Svelte/Angular.
 
-Positioning:
+The post-audit roadmap includes a full **Design Foundation** and **Storefront/Portal UX 2.0** rather than a late CSS facelift:
 
-> Transform your supplier catalog into a professional store under your own brand and domain, organized and updated automatically.
+- design tokens/primitives;
+- library ownership review;
+- responsive system;
+- premium storefront/product experience;
+- customer portal/onboarding/domain/billing UX;
+- theme/brand engine;
+- accessibility;
+- browser E2E;
+- performance budgets.
 
-Initial market focus is sports/football merchants already using supplier catalogs. Expansion to other verticals should happen only after the sports classification engine is strong.
+See `docs/DESIGN-SYSTEM.md` and `docs/DEVELOPMENT-ROADMAP.md`.
 
-Pricing, trial duration and plan packaging are hypotheses to validate with real customers, but custom-domain white-label operation is a core product rule rather than a premium cosmetic add-on.
+## Documentation map
 
-## Documentation
+Start with:
 
-- [`docs/PRODUCT-BUSINESS-BLUEPRINT.md`](docs/PRODUCT-BUSINESS-BLUEPRINT.md) — product, business model, hosting, sales, pricing hypotheses, ownership model and roadmap.
-- [`docs/SAAS-ARCHITECTURE.md`](docs/SAAS-ARCHITECTURE.md) — multi-tenant/control-plane/data-plane architecture and provisioning model.
-- [`docs/CLOUDFLARE-ACTIVATION-READINESS.md`](docs/CLOUDFLARE-ACTIVATION-READINESS.md) — controlled production activation and `edge.catalogoengine.com` infrastructure identity.
-- [`AGENTS.md`](AGENTS.md) — engineering rules and repository policy.
-- [`docs/JAVASCRIPT_LIBRARIES.md`](docs/JAVASCRIPT_LIBRARIES.md) — approved JavaScript-library guidance.
+- [`AGENTS.md`](AGENTS.md) — engineering/repository rules;
+- [`docs/DOCUMENT-GOVERNANCE.md`](docs/DOCUMENT-GOVERNANCE.md) — documentation governance;
+- [`docs/DOCUMENT-MAP.md`](docs/DOCUMENT-MAP.md) — required documents per change;
+- [`docs/CURRENT-STATE.md`](docs/CURRENT-STATE.md) — audited implementation truth;
+- [`docs/DEVELOPMENT-ROADMAP.md`](docs/DEVELOPMENT-ROADMAP.md) — ordered milestones to launch;
+- [`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md) — responsive/product UX contract;
+- [`docs/CEI.md`](docs/CEI.md) — Catalog Engine Intelligence contract;
+- [`docs/SAAS-ARCHITECTURE.md`](docs/SAAS-ARCHITECTURE.md) — SaaS/control-plane/data-plane architecture;
+- [`docs/TENANCY.md`](docs/TENANCY.md) — account/store/tenant isolation;
+- [`docs/JAVASCRIPT_LIBRARIES.md`](docs/JAVASCRIPT_LIBRARIES.md) — dependency ownership/policy.
+
+`docs/CLOUDFLARE-ACTIVATION-READINESS.md` is retained as a **historical checkpoint**; current activation truth lives in the current-state/runtime/publish/domain documents.
 
 ## Stack
 
 ### Engine/import
 
-- Cheerio — HTML parsing.
-- PQueue — bounded concurrency/backpressure.
-- Zod — schema validation.
-- Sharp — image validation/processing.
+- Cheerio;
+- PQueue;
+- Zod;
+- Sharp.
 
-### Storefront
+### Frontend
 
-- Vite — build/dev server.
-- Fuse.js — tolerant search where client-side search is appropriate.
-- Swiper — touch product galleries.
-- Motion — restrained micro-interactions.
+- Vite;
+- Swiper;
+- Motion;
+- Fuse.js is installed/approved for client-side fuzzy search where that architecture remains appropriate, but its launch ownership is under post-audit re-evaluation.
 
 ### Quality
 
-- Vitest — tests.
-- ESLint — static analysis.
-- Prettier — formatting.
+- Vitest;
+- ESLint;
+- Prettier;
+- browser E2E/accessibility tooling is a roadmap requirement before public launch.
 
 ## Local development
 
@@ -147,7 +180,7 @@ npm ci
 npm run dev
 ```
 
-## Quality gate
+## Baseline quality gate
 
 ```bash
 npm run deps:check
@@ -157,12 +190,12 @@ npm run build
 npm run build:verify
 ```
 
-For crawler/import changes, also run the relevant isolated real-source crawl/sync verification and audits required by `AGENTS.md`.
+Crawler/import/sync/taxonomy work must run the additional isolated verification/audits required by `AGENTS.md`.
 
 ## Engineering decision rule
 
-Every new feature should answer this question:
+For every new feature ask:
 
-> Is this being built for one hard-coded catalog, or for a tenant in a platform that must eventually serve 10, 100 and 1,000 customers?
+> Is this strengthening an automated, source-independent, multi-tenant product with a recoverable failure mode and launch-quality customer experience, or is it hard-coding one supplier/store and creating manual work?
 
-Build for the tenant/platform model without adding scale complexity before it is useful.
+Prefer the platform/product path.

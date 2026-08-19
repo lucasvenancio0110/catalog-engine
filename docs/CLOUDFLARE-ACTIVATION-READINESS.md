@@ -1,78 +1,82 @@
-# Cloudflare activation readiness
+# Cloudflare activation readiness — historical checkpoint
 
-Catalog Engine now has the code-side tenant lifecycle through the final publish checkpoint, but real Workers for Platforms dispatch remains intentionally disabled in the committed production configuration.
+Status: **Historical / superseded by proven production activation**  
+Original purpose: define the non-mutating readiness gate and controlled activation sequence before Workers for Platforms dispatch/custom-hostname isolation was enabled in production.  
+Current truth: see `CURRENT-STATE.md`, `TENANT-RUNTIME-DISPATCH.md`, `TENANT-PUBLISH.md` and `CUSTOM-DOMAINS.md`.
 
-This readiness stage is deliberately non-mutating. It exists to answer one question before we change any live Cloudflare routing: **are the dedicated provider resources and repository safety boundaries ready for a controlled two-tenant activation test?**
+## Why this document is retained
 
-## Production identity
+This file records the safety reasoning used before production dispatch activation. It must **not** be used as current-state authority.
 
-The public product domain is `catalogoengine.com`.
+The original checkpoint assumed the real `TENANT_DISPATCH` binding was still intentionally disabled. That assumption is no longer true.
 
-The canonical Cloudflare for SaaS technical edge/CNAME target is:
+The post-audit repository state now has:
 
-- `edge.catalogoengine.com`
+- `TENANT_DISPATCH -> catalog-engine-production` committed in `wrangler.jsonc`;
+- production dispatch proven end to end;
+- custom-hostname routing proven through the retained smoke tenant;
+- cross-tenant product reads proven to fail in both directions;
+- publish/runtime/domain gates retained after activation.
 
-Merchant storefronts never use that hostname as their public URL. A merchant domain such as `www.lojadojoao.com.br` points to `edge.catalogoengine.com` through DNS while the browser continues to display the merchant domain.
+## Production identity preserved from the readiness plan
 
-The recommended Workers for Platforms dispatch namespace remains an internal implementation name:
-
-- `catalog-engine-production`
-
-It is not customer-facing and does not need to match the public brand spelling.
-
-Reserved platform hosts are:
+The intended platform identities remain useful architecture context:
 
 - `catalogoengine.com` — marketing/platform root;
 - `app.catalogoengine.com` — authenticated customer administration;
-- `edge.catalogoengine.com` — SaaS edge target only; it must not be treated as an admin/platform-preview host.
+- `edge.catalogoengine.com` — technical Cloudflare for SaaS CNAME target;
+- `catalog-engine-production` — internal Workers for Platforms dispatch namespace.
 
-## Dedicated runtime configuration
+Merchant storefronts use customer-owned domains. `edge.catalogoengine.com` is infrastructure, not the merchant-facing URL.
 
-The readiness CLI expects separate runtime configuration for platform provisioning/dispatch and Cloudflare for SaaS custom hostnames:
+## Dedicated provider configuration principle
 
-- `CLOUDFLARE_PLATFORM_ACCOUNT_ID`
-- `CLOUDFLARE_PLATFORM_API_TOKEN`
-- `CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE`
-- `CLOUDFLARE_SAAS_ZONE_ID`
-- `CLOUDFLARE_SAAS_API_TOKEN`
-- `CLOUDFLARE_SAAS_CNAME_TARGET`
+The readiness plan required separate provider/runtime configuration such as:
 
-For production, `CLOUDFLARE_SAAS_CNAME_TARGET` must be exactly `edge.catalogoengine.com`. The readiness gate rejects a different valid-looking hostname to prevent a merchant DNS rollout against the wrong edge.
+- `CLOUDFLARE_PLATFORM_ACCOUNT_ID`;
+- `CLOUDFLARE_PLATFORM_API_TOKEN`;
+- `CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE`;
+- `CLOUDFLARE_SAAS_ZONE_ID`;
+- `CLOUDFLARE_SAAS_API_TOKEN`;
+- `CLOUDFLARE_SAAS_CNAME_TARGET`.
 
-The repository must not contain secret values. GitHub Actions should provide IDs/tokens as secrets and non-secret managed names/targets as repository variables where appropriate.
+The durable principle remains valid: provider secrets belong in controlled secrets/configuration, not repository source, public responses or customer-visible state.
 
-## What the manual workflow checks
+## Historical activation plan
 
-`.github/workflows/cloudflare-activation-readiness.yml`:
+Before activation, the intended safety sequence was:
 
-1. runs the normal project quality gate;
-2. validates that all dedicated runtime fields are configured;
-3. validates that the SaaS CNAME target is exactly `edge.catalogoengine.com`;
-4. verifies the configured Workers for Platforms dispatch namespace can be read with the dedicated platform token;
-5. verifies production points at the publish-aware Worker entry;
-6. refuses readiness if a real `TENANT_DISPATCH`/dispatch namespace binding is already committed prematurely;
-7. reports only safe finding codes.
+1. create/verify the SaaS edge/fallback path;
+2. prepare isolated disposable tenants/D1 databases;
+3. provision/import/classify/verify test tenants;
+4. stage full tenant Workers;
+5. add the real platform dispatch binding in a controlled activation change;
+6. prove tenant A cannot read tenant B data;
+7. prove tenant B cannot read tenant A data;
+8. verify media isolation;
+9. verify custom-hostname routing resolves only the intended tenant;
+10. keep routing fail-closed;
+11. only then retain the production dispatch activation.
 
-It does not create D1 databases, upload tenant Workers, create custom hostnames, change DNS, deploy the platform Worker, or add dispatch bindings.
+The important architectural outcome of that plan has now been achieved and is documented in the current runtime/publish documents.
 
-## Controlled activation sequence
+## Post-activation rule
 
-When readiness is green, the provider activation should still happen in stages:
+Future contributors must not "re-run the old activation milestone" as if dispatch were absent.
 
-1. create/verify `edge.catalogoengine.com` as the Cloudflare for SaaS CNAME target and fallback path;
-2. prepare two disposable tenant stores with different isolated D1 databases;
-3. provision/import/classify/verify both tenants through the normal pipeline;
-4. stage the full catalog Worker for each tenant;
-5. add the real platform dispatch binding in a short-lived activation branch;
-6. smoke tenant A through its script and prove tenant B product IDs return 404;
-7. smoke tenant B and prove tenant A product IDs return 404;
-8. verify media lookup is isolated the same way;
-9. verify merchant hostname A resolves only to tenant A and hostname B only to tenant B;
-10. only after those checks merge the dispatch-binding activation;
-11. then allow the final publish job to make the disposable stores routable.
+Changes to production dispatch/custom-domain behavior must instead:
 
-A failed isolation test must stop the activation. Do not fall back to the default tenant D1 for a merchant hostname.
+- start from the currently active/proven architecture;
+- preserve fail-closed tenant resolution;
+- preserve per-tenant D1/runtime isolation;
+- use trusted/manual production mutation paths;
+- run focused regression/smoke tests;
+- update `CURRENT-STATE.md` if the proven activation boundary changes.
 
-## Merchant rollout
+## Merchant rollout lesson retained
 
-The first real customer should not be the provider-path experiment. After the two disposable tenants pass, enable the admin onboarding UI for a small pilot store, observe sync/runtime/domain/publish telemetry, and only then broaden tenant creation.
+The readiness plan also established a durable rollout principle:
+
+> A real customer should not be used as the experiment that proves a new provider/isolation path.
+
+New infrastructure primitives should be proven with isolated test tenants before becoming a normal self-service merchant path.
