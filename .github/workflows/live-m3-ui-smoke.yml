@@ -1,0 +1,63 @@
+name: Verify live M3 UI
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/live-m3-ui-smoke.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verify public Worker storefront and API
+        shell: bash
+        env:
+          EDGE_URL: https://catalog-engine.lucassantanals0110.workers.dev
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$EDGE_URL/api/health" > /tmp/health.json
+          curl --fail --silent --show-error "$EDGE_URL/api/catalog/meta" > /tmp/meta.json
+          curl --fail --silent --show-error "$EDGE_URL/" > /tmp/storefront.html
+          curl --fail --silent --show-error "$EDGE_URL/app.html" > /tmp/edge-app.html
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const health = JSON.parse(fs.readFileSync('/tmp/health.json', 'utf8'));
+          const meta = JSON.parse(fs.readFileSync('/tmp/meta.json', 'utf8'));
+          const storefront = fs.readFileSync('/tmp/storefront.html', 'utf8');
+          const app = fs.readFileSync('/tmp/edge-app.html', 'utf8');
+          if (!health.ok) throw new Error('Worker health endpoint is not OK');
+          if (!Number(meta.stats?.products)) throw new Error('Catalog metadata is empty');
+          if (!storefront.includes('data-lucide="sun"')) throw new Error('Live storefront does not contain the M3 Lucide theme control yet');
+          if (!storefront.includes('data-lucide="message-circle"')) throw new Error('Live storefront does not contain the M3 WhatsApp icon yet');
+          if (!app.includes('Catalog Engine — Portal')) throw new Error('Edge app.html is missing');
+          console.log(JSON.stringify({
+            edge: process.env.EDGE_URL,
+            health: health.ok,
+            products: meta.stats.products,
+            m3Storefront: true,
+            edgeAppHtml: true
+          }, null, 2));
+          NODE
+
+      - name: Verify custom Catalog Engine hosts
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error https://catalogoengine.com/ > /tmp/custom-storefront.html
+          curl --fail --silent --show-error https://app.catalogoengine.com/ > /tmp/custom-app.html
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const storefront = fs.readFileSync('/tmp/custom-storefront.html', 'utf8');
+          const app = fs.readFileSync('/tmp/custom-app.html', 'utf8');
+          console.log(JSON.stringify({
+            catalogoengineDotComHttpOk: storefront.length > 0,
+            appDotCatalogoengineDotComHttpOk: app.length > 0,
+            catalogoengineHasM3Lucide: storefront.includes('data-lucide="sun"'),
+            appHostLooksLikePortal: app.includes('Catalog Engine — Portal') || app.includes('id="app"')
+          }, null, 2));
+          NODE
