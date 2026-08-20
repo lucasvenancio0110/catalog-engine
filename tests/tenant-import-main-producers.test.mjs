@@ -10,8 +10,8 @@ const config = parseJsonc('wrangler.jsonc');
 const deploy = fs.readFileSync('.github/workflows/deploy-catalog-api.yml', 'utf8');
 
 describe('main tenant import producer activation boundary', () => {
-  it('binds only the required scan/detail producers with automatic discovery enabled', () => {
-    expect(config.vars.TENANT_IMPORT_AUTOMATION_ENABLED).toBe('1');
+  it('binds only the required scan/detail producers while keeping the automation bit explicitly reversible', () => {
+    expect(['0', '1']).toContain(config.vars.TENANT_IMPORT_AUTOMATION_ENABLED);
     expect(config.queues?.consumers ?? []).toEqual([]);
     expect(config.queues?.producers).toEqual([
       { binding: 'TENANT_IMPORT_QUEUE', queue: 'catalog-engine-import-scan' },

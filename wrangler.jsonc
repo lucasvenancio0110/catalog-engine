@@ -6,7 +6,7 @@
   "vars": {
     "CATALOG_PLATFORM_HOSTS": "catalog-engine.lucassantanals0110.workers.dev,catalogoengine.com,app.catalogoengine.com",
     "CATALOG_ADMIN_HOST": "app.catalogoengine.com",
-    "TENANT_IMPORT_AUTOMATION_ENABLED": "1"
+    "TENANT_IMPORT_AUTOMATION_ENABLED": "0"
   },
   "assets": {
     "directory": "./dist",

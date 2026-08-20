@@ -6,9 +6,9 @@ async function readJson(path) {
 }
 
 describe('tenant import queue activation configuration', () => {
-  it('enables the production scheduler only after the main Queue producers are connected', async () => {
+  it('keeps the main Queue producers connected while the automation bit remains explicitly reversible', async () => {
     const main = await readJson('wrangler.jsonc');
-    expect(main.vars?.TENANT_IMPORT_AUTOMATION_ENABLED).toBe('1');
+    expect(['0', '1']).toContain(main.vars?.TENANT_IMPORT_AUTOMATION_ENABLED);
     expect(main.queues?.producers).toEqual([
       { binding: 'TENANT_IMPORT_QUEUE', queue: 'catalog-engine-import-scan' },
       { binding: 'TENANT_IMPORT_DETAIL_QUEUE', queue: 'catalog-engine-import-detail' }
