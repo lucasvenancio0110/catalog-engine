@@ -48,7 +48,7 @@ export async function queryTenantDataPlaneBatch(context, env, batch) {
 
   let fetcher;
   try {
-    fetcher = tenantDispatchFetcher(env, target.workerScriptName);
+    fetcher = await tenantDispatchFetcher(env, target.workerScriptName);
   } catch {
     throw new TenantDataPlaneClientError('tenant_data_plane_dispatch_unavailable', 503);
   }
