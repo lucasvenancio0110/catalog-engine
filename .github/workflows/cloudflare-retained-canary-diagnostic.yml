@@ -1,0 +1,71 @@
+name: Diagnose retained automatic import canary
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/cloudflare-retained-canary-diagnostic.yml"
+      - "scripts/cloudflare-retained-canary-diagnostic.mjs"
+      - "tests/retained-canary-diagnostic.test.mjs"
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/cloudflare-retained-canary-diagnostic.yml"
+      - "scripts/cloudflare-retained-canary-diagnostic.mjs"
+      - "tests/retained-canary-diagnostic.test.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: catalog-engine-production-d1
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Secret-free quality gate
+        run: npm run quality
+
+  diagnose:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE: catalog-engine-production
+      RETAINED_CANARY_TENANT_ID: t_b866b2412c5a3404268a
+    steps:
+      - name: Checkout trusted main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Quality gate before read-only diagnosis
+        run: npm run quality
+      - name: Inspect retained canary without mutating Cloudflare state
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/cloudflare-retained-canary-diagnostic.mjs | tee /tmp/retained-canary-diagnostic.json
+          cat /tmp/retained-canary-diagnostic.json >> "$GITHUB_STEP_SUMMARY"
