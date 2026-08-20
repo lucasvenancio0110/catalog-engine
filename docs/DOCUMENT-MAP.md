@@ -97,6 +97,7 @@ Required:
 - `docs/TENANT-DATA-PLANES.md`
 - `docs/PROVIDER-ENGINE.md` when source connection/provider selection changes
 - `docs/TENANT-IMPORT-PIPELINE.md`
+- `docs/TENANT-IMPORT-QUEUES.md` when import activation/runtime delivery changes
 - `docs/TENANT-PUBLISH.md`
 
 If a domain is touched, also read `docs/CUSTOM-DOMAINS.md`.
@@ -123,11 +124,27 @@ Required:
 - `docs/PROVIDER-ENGINE.md`
 - `docs/CEI.md` for the source-neutral normalization boundary
 - `docs/TENANT-IMPORT-PIPELINE.md`
+- `docs/TENANT-IMPORT-QUEUES.md` when queue topology/activation/retry/consumer behavior changes
 - `docs/TENANT-IMPORT-SCAN.md`
 - `docs/TENANT-IMPORT-DETAILS.md`
 - `AGENTS.md` scraper/synchronization rules
 
 Source-specific knowledge must not become public taxonomy truth. Central ingestion/CEI code must consume provider contracts rather than directly importing a supplier-specific parser.
+
+## Queue infrastructure / tenant import activation
+
+Required:
+
+- `docs/TENANT-IMPORT-QUEUES.md`
+- `docs/TENANT-IMPORT-PIPELINE.md`
+- `docs/TENANT-IMPORT-SCAN.md`
+- `docs/TENANT-IMPORT-DETAILS.md`
+- `docs/PROVIDER-ENGINE.md`
+- `docs/TENANT-DATA-PLANES.md`
+- `docs/TENANT-RUNTIME-DISPATCH.md`
+- `docs/CURRENT-STATE.md`
+
+Queue resource creation, producer bindings and automatic discovery are separate activation gates. Do not collapse them into one deployment merely because Wrangler supports configuring them together.
 
 ## Synchronization
 
@@ -136,6 +153,7 @@ Required:
 - `AGENTS.md` synchronization rules
 - `docs/PROVIDER-ENGINE.md` when source evidence/provider behavior changes
 - `docs/TENANT-IMPORT-PIPELINE.md`
+- `docs/TENANT-IMPORT-QUEUES.md` when sync shares queue/retry/runtime infrastructure
 - relevant scan/detail/import documents
 - `docs/CEI.md` if sync triggers reclassification/learning
 - `docs/CURRENT-STATE.md` when changing a production/default-catalog publication path
@@ -155,6 +173,7 @@ Additionally:
 - application/Worker/static-asset changes → inspect `wrangler.jsonc`, build/verify scripts and application deploy workflow;
 - D1 schema migration behavior → inspect the affected migration contracts and tenant/control-plane architecture documents;
 - catalog publication/sync/recovery → also read synchronization/source contracts;
+- queue/consumer deployment → also read `docs/TENANT-IMPORT-QUEUES.md`;
 - production Cloudflare secret boundaries → inspect the relevant trusted/manual workflow and security rules.
 
 Do not re-couple application deployment and commercial catalog replacement merely because both happen to use the same D1 binding.

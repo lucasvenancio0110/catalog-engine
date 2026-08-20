@@ -7,6 +7,7 @@ on:
       - 'migrations/0012_tenant_import_jobs.sql'
       - 'migrations/0013_tenant_import_scan_resume.sql'
       - 'migrations/0014_tenant_classify_verify_jobs.sql'
+      - 'src/catalog-provider/**'
       - 'src/domain/catalog-classifier.js'
       - 'worker/ingestion/**'
       - 'worker/import-*-entry.js'
@@ -18,9 +19,13 @@ on:
       - 'worker/cloudflare-platform.js'
       - 'scripts/emit-tenant-data-plane-schema.mjs'
       - 'tests/tenant-import-*.test.mjs'
+      - 'tests/catalog-provider-contract.test.mjs'
       - 'tests/catalog-classifier.test.mjs'
       - 'tests/tenant-data-plane-schema.test.mjs'
+      - 'docs/PROVIDER-ENGINE.md'
       - 'docs/TENANT-IMPORT-*.md'
+      - 'wrangler.import-*.jsonc'
+      - 'wrangler.jsonc'
       - '.github/workflows/validate-tenant-ingestion.yml'
 
 permissions:
@@ -29,7 +34,9 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
+    env:
+      WRANGLER_VERSION: 4.123.0
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,6 +52,13 @@ jobs:
 
       - name: Quality gate
         run: npm run quality
+
+      - name: Validate staged scan/detail Worker configs
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@$WRANGLER_VERSION" deploy --dry-run --config wrangler.import-scan.jsonc --outdir /tmp/catalog-engine-import-scan
+          npx --yes "wrangler@$WRANGLER_VERSION" deploy --dry-run --config wrangler.import-detail.jsonc --outdir /tmp/catalog-engine-import-detail
 
       - name: Apply control-plane migrations including post-import jobs
         shell: bash

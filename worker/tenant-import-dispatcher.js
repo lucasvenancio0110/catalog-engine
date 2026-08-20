@@ -15,6 +15,10 @@ function boundedLimit(value) {
   return Math.min(parsed, MAX_LIMIT);
 }
 
+export function tenantImportAutomationEnabled(env) {
+  return String(env?.TENANT_IMPORT_AUTOMATION_ENABLED || '').trim() === '1';
+}
+
 export function tenantImportQueueConfigured(env) {
   return Boolean(
     env?.TENANT_IMPORT_QUEUE &&
@@ -233,6 +237,9 @@ export async function runDueTenantImportDispatches(
   { limit = DEFAULT_LIMIT } = {}
 ) {
   if (!env.CATALOG_DB) return { enabled: false, reason: 'database_unbound', dispatched: 0 };
+  if (!tenantImportAutomationEnabled(env)) {
+    return { enabled: false, reason: 'tenant_import_automation_disabled', dispatched: 0 };
+  }
   if (!tenantImportQueueConfigured(env)) {
     return { enabled: false, reason: 'tenant_import_queue_unbound', dispatched: 0 };
   }
