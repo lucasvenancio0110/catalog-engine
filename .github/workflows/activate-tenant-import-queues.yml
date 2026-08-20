@@ -1,0 +1,110 @@
+name: Activate tenant import Queue consumers
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/activate-tenant-import-queues.yml"
+      - "wrangler.import-scan.jsonc"
+      - "wrangler.import-detail.jsonc"
+      - "worker/import-scan-entry.js"
+      - "worker/import-detail-entry.js"
+      - "worker/ingestion/**"
+      - "worker/tenant-data-plane-command.js"
+      - "worker/cloudflare-platform.js"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: catalog-engine-tenant-import-queue-infra
+  cancel-in-progress: false
+
+jobs:
+  activate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_VERSION: 4.123.0
+
+    steps:
+      - name: Checkout trusted main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate Cloudflare credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Quality gate before production mutation
+        run: npm run quality
+
+      - name: Assert automatic tenant discovery remains OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq '"TENANT_IMPORT_AUTOMATION_ENABLED": "0"' wrangler.jsonc
+
+      - name: Ensure primary and dead-letter Queues exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          QUEUES=(
+            catalog-engine-import-scan
+            catalog-engine-import-detail
+            catalog-engine-import-scan-dlq
+            catalog-engine-import-detail-dlq
+          )
+          npx --yes "wrangler@$WRANGLER_VERSION" queues list | tee /tmp/catalog-engine-queues.txt
+          for queue in "${QUEUES[@]}"; do
+            if grep -Fq "$queue" /tmp/catalog-engine-queues.txt; then
+              echo "Queue already exists: $queue"
+            else
+              echo "Creating Queue: $queue"
+              npx --yes "wrangler@$WRANGLER_VERSION" queues create "$queue"
+            fi
+          done
+          npx --yes "wrangler@$WRANGLER_VERSION" queues list | tee /tmp/catalog-engine-queues-final.txt
+          for queue in "${QUEUES[@]}"; do
+            grep -Fq "$queue" /tmp/catalog-engine-queues-final.txt || { echo "Queue missing after ensure: $queue"; exit 1; }
+          done
+
+      - name: Deploy detail consumer first
+        run: npx --yes "wrangler@$WRANGLER_VERSION" deploy --config wrangler.import-detail.jsonc
+
+      - name: Deploy scan consumer
+        run: npx --yes "wrangler@$WRANGLER_VERSION" deploy --config wrangler.import-scan.jsonc
+
+      - name: Verify Queue consumers and policies are attached
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@$WRANGLER_VERSION" queues info catalog-engine-import-scan
+          npx --yes "wrangler@$WRANGLER_VERSION" queues info catalog-engine-import-detail
+          npx --yes "wrangler@$WRANGLER_VERSION" queues consumer worker list catalog-engine-import-scan --json | tee /tmp/scan-consumers.json
+          npx --yes "wrangler@$WRANGLER_VERSION" queues consumer worker list catalog-engine-import-detail --json | tee /tmp/detail-consumers.json
+          grep -Fq 'catalog-engine-import-scan' /tmp/scan-consumers.json || { echo "Scan consumer not attached"; exit 1; }
+          grep -Fq 'catalog-engine-import-detail' /tmp/detail-consumers.json || { echo "Detail consumer not attached"; exit 1; }
+
+      - name: Activation checkpoint
+        shell: bash
+        run: |
+          echo "Tenant import Queue consumers are deployed."
+          echo "Automatic tenant discovery remains disabled by TENANT_IMPORT_AUTOMATION_ENABLED=0."
+          echo "Main Worker producer bindings are intentionally deferred to M5C-2."
