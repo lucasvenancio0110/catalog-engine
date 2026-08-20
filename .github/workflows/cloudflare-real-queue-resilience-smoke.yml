@@ -1,0 +1,137 @@
+name: Cloudflare real Queue resilience smoke
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/cloudflare-real-queue-resilience-smoke.yml"
+      - "scripts/cloudflare-real-queue-resilience-smoke.mjs"
+      - "tests/tenant-import-real-queue-resilience.test.mjs"
+      - "worker/import-detail-entry.js"
+      - "worker/ingestion/detail-consumer.js"
+      - "worker/tenant-import-queue.js"
+      - "wrangler.import-detail.jsonc"
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/cloudflare-real-queue-resilience-smoke.yml"
+      - "scripts/cloudflare-real-queue-resilience-smoke.mjs"
+      - "tests/tenant-import-real-queue-resilience.test.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: catalog-engine-real-queue-resilience-smoke
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Secret-free quality gate
+        run: npm run quality
+
+  smoke:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE: catalog-engine-production
+      STATUS_CONTEXT: catalog-engine/queue-resilience-smoke
+
+    steps:
+      - name: Checkout trusted main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate trusted Cloudflare credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Quality gate before resilience mutation
+        run: npm run quality
+
+      - name: Assert automatic tenant discovery remains OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq '"TENANT_IMPORT_AUTOMATION_ENABLED": "0"' wrangler.jsonc
+
+      - name: Prove retry to DLQ then repair and replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/cloudflare-real-queue-resilience-smoke.mjs | tee /tmp/queue-resilience.json
+          cat /tmp/queue-resilience.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish successful resilience evidence
+        if: ${{ success() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n --arg state success --arg context "$STATUS_CONTEXT" \
+            --arg description "Real retry -> DLQ -> repair -> replay succeeded; queues clean, automation OFF" \
+            --arg target_url "$RUN_URL" \
+            '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
+          curl --fail --silent --show-error -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/statuses/$SHA" -d @/tmp/status.json
+
+      - name: Publish failed resilience evidence
+        if: ${{ failure() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n --arg state failure --arg context "$STATUS_CONTEXT" \
+            --arg description "Queue resilience smoke failed; automatic tenant discovery remains OFF" \
+            --arg target_url "$RUN_URL" \
+            '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
+          curl --fail --silent --show-error -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/statuses/$SHA" -d @/tmp/status.json
