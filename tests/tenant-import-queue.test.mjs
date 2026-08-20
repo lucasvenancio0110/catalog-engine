@@ -8,6 +8,7 @@ import {
 } from '../worker/tenant-import-queue.js';
 import {
   runDueTenantImportDispatches,
+  tenantImportAutomationEnabled,
   tenantImportQueueConfigured
 } from '../worker/tenant-import-dispatcher.js';
 
@@ -72,11 +73,44 @@ describe('tenant import queue foundation', () => {
     ).toThrow('tenant_import_message_contains_private_state');
   });
 
-  it('keeps import discovery completely inert until a private queue producer binding exists', async () => {
+  it('keeps automatic discovery inert by default even when queue bindings exist', async () => {
     const prepare = vi.fn(() => {
-      throw new Error('control-plane D1 should not be queried without the queue binding');
+      throw new Error('control-plane D1 should not be queried while automation is disabled');
     });
-    const env = { CATALOG_DB: { prepare } };
+    const send = vi.fn();
+    const sendBatch = vi.fn();
+    const env = {
+      CATALOG_DB: { prepare },
+      TENANT_IMPORT_QUEUE: { send },
+      TENANT_IMPORT_DETAIL_QUEUE: { send, sendBatch }
+    };
+
+    expect(tenantImportAutomationEnabled(env)).toBe(false);
+    expect(tenantImportQueueConfigured(env)).toBe(true);
+    expect(await runDueTenantImportDispatches(env)).toEqual({
+      enabled: false,
+      reason: 'tenant_import_automation_disabled',
+      dispatched: 0
+    });
+    expect(prepare).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+    expect(sendBatch).not.toHaveBeenCalled();
+  });
+
+  it('requires the explicit value 1 before automatic import dispatch can run', () => {
+    expect(tenantImportAutomationEnabled({ TENANT_IMPORT_AUTOMATION_ENABLED: '1' })).toBe(true);
+    expect(tenantImportAutomationEnabled({ TENANT_IMPORT_AUTOMATION_ENABLED: 'true' })).toBe(false);
+    expect(tenantImportAutomationEnabled({ TENANT_IMPORT_AUTOMATION_ENABLED: '0' })).toBe(false);
+  });
+
+  it('still fails closed when automation is enabled but queue bindings are incomplete', async () => {
+    const prepare = vi.fn(() => {
+      throw new Error('control-plane D1 should not be queried without complete queue bindings');
+    });
+    const env = {
+      CATALOG_DB: { prepare },
+      TENANT_IMPORT_AUTOMATION_ENABLED: '1'
+    };
 
     expect(tenantImportQueueConfigured(env)).toBe(false);
     expect(await runDueTenantImportDispatches(env)).toEqual({
@@ -89,7 +123,10 @@ describe('tenant import queue foundation', () => {
 
   it('fails closed before queue work when the control-plane D1 binding is absent', async () => {
     const send = vi.fn();
-    const env = { TENANT_IMPORT_QUEUE: { send } };
+    const env = {
+      TENANT_IMPORT_AUTOMATION_ENABLED: '1',
+      TENANT_IMPORT_QUEUE: { send }
+    };
     expect(await runDueTenantImportDispatches(env)).toEqual({
       enabled: false,
       reason: 'database_unbound',
