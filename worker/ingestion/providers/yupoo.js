@@ -17,10 +17,15 @@ async function fetchDetail({ itemUrl, sourceUrl }, options = {}) {
   return fetchYupooAlbumDetailWorker(itemUrl, sourceUrl, options);
 }
 
+function publicTextLeakPatterns() {
+  return ['x.yupoo.com', 'photo.yupoo.com'];
+}
+
 export const yupooIngestionProvider = defineCatalogProvider({
   ...yupooSourceProvider,
   scanListingIndex: scanYupooListingIndex,
   fetchDetail,
   publicCategoryId,
-  mediaId: yupooMediaId
+  mediaId: yupooMediaId,
+  publicTextLeakPatterns
 });
