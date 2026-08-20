@@ -24,7 +24,7 @@ jobs:
           curl --fail --silent --show-error "$PREVIEW_URL/api/catalog/meta" > /tmp/meta.json
           curl --fail --silent --show-error "$PREVIEW_URL/api/products?page=1&limit=15" > /tmp/products.json
           curl --fail --silent --show-error "$PREVIEW_URL/" > /tmp/storefront.html
-          curl --fail --silent --show-error "$PREVIEW_URL/app.html" > /tmp/app.html
+          curl --location --fail --silent --show-error "$PREVIEW_URL/app.html" > /tmp/app.html
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const health = JSON.parse(fs.readFileSync('/tmp/health.json', 'utf8'));
