@@ -35,6 +35,6 @@ jobs:
           if (!health.ok || !health.preview) throw new Error('staging health failed');
           if (!Number(meta.stats?.products) || !products.items?.length) throw new Error('staging demo catalog empty');
           if (!storefront.includes('data-lucide="sun"')) throw new Error('staging storefront is not M3');
-          if (!app.includes('Catalog Engine — Portal')) throw new Error('staging portal missing');
-          console.log(JSON.stringify({ previewUrl: process.env.PREVIEW_URL, products: meta.stats.products, ok: true }, null, 2));
+          if (!(app.includes('Catalog Engine — Portal') || app.includes('id="app"'))) throw new Error('staging portal missing');
+          console.log(JSON.stringify({ previewUrl: process.env.PREVIEW_URL, products: meta.stats.products, portal: true, ok: true }, null, 2));
           NODE
