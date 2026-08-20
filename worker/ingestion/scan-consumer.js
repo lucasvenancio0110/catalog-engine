@@ -1,3 +1,4 @@
+import { assertCatalogProviderScanResult } from '../../src/catalog-provider/provider-contract.js';
 import { queryD1Batch } from '../cloudflare-platform.js';
 import {
   assertPublicSafeImportMessage,
@@ -9,7 +10,7 @@ import {
   ingestionPlatformConfig,
   loadTenantImportContext
 } from './context.js';
-import { scanYupooListingIndex } from './yupoo-listing.js';
+import { resolveCatalogIngestionProvider } from './providers/index.js';
 
 const INDEX_WRITE_BATCH = 75;
 const DETAIL_QUEUE_BATCH = 100;
@@ -25,8 +26,10 @@ function chunks(values, size) {
 
 function safeScanError(error) {
   if (error instanceof TenantImportContextError) return error.code;
-  const message = String(error?.message || error);
-  if (/^(supplier|tenant_import)_[a-z0-9_]+$/i.test(message)) return message.slice(0, 120);
+  const message = String(error?.code || error?.message || error);
+  if (/^(supplier|tenant_import|catalog_provider)_[a-z0-9_]+$/i.test(message)) {
+    return message.slice(0, 120);
+  }
   return 'tenant_import_scan_failed';
 }
 
@@ -326,6 +329,7 @@ export async function handleTenantImportScanMessage(
   let leaseOwned = false;
   try {
     let context = await loadTenantImportContext(db, message);
+    const provider = resolveCatalogIngestionProvider(context.privateSource.provider);
     const platform = ingestionPlatformConfig(env, context.dataPlane.dispatchNamespace);
     const lease = await claimScanLease(db, context);
     if (lease.complete) return { outcome: 'success', alreadyComplete: true };
@@ -333,8 +337,10 @@ export async function handleTenantImportScanMessage(
     leaseOwned = true;
 
     if (context.phase === 'scan') {
-      const scan = await scanYupooListingIndex(context.privateSource.url, { fetchImpl });
-      if (!scan.complete || scan.items.length === 0) throw new Error('supplier_listing_empty');
+      const scan = assertCatalogProviderScanResult(
+        await provider.scanListingIndex(context.privateSource.url, { fetchImpl })
+      );
+      if (scan.items.length === 0) throw new Error('supplier_listing_empty');
       await persistCompleteListingScan(context, scan, platform, fetchImpl);
       await markScanPersisted(db, context, scan);
       context = {
