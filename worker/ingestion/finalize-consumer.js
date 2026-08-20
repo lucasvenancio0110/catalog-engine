@@ -5,13 +5,14 @@ import {
   ingestionPlatformConfig,
   loadTenantImportContext
 } from './context.js';
+import { resolveCatalogIngestionProvider } from './providers/index.js';
 
 const FINALIZE_RETRY_SECONDS = 90;
 
 function safeFinalizeError(error) {
   if (error instanceof TenantImportContextError) return error.code;
-  const message = String(error?.message || error);
-  if (/^tenant_[a-z0-9_]+$/i.test(message)) return message.slice(0, 120);
+  const message = String(error?.code || error?.message || error);
+  if (/^(tenant|catalog_provider)_[a-z0-9_]+$/i.test(message)) return message.slice(0, 120);
   return 'tenant_import_finalize_failed';
 }
 
@@ -23,7 +24,35 @@ function countByState(rows) {
   return output;
 }
 
-async function readFinalizeState(context, platform, fetchImpl) {
+function publicLeakQuery(provider) {
+  const patterns = [
+    ...new Set([
+      ...(provider.publicTextLeakPatterns() || []),
+      'http://',
+      'https://'
+    ].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean))
+  ];
+  const params = [];
+  const clauses = [];
+  for (const pattern of patterns) {
+    const nameParam = params.length + 1;
+    params.push(`%${pattern}%`);
+    const descriptionParam = params.length + 1;
+    params.push(`%${pattern}%`);
+    clauses.push(
+      `(lower(name) LIKE ?${nameParam} OR lower(description) LIKE ?${descriptionParam})`
+    );
+  }
+  return {
+    sql: `SELECT COUNT(*) AS leaks
+            FROM catalog_products
+           WHERE ${clauses.join(' OR ')}`,
+    params
+  };
+}
+
+async function readFinalizeState(context, platform, provider, fetchImpl) {
+  const leakQuery = publicLeakQuery(provider);
   const result = await queryD1Batch(
     {
       ...platform,
@@ -44,17 +73,7 @@ async function readFinalizeState(context, platform, fetchImpl) {
                   FROM catalog_products`,
           params: []
         },
-        {
-          sql: `SELECT COUNT(*) AS leaks
-                  FROM catalog_products
-                 WHERE lower(name) LIKE '%x.yupoo.com%'
-                    OR lower(description) LIKE '%x.yupoo.com%'
-                    OR lower(name) LIKE '%photo.yupoo.com%'
-                    OR lower(description) LIKE '%photo.yupoo.com%'
-                    OR lower(description) LIKE '%http://%'
-                    OR lower(description) LIKE '%https://%'`,
-          params: []
-        }
+        leakQuery
       ]
     },
     { fetchImpl }
@@ -251,8 +270,9 @@ export async function handleTenantImportFinalizeMessage(
     if (!['details', 'finalize'].includes(context.phase)) {
       return { outcome: 'busy', delaySeconds: FINALIZE_RETRY_SECONDS };
     }
+    const provider = resolveCatalogIngestionProvider(context.privateSource.provider);
     const platform = ingestionPlatformConfig(env, context.dataPlane.dispatchNamespace);
-    const stats = await readFinalizeState(context, platform, fetchImpl);
+    const stats = await readFinalizeState(context, platform, provider, fetchImpl);
     const terminal = stats.states.success + stats.states.skipped + stats.states.deferred;
     if (terminal < context.discoveredCount) {
       return {
