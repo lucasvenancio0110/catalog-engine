@@ -1,0 +1,127 @@
+name: Deploy UI staging preview
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/deploy-ui-staging.yml"
+      - "index.html"
+      - "app.html"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.*"
+      - "scripts/copy-storefront-data.mjs"
+      - "scripts/verify-dist.mjs"
+      - "src/**"
+      - "worker/entry-ui-preview.js"
+      - "wrangler.preview.jsonc"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: catalog-engine-ui-staging
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_VERSION: 4.123.0
+      NO_COLOR: "1"
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate Cloudflare credentials
+        shell: bash
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
+
+      - name: Install, quality and build
+        run: |
+          npm ci
+          npm run quality
+          npm run build
+          npm run build:verify
+
+      - name: Deploy isolated preview Worker
+        id: deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@$WRANGLER_VERSION" deploy --config wrangler.preview.jsonc | tee /tmp/ui-preview-deploy.log
+          PREVIEW_URL="$(grep -Eo 'https://[A-Za-z0-9.-]+\.workers\.dev' /tmp/ui-preview-deploy.log | tail -1 || true)"
+          test -n "$PREVIEW_URL" || { echo "Could not discover workers.dev preview URL"; exit 1; }
+          echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
+          echo "PREVIEW_URL=$PREVIEW_URL" >> "$GITHUB_ENV"
+
+      - name: Smoke staging on Cloudflare edge
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 12); do
+            if curl --fail --silent --show-error "$PREVIEW_URL/api/health" > /tmp/preview-health.json; then
+              break
+            fi
+            sleep 5
+          done
+          test -s /tmp/preview-health.json
+          curl --fail --silent --show-error "$PREVIEW_URL/api/catalog/meta" > /tmp/preview-meta.json
+          curl --fail --silent --show-error "$PREVIEW_URL/api/products?page=1&limit=15" > /tmp/preview-products.json
+          curl --fail --silent --show-error "$PREVIEW_URL/" > /tmp/preview-storefront.html
+          curl --fail --silent --show-error "$PREVIEW_URL/app.html" > /tmp/preview-app.html
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const health = JSON.parse(fs.readFileSync('/tmp/preview-health.json', 'utf8'));
+          const meta = JSON.parse(fs.readFileSync('/tmp/preview-meta.json', 'utf8'));
+          const products = JSON.parse(fs.readFileSync('/tmp/preview-products.json', 'utf8'));
+          const storefront = fs.readFileSync('/tmp/preview-storefront.html', 'utf8');
+          const app = fs.readFileSync('/tmp/preview-app.html', 'utf8');
+          if (!health.ok || !health.preview) throw new Error('UI staging health failed');
+          if (!Number(meta.stats?.products) || !products.items?.length) throw new Error('UI staging demo catalog is empty');
+          if (!storefront.includes('data-lucide="sun"')) throw new Error('UI staging storefront is not the M3 build');
+          if (!app.includes('Catalog Engine — Portal')) throw new Error('UI staging portal artifact missing');
+          console.log(JSON.stringify({ ok: true, previewUrl: process.env.PREVIEW_URL, products: meta.stats.products }, null, 2));
+          NODE
+
+      - name: Publish verified staging status branch
+        if: success()
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p preview
+          cat > preview/UI_STAGING_STATUS.json <<JSON
+          {
+            "status": "verified",
+            "previewUrl": "$PREVIEW_URL",
+            "storefrontUrl": "$PREVIEW_URL/",
+            "appUrl": "$PREVIEW_URL/app.html",
+            "sourceCommit": "$SOURCE_SHA",
+            "verifiedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "environment": "isolated-demo-data",
+            "productionDataTouched": false
+          }
+          JSON
+          git config user.name "catalog-engine-ci"
+          git config user.email "catalog-engine-ci@users.noreply.github.com"
+          git checkout -B preview/ui-staging-status
+          git add preview/UI_STAGING_STATUS.json
+          git commit -m "chore: record verified UI staging URL"
+          git push --force origin HEAD:preview/ui-staging-status
