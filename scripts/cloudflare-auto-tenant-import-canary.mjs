@@ -69,7 +69,7 @@ function fixtureIdentity() {
   return {
     tenantId: `t_${suffix}`,
     sourceKey: 'auto-canary',
-    workerScriptName: `ce-auto-${suffix}`,
+    workerScriptName: `ce-${suffix}`,
     databaseName: `ceac-${suffix}`,
     dataPlaneKey: `auto-canary-${suffix}`,
     provisioningId: `p_${suffix}`,
@@ -335,13 +335,26 @@ async function controlJob(fixture) {
   return result[0]?.results?.[0] || null;
 }
 
+function safeJobErrorCode(value) {
+  const code = String(value || '').trim();
+  return /^(supplier|tenant_import|tenant_data_plane|catalog_provider|cloudflare_platform)_[a-z0-9_]+$/i.test(code)
+    ? code
+    : null;
+}
+
+function importFailure(row, fallbackCode) {
+  const error = new Error(fallbackCode);
+  error.jobErrorCode = safeJobErrorCode(row?.last_error_code);
+  return error;
+}
+
 async function waitForSchedulerDiscovery(fixture) {
   const started = Date.now();
   while (Date.now() - started < DISCOVERY_TIMEOUT_MS) {
     const row = await controlJob(fixture);
     if (row) {
       if (row.status === 'failed') {
-        throw new Error('auto_canary_scheduler_dispatch_failed');
+        throw importFailure(row, 'auto_canary_scheduler_dispatch_failed');
       }
       return row;
     }
@@ -356,7 +369,7 @@ async function waitForCompletion(fixture) {
     const row = await controlJob(fixture);
     if (!row) throw new Error('auto_canary_import_job_missing');
     if (row.status === 'success' && row.phase === 'complete') return row;
-    if (row.status === 'failed') throw new Error('auto_canary_import_failed');
+    if (row.status === 'failed') throw importFailure(row, 'auto_canary_import_failed');
     await sleep(POLL_MS);
   }
   throw new Error('auto_canary_completion_timeout');
@@ -499,7 +512,14 @@ async function main() {
     );
   } catch (error) {
     const code = safeErrorCode(error);
-    console.error(JSON.stringify({ automaticTenantImportCanaryPassed: false, error: code }));
+    const jobErrorCode = safeJobErrorCode(error?.jobErrorCode);
+    console.error(
+      JSON.stringify({
+        automaticTenantImportCanaryPassed: false,
+        error: code,
+        jobErrorCode
+      })
+    );
     throw new Error(code);
   } finally {
     if (fixture) {
