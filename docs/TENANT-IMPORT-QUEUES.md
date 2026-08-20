@@ -73,19 +73,25 @@ No PR validation workflow may receive production Cloudflare credentials merely t
 
 ## Tenant data-plane write path
 
-The old ingestion implementation can write an arbitrary tenant D1 by using Cloudflare's administrative D1 HTTP API plus a runtime API token.
-
-That is not the target high-volume Queue hot path.
-
-Before producer activation, M5B must route ingestion data-plane operations through the already-isolated tenant User Worker/Workers for Platforms dispatch boundary so the selected User Worker executes the write through its native `CATALOG_DB` binding.
-
-Target:
+M5B implements the production Queue hot-path target:
 
 `Queue consumer -> TENANT_DISPATCH.get(worker_script_name) -> internal tenant command -> tenant CATALOG_DB binding`
 
-This keeps per-tenant physical isolation, removes the need for a broad D1 administrative token in every import consumer and avoids treating an administrative REST API as the per-product data path.
+The internal command path is `/_catalog/internal/d1-batch`. It is carried by both the bootstrap User Worker and the catalog User Worker so initial import can use the native tenant D1 binding before storefront runtime activation.
 
-The internal tenant command must not be reachable through the public merchant `/api` or `/media` routing surface and must validate tenant identity plus bounded statement/query shape.
+The command boundary:
+
+- requires the selected User Worker's bound `TENANT_ID` to match the opaque tenant id sent by the consumer;
+- accepts only JSON POST requests on the private command path;
+- limits request body, batch size, SQL size and parameter count;
+- accepts only one-statement `SELECT`, `INSERT`, `UPDATE` or `DELETE` operations;
+- rejects transaction controls, DDL, comments and multi-statement SQL through this protocol;
+- executes the validated statements with the User Worker's native `env.CATALOG_DB.batch()` binding;
+- returns only bounded D1 result data to the calling Queue Worker.
+
+The existing `queryD1Batch()` adapter prefers this `TENANT_DISPATCH` path whenever the binding is present. The administrative Cloudflare D1 REST path remains only as a transitional fallback for existing administrative tooling/unit fixtures that do not bind tenant dispatch. Staged scan/detail Queue Workers include `TENANT_DISPATCH`, so they do not require account-level D1 credentials for their tenant ingestion data path.
+
+Public merchant routing dispatches only `/api/` and `/media/` tenant requests. The private command path is therefore not forwarded from a merchant hostname to the User Worker; regression tests must preserve this property.
 
 ## DLQ policy
 
@@ -139,6 +145,8 @@ Required:
 - tenant mismatch fails closed;
 - existing runtime/bootstrap deployment can provide the command before import begins;
 - unit/integration tests cover read/write batch behavior and cross-tenant rejection.
+
+Repository implementation of these requirements is complete only after its final PR head passes the ingestion/runtime/isolation quality gates. This milestone does not itself create Queue resources or enable automatic ingestion.
 
 ### M5C — real Cloudflare activation
 

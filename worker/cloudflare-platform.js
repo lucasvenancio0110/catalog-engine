@@ -2,11 +2,17 @@ import {
   TENANT_CATALOG_RUNTIME_VERSION,
   tenantCatalogWorkerSource
 } from './tenant-catalog-runtime.js';
+import { queryTenantDataPlaneBatch } from './ingestion/tenant-data-plane.js';
+import {
+  tenantBootstrapWorkerSourceWithDataPlaneCommand,
+  wrapTenantWorkerSourceWithDataPlaneCommand
+} from './tenant-data-plane-command.js';
 
 const API_ORIGIN = 'https://api.cloudflare.com';
 const ACCOUNT_ID_PATTERN = /^[a-f0-9]{32}$/i;
 const RESOURCE_NAME_PATTERN = /^[a-z0-9][a-z0-9_-]{1,62}$/i;
 const DATABASE_ID_PATTERN = /^[a-f0-9-]{32,40}$/i;
+const TENANT_ID_PATTERN = /^t_[a-f0-9]{20}$/;
 const REQUEST_TIMEOUT_MS = 20_000;
 
 export class CloudflarePlatformError extends Error {
@@ -54,7 +60,7 @@ function safeDatabaseId(value) {
 
 function safeTenantId(value) {
   const tenantId = String(value || '').trim();
-  if (!/^t_[a-f0-9]{20}$/.test(tenantId)) {
+  if (!TENANT_ID_PATTERN.test(tenantId)) {
     throw new CloudflarePlatformError('invalid_tenant_id', 500);
   }
   return tenantId;
@@ -185,13 +191,40 @@ function normalizeD1Batch(batch) {
   });
 }
 
+function tenantIdFromBatch(batch) {
+  const tenantIds = new Set();
+  for (const query of batch) {
+    for (const value of query.params || []) {
+      const candidate = String(value || '');
+      if (TENANT_ID_PATTERN.test(candidate)) tenantIds.add(candidate);
+    }
+  }
+  if (tenantIds.size !== 1) {
+    throw new CloudflarePlatformError('tenant_data_plane_tenant_unresolved', 500);
+  }
+  return [...tenantIds][0];
+}
+
 export async function queryD1Batch(
-  { accountId, apiToken, dispatchNamespace, databaseId, batch },
+  { accountId, apiToken, dispatchNamespace, databaseId, batch, tenantDispatch },
   { fetchImpl = fetch } = {}
 ) {
+  const normalizedBatch = normalizeD1Batch(batch);
+
+  if (tenantDispatch && typeof tenantDispatch.get === 'function') {
+    const tenantId = tenantIdFromBatch(normalizedBatch);
+    return queryTenantDataPlaneBatch(
+      {
+        tenantId,
+        dataPlane: { workerScriptName: `ce-${tenantId.slice(2)}` }
+      },
+      { TENANT_DISPATCH: tenantDispatch },
+      normalizedBatch
+    );
+  }
+
   const config = platformConfig({ accountId, apiToken, dispatchNamespace });
   const database = safeDatabaseId(databaseId);
-  const normalizedBatch = normalizeD1Batch(batch);
   const result = await apiRequest(
     `/client/v4/accounts/${config.accountId}/d1/database/${encodeURIComponent(database)}/query`,
     {
@@ -209,22 +242,15 @@ export async function queryD1Batch(
 }
 
 export function tenantBootstrapWorkerSource() {
-  return `export default {
-  async fetch(request, env) {
-    const url = new URL(request.url);
-    if (url.pathname === '/api/health') {
-      return Response.json({ ok: true, service: 'catalog-engine-tenant', tenantId: env.TENANT_ID, database: env.CATALOG_DB ? 'bound' : 'unbound', status: 'provisioning' }, { headers: { 'cache-control': 'no-store' } });
-    }
-    return Response.json({ error: 'tenant_catalog_provisioning' }, { status: 503, headers: { 'cache-control': 'no-store' } });
-  }
-};\n`;
+  return tenantBootstrapWorkerSourceWithDataPlaneCommand();
 }
 
 export function namespacedTenantCatalogWorkerSource() {
   // Workers for Platforms disables caches.default for namespaced User Workers in
   // untrusted mode. Shadow the global Cache API so the shared runtime naturally
   // takes its no-cache path while preserving the stronger namespace isolation.
-  return `const caches = undefined;\n${tenantCatalogWorkerSource()}`;
+  const source = wrapTenantWorkerSourceWithDataPlaneCommand(tenantCatalogWorkerSource());
+  return `const caches = undefined;\n${source}`;
 }
 
 async function uploadTenantWorker(
