@@ -7,12 +7,13 @@ on:
       - ".github/workflows/cloudflare-auto-tenant-import-canary.yml"
       - "scripts/cloudflare-auto-tenant-import-canary.mjs"
       - "tests/tenant-import-auto-canary.test.mjs"
-  push:
-    branches: ["main"]
-    paths:
-      - ".github/workflows/cloudflare-auto-tenant-import-canary.yml"
-      - "scripts/cloudflare-auto-tenant-import-canary.mjs"
-      - "tests/tenant-import-auto-canary.test.mjs"
+      - "worker/ingestion/context.js"
+      - "worker/ingestion/scan-consumer.js"
+      - "worker/import-scan-entry.js"
+      - "worker/tenant-import-dispatcher.js"
+  workflow_run:
+    workflows: ["Deploy Catalog Engine application"]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -42,7 +43,11 @@ jobs:
         run: npm run quality
 
   canary:
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
@@ -64,26 +69,48 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Validate trusted Cloudflare credentials
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
-          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
-
       - name: Install dependencies
         run: npm ci
 
       - name: Quality gate before production canary
         run: npm run quality
 
-      - name: Assert automatic tenant discovery is ON
+      - name: Detect automatic tenant discovery state
+        id: automation
         shell: bash
         run: |
           set -euo pipefail
-          grep -Fq '"TENANT_IMPORT_AUTOMATION_ENABLED": "1"' wrangler.jsonc
+          AUTOMATION_VALUE="$(node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('wrangler.jsonc','utf8')); process.stdout.write(String(c.vars?.TENANT_IMPORT_AUTOMATION_ENABLED || ''));" )"
+          case "$AUTOMATION_VALUE" in
+            0)
+              echo "enabled=false" >> "$GITHUB_OUTPUT"
+              ;;
+            1)
+              echo "enabled=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Invalid tenant import automation setting: $AUTOMATION_VALUE"
+              exit 1
+              ;;
+          esac
+          echo "TENANT_IMPORT_AUTOMATION_ENABLED=$AUTOMATION_VALUE"
+
+      - name: Record intentionally disabled automatic canary
+        if: steps.automation.outputs.enabled == 'false'
+        shell: bash
+        run: |
+          echo "Automatic tenant import canary skipped because TENANT_IMPORT_AUTOMATION_ENABLED=0." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Validate trusted Cloudflare credentials
+        if: steps.automation.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
 
       - name: Prove scheduler-driven isolated tenant import with zero manual Queue messages
+        if: steps.automation.outputs.enabled == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -91,11 +118,11 @@ jobs:
           cat /tmp/auto-import-canary.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publish successful automatic canary evidence
-        if: ${{ success() }}
+        if: ${{ success() && steps.automation.outputs.enabled == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
+          SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         shell: bash
         run: |
@@ -111,11 +138,11 @@ jobs:
             "https://api.github.com/repos/$REPO/statuses/$SHA" -d @/tmp/status.json
 
       - name: Publish failed automatic canary evidence
-        if: ${{ failure() }}
+        if: ${{ failure() && steps.automation.outputs.enabled == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
+          SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         shell: bash
         run: |
