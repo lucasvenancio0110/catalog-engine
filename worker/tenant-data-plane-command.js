@@ -133,7 +133,7 @@ export async function handleTenantDataPlaneCommand(request, env) {
 }
 
 function commandRuntimeFactorySource() {
-  return `const TENANT_DATA_PLANE_COMMAND_VERSION=${TENANT_DATA_PLANE_COMMAND_VERSION};\nconst TENANT_DATA_PLANE_COMMAND_PATH=${JSON.stringify(TENANT_DATA_PLANE_COMMAND_PATH)};\nconst TENANT_ID_PATTERN=/^t_[a-f0-9]{20}$/;\nconst MAX_BODY_BYTES=${MAX_BODY_BYTES};\nconst MAX_BATCH_SIZE=${MAX_BATCH_SIZE};\nconst MAX_SQL_BYTES=${MAX_SQL_BYTES};\nconst MAX_PARAMS=${MAX_PARAMS};\nconst ALLOWED_SQL_PREFIX=/^(SELECT|INSERT|UPDATE|DELETE)\\b/i;\n${normalizeParam.toString()}\n${normalizeTenantDataPlaneBatch.toString()}\n${safeJsonError.toString()}\n${handleTenantDataPlaneCommand.toString()}\n`;
+  return `const TENANT_DATA_PLANE_COMMAND_VERSION=${TENANT_DATA_PLANE_COMMAND_VERSION};\nconst TENANT_DATA_PLANE_COMMAND_PATH=${JSON.stringify(TENANT_DATA_PLANE_COMMAND_PATH)};\nconst TENANT_ID_PATTERN=/^t_[a-f0-9]{20}$/;\nconst MAX_BODY_BYTES=${MAX_BODY_BYTES};\nconst MAX_BATCH_SIZE=${MAX_BATCH_SIZE};\nconst MAX_SQL_BYTES=${MAX_SQL_BYTES};\nconst MAX_PARAMS=${MAX_PARAMS};\nconst ALLOWED_SQL_PREFIX=/^(SELECT|INSERT|UPDATE|DELETE)\\b/i;\n${TenantDataPlaneCommandError.toString()}\n${normalizeParam.toString()}\n${normalizeTenantDataPlaneBatch.toString()}\n${safeJsonError.toString()}\n${handleTenantDataPlaneCommand.toString()}\n`;
 }
 
 export function wrapTenantWorkerSourceWithDataPlaneCommand(baseSource) {
