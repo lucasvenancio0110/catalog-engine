@@ -17,10 +17,11 @@ describe('trusted tenant Queue activation workflow', () => {
     expectPresent('secrets.CLOUDFLARE_ACCOUNT_ID');
   });
 
-  it('keeps automatic tenant discovery disabled during Queue consumer activation', () => {
-    expectPresent('Assert automatic tenant discovery remains OFF');
-    expectPresent('"TENANT_IMPORT_AUTOMATION_ENABLED": "0"');
-    expectPresent('Main Worker producer bindings are intentionally deferred to M5C-2.');
+  it('preserves the configured automation state instead of forcing OFF during consumer deployment', () => {
+    expectPresent('Validate tenant import automation setting');
+    expectPresent('TENANT_IMPORT_AUTOMATION_ENABLED');
+    expectPresent('test "$AUTOMATION_VALUE" = "0" -o "$AUTOMATION_VALUE" = "1"');
+    expectPresent('Automation state is owned by wrangler.jsonc and is not changed by this workflow.');
   });
 
   it('owns both primary Queues, both DLQs and both dedicated consumer deploys', () => {

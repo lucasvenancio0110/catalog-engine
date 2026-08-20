@@ -34,7 +34,8 @@ Post-audit milestones now implemented in the repository include:
 - PR #50 — ordinary application deployment separated from catalog business-data publication;
 - PR #51 — shared responsive/accessibility frontend foundation;
 - PR #52 — Lucide icon system, dependency hardening, Fuse removal and frontend bundle reporting;
-- M4 Provider Engine — source/provider-neutral source connection and isolated-ingestion boundary with Yupoo as the first adapter.
+- M4 Provider Engine — source/provider-neutral source connection and isolated-ingestion boundary with Yupoo as the first adapter;
+- M5 activation prerequisites — real Queue/DLQ resources, dedicated consumers, main producer bindings, manual one-tenant/two-tenant Queue ingestion, retry/DLQ recovery and read-only production preflight have been established while automatic discovery remained OFF.
 
 The audit intentionally did **not** prove a complete account-wide Cloudflare inventory. Only resources evidenced through repository configuration, deployment logs and controlled live tests are treated as confirmed here.
 
@@ -133,18 +134,23 @@ Durable code/state exists for:
 
 `scan -> details -> finalize -> classify -> verify`
 
-The scan/detail/finalize consumers now resolve the registered provider from tenant-private source state.
+The scan/detail/finalize consumers resolve the registered provider from tenant-private source state and write through the isolated tenant data-plane command/native D1 path.
 
-Production Cloudflare Queue resources/bindings are **not yet activated/proven end-to-end**. M5 owns:
+M5 production prerequisites already proven on trusted infrastructure include:
 
-- Queue creation/bindings;
-- producer/consumer activation;
-- concurrency/retry/backoff/DLQ policy;
-- recovery behavior;
-- real isolated one-tenant proof;
-- real simultaneous two-tenant separation proof.
+- real `catalog-engine-import-scan` and `catalog-engine-import-detail` Queues;
+- dedicated scan/detail DLQs;
+- exactly one dedicated consumer Worker on each primary Queue;
+- main Worker producer bindings for scan and detail/finalize dispatch;
+- conservative retry/concurrency/backoff policy;
+- one controlled isolated tenant import through real Queues;
+- simultaneous two-tenant import with cross-tenant isolation checks;
+- retry exhaustion -> DLQ -> repair -> replay recovery proof;
+- clean read-only production activation preflight while `TENANT_IMPORT_AUTOMATION_ENABLED=0`.
 
-Do not describe automatic customer Queue ingestion as production-ready before M5 evidence exists.
+The remaining M5 boundary is the deliberate automatic scheduler activation. The activation change sets `TENANT_IMPORT_AUTOMATION_ENABLED=1`, but M5 must remain open until trusted production evidence proves the five-minute cron discovers an eligible canary tenant itself, produces the initial scan message, completes the Queue-driven isolated import and returns all Queue/DLQ backlogs to a clean state without manually producing that initial message.
+
+Do not describe automatic customer Queue ingestion as production-ready until that final scheduler-driven canary proof exists.
 
 ## Cloudflare baseline proven previously
 
@@ -158,6 +164,8 @@ Repository/Actions evidence has proven use of:
 - tenant User Worker/data-plane provisioning flows;
 - runtime dispatch/isolation tests;
 - custom hostname/domain workflows;
+- tenant import scan/detail Queues and their DLQs;
+- dedicated Queue consumer Workers and main producer bindings;
 - application smoke paths;
 - isolated UI preview Worker/staging path.
 
@@ -305,7 +313,7 @@ Important remaining work includes:
 - independently verify production D1 migration parity;
 - formalize code/data backup, rollback and recovery runbooks;
 - govern retained smoke/test resources;
-- activate/prove Queue ingestion safely;
+- complete and retain evidence for the scheduler-driven M5 Queue activation canary;
 - add catastrophic sync-diff protection;
 - harden media redirect/timeout/byte limits;
 - add browser E2E/accessibility/performance validation;
@@ -318,7 +326,7 @@ Do not claim these as proven without new evidence:
 - complete Cloudflare account inventory across every Worker/Pages/KV/R2/Queue/Workflow/Durable Object/DNS resource;
 - exact live production D1 schema parity with every repository migration;
 - full Core Web Vitals/accessibility quality in real browsers;
-- production Queue ingestion for customer tenants;
+- production Queue ingestion for customer tenants after automatic scheduler activation;
 - production billing integration;
 - universal CEI domain learning/research;
 - a second production source provider.
@@ -329,9 +337,9 @@ Completed/established post-audit path:
 
 `M0 truth/governance -> M1 safety foundations -> M2 code/data separation -> M3 Design Foundation -> M4 Provider Engine`
 
-Next execution milestone:
+Current execution milestone:
 
-`M5 Tenant Import / Cloudflare Queue activation`
+`M5 Tenant Import / Cloudflare Queue activation — final scheduler-driven canary pending`
 
 Then:
 

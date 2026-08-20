@@ -57,11 +57,13 @@ jobs:
       - name: Quality gate before production mutation
         run: npm run quality
 
-      - name: Assert automatic tenant discovery remains OFF
+      - name: Validate tenant import automation setting
         shell: bash
         run: |
           set -euo pipefail
-          grep -Fq '"TENANT_IMPORT_AUTOMATION_ENABLED": "0"' wrangler.jsonc
+          AUTOMATION_VALUE="$(node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('wrangler.jsonc','utf8')); process.stdout.write(String(c.vars?.TENANT_IMPORT_AUTOMATION_ENABLED || ''));" )"
+          test "$AUTOMATION_VALUE" = "0" -o "$AUTOMATION_VALUE" = "1" || { echo "Invalid tenant import automation setting"; exit 1; }
+          echo "TENANT_IMPORT_AUTOMATION_ENABLED=$AUTOMATION_VALUE"
 
       - name: Ensure primary and dead-letter Queues exist
         shell: bash
@@ -104,12 +106,11 @@ jobs:
           grep -Fq 'catalog-engine-import-scan' /tmp/scan-consumers.json || { echo "Scan consumer not attached"; exit 1; }
           grep -Fq 'catalog-engine-import-detail' /tmp/detail-consumers.json || { echo "Detail consumer not attached"; exit 1; }
 
-      - name: Activation checkpoint
+      - name: Consumer deployment checkpoint
         shell: bash
         run: |
-          echo "Tenant import Queue consumers are deployed."
-          echo "Automatic tenant discovery remains disabled by TENANT_IMPORT_AUTOMATION_ENABLED=0."
-          echo "Main Worker producer bindings are intentionally deferred to M5C-2."
+          echo "Tenant import Queue consumers are deployed and verified."
+          echo "Automation state is owned by wrangler.jsonc and is not changed by this workflow."
 
       - name: Publish successful activation evidence
         if: ${{ success() }}
@@ -124,7 +125,7 @@ jobs:
           jq -n \
             --arg state success \
             --arg context "$STATUS_CONTEXT" \
-            --arg description "4 Queues + 2 consumers verified; automation OFF" \
+            --arg description "4 Queues + 2 consumers verified; automation setting preserved" \
             --arg target_url "$RUN_URL" \
             '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
           curl --fail --silent --show-error \
@@ -148,7 +149,7 @@ jobs:
           jq -n \
             --arg state failure \
             --arg context "$STATUS_CONTEXT" \
-            --arg description "Queue consumer activation failed; automation remains OFF" \
+            --arg description "Queue consumer deployment failed; inspect automation state before retry" \
             --arg target_url "$RUN_URL" \
             '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
           curl --fail --silent --show-error \
