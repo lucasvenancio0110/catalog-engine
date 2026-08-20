@@ -1,0 +1,16 @@
+{
+  "status": "failed",
+  "previewUrl": "https://m3-ui-catalog-engine.lucassantanals0110.workers.dev",
+  "storefrontUrl": "https://m3-ui-catalog-engine.lucassantanals0110.workers.dev/",
+  "appUrl": "https://m3-ui-catalog-engine.lucassantanals0110.workers.dev/app.html",
+  "commit": "3e8fa4aa4110f90e5850137940c4c71944045d08",
+  "catalogProducts": 0,
+  "outcomes": {
+    "credentials": "success",
+    "validate": "success",
+    "upload": "success",
+    "smoke": "failure"
+  },
+  "checkedAt": "2026-08-20T02:14:44.367Z",
+  "note": "Cloudflare Worker version preview only; production traffic was not changed."
+}
