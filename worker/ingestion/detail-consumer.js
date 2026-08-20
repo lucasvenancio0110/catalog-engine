@@ -1,15 +1,16 @@
+import {
+  assertCatalogProviderDetailResult
+} from '../../src/catalog-provider/provider-contract.js';
 import { FACETS, LEAGUES, TEAMS, normalizeCatalogProduct } from '../../src/domain/catalog-normalization.js';
 import { queryD1Batch } from '../cloudflare-platform.js';
-import { sha256Hex } from '../runtime-identity.js';
 import { parseTenantImportMessage } from '../tenant-import-queue.js';
 import {
   TenantImportContextError,
   ingestionPlatformConfig,
   loadTenantImportContext
 } from './context.js';
-import { fetchYupooAlbumDetailWorker, mediaId } from './yupoo-detail.js';
+import { resolveCatalogIngestionProvider } from './providers/index.js';
 
-const PUBLIC_ID_NAMESPACE = 'catalog-engine:public-id:v1';
 const MAX_DETAIL_ATTEMPTS = 4;
 const DETAIL_LEASE_MINUTES = 5;
 const RETRY_DELAY_SECONDS = 120;
@@ -18,15 +19,9 @@ const UNCATEGORIZED_SOURCE_ID = '__catalog_engine_uncategorized__';
 
 function safeDetailError(error) {
   if (error instanceof TenantImportContextError) return error.code;
-  const message = String(error?.message || error);
-  if (/^supplier_[a-z0-9_]+$/i.test(message)) return message.slice(0, 120);
-  if (/^tenant_[a-z0-9_]+$/i.test(message)) return message.slice(0, 120);
+  const message = String(error?.code || error?.message || error);
+  if (/^(supplier|tenant|catalog_provider)_[a-z0-9_]+$/i.test(message)) return message.slice(0, 120);
   return 'tenant_import_detail_failed';
-}
-
-async function publicCategoryId(sourceId) {
-  const digest = await sha256Hex(`${PUBLIC_ID_NAMESPACE}|yupoo|${String(sourceId)}`);
-  return `c_${digest.slice(0, 20)}`;
 }
 
 async function loadAlbumEvidence(context, platform, albumSourceId, fetchImpl) {
@@ -128,7 +123,7 @@ async function claimAlbum(context, platform, albumSourceId, fetchImpl) {
   return { outcome: 'busy', attemptCount: Number(row.attempt_count || 0) };
 }
 
-async function categoryDescriptors(evidence) {
+async function categoryDescriptors(evidence, provider) {
   const path = evidence.categoryPath.length
     ? evidence.categoryPath
     : [{ sourceId: UNCATEGORIZED_SOURCE_ID, name: 'Outros', parentSourceId: null, depth: 0 }];
@@ -137,9 +132,10 @@ async function categoryDescriptors(evidence) {
     const category = path[index];
     descriptors.push({
       sourceId: category.sourceId,
-      publicId: await publicCategoryId(category.sourceId),
+      publicId: await provider.publicCategoryId(category.sourceId),
       name: category.name || 'Outros',
-      parentPublicId: index > 0 ? await publicCategoryId(path[index - 1].sourceId) : null,
+      parentPublicId:
+        index > 0 ? await provider.publicCategoryId(path[index - 1].sourceId) : null,
       depth: Math.max(0, Number(category.depth ?? index)),
       sortOrder: index
     });
@@ -151,11 +147,11 @@ function entityDefinitionById(collection, id) {
   return id ? collection.find((entry) => entry.id === id) || null : null;
 }
 
-async function mediaDescriptors(detail) {
+async function mediaDescriptors(detail, provider) {
   const output = [];
   for (const image of detail.images || []) {
     output.push({
-      id: await mediaId(image.sourceUrl),
+      id: await provider.mediaId(image.sourceUrl),
       sourceUrl: image.sourceUrl,
       displaySourceUrl: image.displaySourceUrl || image.sourceUrl,
       thumbnailSourceUrl: image.thumbnailSourceUrl || image.displaySourceUrl || image.sourceUrl
@@ -164,8 +160,15 @@ async function mediaDescriptors(detail) {
   return output;
 }
 
-export async function buildTenantProductWriteBatch({ context, evidence, detail, claimToken }) {
-  const categories = await categoryDescriptors(evidence);
+export async function buildTenantProductWriteBatch({
+  context,
+  evidence,
+  detail,
+  claimToken,
+  provider = null
+}) {
+  const activeProvider = provider || resolveCatalogIngestionProvider(context.privateSource?.provider || '');
+  const categories = await categoryDescriptors(evidence, activeProvider);
   const leaf = categories.at(-1);
   const categoryPathNames = categories.map((category) => category.name);
   const normalized = normalizeCatalogProduct(
@@ -178,7 +181,7 @@ export async function buildTenantProductWriteBatch({ context, evidence, detail, 
     },
     categoryPathNames
   );
-  const media = await mediaDescriptors(detail);
+  const media = await mediaDescriptors(detail, activeProvider);
   const league = entityDefinitionById(LEAGUES, normalized.league?.id);
   const team = entityDefinitionById(TEAMS, normalized.team?.id);
   const facets = normalized.facets
@@ -268,13 +271,15 @@ export async function buildTenantProductWriteBatch({ context, evidence, detail, 
       sql: `INSERT INTO media_sources
               (media_id, provider, source_url, display_source_url, thumbnail_source_url,
                referer_url, active, updated_at)
-            VALUES (?1, 'yupoo', ?2, ?3, ?4, ?5, 1, CURRENT_TIMESTAMP)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1, CURRENT_TIMESTAMP)
             ON CONFLICT(media_id) DO UPDATE SET
+              provider=excluded.provider,
               source_url=excluded.source_url, display_source_url=excluded.display_source_url,
               thumbnail_source_url=excluded.thumbnail_source_url, referer_url=excluded.referer_url,
               active=1, updated_at=CURRENT_TIMESTAMP`,
       params: [
         item.id,
+        activeProvider.key,
         item.sourceUrl,
         item.displaySourceUrl,
         item.thumbnailSourceUrl,
@@ -460,18 +465,27 @@ export async function handleTenantImportDetailMessage(
   try {
     const context = await loadTenantImportContext(env.CATALOG_DB, message);
     if (context.phase !== 'details') return { outcome: 'busy', delaySeconds: 60 };
+    const provider = resolveCatalogIngestionProvider(context.privateSource.provider);
     const platform = ingestionPlatformConfig(env, context.dataPlane.dispatchNamespace);
     const evidence = await loadAlbumEvidence(context, platform, message.albumSourceId, fetchImpl);
     if (!evidence) return { outcome: 'skipped', reason: 'album_not_found' };
     const claim = await claimAlbum(context, platform, evidence.albumSourceId, fetchImpl);
-    if (claim.outcome === 'complete') return { outcome: 'success', alreadyComplete: true, state: claim.state };
+    if (claim.outcome === 'complete') {
+      return { outcome: 'success', alreadyComplete: true, state: claim.state };
+    }
     if (claim.outcome !== 'claimed') return { outcome: 'busy', delaySeconds: 60 };
 
     let detail;
     try {
-      detail = await fetchYupooAlbumDetailWorker(evidence.sourceUrl, context.privateSource.url, {
-        fetchImpl
-      });
+      detail = assertCatalogProviderDetailResult(
+        await provider.fetchDetail(
+          {
+            itemUrl: evidence.sourceUrl,
+            sourceUrl: context.privateSource.url
+          },
+          { fetchImpl }
+        )
+      );
     } catch (error) {
       return markAttemptFailure(
         context,
@@ -507,7 +521,8 @@ export async function handleTenantImportDetailMessage(
       context,
       evidence,
       detail,
-      claimToken: claim.token
+      claimToken: claim.token,
+      provider
     });
     await queryD1Batch(
       { ...platform, databaseId: context.dataPlane.databaseId, batch: write.batch },
