@@ -25,14 +25,17 @@ describe('real Cloudflare Queue tenant import smoke', () => {
     expect(workflow.slice(smokeStart)).toContain('secrets.CLOUDFLARE_API_TOKEN');
   });
 
-  it('requires automatic discovery OFF and proves one tenant before two simultaneous tenants', () => {
+  it('requires automatic discovery OFF and mirrors the real queued import state', () => {
     expectWorkflow('Assert automatic tenant discovery is still OFF');
     expectWorkflow('"TENANT_IMPORT_AUTOMATION_ENABLED": "0"');
     expectWorkflow('Prove one tenant then simultaneous two-tenant Queue ingestion');
     expectScript("TENANT_IMPORT_AUTOMATION_ENABLED || '') !== '0'");
-    expectScript('const single = await runSingle(scopes[0], queues);');
-    expectScript('const pair = await runPair(scopes[0], scopes[1], queues);');
-    expectScript('await crossTenantIsolation');
+    expectScript("VALUES (?1, ?2, ?3, 'initial', 'queued', 'scan', 0");
+    expectScript("const one = await setupFixture('one', scopes[0]);");
+    expectScript("const twoA = await setupFixture('two-a', scopes[0]);");
+    expectScript("const twoB = await setupFixture('two-b', scopes[1]);");
+    expectScript('await Promise.all([');
+    expectScript('await proveCrossTenantIsolation');
   });
 
   it('uses only opaque Queue messages and disposable isolated tenant resources', () => {
@@ -46,12 +49,14 @@ describe('real Cloudflare Queue tenant import smoke', () => {
     expectScript("method: 'DELETE', allowNotFound: true");
   });
 
-  it('starts only with clean Queues and contains failure containment', () => {
-    expectScript('assertQueuesInitiallyClean');
+  it('starts only with clean Queues and purges owned smoke messages before fixture cleanup on failure', () => {
+    expectScript('assertQueuesClean');
     expectScript('waitQueuesClean');
-    expectScript('purgeSmokeQueues');
+    expectScript('purgeQueues');
     expectScript('delete_messages_permanently: true');
     expectScript('queue_smoke_queue_not_empty');
+    expectScript('if (failed) await purgeQueues(queues);');
+    expectScript('await cleanupAllFixtures();');
   });
 
   it('never reports private supplier URLs in the sanitized success summary', () => {
