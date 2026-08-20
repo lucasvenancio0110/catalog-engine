@@ -6,10 +6,14 @@ async function readJson(path) {
 }
 
 describe('tenant import queue activation configuration', () => {
-  it('keeps the production scheduler explicitly disabled before producer activation', async () => {
+  it('keeps the production scheduler explicitly disabled while main Queue producers are connected', async () => {
     const main = await readJson('wrangler.jsonc');
     expect(main.vars?.TENANT_IMPORT_AUTOMATION_ENABLED).toBe('0');
-    expect(main.queues?.producers || []).toEqual([]);
+    expect(main.queues?.producers).toEqual([
+      { binding: 'TENANT_IMPORT_QUEUE', queue: 'catalog-engine-import-scan' },
+      { binding: 'TENANT_IMPORT_DETAIL_QUEUE', queue: 'catalog-engine-import-detail' }
+    ]);
+    expect(main.queues?.consumers || []).toEqual([]);
   });
 
   it('defines a serialized scan consumer with a DLQ and bounded retries', async () => {

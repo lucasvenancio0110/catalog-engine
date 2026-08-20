@@ -36,5 +36,17 @@
       "binding": "TENANT_DISPATCH",
       "namespace": "catalog-engine-production"
     }
-  ]
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "TENANT_IMPORT_QUEUE",
+        "queue": "catalog-engine-import-scan"
+      },
+      {
+        "binding": "TENANT_IMPORT_DETAIL_QUEUE",
+        "queue": "catalog-engine-import-detail"
+      }
+    ]
+  }
 }
