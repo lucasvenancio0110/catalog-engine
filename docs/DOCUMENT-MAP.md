@@ -74,7 +74,7 @@ Required:
 Additionally:
 
 - billing screens → `docs/BILLING-PAYMENTS.md`;
-- source onboarding → `docs/TENANT-IMPORT-PIPELINE.md` and source-specific docs;
+- source onboarding → `docs/PROVIDER-ENGINE.md`, `docs/TENANT-IMPORT-PIPELINE.md` and source-specific docs;
 - catalog review → `docs/CEI.md` and `docs/TENANT-CLASSIFY-VERIFY.md`;
 - domains → `docs/CUSTOM-DOMAINS.md` and `docs/TENANT-PUBLISH.md`.
 
@@ -95,6 +95,7 @@ Required:
 - `docs/CUSTOMER-PORTAL.md`
 - `docs/SAAS-ARCHITECTURE.md`
 - `docs/TENANT-DATA-PLANES.md`
+- `docs/PROVIDER-ENGINE.md` when source connection/provider selection changes
 - `docs/TENANT-IMPORT-PIPELINE.md`
 - `docs/TENANT-PUBLISH.md`
 
@@ -115,23 +116,25 @@ Required:
 
 Historical activation/readiness documents may explain how a milestone was reached but must not be used as the source of current production truth.
 
-## Source connectors / importers
+## Source connectors / importers / Provider Engine
 
 Required:
 
+- `docs/PROVIDER-ENGINE.md`
 - `docs/CEI.md` for the source-neutral normalization boundary
 - `docs/TENANT-IMPORT-PIPELINE.md`
 - `docs/TENANT-IMPORT-SCAN.md`
 - `docs/TENANT-IMPORT-DETAILS.md`
 - `AGENTS.md` scraper/synchronization rules
 
-Source-specific knowledge must not become public taxonomy truth.
+Source-specific knowledge must not become public taxonomy truth. Central ingestion/CEI code must consume provider contracts rather than directly importing a supplier-specific parser.
 
 ## Synchronization
 
 Required:
 
 - `AGENTS.md` synchronization rules
+- `docs/PROVIDER-ENGINE.md` when source evidence/provider behavior changes
 - `docs/TENANT-IMPORT-PIPELINE.md`
 - relevant scan/detail/import documents
 - `docs/CEI.md` if sync triggers reclassification/learning
