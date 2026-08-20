@@ -5,7 +5,6 @@ import {
   queryD1Batch,
   uploadTenantCatalogWorker
 } from '../worker/cloudflare-platform.js';
-import { tenantDataPlaneCurrentBatch } from '../worker/tenant-data-plane-schema-v3.js';
 import { yupooIngestionProvider } from '../worker/ingestion/providers/yupoo.js';
 import {
   assertPublicSafeImportMessage,
@@ -13,6 +12,7 @@ import {
   buildTenantImportScanMessage,
   initialTenantImportId
 } from '../worker/tenant-import-queue.js';
+import { tenantDataPlaneCurrentBatch } from '../worker/tenant-data-plane-schema-v3.js';
 
 const API_ORIGIN = 'https://api.cloudflare.com';
 const ACCOUNT_ID = String(process.env.CLOUDFLARE_ACCOUNT_ID || '').trim();
@@ -24,15 +24,15 @@ const MAX_SMOKE_PRODUCTS = Math.max(
   1,
   Math.min(12, Number.parseInt(process.env.QUEUE_SMOKE_MAX_PRODUCTS || '8', 10) || 8)
 );
+const DEFAULT_TENANT_ID = 't_00000000000000000001';
+const DEFAULT_SOURCE_KEY = 'primary';
 const POLL_MS = 5_000;
 const SCAN_TIMEOUT_MS = 4 * 60_000;
 const DETAIL_TIMEOUT_MS = 12 * 60_000;
 const FINALIZE_TIMEOUT_MS = 3 * 60_000;
-const DEFAULT_TENANT_ID = 't_00000000000000000001';
-const DEFAULT_SOURCE_KEY = 'primary';
-const PRIMARY_QUEUE_NAMES = ['catalog-engine-import-scan', 'catalog-engine-import-detail'];
-const ALL_QUEUE_NAMES = [
-  ...PRIMARY_QUEUE_NAMES,
+const QUEUE_NAMES = [
+  'catalog-engine-import-scan',
+  'catalog-engine-import-detail',
   'catalog-engine-import-scan-dlq',
   'catalog-engine-import-detail-dlq'
 ];
@@ -54,28 +54,10 @@ if (String(wrangler.vars?.TENANT_IMPORT_AUTOMATION_ENABLED || '') !== '0') {
   throw new Error('queue_smoke_requires_automation_off');
 }
 
+const activeFixtures = new Set();
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function runKey() {
-  return `${process.env.GITHUB_RUN_ID || Date.now()}-${process.env.GITHUB_RUN_ATTEMPT || '1'}`
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '')
-    .slice(-18);
-}
-
-function fixtureIdentity(label) {
-  const digest = createHash('sha256').update(`queue-smoke:${runKey()}:${label}`).digest('hex');
-  const suffix = digest.slice(0, 20);
-  return {
-    label,
-    tenantId: `t_${suffix}`,
-    sourceKey: `smoke-${label}`.slice(0, 40),
-    workerScriptName: `ce-${suffix}`,
-    databaseName: `ceq-${suffix}`,
-    dataPlaneKey: `queue-smoke-${suffix}`
-  };
 }
 
 function platformConfig() {
@@ -83,6 +65,19 @@ function platformConfig() {
     accountId: ACCOUNT_ID,
     apiToken: API_TOKEN,
     dispatchNamespace: DISPATCH_NAMESPACE
+  };
+}
+
+function fixtureIdentity(label) {
+  const seed = `${process.env.GITHUB_RUN_ID || Date.now()}:${process.env.GITHUB_RUN_ATTEMPT || '1'}:${label}`;
+  const suffix = createHash('sha256').update(`queue-smoke:${seed}`).digest('hex').slice(0, 20);
+  return {
+    label,
+    tenantId: `t_${suffix}`,
+    sourceKey: `smoke-${label}`.slice(0, 40),
+    workerScriptName: `ce-${suffix}`,
+    databaseName: `ceq-${suffix}`,
+    dataPlaneKey: `queue-smoke-${suffix}`
   };
 }
 
@@ -105,81 +100,65 @@ async function cloudflareRequest(path, { method = 'GET', jsonBody = null, allowN
   if (allowNotFound && response.status === 404) return null;
   const payload = await response.json().catch(() => null);
   if (!response.ok || payload?.success !== true) {
-    const code = Number.isFinite(Number(payload?.errors?.[0]?.code))
-      ? String(payload.errors[0].code)
-      : String(response.status || 'unknown');
+    const providerCode = Number(payload?.errors?.[0]?.code);
+    const code = Number.isFinite(providerCode) ? String(providerCode) : String(response.status || 'unknown');
     throw new Error(`queue_smoke_cloudflare_${code}`);
   }
   return payload.result ?? null;
 }
 
 async function controlBatch(batch) {
-  return queryD1Batch({
-    ...platformConfig(),
-    databaseId: CONTROL_DB_ID,
-    batch
-  });
+  return queryD1Batch({ ...platformConfig(), databaseId: CONTROL_DB_ID, batch });
 }
 
 async function tenantBatch(databaseId, batch) {
-  return queryD1Batch({
-    ...platformConfig(),
-    databaseId,
-    batch
-  });
+  return queryD1Batch({ ...platformConfig(), databaseId, batch });
 }
 
-async function queueMap() {
+async function loadQueues() {
   const result = await cloudflareRequest(`/client/v4/accounts/${ACCOUNT_ID}/queues?per_page=100`);
   const rows = Array.isArray(result) ? result : [];
-  const map = new Map();
+  const queues = new Map();
   for (const row of rows) {
-    const name = String(row?.queue_name || row?.queue || row?.name || '').trim();
-    const id = String(row?.queue_id || row?.queue_id || row?.id || '').trim();
-    if (name && id) map.set(name, id);
+    const name = String(row?.queue_name || row?.name || '').trim();
+    const id = String(row?.queue_id || row?.id || '').trim();
+    if (name && id) queues.set(name, id);
   }
-  for (const name of ALL_QUEUE_NAMES) {
-    if (!map.has(name)) throw new Error('queue_smoke_queue_missing');
+  for (const name of QUEUE_NAMES) {
+    if (!queues.has(name)) throw new Error('queue_smoke_queue_missing');
   }
-  return map;
+  return queues;
 }
 
-async function queueMetrics(queueId) {
+async function queueBacklog(queueId) {
   const result = await cloudflareRequest(
     `/client/v4/accounts/${ACCOUNT_ID}/queues/${encodeURIComponent(queueId)}/metrics`
   );
-  const candidate = result?.metrics || result || {};
-  return {
-    backlogCount: Number(candidate.backlog_count || candidate.backlogCount || 0),
-    backlogBytes: Number(candidate.backlog_bytes || candidate.backlogBytes || 0)
-  };
+  const metrics = result?.metrics || result || {};
+  return Number(metrics.backlog_count || metrics.backlogCount || 0);
 }
 
-async function assertQueuesInitiallyClean(queues) {
-  for (const name of ALL_QUEUE_NAMES) {
-    const metrics = await queueMetrics(queues.get(name));
-    if (metrics.backlogCount !== 0 || metrics.backlogBytes !== 0) {
-      throw new Error('queue_smoke_queue_not_empty');
-    }
+async function assertQueuesClean(queues) {
+  for (const name of QUEUE_NAMES) {
+    if ((await queueBacklog(queues.get(name))) !== 0) throw new Error('queue_smoke_queue_not_empty');
   }
 }
 
 async function waitQueuesClean(queues, timeoutMs = 120_000) {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
-    let clean = true;
-    for (const name of ALL_QUEUE_NAMES) {
-      const metrics = await queueMetrics(queues.get(name));
-      if (metrics.backlogCount !== 0 || metrics.backlogBytes !== 0) clean = false;
+    let dirty = false;
+    for (const name of QUEUE_NAMES) {
+      if ((await queueBacklog(queues.get(name))) !== 0) dirty = true;
     }
-    if (clean) return;
+    if (!dirty) return;
     await sleep(POLL_MS);
   }
   throw new Error('queue_smoke_queue_did_not_drain');
 }
 
-async function purgeSmokeQueues(queues) {
-  for (const name of ALL_QUEUE_NAMES) {
+async function purgeQueues(queues) {
+  for (const name of QUEUE_NAMES) {
     await cloudflareRequest(
       `/client/v4/accounts/${ACCOUNT_ID}/queues/${encodeURIComponent(queues.get(name))}/purge`,
       { method: 'POST', jsonBody: { delete_messages_permanently: true } }
@@ -187,14 +166,13 @@ async function purgeSmokeQueues(queues) {
   }
 }
 
-async function pushQueueMessage(queueId, message) {
-  const safe = assertPublicSafeImportMessage(message);
+async function pushMessage(queueId, message) {
   await cloudflareRequest(
     `/client/v4/accounts/${ACCOUNT_ID}/queues/${encodeURIComponent(queueId)}/messages`,
     {
       method: 'POST',
       jsonBody: {
-        body: safe,
+        body: assertPublicSafeImportMessage(message),
         content_type: 'json',
         delay_seconds: 0
       }
@@ -202,7 +180,7 @@ async function pushQueueMessage(queueId, message) {
   );
 }
 
-async function discoverSmallSourceScopes(minimum = 2) {
+async function discoverSourceScopes() {
   const result = await controlBatch([
     {
       sql: `SELECT source_url
@@ -224,10 +202,9 @@ async function discoverSmallSourceScopes(minimum = 2) {
     }
   ]);
 
-  const rootValue = String(result[0]?.results?.[0]?.source_url || '').trim();
   let root;
   try {
-    root = new URL(rootValue);
+    root = new URL(String(result[0]?.results?.[0]?.source_url || '').trim());
   } catch {
     throw new Error('queue_smoke_private_source_unavailable');
   }
@@ -235,13 +212,13 @@ async function discoverSmallSourceScopes(minimum = 2) {
     throw new Error('queue_smoke_private_source_invalid');
   }
 
-  const candidates = (result[1]?.results || [])
+  const categoryIds = (result[1]?.results || [])
     .map((row) => String(row.source_category_id || '').trim())
     .filter((value) => /^\d+$/.test(value));
-  const selected = [];
-  const occupiedAlbumIds = new Set();
+  const scopes = [];
+  const occupied = new Set();
 
-  for (const categoryId of candidates) {
+  for (const categoryId of categoryIds) {
     const candidate = new URL(`/categories/${categoryId}`, root.origin);
     candidate.searchParams.set('isSubCate', 'true');
     let scan;
@@ -255,27 +232,27 @@ async function discoverSmallSourceScopes(minimum = 2) {
       continue;
     }
     if (!scan?.complete || scan.items.length < 1 || scan.items.length > MAX_SMOKE_PRODUCTS) continue;
-    const ids = new Set(scan.items.map((item) => String(item.albumSourceId)));
-    if ([...ids].some((id) => occupiedAlbumIds.has(id))) continue;
-    selected.push({ sourceUrl: candidate.href, expectedItems: scan.items.length, albumIds: ids });
-    for (const id of ids) occupiedAlbumIds.add(id);
-    if (selected.length >= minimum) break;
+    const ids = scan.items.map((item) => String(item.albumSourceId));
+    if (ids.some((id) => occupied.has(id))) continue;
+    scopes.push({ sourceUrl: candidate.href, expectedItems: scan.items.length });
+    for (const id of ids) occupied.add(id);
+    if (scopes.length === 2) break;
   }
 
-  if (selected.length < minimum) throw new Error('queue_smoke_small_source_scope_not_found');
-  return selected;
+  if (scopes.length !== 2) throw new Error('queue_smoke_small_source_scope_not_found');
+  return scopes;
 }
 
-async function setupFixture(label, source) {
+async function setupFixture(label, scope) {
   const fixture = {
     ...fixtureIdentity(label),
-    sourceUrl: source.sourceUrl,
-    expectedItems: source.expectedItems,
+    sourceUrl: scope.sourceUrl,
     databaseId: null,
     workerCreated: false,
     controlCreated: false,
     importId: null
   };
+  activeFixtures.add(fixture);
 
   const database = await createD1Database({
     ...platformConfig(),
@@ -283,16 +260,18 @@ async function setupFixture(label, source) {
   });
   fixture.databaseId = database.databaseId;
 
-  const sourceConfig = {
-    provider: 'yupoo',
-    sourceKey: fixture.sourceKey,
-    sourceUrl: fixture.sourceUrl,
-    syncStrategy: 'incremental',
-    removalMissThreshold: 3
-  };
   await tenantBatch(
     fixture.databaseId,
-    tenantDataPlaneCurrentBatch({ tenantId: fixture.tenantId, source: sourceConfig })
+    tenantDataPlaneCurrentBatch({
+      tenantId: fixture.tenantId,
+      source: {
+        provider: 'yupoo',
+        sourceKey: fixture.sourceKey,
+        sourceUrl: fixture.sourceUrl,
+        syncStrategy: 'incremental',
+        removalMissThreshold: 3
+      }
+    })
   );
 
   const worker = await uploadTenantCatalogWorker({
@@ -349,7 +328,7 @@ async function setupFixture(label, source) {
       sql: `INSERT INTO tenant_import_jobs
               (import_id, tenant_id, source_key, mode, status, phase, attempt_count,
                next_attempt_at, created_at, updated_at)
-            VALUES (?1, ?2, ?3, 'initial', 'pending', 'scan', 0,
+            VALUES (?1, ?2, ?3, 'initial', 'queued', 'scan', 0,
                     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
       params: [fixture.importId, fixture.tenantId, fixture.sourceKey]
     }
@@ -358,11 +337,10 @@ async function setupFixture(label, source) {
   return fixture;
 }
 
-async function readControlJob(fixture) {
+async function controlJob(fixture) {
   const result = await controlBatch([
     {
       sql: `SELECT status, phase, discovered_count, detail_enqueue_cursor, queued_detail_count,
-                   completed_detail_count, failed_detail_count, deferred_detail_count,
                    published_product_count, last_error_code
               FROM tenant_import_jobs
              WHERE import_id=?1 AND tenant_id=?2 AND source_key=?3
@@ -373,12 +351,18 @@ async function readControlJob(fixture) {
   return result[0]?.results?.[0] || null;
 }
 
-async function waitForScanFanout(fixture) {
+async function waitScan(fixture) {
   const started = Date.now();
   while (Date.now() - started < SCAN_TIMEOUT_MS) {
-    const row = await readControlJob(fixture);
+    const row = await controlJob(fixture);
     if (!row) throw new Error('queue_smoke_import_job_missing');
-    if (row.status === 'failed') throw new Error('queue_smoke_scan_failed');
+    if (row.status === 'failed') {
+      const code = String(row.last_error_code || 'queue_smoke_scan_failed');
+      if (/^(tenant|supplier|catalog_provider)_[a-z0-9_]+$/i.test(code)) {
+        throw new Error(`queue_smoke_scan_${code}`);
+      }
+      throw new Error('queue_smoke_scan_failed');
+    }
     const discovered = Number(row.discovered_count || 0);
     const queued = Number(row.queued_detail_count || 0);
     const cursor = Number(row.detail_enqueue_cursor || 0);
@@ -391,25 +375,20 @@ async function waitForScanFanout(fixture) {
   throw new Error('queue_smoke_scan_timeout');
 }
 
-async function detailState(fixture) {
-  const result = await tenantBatch(fixture.databaseId, [
-    {
-      sql: `SELECT state, COUNT(*) AS total
-              FROM supplier_album_detail_state
-             WHERE tenant_id=?1 AND source_key=?2 AND import_id=?3
-             GROUP BY state`,
-      params: [fixture.tenantId, fixture.sourceKey, fixture.importId]
-    }
-  ]);
-  const counts = {};
-  for (const row of result[0]?.results || []) counts[row.state] = Number(row.total || 0);
-  return counts;
-}
-
-async function waitForDetails(fixture, discovered) {
+async function waitDetails(fixture, discovered) {
   const started = Date.now();
   while (Date.now() - started < DETAIL_TIMEOUT_MS) {
-    const counts = await detailState(fixture);
+    const result = await tenantBatch(fixture.databaseId, [
+      {
+        sql: `SELECT state, COUNT(*) AS total
+                FROM supplier_album_detail_state
+               WHERE tenant_id=?1 AND source_key=?2 AND import_id=?3
+               GROUP BY state`,
+        params: [fixture.tenantId, fixture.sourceKey, fixture.importId]
+      }
+    ]);
+    const counts = {};
+    for (const row of result[0]?.results || []) counts[row.state] = Number(row.total || 0);
     const terminal = Number(counts.success || 0) + Number(counts.skipped || 0) + Number(counts.deferred || 0);
     if (terminal === discovered) return counts;
     if (terminal > discovered) throw new Error('queue_smoke_detail_count_invalid');
@@ -418,10 +397,10 @@ async function waitForDetails(fixture, discovered) {
   throw new Error('queue_smoke_detail_timeout');
 }
 
-async function waitForFinalize(fixture) {
+async function waitFinalize(fixture) {
   const started = Date.now();
   while (Date.now() - started < FINALIZE_TIMEOUT_MS) {
-    const row = await readControlJob(fixture);
+    const row = await controlJob(fixture);
     if (!row) throw new Error('queue_smoke_import_job_missing');
     if (row.status === 'success' && row.phase === 'complete') return row;
     if (row.status === 'failed') throw new Error('queue_smoke_finalize_failed');
@@ -430,7 +409,7 @@ async function waitForFinalize(fixture) {
   throw new Error('queue_smoke_finalize_timeout');
 }
 
-async function verifyTenantCatalog(fixture) {
+async function verifyCatalog(fixture) {
   const result = await tenantBatch(fixture.databaseId, [
     { sql: 'SELECT COUNT(*) AS total FROM catalog_products', params: [] },
     { sql: 'SELECT COUNT(*) AS total FROM media_sources', params: [] },
@@ -445,8 +424,8 @@ async function verifyTenantCatalog(fixture) {
                 OR lower(description) LIKE '%https://%'`,
       params: []
     },
-    { sql: 'SELECT product_id FROM catalog_products ORDER BY product_id ASC LIMIT 1', params: [] },
-    { sql: 'SELECT media_id FROM media_sources ORDER BY media_id ASC LIMIT 1', params: [] }
+    { sql: 'SELECT product_id FROM catalog_products ORDER BY product_id LIMIT 1', params: [] },
+    { sql: 'SELECT media_id FROM media_sources ORDER BY media_id LIMIT 1', params: [] }
   ]);
   const products = Number(result[0]?.results?.[0]?.total || 0);
   const media = Number(result[1]?.results?.[0]?.total || 0);
@@ -459,7 +438,30 @@ async function verifyTenantCatalog(fixture) {
   return { products, media, productId, mediaId };
 }
 
-async function crossTenantIsolation(a, aResult, b, bResult) {
+async function executeFixture(fixture, queues) {
+  const scan = await buildTenantImportScanMessage({ tenantId: fixture.tenantId, sourceKey: fixture.sourceKey });
+  if (scan.importId !== fixture.importId) throw new Error('queue_smoke_import_identity_mismatch');
+  await pushMessage(queues.get('catalog-engine-import-scan'), scan);
+  const discovered = await waitScan(fixture);
+  const details = await waitDetails(fixture, discovered);
+  await pushMessage(
+    queues.get('catalog-engine-import-detail'),
+    buildTenantImportFinalizeMessage({
+      importId: fixture.importId,
+      tenantId: fixture.tenantId,
+      sourceKey: fixture.sourceKey
+    })
+  );
+  const finalJob = await waitFinalize(fixture);
+  return {
+    discovered,
+    details,
+    finalJob,
+    catalog: await verifyCatalog(fixture)
+  };
+}
+
+async function proveCrossTenantIsolation(a, aResult, b, bResult) {
   if (aResult.productId === bResult.productId || aResult.mediaId === bResult.mediaId) {
     throw new Error('queue_smoke_sources_not_disjoint');
   }
@@ -473,39 +475,13 @@ async function crossTenantIsolation(a, aResult, b, bResult) {
       { sql: 'SELECT COUNT(*) AS total FROM media_sources WHERE media_id=?1', params: [aResult.mediaId] }
     ])
   ]);
-  if (
-    Number(aCross[0]?.results?.[0]?.total || 0) !== 0 ||
-    Number(aCross[1]?.results?.[0]?.total || 0) !== 0 ||
-    Number(bCross[0]?.results?.[0]?.total || 0) !== 0 ||
-    Number(bCross[1]?.results?.[0]?.total || 0) !== 0
-  ) {
-    throw new Error('queue_smoke_cross_tenant_leak');
-  }
-}
-
-async function executeFixture(fixture, queues) {
-  const scanMessage = await buildTenantImportScanMessage({
-    tenantId: fixture.tenantId,
-    sourceKey: fixture.sourceKey
-  });
-  if (scanMessage.importId !== fixture.importId) throw new Error('queue_smoke_import_identity_mismatch');
-  await pushQueueMessage(queues.get('catalog-engine-import-scan'), scanMessage);
-  const discovered = await waitForScanFanout(fixture);
-  const details = await waitForDetails(fixture, discovered);
-  const finalizeMessage = buildTenantImportFinalizeMessage({
-    importId: fixture.importId,
-    tenantId: fixture.tenantId,
-    sourceKey: fixture.sourceKey
-  });
-  await pushQueueMessage(queues.get('catalog-engine-import-detail'), finalizeMessage);
-  const finalJob = await waitForFinalize(fixture);
-  const catalog = await verifyTenantCatalog(fixture);
-  return {
-    discovered,
-    details,
-    catalog,
-    published: Number(finalJob.published_product_count || 0)
-  };
+  const values = [
+    aCross[0]?.results?.[0]?.total,
+    aCross[1]?.results?.[0]?.total,
+    bCross[0]?.results?.[0]?.total,
+    bCross[1]?.results?.[0]?.total
+  ].map((value) => Number(value || 0));
+  if (values.some((value) => value !== 0)) throw new Error('queue_smoke_cross_tenant_leak');
 }
 
 async function deleteWorker(scriptName) {
@@ -532,69 +508,50 @@ async function cleanupFixture(fixture) {
   }
   if (fixture.workerCreated) await deleteWorker(fixture.workerScriptName).catch(() => null);
   await deleteDatabase(fixture.databaseId).catch(() => null);
+  activeFixtures.delete(fixture);
 }
 
-async function runSingle(source, queues) {
-  let fixture;
-  try {
-    fixture = await setupFixture('one', source);
-    const result = await executeFixture(fixture, queues);
-    return {
-      passed: true,
-      discovered: result.discovered,
-      products: result.catalog.products,
-      media: result.catalog.media,
-      deferred: Number(result.details.deferred || 0)
-    };
-  } finally {
-    await cleanupFixture(fixture);
-  }
+async function cleanupAllFixtures() {
+  for (const fixture of [...activeFixtures]) await cleanupFixture(fixture);
 }
 
-async function runPair(sourceA, sourceB, queues) {
-  let a;
-  let b;
-  try {
-    [a, b] = await Promise.all([
-      setupFixture('two-a', sourceA),
-      setupFixture('two-b', sourceB)
-    ]);
-    const [aResult, bResult] = await Promise.all([
-      executeFixture(a, queues),
-      executeFixture(b, queues)
-    ]);
-    await crossTenantIsolation(a, aResult.catalog, b, bResult.catalog);
-    return {
-      passed: true,
-      tenantA: {
-        discovered: aResult.discovered,
-        products: aResult.catalog.products,
-        media: aResult.catalog.media,
-        deferred: Number(aResult.details.deferred || 0)
-      },
-      tenantB: {
-        discovered: bResult.discovered,
-        products: bResult.catalog.products,
-        media: bResult.catalog.media,
-        deferred: Number(bResult.details.deferred || 0)
-      },
-      crossTenantIsolation: true
-    };
-  } finally {
-    await Promise.all([cleanupFixture(a), cleanupFixture(b)]);
-  }
+function resultSummary(result) {
+  return {
+    discovered: result.discovered,
+    products: result.catalog.products,
+    media: result.catalog.media,
+    deferred: Number(result.details.deferred || 0)
+  };
 }
 
 async function main() {
-  const queues = await queueMap();
-  await assertQueuesInitiallyClean(queues);
-  const scopes = await discoverSmallSourceScopes(2);
+  const queues = await loadQueues();
+  await assertQueuesClean(queues);
+  const scopes = await discoverSourceScopes();
   let failed = false;
   try {
-    const single = await runSingle(scopes[0], queues);
+    const one = await setupFixture('one', scopes[0]);
+    const oneResult = await executeFixture(one, queues);
     await waitQueuesClean(queues);
-    const pair = await runPair(scopes[0], scopes[1], queues);
+    const single = resultSummary(oneResult);
+    await cleanupFixture(one);
+
+    const twoA = await setupFixture('two-a', scopes[0]);
+    const twoB = await setupFixture('two-b', scopes[1]);
+    const [twoAResult, twoBResult] = await Promise.all([
+      executeFixture(twoA, queues),
+      executeFixture(twoB, queues)
+    ]);
+    await proveCrossTenantIsolation(twoA, twoAResult.catalog, twoB, twoBResult.catalog);
     await waitQueuesClean(queues);
+    const pair = {
+      tenantA: resultSummary(twoAResult),
+      tenantB: resultSummary(twoBResult),
+      crossTenantIsolation: true
+    };
+    await cleanupFixture(twoA);
+    await cleanupFixture(twoB);
+
     console.log(
       JSON.stringify(
         {
@@ -610,13 +567,13 @@ async function main() {
     );
   } catch (error) {
     failed = true;
-    const safeCode = /^queue_smoke_[a-z0-9_]+$/.test(String(error?.message || ''))
-      ? String(error.message)
-      : 'queue_smoke_failed';
+    const message = String(error?.message || '');
+    const safeCode = /^queue_smoke_[a-z0-9_]+$/i.test(message) ? message : 'queue_smoke_failed';
     console.error(JSON.stringify({ queueImportSmokePassed: false, error: safeCode }));
     throw new Error(safeCode);
   } finally {
-    if (failed) await purgeSmokeQueues(queues);
+    if (failed) await purgeQueues(queues);
+    await cleanupAllFixtures();
   }
 }
 
