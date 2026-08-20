@@ -1,19 +1,22 @@
 # Catalog Engine — Current State
 
 Status: **Living operational truth**  
-Scope: verified implementation/deployment state after the 2026-08-19 audit and the post-audit safety/design/provider milestones.  
+Scope: verified implementation/deployment state after the 2026-08-19 audit and M5 production closure on 2026-08-20.  
 Purpose: separate what exists now from durable product contracts and future roadmap decisions.
 
 ## How to use this document
 
 This document owns **mutable implementation state**, not durable product intent.
 
-- Product/business invariants remain in their focused normative documents.
+- Product/business invariants remain in focused normative documents.
 - Architecture contracts remain in `SAAS-ARCHITECTURE.md`, `TENANCY.md`, `PROVIDER-ENGINE.md`, CEI and tenant subsystem documents.
 - Future work belongs in `DEVELOPMENT-ROADMAP.md`.
-- This file must be updated when a major capability changes from planned/inert to implemented/proven/retired.
+- Full cross-tool continuity is captured in the root `CATALOG_ENGINE_HANDOFF_2026-08-20.md`.
+- This file must change when a major capability moves from planned/inert to implemented/proven/retired.
 
-Do not leave temporary activation statements inside durable normative documents when operational truth has changed.
+Do not leave temporary activation statements inside durable normative documents after operational truth changes.
+
+---
 
 ## Repository baseline
 
@@ -26,85 +29,95 @@ Current repository:
 - frontend: Vite + vanilla ES modules;
 - no React/Vue/Svelte/Angular production application.
 
-Post-audit milestones now implemented in the repository include:
+Major milestones established:
 
-- PR #47 — Cloudflare production credentials/actions isolated from ordinary pull-request validation;
-- PR #48 — public catalog D1 replacement emitted/applied as one validated atomic publication artifact;
-- PR #49 — post-audit current-state, roadmap and responsive/design-system contracts established;
-- PR #50 — ordinary application deployment separated from catalog business-data publication;
-- PR #51 — shared responsive/accessibility frontend foundation;
-- PR #52 — Lucide icon system, dependency hardening, Fuse removal and frontend bundle reporting;
-- M4 Provider Engine — source/provider-neutral source connection and isolated-ingestion boundary with Yupoo as the first adapter;
-- M5 activation prerequisites — real Queue/DLQ resources, dedicated consumers, main producer bindings, manual one-tenant/two-tenant Queue ingestion, retry/DLQ recovery and read-only production preflight have been established while automatic discovery remained OFF.
+- M1 safety foundations are partial;
+- M2 application deploy / catalog publication separation is complete;
+- M3 Design Foundation is complete;
+- M4 Provider Engine is complete;
+- **M5 Tenant Import / Cloudflare Queue activation is complete and production-proven**;
+- **M6 CEI Core + Sports Knowledge Pack v1 is the current execution milestone**.
+
+Important post-audit PR lineage includes PRs #47-#52 for safety/deploy/design foundations and PRs #65-#75 for the final M5 activation/canary/rollback/diagnostic/fix/cleanup sequence.
 
 The audit intentionally did **not** prove a complete account-wide Cloudflare inventory. Only resources evidenced through repository configuration, deployment logs and controlled live tests are treated as confirmed here.
+
+---
 
 ## Production safety implemented
 
 ### Cloudflare credential boundary
 
-Ordinary pull requests no longer receive the targeted production Cloudflare credentials through the previously audited privileged workflow paths.
+Ordinary pull requests do not receive the targeted production Cloudflare credentials through privileged workflow paths. PR validation is secret-free; production reads/mutations happen from trusted `main` or deliberate privileged dispatches.
 
 ### Atomic public catalog publication
 
-The default public catalog replacement path generates one bounded SQL publication artifact. The production-sized artifact has been exercised against local D1 through Wrangler before trusted publication.
+The default public catalog replacement path generates one bounded SQL publication artifact and is separated from ordinary application deployment.
 
 ### Code/data deployment separation
 
 `.github/workflows/deploy-catalog-api.yml` owns application/schema deployment:
 
-`quality -> build -> build:verify -> remote schema migrations -> Worker/assets deploy -> smoke existing catalog`
+```text
+quality
+→ build
+→ build:verify
+→ remote schema migrations
+→ Worker/assets deploy
+→ Queue producer/automation verification
+→ smoke existing catalog
+```
 
 It does not rebuild or replace commercial catalog business data.
 
-`.github/workflows/publish-default-catalog.yml` owns deliberate manual publication of the checked-in sanitized default snapshot. Source-driven sync/recovery workflows own their own catalog-data changes.
+`.github/workflows/publish-default-catalog.yml` owns deliberate publication of the checked-in sanitized default snapshot. Source-driven sync/recovery workflows own their own catalog-data changes.
 
-Changing application CSS or Worker code therefore does not imply a 17k-product catalog replacement.
+### Remaining M1 repository-control gaps
 
-### Remaining repository-control gap
+Still open:
 
-`main` has been observed through GitHub metadata as not protected by a branch-protection/ruleset. CI gates exist in repository code, but repository-level required-check/review enforcement remains an M1 debt until it can be configured and independently verified.
+- branch protection / required checks / deliberate review enforcement;
+- direct-push sync-bot governance;
+- third-party Actions/toolchain governance;
+- production migration parity verification;
+- backup/rollback/recovery runbooks.
+
+---
 
 ## Public/default catalog baseline
 
-The current checked-in/default compatibility catalog is repeatedly verified at approximately:
+Latest trusted application deploy verification during M5 closure reported:
 
-- 16,953 products;
-- 9 leagues;
-- 51 teams;
-- 14 facets;
-- 48,876 checked image/proxy routes.
+- **17,018 products**;
+- **49,004 checked proxy routes**;
+- supplier leak: false;
+- private state published: false;
+- opaque public IDs: true;
+- media storage mode: `edge-proxy`.
 
-`build:verify` checks include:
+These counts describe the current default dataset at that checkpoint, not a platform limit or permanent commercial contract.
 
-- opaque public IDs;
-- no supplier-host leak in the public artifact;
-- no private sync state in public artifacts;
-- valid JS/CSS bundles;
-- edge-proxy media mode.
-
-These counts describe the current default dataset, not a platform limit or permanent commercial contract.
+---
 
 ## Frontend / design baseline
 
-M3 established a shared brand-neutral responsive/accessibility foundation used by the storefront and customer portal while preserving separate merchant-vs-platform visual identities.
+M3 established a shared brand-neutral responsive/accessibility foundation used by the storefront and customer portal while preserving merchant-vs-platform visual separation.
 
 Implemented decisions include:
 
 - shared design tokens/foundation CSS;
-- intrinsic responsive grid behavior and safe-area handling;
+- intrinsic responsive grid and safe-area behavior;
 - focus/touch/reduced-motion baseline;
-- Lucide iconography with separate storefront/portal packs;
+- Lucide iconography;
 - Motion for purposeful microinteractions;
-- Swiper for product media gallery;
+- Swiper for product media;
 - API/server-backed storefront search;
-- removal of the unused Fuse.js client-search helper/dependency;
-- fixed reviewed versions for Lucide/Motion/Swiper/Vite rather than mutable `latest` specs;
-- frontend CI with quality/build/build-verify and deterministic raw/gzip bundle reporting.
-
-An isolated Cloudflare UI staging preview also exists for visual validation against demo data without touching production catalog data. It is a preview/testing surface, not a customer tenant or production-data source.
+- reviewed dependency versions rather than mutable `latest` specs;
+- deterministic bundle reporting in CI.
 
 Full Storefront UX 2.0 and Portal UX 2.0 remain later roadmap milestones.
+
+---
 
 ## Provider Engine baseline
 
@@ -112,89 +125,205 @@ M4 establishes a real source/provider boundary rather than a decorative interfac
 
 Implemented:
 
-- shared `CatalogProvider` registry and contract validation;
+- shared `CatalogProvider` registry/contract validation;
 - source-provider auto-detection/normalization;
 - provider-neutral tenant source connection orchestration;
 - provider-neutral scan/detail/finalize consumers;
-- normalized scan/detail evidence validation before central orchestration accepts provider output;
+- normalized scan/detail evidence validation;
 - provider-owned category/media identity derivation;
 - provider-owned public-text leak signatures;
 - provider-neutral private network-verification resolver;
-- Yupoo adapter wrapping the existing hardened listing/detail implementations;
-- compatibility tests proving existing Yupoo category/media opaque identity seeds are preserved;
-- architecture regression tests preventing central ingestion consumers from directly importing Yupoo parser modules.
+- Yupoo adapter around hardened listing/detail implementations;
+- compatibility tests preserving existing opaque identity behavior;
+- regression guards preventing central ingestion from directly depending on Yupoo parser modules.
 
-Launch provider remains **Yupoo only**. The architecture can register another provider without changing central ingestion/CEI semantics, but no second production connector is claimed.
+Launch provider remains **Yupoo only**. A second production connector is not claimed and is not part of M6.
 
-Provider-specific source knowledge remains private evidence. It is not public taxonomy truth and it does not redefine CEI merchandising semantics.
+Provider-specific source structure is private evidence, not public merchandising truth.
 
-## Tenant import / Queues
+---
 
-Durable code/state exists for:
+## Tenant import / Queues — M5 COMPLETE
 
-`scan -> details -> finalize -> classify -> verify`
+Durable runtime path:
 
-The scan/detail/finalize consumers resolve the registered provider from tenant-private source state and write through the isolated tenant data-plane command/native D1 path.
+```text
+scheduler
+→ scan Queue
+→ scan consumer
+→ detail Queue
+→ detail consumer
+→ finalize barrier
+→ classify
+→ verify
+```
 
-M5 production prerequisites already proven on trusted infrastructure include:
+The scan/detail/finalize consumers resolve the registered provider from tenant-private source state and write through the isolated tenant data-plane path.
 
-- real `catalog-engine-import-scan` and `catalog-engine-import-detail` Queues;
-- dedicated scan/detail DLQs;
-- exactly one dedicated consumer Worker on each primary Queue;
-- main Worker producer bindings for scan and detail/finalize dispatch;
-- conservative retry/concurrency/backoff policy;
-- one controlled isolated tenant import through real Queues;
-- simultaneous two-tenant import with cross-tenant isolation checks;
-- retry exhaustion -> DLQ -> repair -> replay recovery proof;
-- clean read-only production activation preflight while `TENANT_IMPORT_AUTOMATION_ENABLED=0`.
+### Confirmed production resources
 
-The remaining M5 boundary is the deliberate automatic scheduler activation. The activation change sets `TENANT_IMPORT_AUTOMATION_ENABLED=1`, but M5 must remain open until trusted production evidence proves the five-minute cron discovers an eligible canary tenant itself, produces the initial scan message, completes the Queue-driven isolated import and returns all Queue/DLQ backlogs to a clean state without manually producing that initial message.
+Primary Queues:
 
-Do not describe automatic customer Queue ingestion as production-ready until that final scheduler-driven canary proof exists.
+- `catalog-engine-import-scan`;
+- `catalog-engine-import-detail`.
 
-## Cloudflare baseline proven previously
+DLQs:
 
-Repository/Actions evidence has proven use of:
+- `catalog-engine-import-scan-dlq`;
+- `catalog-engine-import-detail-dlq`.
+
+Dedicated consumers:
+
+- `catalog-engine-import-scan`;
+- `catalog-engine-import-detail`.
+
+Main Worker producers:
+
+- `TENANT_IMPORT_QUEUE` -> scan Queue;
+- `TENANT_IMPORT_DETAIL_QUEUE` -> detail Queue.
+
+Automatic discovery:
+
+- cron `*/5 * * * *`;
+- `TENANT_IMPORT_AUTOMATION_ENABLED="1"` at M5 closure.
+
+### Real happy-path / isolation proof
+
+Trusted Queue smoke previously proved:
+
+- isolated D1 import;
+- User Worker dispatch;
+- one-tenant import;
+- simultaneous two-tenant import;
+- cross-tenant isolation;
+- product/media publication.
+
+Historical run: `32338235562`.
+
+### Real resilience proof
+
+Trusted resilience smoke proved:
+
+```text
+controlled failure
+→ real retries
+→ DLQ
+→ no premature tenant mutation
+→ repair
+→ replay same message
+→ products/media recovered
+→ finalize
+→ primary + DLQ backlogs return to zero
+```
+
+Historical run: `32338762195`.
+
+### Final automatic scheduler proof
+
+M5 final commit:
+
+`b917b023fde537baa0aa797d1230b7df7db5595e`
+
+Application deploy:
+
+- run `32392783507`;
+- `catalog-engine/application-deploy = success`;
+- Worker version `a7923901-3463-44ac-b8f5-c4ba61804b9e`;
+- automation `1`;
+- producers/consumers intact;
+- 298 tests passed.
+
+Automatic canary:
+
+- run `32392875597`;
+- job `96502874428`;
+- `catalog-engine/tenant-import-auto-canary = success`.
+
+Evidence:
+
+```text
+manualQueueMessagesProduced = false
+schedulerDiscovered = true
+schedulerAttemptCount = 1
+discovered = 1
+completed = 1
+deferred = 0
+published = 1
+tenant products = 1
+tenant media = 2
+supplier leaks = 0
+import provisioning step = success
+provisioning advanced to classify
+default catalog unchanged = true
+Queue/DLQ backlogs clean = true
+```
+
+This satisfies the M5 Definition of Done:
+
+```text
+create tenant
+→ connect supported source
+→ isolated D1 import completes automatically
+```
+
+without one GitHub Action or manual Cloudflare operation per customer.
+
+### Important M5 regression lessons
+
+Do not regress these fixes:
+
+1. `TENANT_IMPORT_AUTOMATION_ENABLED` is an operational `0|1` bit; OFF remains a valid rollback state.
+2. Queue consumers must tolerate the scheduler race where a message can arrive while the control job is still `pending`; retry instead of failing.
+3. Production canary runs after a successful application deploy via `workflow_run`, not in parallel with deploy.
+4. Tenant User Worker identity is canonical `ce-<tenant suffix>`; canaries must use the same resolver convention as the hot path.
+5. Historical OFF-only preflight/smoke proofs should not be weakened just because production automation is now ON.
+6. Never purge global Queues simply to make a canary pass.
+
+---
+
+## Cloudflare baseline proven
+
+Repository/Actions evidence confirms use of:
 
 - main Worker `catalog-engine`;
-- static assets through the `ASSETS` binding;
-- D1 `catalog-engine-db` / `CATALOG_DB` compatibility/control binding;
+- static assets through `ASSETS`;
+- D1 `catalog-engine-db` / `CATALOG_DB`;
 - Workers for Platforms dispatch namespace `catalog-engine-production`;
 - `TENANT_DISPATCH` binding;
-- tenant User Worker/data-plane provisioning flows;
-- runtime dispatch/isolation tests;
+- isolated tenant User Worker/data-plane provisioning;
+- runtime dispatch/isolation;
 - custom hostname/domain workflows;
-- tenant import scan/detail Queues and their DLQs;
-- dedicated Queue consumer Workers and main producer bindings;
-- application smoke paths;
-- isolated UI preview Worker/staging path.
+- scan/detail Queues and DLQs;
+- dedicated Queue consumers and main producers;
+- application smoke paths.
 
-Platform host roles include:
+Known platform host roles include:
 
 - `catalogoengine.com` — platform/marketing target;
 - `app.catalogoengine.com` — customer portal;
-- `edge.catalogoengine.com` — Cloudflare for SaaS technical target defined by architecture/docs;
-- `origin.catalogoengine.com` — fallback/internal origin role defined by architecture/docs;
-- `teste.loja.catalogoengine.com` — retained validation hostname used in custom-hostname isolation proof.
+- `edge.catalogoengine.com` — Cloudflare for SaaS technical role documented by architecture;
+- `origin.catalogoengine.com` — fallback/internal origin role documented by architecture.
 
 This is **not** a complete account-wide Cloudflare inventory claim.
 
+---
+
 ## Proven tenant isolation checkpoint
 
-The production architecture has proven:
+Architecture proven:
 
-`custom hostname -> platform Worker -> trusted tenant resolution -> Workers for Platforms dispatch -> isolated tenant Worker -> isolated D1`
+```text
+custom hostname
+→ platform Worker
+→ trusted tenant resolution
+→ Workers for Platforms dispatch
+→ isolated tenant Worker
+→ isolated D1
+```
 
-A smoke tenant demonstrated:
+Controlled tests have demonstrated own-tenant access, cross-tenant/default isolation and fail-closed invalid routing.
 
-- active custom hostname/TLS;
-- dedicated tenant runtime;
-- dedicated tenant D1;
-- own-product read succeeds;
-- cross-tenant/default-product reads fail;
-- invalid/missing tenant routing fails closed rather than falling through to the default catalog.
-
-This proves the isolation architecture, not complete self-service onboarding.
+---
 
 ## Data model baseline
 
@@ -226,56 +355,62 @@ The isolated tenant schema supports concepts including:
 - classification state;
 - durable classification overrides.
 
-Some private table/queue field names remain Yupoo-era (`supplier_album_*`, `albumSourceId`) for compatibility. M4 makes orchestration provider-neutral without performing destructive schema renames. Generalization can happen through a deliberate migration when a real second provider proves it necessary.
+Some private field/table names still reflect Yupoo-era compatibility. Do not perform destructive renames without a real migration need.
 
-The strategic model remains one isolated catalog data plane per store/tenant.
+---
 
-## CEI baseline
+## CEI baseline — CURRENT MILESTONE M6
 
-The repository contains sports-oriented normalization/classification and tenant classification state/override infrastructure. The long-term `CEI.md` contract is broader than current implementation.
+The repository already contains sports-oriented normalization/classification and tenant classification state/override infrastructure. Treat this as **CEI foundation / classifier v1**, not finished CEI Core.
 
-Current implementation should be considered **CEI foundation / classifier v1**.
-
-M4 now gives CEI the source-neutral provider boundary it needs, but M6 still owns the actual CEI Core + Sports Knowledge Pack v1 work, including:
+M4 provides the source-neutral provider/evidence boundary and M5 now provides automatic isolated ingestion. M6 owns the next layer:
 
 - normalized CEI evidence model;
+- context/domain detection;
 - Knowledge Pack interface;
-- calibrated confidence/conflict representation;
-- merchant overrides/effective view integration;
+- entity/attribute resolution;
+- calibrated confidence;
+- semantic conflicts;
+- versioned classification;
+- merchant overrides/effective-view semantics;
 - verification/merchandising output;
 - tenant memory boundary;
+- schema-validated persistence;
 - regression fixtures.
+
+Sports Knowledge Pack v1 must cover competitions/leagues, clubs, national teams, product types, audience/version/style, reliable season/year evidence, ambiguity rules, merchandising hierarchy and review thresholds.
 
 Universal autonomous research and non-sports production Knowledge Packs are not launch requirements.
 
+---
+
 ## Storefront state
 
-The storefront is functional and has:
+Functional today:
 
-- API-backed catalog behavior/search;
+- API-backed catalog/search;
 - category/product discovery;
 - media gallery;
-- lazy images/prefetch behavior;
 - responsive CSS foundation;
 - Lucide/Motion/Swiper integration;
-- white-label/public-data leak guards.
+- public-data leak guards.
 
-It is **not yet the launch-quality design target**.
+Not yet launch-quality target:
 
-Major later work includes:
-
-- full Storefront UX 2.0;
-- premium product cards/detail/navigation;
-- deep-link/URL state;
-- skeleton/loading/empty/error polish;
-- browser accessibility/E2E validation;
+- Storefront UX 2.0;
+- premium cards/detail/navigation;
+- deep links/URL state;
+- loading/empty/error polish;
+- browser a11y/E2E/performance;
 - SEO/Open Graph/canonical behavior;
-- CEI/domain-aware merchandising UX;
-- controlled Theme/Brand Engine.
+- CEI-aware merchandising UX;
+- Theme/Brand Engine.
+
+---
 
 ## Customer portal state
 
-`src/app/` exists and models merchant-facing states/entitlement concepts, but the complete sellable journey is unfinished.
+`src/app/` exists and models merchant-facing state/entitlement concepts, but the complete sellable journey remains unfinished.
 
 Still incomplete:
 
@@ -284,65 +419,86 @@ Still incomplete:
 - customer-facing source/import progress;
 - CEI review experience;
 - theme/branding editor;
-- domain setup UX wired end-to-end;
-- billing/subscription UI backed by a real provider;
+- domain setup UX end-to-end;
+- real billing/subscription integration;
 - final Portal UX 2.0.
+
+---
 
 ## Billing state
 
-Billing remains a product/architecture contract rather than a completed production subsystem.
+Billing remains architecture/product contract, not completed production subsystem.
 
-Before commercial launch the platform still needs:
+Still needed:
 
-- billing provider selection;
-- normalized billing customer/subscription state;
-- trusted webhook/reconciliation processing;
-- entitlement integration;
-- trial/payment policy decision;
-- grace/suspension/reactivation behavior;
-- portal billing recovery UX.
+- provider selection;
+- normalized customer/subscription state;
+- trusted webhook/reconciliation;
+- entitlements;
+- trial/payment policy;
+- grace/suspension/reactivation;
+- portal recovery UX.
 
 No frontend success state is authoritative billing truth.
 
+---
+
 ## Security / reliability debt still open
 
-Important remaining work includes:
-
 - protect `main` with required checks/review policy;
-- pin or deliberately govern third-party GitHub Action versions;
-- independently verify production D1 migration parity;
-- formalize code/data backup, rollback and recovery runbooks;
-- govern retained smoke/test resources;
-- complete and retain evidence for the scheduler-driven M5 Queue activation canary;
-- add catastrophic sync-diff protection;
-- harden media redirect/timeout/byte limits;
-- add browser E2E/accessibility/performance validation;
-- stop routine business-data automation from direct-pushing snapshots where any such path remains.
+- govern/pin third-party Actions deliberately;
+- verify production D1 migration parity;
+- formalize backup/rollback/recovery runbooks;
+- decide lifecycle of retained M5 diagnostic workflows after evidence is safely documented;
+- catastrophic sync-diff circuit breaker;
+- media redirect/timeout/byte hardening;
+- browser E2E/accessibility/performance;
+- stop/govern routine direct-push business-data automation where applicable;
+- fleet-level observability.
+
+---
 
 ## Explicitly not confirmed
 
-Do not claim these as proven without new evidence:
+Do not claim without new evidence:
 
-- complete Cloudflare account inventory across every Worker/Pages/KV/R2/Queue/Workflow/Durable Object/DNS resource;
-- exact live production D1 schema parity with every repository migration;
-- full Core Web Vitals/accessibility quality in real browsers;
-- production Queue ingestion for customer tenants after automatic scheduler activation;
+- complete Cloudflare account inventory;
+- exact live schema parity with every repository migration;
+- full browser Core Web Vitals/accessibility quality;
 - production billing integration;
-- universal CEI domain learning/research;
-- a second production source provider.
+- universal CEI research/learning;
+- a second production provider.
+
+Do not list automatic tenant Queue ingestion here: **that capability is now production-proven by M5**.
+
+---
 
 ## Current execution point
 
-Completed/established post-audit path:
+Established path:
 
-`M0 truth/governance -> M1 safety foundations -> M2 code/data separation -> M3 Design Foundation -> M4 Provider Engine`
+```text
+M0 truth/governance
+→ M1 safety foundations (partial)
+→ M2 code/data separation ✅
+→ M3 Design Foundation ✅
+→ M4 Provider Engine ✅
+→ M5 automatic tenant Queue import ✅ production-proven
+```
 
 Current execution milestone:
 
-`M5 Tenant Import / Cloudflare Queue activation — final scheduler-driven canary pending`
+**`M6 — CEI Core + Sports Knowledge Pack v1`**
 
 Then:
 
-`M6 CEI Core + Sports Knowledge Pack -> M7 intelligent sync -> M8 media hardening -> M9+ storefront/theme/portal/commercial productization -> beta -> release candidate -> launch`
+```text
+M7 intelligent sync
+→ M8 media hardening
+→ M9+ storefront/theme/portal/commercial productization
+→ beta
+→ release candidate
+→ launch
+```
 
 The detailed execution order and gates live in `DEVELOPMENT-ROADMAP.md`.
