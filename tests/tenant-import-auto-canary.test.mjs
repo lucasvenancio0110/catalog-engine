@@ -6,6 +6,7 @@ const workflow = fs.readFileSync(
   'utf8'
 );
 const script = fs.readFileSync('scripts/cloudflare-auto-tenant-import-canary.mjs', 'utf8');
+const cloudflarePlatform = fs.readFileSync('worker/cloudflare-platform.js', 'utf8');
 
 function expectWorkflow(value) {
   expect(workflow.includes(value), `missing automatic canary workflow contract: ${value}`).toBe(true);
@@ -44,6 +45,12 @@ describe('automatic tenant import production canary', () => {
     expectWorkflow('TENANT_IMPORT_AUTOMATION_ENABLED=0');
   });
 
+  it('uses the canonical tenant Worker identity required by the dispatch hot path', () => {
+    expectScript('workerScriptName: `ce-${suffix}`');
+    expect(script).not.toContain('workerScriptName: `ce-auto-${suffix}`');
+    expect(cloudflarePlatform).toContain('workerScriptName: `ce-${tenantId.slice(2)}`');
+  });
+
   it('proves scheduler ownership by never producing Queue messages manually', () => {
     expectScript("TENANT_IMPORT_AUTOMATION_ENABLED || '') !== '1'");
     expectScript('INSERT INTO tenant_provisioning_runs');
@@ -55,6 +62,13 @@ describe('automatic tenant import production canary', () => {
     expect(script).not.toContain('pushMessage(');
     expect(script).not.toContain('buildTenantImportScanMessage');
     expect(script).not.toContain('buildTenantImportFinalizeMessage');
+  });
+
+  it('preserves a safe control-plane error code when a scheduler-owned import fails', () => {
+    expectScript('safeJobErrorCode');
+    expectScript('jobErrorCode');
+    expectScript('tenant_data_plane');
+    expectScript('cloudflare_platform');
   });
 
   it('fails closed around isolation, public leaks and Queue evidence', () => {
