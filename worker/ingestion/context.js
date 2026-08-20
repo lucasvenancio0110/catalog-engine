@@ -3,6 +3,7 @@ import { z } from 'zod';
 const importIdSchema = z.string().regex(/^imp_[a-f0-9]{20}$/);
 const tenantIdSchema = z.string().regex(/^t_[a-f0-9]{20}$/);
 const sourceKeySchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,39}$/);
+const providerKeySchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,31}$/);
 const databaseIdSchema = z.string().regex(/^[a-f0-9-]{32,40}$/i);
 
 export class TenantImportContextError extends Error {
@@ -54,7 +55,6 @@ export async function loadTenantImportContext(db, { importId, tenantId, sourceKe
   if (!['scan', 'details', 'finalize'].includes(row.phase)) {
     throw new TenantImportContextError('tenant_import_phase_not_runnable');
   }
-  if (row.provider !== 'yupoo') throw new TenantImportContextError('tenant_import_provider_not_supported');
   if (row.database_status !== 'active' || row.worker_status !== 'active') {
     throw new TenantImportContextError('tenant_data_plane_not_ready');
   }
@@ -63,6 +63,13 @@ export async function loadTenantImportContext(db, { importId, tenantId, sourceKe
   }
   if (row.provisioning_step && row.provisioning_step !== 'import') {
     throw new TenantImportContextError('tenant_import_checkpoint_mismatch');
+  }
+
+  let provider;
+  try {
+    provider = providerKeySchema.parse(String(row.provider || '').trim().toLowerCase());
+  } catch {
+    throw new TenantImportContextError('tenant_import_provider_invalid');
   }
 
   return {
@@ -74,7 +81,7 @@ export async function loadTenantImportContext(db, { importId, tenantId, sourceKe
     detailEnqueueCursor: Number(row.detail_enqueue_cursor || 0),
     discoveredCount: Number(row.discovered_count || 0),
     privateSource: {
-      provider: row.provider,
+      provider,
       url: row.source_url,
       syncStrategy: row.sync_strategy,
       removalMissThreshold: Number(row.removal_miss_threshold || 3)
