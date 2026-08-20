@@ -16,7 +16,7 @@ function expectScript(value) {
 }
 
 describe('automatic tenant import production canary', () => {
-  it('keeps Cloudflare credentials out of pull-request validation', () => {
+  it('keeps Cloudflare credentials out of pull-request validation and runs production only after a trusted deploy', () => {
     const validateStart = workflow.indexOf('  validate:');
     const canaryStart = workflow.indexOf('  canary:');
     expect(validateStart).toBeGreaterThan(-1);
@@ -24,11 +24,24 @@ describe('automatic tenant import production canary', () => {
     const validateBlock = workflow.slice(validateStart, canaryStart);
     expect(validateBlock).toContain("if: github.event_name == 'pull_request'");
     expect(validateBlock).not.toContain('secrets.CLOUDFLARE');
-    expectWorkflow("if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'");
+    expectWorkflow('workflow_run:');
+    expectWorkflow('workflows: ["Deploy Catalog Engine application"]');
+    expectWorkflow("github.event.workflow_run.conclusion == 'success'");
+    expectWorkflow("github.event.workflow_run.head_branch == 'main'");
     expectWorkflow('secrets.CLOUDFLARE_API_TOKEN');
     expectWorkflow('secrets.CLOUDFLARE_ACCOUNT_ID');
     expectWorkflow('Checkout trusted main');
     expectWorkflow('ref: main');
+    expect(workflow).not.toMatch(/^  push:/m);
+  });
+
+  it('stays green when automation is intentionally disabled and only publishes canary status when enabled', () => {
+    expectWorkflow('Detect automatic tenant discovery state');
+    expectWorkflow("if: steps.automation.outputs.enabled == 'false'");
+    expectWorkflow("success() && steps.automation.outputs.enabled == 'true'");
+    expectWorkflow("failure() && steps.automation.outputs.enabled == 'true'");
+    expectWorkflow('github.event.workflow_run.head_sha');
+    expectWorkflow('TENANT_IMPORT_AUTOMATION_ENABLED=0');
   });
 
   it('proves scheduler ownership by never producing Queue messages manually', () => {
