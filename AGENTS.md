@@ -27,18 +27,20 @@ Use the smallest approved library that owns the problem. Do not add a second pac
 
 ### Approved runtime libraries
 
-- **Cheerio** — HTML/XML parsing and DOM querying in Node.js. Use it for Yupoo/static HTML extraction. Do not add jsdom for static parsing.
+- **Cheerio** — HTML/XML parsing and DOM querying in Node.js. Use it for static provider HTML extraction where applicable. Do not add jsdom for static parsing.
 - **PQueue** — concurrency, backpressure and request/task rate limiting. Use it instead of hand-written promise pools or unbounded `Promise.all()` for network/image batches.
-- **Zod** — validation at trust boundaries: external HTML-derived data, store configuration, generated catalog JSON and future API payloads. Do not publish or persist unvalidated structured data.
+- **Zod** — validation at trust boundaries: external/provider-derived data, store configuration, generated catalog JSON and API payloads. Do not publish or persist unvalidated structured data.
 - **Sharp** — image metadata, validation, resize, conversion and optimization. Do not implement image transformations manually or shell out to ImageMagick without a documented exception.
-- **Fuse.js** — currently approved for typo-tolerant client-side search when that architecture is appropriate. Do not add a second client-side search library while Fuse owns that responsibility; server/hybrid search may replace the client-side architecture through an explicit documented decision.
+- **Lucide** — framework-neutral SVG iconography for storefront/portal surfaces. Import only the icons needed by the relevant surface; do not load the entire icon namespace or use a public CDN.
 - **Swiper** — product media gallery and touch navigation. Do not hand-roll swipe gesture logic for product images without a documented reason.
 - **Motion** — purposeful, subtle storefront/portal microinteractions. Respect reduced-motion preferences and do not use animation as decoration that harms clarity/performance.
+
+Current storefront search is API/server-backed. Fuse.js was removed in M3. Do not add a client-side fuzzy-search dependency merely to recreate a legacy architecture; a hybrid/client search layer requires measured UX/performance evidence and an explicit ownership decision.
 
 ### Approved build and quality libraries
 
 - **Vite** — storefront/portal dev server and production bundler. Browser npm dependencies must be imported through the Vite module graph, not from arbitrary public CDNs.
-- **Vitest** — automated JavaScript tests. New parsing/classification/business rules require tests.
+- **Vitest** — automated JavaScript tests. New parsing/classification/provider/business rules require tests.
 - **ESLint** — correctness/static-analysis rules. Fix lint violations instead of suppressing them unless the suppression has an explanatory comment.
 - **Prettier** — formatting. Do not create competing formatting conventions.
 
@@ -54,7 +56,7 @@ UI/developer-tool dependencies must also follow `docs/DESIGN-SYSTEM.md` and `doc
 4. The public `dist/` must pass `npm run build:verify` before deployment.
 5. `dist/` must never contain supplier hostnames, source URLs, source credentials or private sync state.
 6. Do not commit `dist/` or `node_modules/` as application source.
-7. Fuse.js owns current client-side fuzzy-search behavior where used, Swiper owns current product-gallery swipe behavior, and Motion owns purposeful microinteractions unless the dependency policy is explicitly changed with a documented reason.
+7. API/server-backed search owns the current storefront query path, Swiper owns current product-gallery swipe behavior, Lucide owns iconography and Motion owns purposeful microinteractions unless an explicit architecture decision replaces that ownership.
 8. Supplier-derived text rendered in the storefront must use `textContent`/safe DOM construction. Do not place supplier-controlled names/descriptions into `innerHTML`.
 9. Storefront taxonomy navigation must hide empty branches instead of rendering the supplier's entire taxonomy tree with zero-product categories.
 10. Selecting a parent category must include products belonging to all descendants; selecting a leaf must restrict to that branch without relying on string-name matching.
@@ -80,6 +82,23 @@ Prefer Node.js/Web Platform APIs when they are already robust enough. Examples: 
 
 Do not add Axios/Got only to replace native `fetch`. Do not add Lodash for trivial array/object operations. Do not add UUID/slug/date libraries when native APIs cover the requirement cleanly.
 
+## Provider Engine rules
+
+Before changing a source connector/provider, read `docs/PROVIDER-ENGINE.md` plus the import/sync documents required by `docs/DOCUMENT-MAP.md`.
+
+1. Yupoo is the first provider adapter, not the architecture boundary.
+2. Provider-specific host/path/query/redirect/parser/media-origin behavior belongs behind the provider adapter/resolver.
+3. Central tenant source connection, scan, detail, finalize, synchronization and CEI orchestration must resolve a provider contract instead of importing a supplier-specific parser directly.
+4. Provider scan/detail output must be validated at the normalized evidence boundary before central persistence/classification consumes it.
+5. Raw provider IDs, source URLs, media origins and private locator references remain private tenant/data-plane state. Minimal private queue fields are not public API contracts.
+6. Supplier taxonomy remains evidence, never automatic public merchandising truth.
+7. Existing public opaque identity namespaces are compatibility contracts. A refactor must preserve them or ship an explicit migration; never silently rotate published product/category/media IDs.
+8. Unknown provider keys fail closed. Do not silently fall back to Yupoo/default behavior.
+9. A new provider requires source-normalization tests, transport/security fixtures, normalized evidence tests, identity stability tests and tenant-isolation proof before production activation.
+10. Adding a second provider must not require changing CEI classification semantics or storefront code merely to understand that source format.
+11. Provider-specific white-label leak signatures belong to the provider adapter; generic orchestration may combine them with platform-wide URL/private-data checks.
+12. Do not destructively rename Yupoo-era private tables/queue fields solely for aesthetic provider neutrality. Generalize schemas through a deliberate migration when real provider requirements justify it.
+
 ## Scraper rules
 
 1. Never use unbounded concurrency against a supplier.
@@ -90,7 +109,7 @@ Do not add Axios/Got only to replace native `fetch`. Do not add Lodash for trivi
 6. Every item must be classified before expensive image work where the active ingestion architecture makes that ordering applicable.
 7. Supplier URLs and sensitive source state must never be emitted into the public storefront artifact.
 8. A product with incomplete media/detail evidence must not overwrite a previously healthy public product unless a safe publication contract explicitly permits that transition.
-9. Yupoo routing quirks such as `isSubCate=true` must be resolved by the source adapter/resolver. Callers and future customers must not need provider-specific query-string knowledge.
+9. Yupoo routing quirks such as `isSubCate=true` must be resolved by the Yupoo provider adapter/resolver. Callers and future customers must not need provider-specific query-string knowledge.
 
 ## Synchronization rules
 
@@ -101,7 +120,7 @@ Do not add Axios/Got only to replace native `fetch`. Do not add Lodash for trivi
 5. A complete category scan may detach a product from that category without removing it from the store if another scope still owns it.
 6. During partial scans, previously active but unobserved products and their scope memberships remain published and active.
 7. A category scan must never replace the global source taxonomy tree. Only a complete `catalog` scope may authoritatively replace the private source taxonomy; other scopes merge into it.
-8. Public product/category/scope IDs must be opaque stable IDs; never expose raw supplier album/category IDs in public catalog data, asset paths, sync state or `dist/`.
+8. Public product/category/scope IDs must be opaque stable IDs; never expose raw supplier item/category IDs in public catalog data, asset paths, sync state or `dist/`.
 9. Raw source IDs, source URLs and source image URLs belong only in private source state.
 10. Persistent public/repository sync state may contain only safe opaque IDs, hashes, timestamps, statuses, opaque scope memberships and change summaries. It must not contain supplier URLs or raw supplier IDs.
 11. NEW/UPDATED/RESTORED are computed from stable identity + content fingerprints. Scope detachment and global removal are distinct events.
@@ -147,11 +166,11 @@ Do not add Axios/Got only to replace native `fetch`. Do not add Lodash for trivi
 
 ## Data rules
 
-1. Validate external/generated JSON with Zod before persistence or publication.
+1. Validate external/generated JSON with Zod or the owning explicit evidence/schema validator before persistence or publication.
 2. Public catalog schema changes require a `schemaVersion` increment or documented backward compatibility.
 3. Generated data is not the source of truth for architecture decisions.
 4. White-label public data must not contain supplier hostnames, source image URLs or source credentials.
-5. Application deployment and catalog-data publication are separate responsibilities; the roadmap requires decoupling them so ordinary code-only changes cannot mutate commercial catalog data.
+5. Application deployment and catalog-data publication are separate responsibilities; ordinary code-only changes must not mutate commercial catalog data.
 
 ## Image/media rules
 
@@ -180,7 +199,7 @@ npm run build
 npm run build:verify
 ```
 
-For crawler/import/sync/taxonomy changes, also run the relevant isolated real-source verification and applicable audits, for example:
+For provider/crawler/import/sync/taxonomy changes, also run the relevant provider/tenant isolation CI and applicable audits, for example:
 
 ```bash
 npm run audit
