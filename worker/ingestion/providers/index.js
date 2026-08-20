@@ -10,6 +10,7 @@ export function resolveCatalogIngestionProvider(providerKey) {
     'scanListingIndex',
     'fetchDetail',
     'publicCategoryId',
-    'mediaId'
+    'mediaId',
+    'publicTextLeakPatterns'
   ]);
 }
