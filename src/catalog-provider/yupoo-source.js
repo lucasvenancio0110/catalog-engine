@@ -9,7 +9,7 @@ function normalizePathname(pathname) {
 export function canHandleYupooSource(value) {
   try {
     const url = new URL(String(value).trim());
-    return url.protocol === 'https:' && YUPOO_HOST_PATTERN.test(url.hostname);
+    return YUPOO_HOST_PATTERN.test(url.hostname);
   } catch {
     return false;
   }
