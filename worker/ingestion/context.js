@@ -95,16 +95,30 @@ export async function loadTenantImportContext(db, { importId, tenantId, sourceKe
 }
 
 export function ingestionPlatformConfig(env, expectedNamespace) {
-  const accountId = String(env.CLOUDFLARE_PLATFORM_ACCOUNT_ID || '').trim();
-  const apiToken = String(env.CLOUDFLARE_PLATFORM_API_TOKEN || '').trim();
   const dispatchNamespace = String(
     env.CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE || expectedNamespace || ''
   ).trim();
-  if (!/^[a-f0-9]{32}$/i.test(accountId) || apiToken.length < 20 || !dispatchNamespace) {
+  if (!dispatchNamespace) {
     throw new TenantImportContextError('tenant_ingestion_platform_unconfigured', 503);
   }
   if (expectedNamespace && dispatchNamespace !== expectedNamespace) {
     throw new TenantImportContextError('tenant_dispatch_namespace_mismatch', 500);
+  }
+
+  if (env?.TENANT_DISPATCH && typeof env.TENANT_DISPATCH.get === 'function') {
+    return {
+      dispatchNamespace,
+      tenantDispatch: env.TENANT_DISPATCH
+    };
+  }
+
+  // Transitional fallback for existing administrative tools and unit fixtures.
+  // Queue workers are configured with TENANT_DISPATCH and therefore do not need
+  // account-level D1 credentials on the ingestion hot path.
+  const accountId = String(env.CLOUDFLARE_PLATFORM_ACCOUNT_ID || '').trim();
+  const apiToken = String(env.CLOUDFLARE_PLATFORM_API_TOKEN || '').trim();
+  if (!/^[a-f0-9]{32}$/i.test(accountId) || apiToken.length < 20) {
+    throw new TenantImportContextError('tenant_ingestion_platform_unconfigured', 503);
   }
   return { accountId, apiToken, dispatchNamespace };
 }
