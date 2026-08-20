@@ -1,12 +1,17 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import {
+  normalizeYupooCatalogUrl,
+  resolveCatalogSource
+} from '../catalog-provider/index.js';
 
 const tenantIdSchema = z.string().regex(/^t_[a-f0-9]{20}$/);
 const sourceKeySchema = z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9-]{0,39}$/).default('primary');
-const yupooHostnamePattern = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.x\.yupoo\.com$/i;
+const providerSchema = z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9-]{0,31}$/);
 
 const sourceConnectionInputSchema = z.object({
   tenantId: tenantIdSchema,
+  provider: providerSchema.optional(),
   sourceKey: sourceKeySchema.optional(),
   sourceUrl: z.string().trim().min(1),
   syncStrategy: z.enum(['incremental', 'full']).default('incremental')
@@ -20,61 +25,17 @@ function stableOpaqueId(prefix, seed) {
   return `${prefix}_${hashHex(`${prefix}:${seed}`).slice(0, 20)}`;
 }
 
-function normalizePathname(pathname) {
-  return pathname.replace(/\/{2,}/g, '/').replace(/\/+$/, '') || '/';
-}
-
-export function normalizeYupooCatalogUrl(value) {
-  let url;
-  try {
-    url = new URL(String(value).trim());
-  } catch {
-    throw new Error('Informe uma URL válida do catálogo Yupoo.');
-  }
-
-  if (url.protocol !== 'https:') {
-    throw new Error('A fonte Yupoo precisa usar HTTPS.');
-  }
-  if (url.username || url.password || url.port) {
-    throw new Error('A URL do fornecedor contém componentes não permitidos.');
-  }
-
-  url.hostname = url.hostname.toLowerCase();
-  url.hash = '';
-  if (!yupooHostnamePattern.test(url.hostname)) {
-    throw new Error('A fonte precisa ser um catálogo público do Yupoo (*.x.yupoo.com).');
-  }
-
-  const pathname = normalizePathname(url.pathname);
-  if (pathname === '/' || pathname === '/albums') {
-    url.pathname = '/albums/';
-    url.search = '';
-    return {
-      canonicalUrl: url.href,
-      scopeKind: 'catalog'
-    };
-  }
-
-  const categoryMatch = pathname.match(/^\/categories\/(\d+)$/i);
-  if (categoryMatch) {
-    const isSubCategory = url.searchParams.get('isSubCate') === 'true';
-    url.pathname = `/categories/${categoryMatch[1]}`;
-    url.search = '';
-    if (isSubCategory) url.searchParams.set('isSubCate', 'true');
-    return {
-      canonicalUrl: url.href,
-      scopeKind: 'category'
-    };
-  }
-
-  throw new Error('Conecte a raiz do catálogo (/albums/) ou uma categoria Yupoo suportada.');
-}
-
 export function buildTenantSourceConnection(input) {
   const parsed = sourceConnectionInputSchema.parse(input);
   const sourceKey = parsed.sourceKey || 'primary';
-  const normalized = normalizeYupooCatalogUrl(parsed.sourceUrl);
+  const resolved = resolveCatalogSource({
+    provider: parsed.provider || null,
+    sourceUrl: parsed.sourceUrl
+  });
+  const normalized = resolved.normalized;
   const connectionId = stableOpaqueId('src', `${parsed.tenantId}:${sourceKey}`);
+  // Keep the v1 locator seed stable for existing Yupoo tenants. Provider-specific
+  // URL validation prevents two provider adapters from claiming the same locator.
   const sourceLocatorRef = stableOpaqueId(
     'loc',
     `${parsed.tenantId}:${sourceKey}:${normalized.canonicalUrl}`
@@ -85,7 +46,7 @@ export function buildTenantSourceConnection(input) {
     connection: {
       connectionId,
       tenantId: parsed.tenantId,
-      provider: 'yupoo',
+      provider: resolved.provider.key,
       sourceKey,
       sourceLocatorRef,
       status: 'active',
@@ -109,3 +70,7 @@ export function publicTenantSourceSummary(plan) {
     scopeKind: plan.privateSource.scopeKind
   };
 }
+
+// Compatibility export for existing callers/tests while provider-specific source
+// rules live outside the tenant connection domain module.
+export { normalizeYupooCatalogUrl };

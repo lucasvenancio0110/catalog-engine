@@ -57,7 +57,8 @@ describe('Worker-safe tenant detail ingestion', () => {
     const context = {
       tenantId,
       importId,
-      sourceKey: 'primary'
+      sourceKey: 'primary',
+      privateSource: { provider: 'yupoo', url: source }
     };
     const evidence = {
       albumSourceId: '123',
@@ -85,6 +86,7 @@ describe('Worker-safe tenant detail ingestion', () => {
     );
     expect(JSON.stringify(publicQueries)).not.toMatch(/x\.yupoo\.com|photo\.yupoo\.com/i);
     const mediaQuery = write.batch.find((query) => query.sql.includes('INSERT INTO media_sources'));
+    expect(mediaQuery.params[1]).toBe('yupoo');
     expect(JSON.stringify(mediaQuery.params)).toMatch(/photo\.yupoo\.com/);
     expect(JSON.stringify(mediaQuery.params)).toMatch(/supplier\.x\.yupoo\.com/);
     expect(write.batch.some((query) => query.sql.includes('ON CONFLICT(product_id) DO UPDATE'))).toBe(
