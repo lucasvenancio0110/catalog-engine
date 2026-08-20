@@ -9,7 +9,7 @@ Queue infrastructure must be safe to deploy before automatic customer ingestion 
 
 The existence of a Queue binding is not authorization to discover/import tenants. Automatic discovery is controlled separately by `TENANT_IMPORT_AUTOMATION_ENABLED` and the only enabled value is the literal string `1`.
 
-The production default is `0` until real one-tenant and simultaneous two-tenant ingestion proofs pass.
+Production stayed at `0` while the real one-tenant, simultaneous two-tenant and retry/DLQ/recovery proofs were executed. After those proofs and a clean read-only production preflight, a controlled activation change may set the flag to `1`. M5 is not complete until a trusted-main deployment proves that the five-minute cron automatically discovers an eligible canary tenant and completes the Queue-driven isolated import without a manually produced initial message.
 
 ## Topology
 
@@ -67,7 +67,11 @@ Therefore:
 6. `TENANT_IMPORT_AUTOMATION_ENABLED` remains `0` during manual proofs;
 7. one test tenant is imported intentionally;
 8. two simultaneous isolated test tenants are imported intentionally;
-9. only after isolation/recovery/white-label/count checks pass may the flag change to `1`.
+9. retry exhaustion, DLQ containment, repair and replay are proven with automation still OFF;
+10. a read-only production preflight must prove no unexpected eligible/import/backlog work exists;
+11. only after those gates pass may a trusted activation change set the flag to `1`;
+12. the first enabled run must prove the cron itself discovers an eligible canary and completes the normal isolated Queue pipeline without manually producing the initial message;
+13. only after that automatic proof and clean post-run Queue/DLQ state is M5 complete.
 
 No PR validation workflow may receive production Cloudflare credentials merely to prove Queue code/configuration.
 
@@ -155,16 +159,19 @@ Required:
 - real scan/detail/DLQ resources exist;
 - exactly one consumer Worker is attached to each primary queue;
 - consumer configs match repository policy;
-- main producer bindings exist while automation remains OFF;
-- one controlled tenant import succeeds;
-- simultaneous two-tenant import succeeds without crossing D1/source/media state;
-- failed/retried/deferred behavior is observed safely;
+- main producer bindings exist;
+- one controlled tenant import succeeds while automation is OFF;
+- simultaneous two-tenant import succeeds without crossing D1/source/media state while automation is OFF;
+- retry exhaustion -> DLQ -> repair -> replay succeeds safely while automation is OFF;
+- read-only preflight reports no unexpected eligible/import/backlog work before activation;
 - no public source/provider leak;
-- only then may automatic cron discovery be enabled.
+- trusted-main activation sets `TENANT_IMPORT_AUTOMATION_ENABLED=1` without changing Queue ownership;
+- the next eligible canary is discovered by the scheduled dispatcher and completes automatically through the Queue pipeline;
+- all Queue/DLQ backlogs return clean after the automatic proof.
 
 ## Rollback
 
-Before automatic launch, disabling `TENANT_IMPORT_AUTOMATION_ENABLED` must stop new cron discovery/dispatch without deleting tenant data or Queue resources.
+Disabling `TENANT_IMPORT_AUTOMATION_ENABLED` must stop new cron discovery/dispatch without deleting tenant data or Queue resources. This remains the first rollback lever both during the activation canary and after launch.
 
 If consumers are unhealthy:
 
