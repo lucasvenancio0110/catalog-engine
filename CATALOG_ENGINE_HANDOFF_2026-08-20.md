@@ -1,23 +1,25 @@
 # CATALOG ENGINE — HANDOFF COMPLETO DE DESENVOLVIMENTO
 
-**Snapshot técnico:** 2026-08-20 13:46 BRT  
+**Snapshot técnico:** 2026-08-20 14:27 BRT  
 **Repositório:** `lucasvenancio0110/catalog-engine`  
 **Projeto:** CATALOG ENGINE  
 **Stack:** Vite + JavaScript ES Modules + Cloudflare Workers + D1 + Workers for Platforms + Cloudflare Queues  
 **Node:** >= 22  
 **Package:** `0.9.0`
 
-> **REGRA DE CONTINUIDADE:** este arquivo é a fonte canônica de handoff para outro chat/software. Antes de qualquer write, merge, deploy ou mutação Cloudflare, revalidar `main`, PRs, Actions e estado real do Cloudflare. O repositório possui automações que podem avançar `main` depois deste snapshot.
+> **REGRA DE CONTINUIDADE:** este arquivo é o handoff técnico canônico para outro chat/software. Antes de qualquer write, merge, deploy ou mutação Cloudflare, revalidar `main`, PRs, Actions e estado real do Cloudflare. Atualizar este arquivo sempre que um slice/milestone relevante for concluído ou uma decisão arquitetural importante mudar.
 
 ---
 
 # 0. RESUMO EXECUTIVO
 
-O Catalog Engine já possui fundação real de SaaS B2B multi-tenant white-label e não deve mais ser tratado como “um site que lê Yupoo”.
+Catalog Engine é uma plataforma SaaS B2B multi-tenant white-label para transformar fontes privadas de catálogo em vitrines profissionais independentes da origem do fornecedor.
 
-Arquitetura comprovada:
+Não tratar o produto como “um site que lê Yupoo”. Yupoo é apenas o provider de lançamento.
 
-- storefront e customer portal;
+Arquitetura já comprovada:
+
+- storefront + customer portal;
 - Worker principal `catalog-engine`;
 - control plane em D1;
 - D1 isolado por tenant;
@@ -25,19 +27,20 @@ Arquitetura comprovada:
 - User Worker por tenant;
 - custom hostnames/domínios;
 - Provider Engine source-neutral;
-- Yupoo como primeiro provider;
+- Yupoo adapter inicial;
 - sync incremental;
 - publicação pública D1 atômica;
-- deploy de aplicação separado da publicação de catálogo;
-- design foundation / Lucide / Motion / Swiper;
-- Cloudflare Queues de scan/detail;
+- deploy de aplicação separado de publicação de catálogo;
+- Design Foundation com Lucide / Motion / Swiper;
+- Cloudflare Queues scan/detail;
 - DLQs;
 - consumers dedicados;
 - producers no Worker principal;
 - isolamento real multi-tenant;
-- retry -> DLQ -> repair -> replay comprovado em infraestrutura real;
+- retry -> DLQ -> repair -> replay real;
 - scheduler automático de tenant import em produção;
-- canário scheduler-driven comprovando import automático sem mensagem manual inicial.
+- canário scheduler-driven real sem mensagem manual inicial;
+- **CEI Normalized Evidence v1**, primeiro slice do M6.
 
 ## Milestones
 
@@ -46,38 +49,128 @@ Arquitetura comprovada:
 | M0 — verdade/documentação | substancialmente concluído |
 | M1 — production safety | parcial; dívidas de governança permanecem |
 | M2 — app deploy separado de catalog publication | concluído |
-| M3 — design foundation | concluído |
+| M3 — Design Foundation | concluído |
 | M4 — Provider Engine | concluído |
-| **M5 — tenant Queue import automático** | **CONCLUÍDO EM PRODUÇÃO** |
-| **M6 — CEI Core + Sports Knowledge Pack v1** | **PRÓXIMO / ponto atual de desenvolvimento** |
+| M5 — automatic tenant Queue import | **CONCLUÍDO / production-proven** |
+| M6 — CEI Core + Sports Knowledge Pack v1 | **EM DESENVOLVIMENTO** |
+| M6A — CEI Normalized Evidence v1 | **CONCLUÍDO** |
+| M6B — explicit runtime evidence + Sports Knowledge Pack boundary | **PRÓXIMO** |
 
 ---
 
 # 1. PONTO EXATO DE RETOMADA
 
-## M5 ESTÁ FECHADO
+`main` no fechamento do M6A:
 
-Não repetir activation/preflight/canary como se o milestone ainda estivesse pendente. O Definition of Done foi provado no Cloudflare real.
-
-`main` no momento da prova:
-
-`b917b023fde537baa0aa797d1230b7df7db5595e`
+`ad35af43f5709d340c69cf2f5b32e9408bfb1b1a`
 
 Commit:
 
-`m5: reactivate automatic import after canary Worker identity fix`
+`m6: establish versioned source-neutral CEI evidence boundary`
 
 PR:
 
-`#75 — m5: reactivate automatic import after canary Worker identity fix`
+`#77 — m6: establish versioned source-neutral CEI evidence boundary`
 
-`wrangler.jsonc` em produção:
+CI do PR #77:
+
+- `Frontend quality` = SUCCESS;
+- `Validate SaaS control plane` = SUCCESS;
+- `Validate tenant ingestion` = SUCCESS.
+
+## M6A — o que foi criado
+
+Novo arquivo:
+
+`src/catalog-intelligence/core/evidence.js`
+
+Contrato:
+
+`CEI_NORMALIZED_EVIDENCE_VERSION = 1`
+
+O Evidence v1 é estrito, versionado, limitado e source-neutral.
+
+Campos atuais:
+
+```text
+schemaVersion
+recordId
+title
+description
+sourceCategoryName
+categoryPathNames
+structuredAttributes
+provenance.providerKey
+provenance.sourceKey
+provenance.sourceLocalId
+```
+
+Regras importantes:
+
+- provider-specific fields não entram livremente no cérebro;
+- provenance identifica origem, mas não deve alterar semântica da classificação;
+- structured attributes são bounded;
+- o schema é validado por Zod;
+- CEI deve receber evidence normalizado, não objetos Yupoo/Shopify/etc.
+
+`src/domain/catalog-classifier.js` agora possui:
+
+`classifyCatalogEvidence(evidenceValue, overrideValue)`
+
+como entrada canônica do classifier.
+
+`classifyCatalogRecord(...)` foi preservado como compatibility adapter, mas agora ele primeiro cria CEI Evidence e então chama `classifyCatalogEvidence`.
+
+Isso permite migrar o runtime progressivamente sem quebrar comportamento existente.
+
+Novo regression test:
+
+`tests/cei-evidence.test.mjs`
+
+Provas:
+
+1. Evidence v1 é versionado/bounded;
+2. campo provider-specific extra é rejeitado;
+3. Yupoo vs provider hipotético com o mesmo conteúdo gera a mesma classificação;
+4. legacy classifier path e normalized-evidence path geram o mesmo resultado;
+5. attribute bag excessivo é rejeitado.
+
+## Próximo slice recomendado — M6B
+
+Objetivo:
+
+**tornar o runtime de classificação explicitamente CEI-aware e extrair o Sports Knowledge Pack do arquivo de normalização monolítico.**
+
+Sequência recomendada:
+
+1. `worker/tenant-classification-runner.js` deve construir explicitamente CEI Evidence por produto, incluindo identidade/provenance privada, e chamar `classifyCatalogEvidence` diretamente;
+2. preservar merchant override carregado do D1;
+3. criar interface `KnowledgePack` versionada;
+4. mover LEAGUES / TEAMS / FACETS / aliases / ambiguity rules para `src/catalog-intelligence/domains/sports/...`;
+5. manter comportamento atual por regressão antes de introduzir novas regras;
+6. depois evoluir confidence/conflicts/season/year/review thresholds em slices separados.
+
+**Não começar segundo provider, pesquisa universal ou redesign no M6B.**
+
+---
+
+# 2. M5 ESTÁ FECHADO — NÃO REABRIR SEM REGRESSÃO REAL
+
+Final M5 production commit:
+
+`b917b023fde537baa0aa797d1230b7df7db5595e`
+
+PR #75:
+
+`m5: reactivate automatic import after canary Worker identity fix`
+
+Production setting no fechamento:
 
 ```json
 "TENANT_IMPORT_AUTOMATION_ENABLED": "1"
 ```
 
-## Deploy real que precedeu o canário
+## Deploy final M5
 
 Workflow:
 
@@ -95,25 +188,22 @@ Worker version:
 
 `a7923901-3463-44ac-b8f5-c4ba61804b9e`
 
-Comprovado no log:
+Evidência:
 
-- `TENANT_IMPORT_AUTOMATION_ENABLED="1"`;
 - cron `*/5 * * * *`;
-- producer de `catalog-engine-import-scan` presente;
-- producer de `catalog-engine-import-detail` presente;
-- scan consumer presente;
-- detail consumer presente;
-- 65 test files;
-- 298 tests passed;
+- automation `1`;
+- scan/detail producers presentes;
+- scan/detail consumers presentes;
+- 65 test files / 298 tests passed;
 - 0 npm vulnerabilities;
-- default catalog com 17.018 produtos;
+- default catalog = 17.018 produtos;
 - 49.004 proxy routes verificadas;
-- `supplierLeak=false`;
-- `privateStatePublished=false`;
-- opaque public IDs;
-- media mode `edge-proxy`.
+- supplier leak false;
+- private state published false;
+- opaque IDs;
+- media mode edge-proxy.
 
-## Prova final M5
+## Automatic canary final
 
 Workflow:
 
@@ -131,7 +221,7 @@ Status:
 
 `catalog-engine/tenant-import-auto-canary = success`
 
-JSON relevante do run:
+Resultado:
 
 ```json
 {
@@ -162,42 +252,104 @@ JSON relevante do run:
 }
 ```
 
-Interpretação operacional:
+Interpretação:
 
 ```text
 fresh isolated tenant
-→ nenhuma mensagem de Queue produzida manualmente pelo canário
-→ cron encontrou o tenant sozinho
-→ scan executou
-→ detail executou
-→ 1 produto + 2 mídias foram publicados no D1 isolado
+→ zero manual Queue messages
+→ cron descobriu tenant sozinho
+→ scan
+→ details
+→ publicação no D1 isolado
+→ 1 produto / 2 mídias
 → 0 supplier leaks
-→ etapa import do provisioning ficou success
+→ import step success
 → provisioning avançou para classify
-→ catálogo default permaneceu intacto
-→ Queues/DLQs voltaram a backlog zero
+→ default catalog intacto
+→ Queues/DLQs limpas
 → SUCCESS
 ```
 
-**Conclusão: M5 Definition of Done satisfeito.**
+M5 Definition of Done satisfeito.
 
-## Próximo trabalho
+Documento histórico dedicado:
 
-Começar **M6 — CEI Core + Sports Knowledge Pack v1**.
-
-Antes de escrever código M6:
-
-1. revalidar `main`;
-2. ler `docs/DEVELOPMENT-ROADMAP.md`, `docs/CEI.md` se existir, documentos de classificação/normalização e Provider Engine;
-3. mapear o classifier sports existente e todos os testes/fixtures relacionados;
-4. separar o que já é CEI foundation do que M6 ainda precisa criar;
-5. construir M6 em slices pequenos e testáveis, sem introduzir segundo provider nem pesquisa autônoma universal.
+`docs/M5-CLOSURE-2026-08-20.md`
 
 ---
 
-# 2. VISÃO DO PRODUTO
+# 3. M5 — REGRESSION LESSONS QUE NÃO PODEM SER PERDIDAS
 
-Catalog Engine v1 é um SaaS B2B multi-tenant recorrente que transforma uma fonte de catálogo suportada em uma vitrine profissional white-label para o lojista.
+## 3.1 Feature bit reversível
+
+`TENANT_IMPORT_AUTOMATION_ENABLED` é bit operacional `0|1`.
+
+- ON é produção no fechamento M5;
+- OFF continua rollback/fail-safe válido;
+- producers permanecem obrigatórios nos dois estados.
+
+## 3.2 Race pending -> queued
+
+Queue message pode chegar antes do scheduler terminar a transição do job para `queued`.
+
+Consumer deve retry/busy, não marcar import como falha.
+
+## 3.3 Canário somente pós-deploy
+
+Production canary é acionado via `workflow_run` depois de application deploy SUCCESS.
+
+Não rodar canário em paralelo com deploy.
+
+## 3.4 Canonical tenant Worker identity
+
+Tenant:
+
+`t_<suffix>`
+
+Worker canônico:
+
+`ce-<suffix>`
+
+Não voltar a criar `ce-auto-<suffix>` ou outro naming paralelo para runtime que usa `TENANT_DISPATCH`.
+
+## 3.5 Não mascarar Queue evidence
+
+- não purgar Queue global para fazer smoke passar;
+- não produzir manualmente a primeira mensagem no automatic canary;
+- preservar error evidence antes de cleanup.
+
+## 3.6 Historical OFF-only smokes
+
+Preflight e alguns smokes históricos OFF-only são provas controladas de fases anteriores. Não enfraquecer esses contratos só porque produção agora está ON.
+
+---
+
+# 4. PRs IMPORTANTES M5
+
+- #65 — activation contracts / stale tests / initial activation
+- #66 — scheduler-driven production canary
+- #67 — rollback + reversible activation contracts
+- #68 — pending/queued race fix + post-deploy canary
+- #69 — reactivation pós race fix
+- #70 — rollback pós segunda falha
+- #71 — read-only retained-canary diagnostic
+- #72 — diagnostic traceability
+- #73 — canonical Worker identity fix
+- #74 — targeted retained-canary cleanup
+- #75 — final controlled reactivation
+- #76 — M5 closure docs + canonical handoff
+
+Historical runs:
+
+- Queue one/two tenant: `32338235562`
+- retry -> DLQ -> repair -> replay: `32338762195`
+- OFF preflight: `32339540357`
+- retained-canary diagnostic: `32376786224`
+- targeted cleanup: `32377942895`
+
+---
+
+# 5. VISÃO DO PRODUTO
 
 Fluxo alvo:
 
@@ -208,18 +360,13 @@ merchant/account
 → Provider Engine
 → normalized evidence
 → tenant import
-→ CEI classification/merchandising
+→ CEI
+→ classification / verification / merchandising
 → merchant overrides
 → effective public view
 → tenant domain/custom domain
 → recurring sync
 ```
-
-O produto NÃO deve ser arquitetado como plataforma de um fornecedor específico.
-
-Provider de lançamento: Yupoo.  
-Vertical inicial: sports/football.  
-Futuro: outros providers sem reescrever ingestion/CEI central.
 
 Modelo essencial:
 
@@ -231,43 +378,19 @@ MERCHANT OVERRIDE
 EFFECTIVE VIEW
 ```
 
-Fonte privada não pode vazar no storefront público e sync não pode apagar customizações do merchant.
+Fonte privada não pode vazar no storefront público.
+
+Sync/classification rerun não pode destruir merchant overrides.
 
 ---
 
-# 3. STACK / REPOSITÓRIO
+# 6. CLOUDFLARE CONFIRMADO
 
-Repo: `lucasvenancio0110/catalog-engine`  
-Default branch: `main`  
-Framework frontend: Vite + vanilla ES Modules  
-Não há React/Vue/Svelte/Angular no app de produção.
+Runtime principal:
 
-Runtime deps deliberadas:
+Cloudflare Workers + Static Assets.
 
-- `cheerio`
-- `lucide`
-- `motion`
-- `p-queue`
-- `sharp`
-- `swiper`
-- `zod`
-
-Dev:
-
-- Vitest
-- ESLint
-- Vite
-- Prettier
-
-Não migrar framework por conveniência de UI sem uma decisão arquitetural explícita.
-
----
-
-# 4. CLOUDFLARE CONFIRMADO
-
-Runtime principal: Cloudflare Workers + Static Assets.
-
-## Worker principal
+Main Worker:
 
 `catalog-engine`
 
@@ -275,45 +398,34 @@ Entrypoint:
 
 `worker/entry-publish.js`
 
-## Hosts conhecidos
+Hosts conhecidos:
 
 - `catalog-engine.lucassantanals0110.workers.dev`
 - `catalogoengine.com`
 - `app.catalogoengine.com`
 
-Admin/customer portal:
+Control/default D1:
 
-`app.catalogoengine.com`
+- binding `CATALOG_DB`
+- database `catalog-engine-db`
+- ID `12ac414c-4aef-4668-a8f9-dc63d57d449f`
 
-## Control/default D1
+Workers for Platforms:
 
-Binding: `CATALOG_DB`  
-Database: `catalog-engine-db`  
-ID: `12ac414c-4aef-4668-a8f9-dc63d57d449f`
+- binding `TENANT_DISPATCH`
+- namespace `catalog-engine-production`
 
-## Workers for Platforms
-
-Binding: `TENANT_DISPATCH`  
-Namespace: `catalog-engine-production`
-
-## Cron
+Cron:
 
 `*/5 * * * *`
 
-## Queues
+Queues:
 
 ```text
 catalog-engine-import-scan
 catalog-engine-import-detail
 catalog-engine-import-scan-dlq
 catalog-engine-import-detail-dlq
-```
-
-Dedicated consumers:
-
-```text
-catalog-engine-import-scan
-catalog-engine-import-detail
 ```
 
 Main Worker producers:
@@ -323,227 +435,54 @@ TENANT_IMPORT_QUEUE -> catalog-engine-import-scan
 TENANT_IMPORT_DETAIL_QUEUE -> catalog-engine-import-detail
 ```
 
-Preferred data-plane hot path:
+Preferred tenant hot path:
 
 ```text
 Queue consumer
 → TENANT_DISPATCH
 → Workers for Platforms
-→ User Worker `ce-<tenant suffix>`
+→ User Worker ce-<tenant suffix>
 → tenant CATALOG_DB
 ```
 
-Private D1 command path:
+Private D1 command:
 
 `/_catalog/internal/d1-batch`
 
 ---
 
-# 5. M5 — PROVAS ANTERIORES AO CANÁRIO FINAL
+# 7. SECURITY / CI BOUNDARY — NÃO REGREDIR
 
-## Real Queue happy path
+**PR comum não recebe Cloudflare production secrets.**
 
-Run histórico:
-
-`32338235562`
-
-Provou:
-
-- Queue real;
-- D1 isolado;
-- User Worker;
-- 1 tenant;
-- 2 tenants simultâneos;
-- cross-tenant isolation;
-- products/media publicados.
-
-## Resilience real
-
-Run histórico:
-
-`32338762195`
-
-Provou:
-
-```text
-controlled failure
-→ real retries
-→ DLQ
-→ zero mutation before recovery
-→ repair
-→ replay same message
-→ products/media recovered
-→ finalize
-→ all four Queue/DLQ backlogs zero
-```
-
-## Preflight histórico
-
-Run:
-
-`32339540357`
-
-Provou antes da primeira activation:
-
-- 0 undispatched candidates;
-- 0 due retry jobs;
-- 0 due finalize jobs;
-- 0 active imports;
-- 0 disposable tenant leftovers;
-- 4 backlogs = 0.
-
-**Importante:** preflight/smokes históricos OFF-only continuam sendo provas controladas. Não alterá-los para aceitar ON apenas porque produção agora está ON.
-
----
-
-# 6. M5 — FALHAS ENCONTRADAS E CORRIGIDAS
-
-Essas decisões são importantes para não repetir bugs.
-
-## 6.1 Tests stale impedindo activation/rollback
-
-Alguns testes tratavam `TENANT_IMPORT_AUTOMATION_ENABLED=0` ou `=1` como invariável permanente.
-
-Contrato correto:
-
-- bit operacional válido: `0|1`;
-- producers continuam obrigatórios;
-- OFF é um estado de rollback/fail-safe válido;
-- estado do bit pertence ao `wrangler.jsonc`, não aos workflows dos consumers.
-
-## 6.2 Race `pending -> queued`
-
-Problema original:
-
-```text
-scheduler envia Queue message
-→ consumer recebe rápido demais
-→ job ainda está pending
-→ consumer falhava o import
-```
-
-Correção:
-
-- consumer aceita observar `pending`;
-- não adquire lease cedo;
-- responde busy/retry;
-- Queue tenta novamente com delay;
-- teste de regressão cobre a chegada antecipada.
-
-## 6.3 Canário concorria com deploy
-
-Correção:
-
-O canário production agora é acionado por `workflow_run` somente depois de:
-
-`Deploy Catalog Engine application = success`
-
-Com automation OFF ele registra skip sem mutar produção. Com ON executa a prova real.
-
-## 6.4 Worker identity mismatch
-
-Segundo canário real falhou em `phase=scan` com `tenant_import_scan_failed`.
-
-Diagnóstico read-only do tenant retido:
-
-`t_b866b2412c5a3404268a`
-
-Run diagnóstico:
-
-`32376786224`
-
-Causa raiz confirmada:
-
-```text
-tenant = t_<suffix>
-hot path espera Worker = ce-<suffix>
-canário criava Worker = ce-auto-<suffix>
-TENANT_DISPATCH procurava ce-<suffix>
-Worker não existia nesse nome
-→ scan falhava antes de descobrir álbum
-```
-
-Correção:
-
-- canário passou a criar `ce-<suffix>`;
-- regressão compara naming do canário com naming do hot path;
-- canário preserva `jobErrorCode` seguro em futuras falhas.
-
-## 6.5 Cleanup do fixture quebrado
-
-Run:
-
-`32377942895`
-
-Resultado:
-
-```json
-{
-  "retainedCanaryCleanupPassed": true,
-  "automationEnabled": false,
-  "controlStateRemoved": true,
-  "workerRemoved": true,
-  "databaseRemoved": true,
-  "queueBacklogsCleanBefore": true,
-  "queueBacklogsCleanAfter": true
-}
-```
-
-Nunca houve purge global de Queue nem produção manual de mensagem para mascarar o teste.
-
----
-
-# 7. PRs IMPORTANTES DO FECHAMENTO M5
-
-- #65 — activation contracts / stale test cleanup / initial activation
-- #66 — scheduler-driven production canary
-- #67 — rollback pós primeira falha + reversible activation contracts
-- #68 — pending/queued race fix + canary pós-deploy
-- #69 — controlled reactivation pós race fix
-- #70 — rollback pós segunda falha
-- #71 — read-only retained-canary diagnostic
-- #72 — diagnostic status traceability
-- #73 — canonical Worker identity fix
-- #74 — targeted cleanup do retained canary
-- #75 — controlled final reactivation
-
-M5 fechou no commit:
-
-`b917b023fde537baa0aa797d1230b7df7db5595e`
-
----
-
-# 8. SECURITY / CI BOUNDARY — NÃO REGREDIR
-
-**Pull request comum NÃO recebe Cloudflare production secrets.**
-
-Pattern obrigatório:
+Pattern:
 
 ```text
 PR
 → secret-free validation
 
-trusted main / deliberate workflow_dispatch
-→ Cloudflare credentials
+trusted main / deliberate privileged dispatch
+→ production credentials
 → production mutation/read evidence
 ```
 
-Nunca executar código arbitrário de PR não confiável com token Cloudflare de produção.
+Dívidas M1 abertas:
 
-Dívidas M1 que continuam abertas:
-
-- `main` foi observado sem branch protection/required checks;
-- governança de direct-push do bot de sync;
-- Actions/toolchain pinning e runtime de Actions;
-- backup/rollback/migration parity runbooks.
+- branch protection / required checks;
+- direct-push bot governance;
+- Actions/toolchain governance;
+- production schema parity;
+- backup/rollback/recovery runbooks.
 
 ---
 
-# 9. APP DEPLOY != CATALOG PUBLICATION
+# 8. APP DEPLOY != CATALOG PUBLICATION
 
-Aplicação:
+Application deploy:
 
 `.github/workflows/deploy-catalog-api.yml`
+
+Pipeline:
 
 ```text
 quality
@@ -555,48 +494,103 @@ quality
 → existing catalog smoke
 ```
 
-Publicação default:
+Default catalog publication:
 
 `.github/workflows/publish-default-catalog.yml`
 
-Sync/import de dados não deve ser acoplado a mudança de CSS/Worker.
+Mudança de CSS/Worker não deve implicar replace dos produtos do catálogo.
 
 ---
 
-# 10. PROVIDER ENGINE
+# 9. PROVIDER ENGINE — M4 COMPLETE
 
-M4 concluído.
+Provider Engine é source-neutral.
 
-Central ingestion é source-neutral. Yupoo é adapter inicial, não arquitetura.
+Yupoo é adapter inicial.
 
 Contrato conceitual:
 
 ```text
 validate source
-→ discover/scan
+→ discover / scan
 → fetch detail
 → normalize evidence
-→ stable IDs/fingerprints
+→ stable identity/fingerprint
 → provider-safe media/leak rules
 ```
 
-**Não implementar segundo provider durante M6.** Primeiro consolidar CEI Core + Sports Knowledge Pack v1 sobre normalized evidence já existente.
+Não implementar segundo provider durante M6 apenas para “provar arquitetura”. O Evidence v1 já possui regression test com provenance hipotético para garantir neutralidade sem criar outro integration surface.
 
 ---
 
-# 11. CEI — BASELINE E PRÓXIMO MILESTONE
+# 10. CEI BASELINE ANTES DO M6A
 
-O repo já contém classifier sports-oriented e infraestrutura de classification state/override. Isso é fundação, não o CEI final.
+Normative contract:
 
-## M6 — CEI Core + Sports Knowledge Pack v1
+`docs/CEI.md`
 
-Objetivo:
+Current classifier files:
 
-evoluir o classifier atual para um intelligence core source-neutral, determinístico e auditável.
+- `src/domain/catalog-classifier.js`
+- `src/domain/catalog-normalization.js`
+- `worker/tenant-classification-runner.js`
+- `worker/tenant-data-plane-schema-v3.js`
 
-CEI Core de lançamento deve cobrir:
+Current tests:
 
-- normalized evidence schema;
+- `tests/catalog-classifier.test.mjs`
+- `tests/catalog-normalization.test.mjs`
+- `tests/tenant-classification-runner.test.mjs`
+- `tests/cei-evidence.test.mjs` após M6A.
+
+## Current sports intelligence
+
+`catalog-normalization.js` ainda concentra:
+
+- LEAGUES;
+- TEAMS;
+- FACETS;
+- aliases;
+- league detection;
+- team detection;
+- facet detection;
+- display normalization;
+- coarse classification confidence;
+- professional navigation definition.
+
+Classifier:
+
+- key `professional-v1`;
+- version `1`;
+- status `automatic | needs_review | unknown`;
+- global confidence 0..1;
+- merchant override support;
+- URL/supplier leak guard.
+
+Tenant classification runner:
+
+- discovers tenants no provisioning step `classify`;
+- reads isolated tenant D1;
+- loads durable merchant override JSON;
+- classifies in bounded pages;
+- persists team/league/facets/status/confidence;
+- persists classifier version/key/override state;
+- advances provisioning `classify -> verify`.
+
+Data-plane schema v3 already has:
+
+- `catalog_product_classification_state`;
+- `catalog_product_classification_overrides`.
+
+---
+
+# 11. M6 TARGET
+
+M6 — CEI Core + Sports Knowledge Pack v1.
+
+CEI Core launch capabilities:
+
+- normalized evidence schema ✅ M6A;
 - context/domain detection;
 - Knowledge Pack interface;
 - entity/attribute resolution;
@@ -616,119 +610,97 @@ Sports Knowledge Pack v1:
 - national teams;
 - product types;
 - audience/version/style facets;
-- season/year somente com evidência confiável;
+- season/year evidence quando confiável;
 - ambiguity rules;
 - merchandising hierarchy;
 - review thresholds.
 
-M6 Definition of Done:
+M6 DoD:
 
-- CEI consome normalized evidence, não objetos Yupoo;
-- folder/category do fornecedor é evidência, não verdade pública;
+- CEI recebe normalized evidence, não Yupoo objects;
+- supplier folder/category é evidence, não truth;
 - merchant overrides sobrevivem reruns;
-- baixa confiança/conflitos aparecem para review em vez de serem inventados;
-- classification + merchandising cobertos por regression fixtures.
+- low-confidence/conflicting cases viram review/unknown;
+- classification + merchandising possuem regression fixtures.
 
-Não transformar M6 em “IA universal que pesquisa qualquer produto na internet”. Isso fica fora do launch scope até Sports v1 determinístico ser mensurável.
-
----
-
-# 12. FRONTEND / UX
-
-Direção vigente:
-
-- storefront premium editorial e-commerce, não dashboard;
-- mobile first;
-- Lucide para iconografia;
-- Motion para microinterações úteis;
-- Swiper para mídia;
-- API-backed search;
-- shared responsive/accessibility foundation;
-- customer portal separado visualmente do storefront.
-
-Full redesign permanece para milestones posteriores (Storefront UX 2.0 / Portal UX 2.0).
+Universal autonomous research **não é requisito M6**.
 
 ---
 
-# 13. ROADMAP APÓS M5
-
-Ponto atual:
+# 12. ROADMAP
 
 ```text
 M0 truth/governance
-→ M1 safety foundations (parcial)
+→ M1 safety foundations (partial)
 → M2 code/data separation ✅
 → M3 Design Foundation ✅
 → M4 Provider Engine ✅
-→ M5 automatic tenant Queue import ✅ PRODUCTION-PROVEN
+→ M5 automatic tenant Queue import ✅ production-proven
 → M6 CEI Core + Sports Knowledge Pack v1 ← AGORA
+    M6A Normalized Evidence v1 ✅
+    M6B Runtime Evidence + Knowledge Pack boundary ← PRÓXIMO
 → M7 Intelligent Sync v2
-→ M8 Media Engine hardening
-→ M9+ Storefront/Theme/Portal/commercial productization
+→ M8 Media hardening
+→ M9+ Storefront/Theme/Portal productization
 → beta
-→ release candidate
+→ RC
 → launch
 ```
 
 ---
 
-# 14. DÍVIDAS IMPORTANTES
+# 13. DÍVIDAS IMPORTANTES
 
 - branch protection / required checks;
 - direct-push bot governance;
-- catastrophic sync statistical circuit breaker;
+- catastrophic sync circuit breaker;
 - media redirect/hop/byte/timeout hardening;
-- production schema parity / backup / rollback runbook;
+- schema parity / backup / rollback runbook;
 - Actions supply-chain/toolchain governance;
 - browser E2E/a11y/performance;
 - SEO/deep links;
 - fleet-level observability;
-- decidir lifecycle de workflows diagnósticos temporários de M5, sem apagar evidência antes de documentá-la.
+- lifecycle dos workflows diagnósticos temporários M5.
 
-Warning atual de Actions:
+Warning atual:
 
-`actions/checkout@v4` e `actions/setup-node@v4` estão sendo forçados pelo runner para Node 24 devido à depreciação do runtime Node 20 da action.
+`actions/checkout@v4` / `actions/setup-node@v4` usam action runtime legado e estão sendo forçados pelo runner para Node 24.
 
-Wrangler deliberadamente usado no deploy M5:
-
-`4.123.0`
-
-Não misturar upgrades de toolchain com uma feature M6 sem necessidade.
+Não misturar toolchain upgrade com feature M6 sem necessidade.
 
 ---
 
-# 15. DOCUMENTOS A LER ANTES DE GRANDES MUDANÇAS
+# 14. DOCUMENTOS IMPORTANTES
 
 - `CATALOG_ENGINE_HANDOFF_2026-08-20.md`
 - `docs/CURRENT-STATE.md`
+- `docs/M5-CLOSURE-2026-08-20.md`
 - `docs/DEVELOPMENT-ROADMAP.md`
-- `docs/DESIGN-SYSTEM.md`
-- `docs/DESIGN-AUDIT.md`
-- `docs/DOCUMENT-MAP.md`
-- `docs/DEPLOYMENT-PIPELINES.md`
+- `docs/CEI.md`
 - `docs/PROVIDER-ENGINE.md`
 - `docs/TENANT-IMPORT-QUEUES.md`
-- documentos CEI/classifier/normalization existentes no repo.
-
-Quando implementação muda contrato, atualizar docs no mesmo ciclo.
-
----
-
-# 16. CHECKLIST PARA OUTRO SOFTWARE/CHAT
-
-1. Revalidar `main`; o SHA deste arquivo pode ter ficado antigo.
-2. Confirmar que `TENANT_IMPORT_AUTOMATION_ENABLED` permanece `1`, salvo rollback deliberado posterior.
-3. Não reabrir M5 sem nova evidência de regressão; M5 já possui run final SUCCESS `32392875597`.
-4. Confirmar Queue topology antes de qualquer mudança no import pipeline.
-5. Iniciar pelo **M6**, não por M7, redesign ou segundo provider.
-6. Fazer inventário do CEI atual antes de escrever arquitetura nova.
-7. Preservar normalized provider evidence como boundary de entrada do CEI.
-8. Preservar merchant overrides e isolamento por tenant.
-9. Implementar M6 em PRs pequenos com regression fixtures e quality gates.
-10. Atualizar este handoff a cada milestone/gate/decisão arquitetural relevante.
+- `docs/DESIGN-SYSTEM.md`
+- `docs/DEPLOYMENT-PIPELINES.md`
 
 ---
 
-# 17. PROMPT CURTO DE RETOMADA
+# 15. CHECKLIST PARA OUTRO SOFTWARE/CHAT
 
-> Leia `CATALOG_ENGINE_HANDOFF_2026-08-20.md` inteiro. Ele é o handoff técnico canônico do Catalog Engine. Revalide GitHub/Cloudflare antes de qualquer write. M5 foi concluído em produção no commit `b917b023fde537baa0aa797d1230b7df7db5595e`; deploy run `32392783507` e automatic scheduler canary run `32392875597` ficaram SUCCESS. Não refaça M5 sem evidência de regressão. Continue pelo M6 — CEI Core + Sports Knowledge Pack v1 — primeiro mapeando classifier/evidence/overrides/tests existentes e implementando o milestone em slices pequenos e testáveis.
+1. Revalidar `main`.
+2. Ler este handoff inteiro.
+3. Não reabrir M5 sem nova regressão real.
+4. Confirmar automation flag se for mexer no import pipeline.
+5. M6A está concluído no PR #77 / commit `ad35af43...`.
+6. Continuar por M6B.
+7. Fazer runtime construir CEI Evidence explicitamente.
+8. Extrair Sports Knowledge Pack mantendo comportamento atual por regression tests.
+9. Depois evoluir context/conflict/confidence/season/review em slices separados.
+10. Não criar segundo provider, universal research ou grande redesign durante esses slices.
+11. Preservar merchant overrides.
+12. Atualizar este handoff após cada slice relevante.
+
+---
+
+# 16. PROMPT CURTO DE RETOMADA
+
+> Leia `CATALOG_ENGINE_HANDOFF_2026-08-20.md` inteiro e revalide `main`. M5 foi concluído em produção: deploy run `32392783507`, automatic canary run `32392875597`. M6 está em desenvolvimento. M6A — CEI Normalized Evidence v1 — foi concluído no PR #77 / commit `ad35af43f5709d340c69cf2f5b32e9408bfb1b1a`, com Frontend quality, SaaS control plane e tenant ingestion verdes. Continue por M6B: faça o tenant classification runtime construir CEI Evidence explicitamente e extraia um Sports Knowledge Pack versionado do classifier atual, preservando comportamento por regression fixtures. Não inicie segundo provider, universal research ou redesign.
