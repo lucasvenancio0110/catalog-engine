@@ -1,7 +1,8 @@
+import { createTenantCatalogEvidence } from '../src/catalog-intelligence/core/runtime-evidence.js';
 import {
   CATALOG_CLASSIFIER_KEY,
   CATALOG_CLASSIFIER_VERSION,
-  classifyCatalogRecord
+  classifyCatalogEvidence
 } from '../src/domain/catalog-classifier.js';
 import { FACETS, LEAGUES, TEAMS } from '../src/domain/catalog-normalization.js';
 import { CloudflarePlatformError, queryD1Batch } from './cloudflare-platform.js';
@@ -85,7 +86,7 @@ async function loadContext(db, tenantId) {
     .prepare(
       `SELECT p.d1_database_id, p.dispatch_namespace,
               r.provisioning_id, i.schema_version,
-              s.source_key
+              s.source_key, s.provider
          FROM tenant_data_plane_provider_state p
          JOIN tenant_catalog_instances i ON i.tenant_id=p.tenant_id
          JOIN supplier_sources s ON s.tenant_id=p.tenant_id AND s.status='active'
@@ -171,7 +172,7 @@ async function productPage(platform, context, cursor, fetchImpl) {
         {
           sql: `SELECT p.product_id, p.source_name, p.name, p.description,
                        p.source_category_name, p.category_name,
-                       a.source_category_path_json,
+                       a.album_source_id, a.source_category_path_json,
                        o.override_json
                   FROM catalog_products p
                   LEFT JOIN supplier_album_index a
@@ -351,17 +352,12 @@ async function classifyPage(platform, context, categoryNames, cursor, fetchImpl)
   let review = 0;
   let unknown = 0;
   for (const row of rows) {
-    const classified = classifyCatalogRecord(
-      {
-        name: row.source_name || row.name,
-        sourceName: row.source_name || row.name,
-        category: row.source_category_name || row.category_name,
-        sourceCategoryName: row.source_category_name || row.category_name,
-        description: row.description || ''
-      },
-      categoryPathNames(row, categoryNames),
-      row.override_json || null
+    const evidence = createTenantCatalogEvidence(
+      row,
+      context,
+      categoryPathNames(row, categoryNames)
     );
+    const classified = classifyCatalogEvidence(evidence, row.override_json || null);
     groups.push(productClassificationStatements(row, classified));
     if (classified.classificationStatus === 'automatic') automatic += 1;
     else if (classified.classificationStatus === 'needs_review') review += 1;
@@ -559,6 +555,9 @@ async function failJob(db, job, context, safeCode) {
 
 function safeError(error) {
   if (error instanceof CloudflarePlatformError) return error.code;
+  if (String(error?.message || '') === 'cei_runtime_evidence_invalid') {
+    return 'tenant_classification_evidence_invalid';
+  }
   if (error?.name === 'ZodError' || /^classification_override_/.test(String(error?.message || ''))) {
     return 'tenant_classification_override_invalid';
   }
