@@ -18,6 +18,12 @@
       "migrations_dir": "migrations"
     }
   ],
+  "dispatch_namespaces": [
+    {
+      "binding": "TENANT_DISPATCH",
+      "namespace": "catalog-engine-production"
+    }
+  ],
   "queues": {
     "consumers": [
       {
