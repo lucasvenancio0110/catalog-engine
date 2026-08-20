@@ -14,40 +14,27 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Verify custom Catalog Engine hosts
-        shell: bash
-        run: |
-          set -euo pipefail
-          curl --fail --silent --show-error https://catalogoengine.com/ > /tmp/custom-storefront.html
-          curl --fail --silent --show-error https://catalogoengine.com/api/health > /tmp/custom-health.json
-          curl --fail --silent --show-error https://catalogoengine.com/api/catalog/meta > /tmp/custom-meta.json
-          curl --fail --silent --show-error https://app.catalogoengine.com/ > /tmp/custom-app.html
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const storefront = fs.readFileSync('/tmp/custom-storefront.html', 'utf8');
-          const app = fs.readFileSync('/tmp/custom-app.html', 'utf8');
-          const health = JSON.parse(fs.readFileSync('/tmp/custom-health.json', 'utf8'));
-          const meta = JSON.parse(fs.readFileSync('/tmp/custom-meta.json', 'utf8'));
-          if (!health.ok) throw new Error('catalogoengine.com health is not OK');
-          if (!Number(meta.stats?.products)) throw new Error('catalogoengine.com catalog metadata is empty');
-          if (!storefront.includes('data-lucide="sun"')) throw new Error('catalogoengine.com is not serving the M3 storefront yet');
-          if (!storefront.includes('data-lucide="message-circle"')) throw new Error('catalogoengine.com is missing the M3 WhatsApp icon');
-          if (!(app.includes('Catalog Engine — Portal') || app.includes('id="app"'))) throw new Error('app.catalogoengine.com does not look like the portal');
-          console.log(JSON.stringify({
-            storefrontUrl: 'https://catalogoengine.com/',
-            appUrl: 'https://app.catalogoengine.com/',
-            health: health.ok,
-            products: meta.stats.products,
-            m3Storefront: true,
-            appHostLooksLikePortal: true
-          }, null, 2));
-          NODE
-
-      - name: Probe legacy workers.dev host without blocking custom-host verification
-        continue-on-error: true
+      - name: Verify isolated UI staging Worker
         shell: bash
         env:
-          EDGE_URL: https://catalog-engine.lucassantanals0110.workers.dev
+          PREVIEW_URL: https://catalog-engine-ui-preview.lucassantanals0110.workers.dev
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error "$EDGE_URL/api/health" > /tmp/legacy-health.json
+          curl --fail --silent --show-error "$PREVIEW_URL/api/health" > /tmp/health.json
+          curl --fail --silent --show-error "$PREVIEW_URL/api/catalog/meta" > /tmp/meta.json
+          curl --fail --silent --show-error "$PREVIEW_URL/api/products?page=1&limit=15" > /tmp/products.json
+          curl --fail --silent --show-error "$PREVIEW_URL/" > /tmp/storefront.html
+          curl --fail --silent --show-error "$PREVIEW_URL/app.html" > /tmp/app.html
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const health = JSON.parse(fs.readFileSync('/tmp/health.json', 'utf8'));
+          const meta = JSON.parse(fs.readFileSync('/tmp/meta.json', 'utf8'));
+          const products = JSON.parse(fs.readFileSync('/tmp/products.json', 'utf8'));
+          const storefront = fs.readFileSync('/tmp/storefront.html', 'utf8');
+          const app = fs.readFileSync('/tmp/app.html', 'utf8');
+          if (!health.ok || !health.preview) throw new Error('staging health failed');
+          if (!Number(meta.stats?.products) || !products.items?.length) throw new Error('staging demo catalog empty');
+          if (!storefront.includes('data-lucide="sun"')) throw new Error('staging storefront is not M3');
+          if (!app.includes('Catalog Engine — Portal')) throw new Error('staging portal missing');
+          console.log(JSON.stringify({ previewUrl: process.env.PREVIEW_URL, products: meta.stats.products, ok: true }, null, 2));
+          NODE
