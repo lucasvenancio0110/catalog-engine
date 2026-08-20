@@ -1,5 +1,9 @@
 import { z } from 'zod';
 import {
+  createCatalogEvidence,
+  parseCatalogEvidence
+} from '../catalog-intelligence/core/evidence.js';
+import {
   FACETS,
   LEAGUES,
   TEAMS,
@@ -51,7 +55,9 @@ export function parseCatalogClassificationOverride(value) {
   if (value === null || value === undefined || value === '') return null;
   const candidate = typeof value === 'string' ? JSON.parse(value) : value;
   const parsed = overrideSchema.parse(candidate);
-  if (parsed.teamId && !teamById.has(parsed.teamId)) throw new Error('classification_override_unknown_team');
+  if (parsed.teamId && !teamById.has(parsed.teamId)) {
+    throw new Error('classification_override_unknown_team');
+  }
   if (parsed.leagueId && !leagueById.has(parsed.leagueId)) {
     throw new Error('classification_override_unknown_league');
   }
@@ -61,8 +67,7 @@ export function parseCatalogClassificationOverride(value) {
   return parsed;
 }
 
-export function classifyCatalogRecord(product, categoryPathNames = [], overrideValue = null) {
-  const base = normalizeCatalogProduct(product, categoryPathNames);
+function applyClassificationOverride(base, overrideValue) {
   const override = parseCatalogClassificationOverride(overrideValue);
   if (!override) {
     return {
@@ -118,4 +123,33 @@ export function classifyCatalogRecord(product, categoryPathNames = [], overrideV
     classifierKey: CATALOG_CLASSIFIER_KEY,
     overrideApplied: true
   };
+}
+
+export function classifyCatalogEvidence(evidenceValue, overrideValue = null) {
+  const evidence = parseCatalogEvidence(evidenceValue);
+  const base = normalizeCatalogProduct(
+    {
+      sourceName: evidence.title,
+      name: evidence.title,
+      description: evidence.description,
+      sourceCategoryName: evidence.sourceCategoryName,
+      category: evidence.sourceCategoryName,
+      structuredAttributes: evidence.structuredAttributes
+    },
+    evidence.categoryPathNames
+  );
+  return applyClassificationOverride(base, overrideValue);
+}
+
+export function classifyCatalogRecord(product, categoryPathNames = [], overrideValue = null) {
+  const evidence = createCatalogEvidence({
+    recordId: product?.productId || product?.recordId || null,
+    title: product?.sourceName || product?.name || '',
+    description: product?.description || '',
+    sourceCategoryName: product?.sourceCategoryName || product?.category || '',
+    categoryPathNames,
+    structuredAttributes: product?.structuredAttributes || {},
+    provenance: product?.provenance || {}
+  });
+  return classifyCatalogEvidence(evidence, overrideValue);
 }
