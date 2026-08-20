@@ -1,0 +1,40 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "catalog-engine-import-scan",
+  "main": "./worker/import-scan-entry.js",
+  "compatibility_date": "2026-08-17",
+  "workers_dev": false,
+  "vars": {
+    "CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE": "catalog-engine-production"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "CATALOG_DB",
+      "database_name": "catalog-engine-db",
+      "database_id": "12ac414c-4aef-4668-a8f9-dc63d57d449f",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "TENANT_IMPORT_DETAIL_QUEUE",
+        "queue": "catalog-engine-import-detail"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "catalog-engine-import-scan",
+        "max_batch_size": 1,
+        "max_batch_timeout": 5,
+        "max_retries": 3,
+        "dead_letter_queue": "catalog-engine-import-scan-dlq",
+        "max_concurrency": 1,
+        "retry_delay": 60
+      }
+    ]
+  }
+}
