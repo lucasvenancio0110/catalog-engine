@@ -1,0 +1,132 @@
+name: Publish M3 UI edge preview
+
+on:
+  push:
+    branches: ["preview/m3-ui-live"]
+    paths:
+      - ".github/workflows/preview-m3-ui.yml"
+      - "index.html"
+      - "app.html"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.*"
+      - "config/dependency-policy.json"
+      - "scripts/copy-storefront-data.mjs"
+      - "scripts/verify-dist.mjs"
+      - "src/**"
+      - "worker/**"
+      - "wrangler.jsonc"
+
+permissions:
+  contents: write
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_VERSION: 4.123.0
+      PREVIEW_ALIAS: m3-ui
+      FALLBACK_PREVIEW_URL: https://m3-ui-catalog-engine.lucassantanals0110.workers.dev
+      NO_COLOR: "1"
+
+    steps:
+      - name: Checkout preview branch
+        uses: actions/checkout@v4
+        with:
+          ref: preview/m3-ui-live
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate Cloudflare credentials
+        shell: bash
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
+
+      - name: Install and validate
+        run: |
+          npm ci
+          npm run quality
+          npm run build
+          npm run build:verify
+
+      - name: Upload non-production Worker version with stable preview alias
+        shell: bash
+        run: |
+          set -o pipefail
+          npx --yes "wrangler@$WRANGLER_VERSION" versions upload --preview-alias "$PREVIEW_ALIAS" --config wrangler.jsonc | tee /tmp/wrangler-upload.log
+          PREVIEW_URL="$(grep -Eo 'https://[A-Za-z0-9.-]+\.workers\.dev' /tmp/wrangler-upload.log | tail -1 || true)"
+          if [ -z "$PREVIEW_URL" ]; then
+            PREVIEW_URL="$FALLBACK_PREVIEW_URL"
+          fi
+          echo "PREVIEW_URL=$PREVIEW_URL" >> "$GITHUB_ENV"
+          echo "Preview URL: $PREVIEW_URL"
+
+      - name: Smoke preview on Cloudflare edge
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f /tmp/health.json
+          for attempt in $(seq 1 12); do
+            if curl --fail --silent --show-error "$PREVIEW_URL/api/health" > /tmp/health.json; then
+              break
+            fi
+            echo "Preview not ready yet (attempt $attempt/12)"
+            sleep 5
+          done
+          test -s /tmp/health.json
+          curl --fail --silent --show-error "$PREVIEW_URL/api/catalog/meta" > /tmp/meta.json
+          curl --fail --silent --show-error "$PREVIEW_URL/api/products?page=1&limit=1" > /tmp/products.json
+          curl --fail --silent --show-error "$PREVIEW_URL/" > /tmp/storefront.html
+          curl --fail --silent --show-error "$PREVIEW_URL/app.html" > /tmp/app.html
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const health = JSON.parse(fs.readFileSync('/tmp/health.json', 'utf8'));
+          const meta = JSON.parse(fs.readFileSync('/tmp/meta.json', 'utf8'));
+          const products = JSON.parse(fs.readFileSync('/tmp/products.json', 'utf8'));
+          const storefront = fs.readFileSync('/tmp/storefront.html', 'utf8');
+          const app = fs.readFileSync('/tmp/app.html', 'utf8');
+          if (!health.ok) throw new Error('preview health failed');
+          if (!Number(meta.stats?.products)) throw new Error('preview catalog meta is empty');
+          if (!products.items?.length) throw new Error('preview product API is empty');
+          if (!storefront.includes('<title>Catálogo</title>')) throw new Error('preview storefront HTML missing');
+          if (!app.includes('Catalog Engine — Portal')) throw new Error('preview app HTML missing');
+          console.log(JSON.stringify({ ok: true, products: meta.stats.products, firstProductId: products.items[0].id }, null, 2));
+          NODE
+
+      - name: Record verified preview URL in branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p preview
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const meta = JSON.parse(fs.readFileSync('/tmp/meta.json', 'utf8'));
+          const payload = {
+            status: 'verified',
+            previewUrl: process.env.PREVIEW_URL,
+            storefrontUrl: `${process.env.PREVIEW_URL}/`,
+            appUrl: `${process.env.PREVIEW_URL}/app.html`,
+            commit: process.env.GITHUB_SHA,
+            catalogProducts: Number(meta.stats?.products || 0),
+            verifiedAt: new Date().toISOString(),
+            note: 'Cloudflare Worker version preview only; production traffic was not changed.'
+          };
+          fs.writeFileSync('preview/M3_UI_STATUS.json', `${JSON.stringify(payload, null, 2)}\n`);
+          NODE
+          git config user.name "catalog-engine-ci"
+          git config user.email "catalog-engine-ci@users.noreply.github.com"
+          git add preview/M3_UI_STATUS.json
+          if git diff --cached --quiet; then
+            echo "Preview status already current"
+            exit 0
+          fi
+          git commit -m "chore: record verified M3 edge preview"
+          git push origin HEAD:preview/m3-ui-live
