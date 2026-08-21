@@ -5,6 +5,7 @@ import { dispatchTenantRequest } from './tenant-dispatch.js';
 import { runDueDomainJobs } from './domain-job-scheduler.js';
 import { runDueTenantClassifications } from './tenant-classification-runner.js';
 import { runDueTenantImportDispatches } from './tenant-import-dispatcher.js';
+import { runDueTenantSyncScheduling } from './tenant-sync-scheduler.js';
 import { runDueTenantVerifications } from './tenant-verification-runner.js';
 import {
   isCatalogAdminHost,
@@ -21,6 +22,7 @@ function safeScheduleSummary(summary) {
     selected: summary.selected || 0,
     processed: summary.processed || 0,
     dispatched: summary.dispatched || 0,
+    scheduled: summary.scheduled || 0,
     succeeded: summary.succeeded || 0,
     failed: summary.failed || 0,
     busy: summary.busy || 0
@@ -110,6 +112,7 @@ export default {
         runDueDataPlaneJobs(env),
         runDueDataPlaneMigrations(env),
         runDueTenantImportDispatches(env),
+        runDueTenantSyncScheduling(env),
         runDueTenantClassifications(env),
         runDueTenantVerifications(env),
         runDueDomainJobs(env)
@@ -118,6 +121,7 @@ export default {
           'data_plane_job_schedule',
           'data_plane_migration_schedule',
           'tenant_import_dispatch_schedule',
+          'tenant_sync_schedule',
           'tenant_classification_schedule',
           'tenant_verification_schedule',
           'domain_job_schedule'
