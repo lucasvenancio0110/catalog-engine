@@ -17,13 +17,34 @@ const PAGES_PER_RUN = 5;
 const D1_WRITE_BATCH_LIMIT = 90;
 
 function runtimeConfig(env) {
-  const accountId = String(env.CLOUDFLARE_PLATFORM_ACCOUNT_ID || '').trim();
-  const apiToken = String(env.CLOUDFLARE_PLATFORM_API_TOKEN || '').trim();
   const dispatchNamespace = String(
     env.CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE || DEFAULT_DISPATCH_NAMESPACE
   ).trim();
+  const tenantDispatch = env.TENANT_DISPATCH;
+  if (tenantDispatch && typeof tenantDispatch.get === 'function' && dispatchNamespace) {
+    return { dispatchNamespace, tenantDispatch };
+  }
+
+  const accountId = String(env.CLOUDFLARE_PLATFORM_ACCOUNT_ID || '').trim();
+  const apiToken = String(env.CLOUDFLARE_PLATFORM_API_TOKEN || '').trim();
   if (!/^[a-f0-9]{32}$/i.test(accountId) || apiToken.length < 20 || !dispatchNamespace) return null;
   return { accountId, apiToken, dispatchNamespace };
+}
+
+async function tenantD1Batch(platform, tenantId, databaseId, batch, fetchImpl) {
+  const dispatchNative = platform.tenantDispatch && typeof platform.tenantDispatch.get === 'function';
+  const effectiveBatch = dispatchNative
+    ? [{ sql: 'SELECT ?1 AS tenant_id', params: [tenantId] }, ...batch]
+    : batch;
+  const result = await queryD1Batch(
+    {
+      ...platform,
+      databaseId,
+      batch: effectiveBatch
+    },
+    { fetchImpl }
+  );
+  return dispatchNative ? result.slice(1) : result;
 }
 
 async function classificationJobId(tenantId) {
@@ -145,20 +166,19 @@ async function claimJob(db, job, context) {
 }
 
 async function sourceCategoryNames(platform, context, fetchImpl) {
-  const result = await queryD1Batch(
-    {
-      ...platform,
-      databaseId: context.d1_database_id,
-      batch: [
-        {
-          sql: `SELECT category_source_id, name
-                  FROM supplier_category_index
-                 WHERE tenant_id=?1 AND source_key=?2`,
-          params: [context.tenant_id, context.source_key]
-        }
-      ]
-    },
-    { fetchImpl }
+  const result = await tenantD1Batch(
+    platform,
+    context.tenant_id,
+    context.d1_database_id,
+    [
+      {
+        sql: `SELECT category_source_id, name
+                FROM supplier_category_index
+               WHERE tenant_id=?1 AND source_key=?2`,
+        params: [context.tenant_id, context.source_key]
+      }
+    ],
+    fetchImpl
   );
   return new Map(
     (result[0]?.results || []).map((row) => [String(row.category_source_id), String(row.name || '')])
@@ -166,29 +186,28 @@ async function sourceCategoryNames(platform, context, fetchImpl) {
 }
 
 async function productPage(platform, context, cursor, fetchImpl) {
-  const result = await queryD1Batch(
-    {
-      ...platform,
-      databaseId: context.d1_database_id,
-      batch: [
-        {
-          sql: `SELECT p.product_id, p.source_name, p.name, p.description,
-                       p.source_category_name, p.category_name,
-                       a.album_source_id, a.source_category_path_json,
-                       o.override_json
-                  FROM catalog_products p
-                  LEFT JOIN supplier_album_index a
-                    ON a.tenant_id=?1 AND a.source_key=?2 AND a.public_product_id=p.product_id
-                  LEFT JOIN catalog_product_classification_overrides o
-                    ON o.product_id=p.product_id
-                 WHERE (?3 IS NULL OR p.product_id > ?3)
-                 ORDER BY p.product_id ASC
-                 LIMIT ?4`,
-          params: [context.tenant_id, context.source_key, cursor || null, PRODUCT_PAGE_SIZE]
-        }
-      ]
-    },
-    { fetchImpl }
+  const result = await tenantD1Batch(
+    platform,
+    context.tenant_id,
+    context.d1_database_id,
+    [
+      {
+        sql: `SELECT p.product_id, p.source_name, p.name, p.description,
+                     p.source_category_name, p.category_name,
+                     a.album_source_id, a.source_category_path_json,
+                     o.override_json
+                FROM catalog_products p
+                LEFT JOIN supplier_album_index a
+                  ON a.tenant_id=?1 AND a.source_key=?2 AND a.public_product_id=p.product_id
+                LEFT JOIN catalog_product_classification_overrides o
+                  ON o.product_id=p.product_id
+               WHERE (?3 IS NULL OR p.product_id > ?3)
+               ORDER BY p.product_id ASC
+               LIMIT ?4`,
+        params: [context.tenant_id, context.source_key, cursor || null, PRODUCT_PAGE_SIZE]
+      }
+    ],
+    fetchImpl
   );
   return result[0]?.results || [];
 }
@@ -260,15 +279,14 @@ function facetStatement(facet) {
   };
 }
 
-async function runBoundedBatches(platform, databaseId, statements, fetchImpl) {
+async function runBoundedBatches(platform, tenantId, databaseId, statements, fetchImpl) {
   for (let index = 0; index < statements.length; index += D1_WRITE_BATCH_LIMIT) {
-    await queryD1Batch(
-      {
-        ...platform,
-        databaseId,
-        batch: statements.slice(index, index + D1_WRITE_BATCH_LIMIT)
-      },
-      { fetchImpl }
+    await tenantD1Batch(
+      platform,
+      tenantId,
+      databaseId,
+      statements.slice(index, index + D1_WRITE_BATCH_LIMIT),
+      fetchImpl
     );
   }
 }
@@ -276,6 +294,7 @@ async function runBoundedBatches(platform, databaseId, statements, fetchImpl) {
 async function seedControlledEntities(platform, context, fetchImpl) {
   await runBoundedBatches(
     platform,
+    context.tenant_id,
     context.d1_database_id,
     [...LEAGUES.map(leagueStatement), ...TEAMS.map(teamStatement), ...FACETS.map(facetStatement)],
     fetchImpl
@@ -332,18 +351,18 @@ function productClassificationStatements(row, classified) {
   return statements;
 }
 
-async function writeProductGroups(platform, databaseId, groups, fetchImpl) {
+async function writeProductGroups(platform, tenantId, databaseId, groups, fetchImpl) {
   let current = [];
   for (const group of groups) {
     if (group.length > 100) throw new Error('tenant_classification_product_write_too_large');
     if (current.length && current.length + group.length > D1_WRITE_BATCH_LIMIT) {
-      await queryD1Batch({ ...platform, databaseId, batch: current }, { fetchImpl });
+      await tenantD1Batch(platform, tenantId, databaseId, current, fetchImpl);
       current = [];
     }
     current.push(...group);
   }
   if (current.length) {
-    await queryD1Batch({ ...platform, databaseId, batch: current }, { fetchImpl });
+    await tenantD1Batch(platform, tenantId, databaseId, current, fetchImpl);
   }
 }
 
@@ -366,7 +385,13 @@ async function classifyPage(platform, context, categoryNames, cursor, fetchImpl)
     else if (classified.classificationStatus === 'needs_review') review += 1;
     else unknown += 1;
   }
-  await writeProductGroups(platform, context.d1_database_id, groups, fetchImpl);
+  await writeProductGroups(
+    platform,
+    context.tenant_id,
+    context.d1_database_id,
+    groups,
+    fetchImpl
+  );
   return {
     rows: rows.length,
     cursor: String(rows.at(-1).product_id),
@@ -430,47 +455,46 @@ async function finalizeD1Classification(platform, context, stats, fetchImpl) {
     needsReview: stats.review,
     unknown: stats.unknown
   });
-  await queryD1Batch(
-    {
-      ...platform,
-      databaseId: context.d1_database_id,
-      batch: [
-        {
-          sql: `UPDATE catalog_leagues
-                   SET product_count=(SELECT COUNT(*) FROM catalog_products p WHERE p.league_id=catalog_leagues.league_id),
-                       updated_at=CURRENT_TIMESTAMP`,
-          params: []
-        },
-        {
-          sql: `UPDATE catalog_teams
-                   SET product_count=(SELECT COUNT(*) FROM catalog_products p WHERE p.team_id=catalog_teams.team_id),
-                       updated_at=CURRENT_TIMESTAMP`,
-          params: []
-        },
-        {
-          sql: `UPDATE catalog_facets
-                   SET product_count=(SELECT COUNT(*) FROM catalog_product_facets pf WHERE pf.facet_id=catalog_facets.facet_id),
-                       updated_at=CURRENT_TIMESTAMP`,
-          params: []
-        },
-        { sql: 'DELETE FROM catalog_leagues WHERE product_count=0', params: [] },
-        { sql: 'DELETE FROM catalog_teams WHERE product_count=0', params: [] },
-        { sql: 'DELETE FROM catalog_facets WHERE product_count=0', params: [] },
-        {
-          sql: `INSERT INTO catalog_meta (key, value_json, updated_at)
-                VALUES ('classification', ?1, CURRENT_TIMESTAMP)
-                ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json, updated_at=CURRENT_TIMESTAMP`,
-          params: [classificationMeta]
-        },
-        {
-          sql: `INSERT INTO catalog_meta (key, value_json, updated_at)
-                VALUES ('normalization', ?1, CURRENT_TIMESTAMP)
-                ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json, updated_at=CURRENT_TIMESTAMP`,
-          params: [normalizationMeta]
-        }
-      ]
-    },
-    { fetchImpl }
+  await tenantD1Batch(
+    platform,
+    context.tenant_id,
+    context.d1_database_id,
+    [
+      {
+        sql: `UPDATE catalog_leagues
+                 SET product_count=(SELECT COUNT(*) FROM catalog_products p WHERE p.league_id=catalog_leagues.league_id),
+                     updated_at=CURRENT_TIMESTAMP`,
+        params: []
+      },
+      {
+        sql: `UPDATE catalog_teams
+                 SET product_count=(SELECT COUNT(*) FROM catalog_products p WHERE p.team_id=catalog_teams.team_id),
+                     updated_at=CURRENT_TIMESTAMP`,
+        params: []
+      },
+      {
+        sql: `UPDATE catalog_facets
+                 SET product_count=(SELECT COUNT(*) FROM catalog_product_facets pf WHERE pf.facet_id=catalog_facets.facet_id),
+                     updated_at=CURRENT_TIMESTAMP`,
+        params: []
+      },
+      { sql: 'DELETE FROM catalog_leagues WHERE product_count=0', params: [] },
+      { sql: 'DELETE FROM catalog_teams WHERE product_count=0', params: [] },
+      { sql: 'DELETE FROM catalog_facets WHERE product_count=0', params: [] },
+      {
+        sql: `INSERT INTO catalog_meta (key, value_json, updated_at)
+              VALUES ('classification', ?1, CURRENT_TIMESTAMP)
+              ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json, updated_at=CURRENT_TIMESTAMP`,
+        params: [classificationMeta]
+      },
+      {
+        sql: `INSERT INTO catalog_meta (key, value_json, updated_at)
+              VALUES ('normalization', ?1, CURRENT_TIMESTAMP)
+              ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json, updated_at=CURRENT_TIMESTAMP`,
+        params: [normalizationMeta]
+      }
+    ],
+    fetchImpl
   );
 }
 
