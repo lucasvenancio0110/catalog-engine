@@ -13,8 +13,8 @@ import {
   normalizeCatalogProduct
 } from './catalog-normalization.js';
 
-export const CATALOG_CLASSIFIER_VERSION = 2;
-export const CATALOG_CLASSIFIER_KEY = 'professional-v2';
+export const CATALOG_CLASSIFIER_VERSION = 3;
+export const CATALOG_CLASSIFIER_KEY = 'professional-v3';
 
 function safePublicLabel(maxLength) {
   return z
