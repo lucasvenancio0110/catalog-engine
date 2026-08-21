@@ -124,14 +124,23 @@ describe('CEI domain router v1', () => {
       knowledgePack: WHEELS_PACK,
       classifyEvidence() {
         return {
+          displayName: '18 inch Wheel',
+          displayCategoryName: 'Wheels',
+          searchText: '18 inch wheel',
+          facets: [],
           classificationStatus: 'automatic',
           classificationConfidence: 0.9,
+          automaticClassificationStatus: 'automatic',
+          automaticClassificationConfidence: 0.9,
           domain: {
             id: 'automotive',
             confidence: 0.9,
             knowledgePackKey: 'wrong-pack',
             knowledgePackVersion: 1
           },
+          fieldConfidence: { productType: 0.9 },
+          conflicts: [],
+          reviewRequired: false,
           claims: { productType: { value: 'wheel', confidence: 0.9, evidenceSources: [] } }
         };
       }
