@@ -3,6 +3,7 @@ import {
   createCatalogEvidence,
   parseCatalogEvidence
 } from '../catalog-intelligence/core/evidence.js';
+import { analyzeSportsEvidence } from '../catalog-intelligence/domains/sports/resolution.js';
 import {
   FACETS,
   LEAGUES,
@@ -10,8 +11,8 @@ import {
   normalizeCatalogProduct
 } from './catalog-normalization.js';
 
-export const CATALOG_CLASSIFIER_VERSION = 1;
-export const CATALOG_CLASSIFIER_KEY = 'professional-v1';
+export const CATALOG_CLASSIFIER_VERSION = 2;
+export const CATALOG_CLASSIFIER_KEY = 'professional-v2';
 
 function safePublicLabel(maxLength) {
   return z
@@ -80,6 +81,7 @@ function applyClassificationOverride(base, overrideValue) {
 
   const teamOverridden = Object.hasOwn(override, 'teamId');
   const leagueOverridden = Object.hasOwn(override, 'leagueId');
+  const facetsOverridden = Object.hasOwn(override, 'facetIds');
   const team = teamOverridden
     ? override.teamId
       ? teamById.get(override.teamId)
@@ -108,6 +110,32 @@ function applyClassificationOverride(base, overrideValue) {
     facets.map((facet) => facet.name)
   ]);
 
+  const resolvedConflictFields = new Set();
+  if (teamOverridden) resolvedConflictFields.add('team');
+  if (leagueOverridden || (teamOverridden && team?.leagueId)) resolvedConflictFields.add('league');
+  if (facetsOverridden) {
+    resolvedConflictFields.add('facets');
+    resolvedConflictFields.add('version');
+  }
+  const conflicts = (base.conflicts || []).filter(
+    (item) => !resolvedConflictFields.has(item.field)
+  );
+
+  const fieldConfidence = {
+    ...(base.fieldConfidence || {})
+  };
+  if (teamOverridden) fieldConfidence.team = 1;
+  if (leagueOverridden || (teamOverridden && team?.leagueId)) fieldConfidence.league = 1;
+  if (facetsOverridden) fieldConfidence.facets = 1;
+
+  const automaticStatus = base.automaticClassificationStatus || base.classificationStatus;
+  const automaticConfidence =
+    base.automaticClassificationConfidence ?? base.classificationConfidence;
+  const conflictFreeStatus = conflicts.length ? 'needs_review' : automaticStatus;
+  const conflictFreeConfidence = conflicts.length
+    ? Math.min(automaticConfidence, 0.5)
+    : automaticConfidence;
+
   return {
     ...base,
     displayName,
@@ -116,9 +144,12 @@ function applyClassificationOverride(base, overrideValue) {
     team,
     league,
     facets,
-    classificationStatus: override.classificationStatus || base.classificationStatus,
+    conflicts,
+    reviewRequired: conflicts.length > 0,
+    fieldConfidence,
+    classificationStatus: override.classificationStatus || conflictFreeStatus,
     classificationConfidence:
-      override.classificationConfidence ?? base.classificationConfidence,
+      override.classificationConfidence ?? conflictFreeConfidence,
     classifierVersion: CATALOG_CLASSIFIER_VERSION,
     classifierKey: CATALOG_CLASSIFIER_KEY,
     overrideApplied: true
@@ -127,7 +158,7 @@ function applyClassificationOverride(base, overrideValue) {
 
 export function classifyCatalogEvidence(evidenceValue, overrideValue = null) {
   const evidence = parseCatalogEvidence(evidenceValue);
-  const base = normalizeCatalogProduct(
+  const automatic = normalizeCatalogProduct(
     {
       sourceName: evidence.title,
       name: evidence.title,
@@ -138,6 +169,23 @@ export function classifyCatalogEvidence(evidenceValue, overrideValue = null) {
     },
     evidence.categoryPathNames
   );
+  const intelligence = analyzeSportsEvidence(evidence, automatic);
+  const base = {
+    ...automatic,
+    automaticClassificationStatus: automatic.classificationStatus,
+    automaticClassificationConfidence: automatic.classificationConfidence,
+    domain: intelligence.domain,
+    fieldConfidence: intelligence.fieldConfidence,
+    season: intelligence.season,
+    conflicts: intelligence.conflicts,
+    reviewRequired: intelligence.reviewRequired,
+    classificationStatus: intelligence.reviewRequired
+      ? 'needs_review'
+      : automatic.classificationStatus,
+    classificationConfidence: intelligence.reviewRequired
+      ? Math.min(automatic.classificationConfidence, 0.5)
+      : automatic.classificationConfidence
+  };
   return applyClassificationOverride(base, overrideValue);
 }
 
