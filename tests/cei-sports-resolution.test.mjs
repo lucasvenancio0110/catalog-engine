@@ -28,7 +28,7 @@ function evidence({
 }
 
 describe('CEI Sports v1 evidence resolution', () => {
-  it('adds domain, field confidence and a reliable two-year season without changing a clear classification', () => {
+  it('keeps clear Sports semantics stable while versioning the CEI output contract', () => {
     const result = classifyCatalogEvidence(
       evidence({
         title: 'Barcelona 26/27 Home Player Version Jersey',
@@ -37,8 +37,8 @@ describe('CEI Sports v1 evidence resolution', () => {
       })
     );
 
-    expect(CATALOG_CLASSIFIER_VERSION).toBe(2);
-    expect(CATALOG_CLASSIFIER_KEY).toBe('professional-v2');
+    expect(CATALOG_CLASSIFIER_VERSION).toBe(3);
+    expect(CATALOG_CLASSIFIER_KEY).toBe('professional-v3');
     expect(result.team?.id).toBe('barcelona');
     expect(result.league?.id).toBe('la-liga');
     expect(result.domain).toMatchObject({
