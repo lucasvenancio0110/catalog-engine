@@ -27,10 +27,34 @@ function boundedConfidence(value, code) {
   return confidence;
 }
 
+function validateAutomaticShape(value) {
+  if (
+    typeof value.displayName !== 'string' ||
+    typeof value.displayCategoryName !== 'string' ||
+    typeof value.searchText !== 'string' ||
+    !Array.isArray(value.facets) ||
+    !value.fieldConfidence ||
+    typeof value.fieldConfidence !== 'object' ||
+    Array.isArray(value.fieldConfidence) ||
+    !Array.isArray(value.conflicts) ||
+    typeof value.reviewRequired !== 'boolean'
+  ) {
+    throw new Error('cei_domain_runtime_classification_shape_invalid');
+  }
+  if (!CLASSIFICATION_STATUS.has(String(value.automaticClassificationStatus || ''))) {
+    throw new Error('cei_domain_runtime_automatic_status_invalid');
+  }
+  boundedConfidence(
+    value.automaticClassificationConfidence,
+    'cei_domain_runtime_automatic_confidence_invalid'
+  );
+}
+
 function validateClassification(runtime, value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error('cei_domain_runtime_classification_invalid');
   }
+  validateAutomaticShape(value);
   const domain = value.domain;
   if (!domain || typeof domain !== 'object' || Array.isArray(domain)) {
     throw new Error('cei_domain_runtime_domain_invalid');
