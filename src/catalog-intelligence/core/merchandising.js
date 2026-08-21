@@ -1,6 +1,6 @@
 const ITEM_ID_PATTERN = /^[a-z0-9][a-z0-9:_-]{0,95}$/;
 const KIND_PATTERN = /^[a-z][a-z0-9_-]{0,47}$/;
-const TARGET_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,79}$/;
+const TARGET_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,79}$/;
 const MAX_NAVIGATION_ITEMS = 64;
 
 export const CEI_MERCHANDISING_CONTRACT_VERSION = 1;
