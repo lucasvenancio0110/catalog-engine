@@ -4,6 +4,7 @@ import {
   createCatalogEvidence,
   parseCatalogEvidence
 } from '../catalog-intelligence/core/evidence.js';
+import { createSportsClaims } from '../catalog-intelligence/domains/sports/claims.js';
 import { analyzeSportsEvidence } from '../catalog-intelligence/domains/sports/resolution.js';
 import {
   FACETS,
@@ -53,6 +54,27 @@ function normalizedSearchText(parts) {
     .trim();
 }
 
+function freezeClaimValue(value) {
+  if (Array.isArray(value)) return Object.freeze([...value]);
+  if (value && typeof value === 'object') return Object.freeze({ ...value });
+  return value;
+}
+
+function frozenClaims(claims = {}) {
+  return Object.freeze(
+    Object.fromEntries(
+      Object.entries(claims).map(([field, claim]) => [
+        field,
+        Object.freeze({
+          ...claim,
+          value: freezeClaimValue(claim?.value),
+          evidenceSources: Object.freeze([...(claim?.evidenceSources || [])])
+        })
+      ])
+    )
+  );
+}
+
 function automaticStateSnapshot(value) {
   return Object.freeze({
     status: value.classificationStatus,
@@ -61,9 +83,20 @@ function automaticStateSnapshot(value) {
     league: value.league || null,
     facets: Object.freeze([...(value.facets || [])]),
     fieldConfidence: Object.freeze({ ...(value.fieldConfidence || {}) }),
+    claims: frozenClaims(value.claims),
     season: value.season ? Object.freeze({ ...value.season }) : null,
     conflicts: Object.freeze([...(value.conflicts || [])]),
     reviewRequired: Boolean(value.reviewRequired)
+  });
+}
+
+function merchantOverrideClaim(claim, value) {
+  return Object.freeze({
+    ...(claim || {}),
+    value: freezeClaimValue(value),
+    confidence: 1,
+    evidenceSources: Object.freeze([]),
+    source: 'merchant_override'
   });
 }
 
@@ -147,6 +180,18 @@ function applyClassificationOverride(base, overrideValue) {
   if (leagueOverridden || (teamOverridden && team?.leagueId)) fieldConfidence.league = 1;
   if (facetsOverridden) fieldConfidence.facets = 1;
 
+  const claims = { ...(base.claims || {}) };
+  if (teamOverridden) claims.team = merchantOverrideClaim(claims.team, team?.id || null);
+  if (leagueOverridden || (teamOverridden && team?.leagueId)) {
+    claims.league = merchantOverrideClaim(claims.league, league?.id || null);
+  }
+  if (facetsOverridden) {
+    claims.facets = merchantOverrideClaim(
+      claims.facets,
+      [...new Set(facets.map((facet) => facet.id).filter(Boolean))]
+    );
+  }
+
   const automaticStatus = base.automaticClassificationStatus || base.classificationStatus;
   const automaticConfidence =
     base.automaticClassificationConfidence ?? base.classificationConfidence;
@@ -167,6 +212,7 @@ function applyClassificationOverride(base, overrideValue) {
     team,
     league,
     facets,
+    claims: frozenClaims(claims),
     conflicts,
     reviewRequired: conflicts.length > 0,
     fieldConfidence,
@@ -212,6 +258,7 @@ export function classifyCatalogEvidence(evidenceValue, overrideValue = null) {
       ? Math.min(automatic.classificationConfidence, 0.5)
       : automatic.classificationConfidence
   };
+  base.claims = createSportsClaims(base, intelligence);
   return applyClassificationOverride(base, overrideValue);
 }
 
