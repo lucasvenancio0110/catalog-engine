@@ -290,7 +290,10 @@ A schedule may be created/selected only when all of the following are true:
 - store is `ready` or `published`;
 - the same tenant/source has a successful initial import checkpoint;
 - no existing schedule needs to be duplicated;
-- no active import/sync job already owns the tenant/source when a due run is selected.
+- no active import/sync job already owns the tenant/source when a due run is selected;
+- no failed `incremental`/`recovery` execution remains unresolved for that tenant/source.
+
+A failed recurring/recovery job is an exception to resolve, not permission to schedule a fresh independent execution over it. Retry/recovery/cancellation must make that state explicit before normal scheduling resumes.
 
 The default/original catalog is not special-cased into or out of this rule. It follows the same durable eligibility evidence as any other tenant.
 
@@ -322,7 +325,7 @@ tenant + source key + scheduled UTC slot + identity contract version
 
 The raw source URL is never part of Queue/public state.
 
-The existing unique active-job constraint for `(tenant_id, source_key)` prevents an initial/recovery/incremental job from overlapping another active job for the same source. Deterministic slot identity plus conflict-safe insertion makes cron retries/races idempotent.
+The existing unique active-job constraint for `(tenant_id, source_key)` prevents an initial/recovery/incremental job from overlapping another active job for the same source. Deterministic slot identity plus conflict-safe insertion makes cron retries/races idempotent. The scheduler additionally refuses a fresh due slot while an unresolved failed incremental/recovery execution exists.
 
 ### M7B activation boundary
 
