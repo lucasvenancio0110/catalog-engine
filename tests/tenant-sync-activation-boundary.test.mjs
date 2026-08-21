@@ -23,4 +23,12 @@ describe('M7B recurring sync activation boundary', () => {
     expect(scheduler).toContain("mode='incremental'");
     expect(scheduler).not.toMatch(/TENANT_IMPORT_QUEUE|TENANT_IMPORT_DETAIL_QUEUE|\.sendBatch?\s*\(/);
   });
+
+  it('keeps a failed incremental or recovery job as a blocking exception until recovery resolves it', async () => {
+    const scheduler = await readFile('worker/tenant-sync-scheduler.js', 'utf8');
+
+    expect(scheduler).toContain("unresolved_job.mode IN ('incremental','recovery')");
+    expect(scheduler).toContain("unresolved_job.status='failed'");
+    expect(scheduler).toContain("conflicting_job.status IN ('pending','queued','scanning','details','finalizing','failed')");
+  });
 });
