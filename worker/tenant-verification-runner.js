@@ -359,7 +359,7 @@ function verificationQueries() {
                AND json_valid(value_json)=1
                AND CASE WHEN json_valid(value_json)=1
                         THEN CAST(json_extract(value_json,'$.contractVersion') AS INTEGER)
-                        ELSE 0 END=?1
+                        ELSE 0 END=CAST(?1 AS INTEGER)
                AND CASE WHEN json_valid(value_json)=1
                         THEN CAST(json_extract(value_json,'$.navigationItems') AS INTEGER)
                         ELSE 0 END>0`,
