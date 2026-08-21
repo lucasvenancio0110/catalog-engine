@@ -1,148 +1,244 @@
 # Isolated tenant data planes
 
+Status: **Normative implementation contract**  
+Scope: tenant-isolated catalog databases, Workers for Platforms runtime binding and tenant schema migration behavior.
+
 ## Decision
 
 Catalog Engine's target SaaS data-plane model is **one isolated D1 catalog database per tenant, attached only to that tenant's Worker inside a shared Workers for Platforms dispatch namespace**.
 
-The platform Worker remains the hostname/control-plane boundary. It resolves the merchant hostname and, once the tenant data plane is ready, can dynamically dispatch catalog/API/media requests to the tenant Worker. Static storefront code can remain a shared platform asset because the merchant-specific data still comes from the isolated tenant Worker/database.
+The platform Worker remains the hostname/control-plane boundary. It resolves the merchant hostname and, once the tenant data plane is ready, dynamically dispatches catalog/API/media requests to the correct tenant Worker. Shared storefront code can remain platform-owned while merchant-specific catalog state stays isolated.
 
-This replaces the unsafe alternative of placing every merchant's catalog rows into one giant public D1 and depending on a `tenant_id` predicate in every product query.
+Do not collapse all merchant catalogs into one public D1 and rely only on a `tenant_id` predicate in every storefront query.
 
-## Why Workers for Platforms
+## Workers for Platforms model
 
-Workers for Platforms is designed around one dispatch namespace containing many isolated user Workers. A dynamic dispatch Worker selects the correct user Worker at request time. A user Worker can receive explicit resource bindings, including D1.
+Production uses one shared dispatch namespace:
 
-Catalog Engine controls all tenant Worker code; merchants do not upload code. We still use the same isolation primitive because it gives each merchant an independently bound database and prevents one tenant Worker from reading another tenant's D1 unless the platform explicitly binds it.
+`catalog-engine-production`
 
-One production namespace is intended for all production tenant Workers. Do not create one namespace per merchant.
+A tenant such as `t_0123456789abcdefabcd` receives deterministic provider resources such as:
 
-## Resource model
+- User Worker: `ce-0123456789abcdefabcd`;
+- D1 database: deterministic tenant database name;
+- one logical Catalog Engine data-plane identity in the control plane.
 
-For a tenant such as `t_0123456789abcdefabcd`, the provisioning planner derives stable provider resource names:
+Provider IDs such as D1 UUIDs and Worker versions remain private control-plane state.
 
-- dispatch namespace: `catalog-engine-production`;
-- user Worker: `ce-0123456789abcdefabcd`;
-- D1 database: `ce-0123456789abcdefabcd`;
-- logical Catalog Engine data-plane key remains separate and opaque in `tenant_catalog_instances`.
+A merchant never uploads Worker code. Catalog Engine owns tenant runtime code and uses Workers for Platforms as the isolation/dispatch primitive.
 
-Provider IDs such as the D1 UUID and Worker/version identifiers remain control-plane-only state.
+## Control-plane provider state
 
-`tenant_data_plane_provider_state` records:
+`tenant_data_plane_provider_state` records safe locator/status information including:
 
 - tenant;
 - provider;
 - dispatch namespace;
 - Worker script name/status/version;
-- D1 database name/UUID/status;
-- last provider check and safe error code.
+- D1 name/UUID/status;
+- last provider check;
+- safe error code.
 
-`tenant_data_plane_jobs` records resumable provider-resource work. `tenant_data_plane_migration_jobs` separately records schema migration attempts so an infrastructure retry and a database-schema retry cannot corrupt each other's state.
+`tenant_data_plane_jobs` records resumable infrastructure work.
+
+`tenant_data_plane_migration_jobs` separately records schema migration attempts so infrastructure retry and database-schema retry cannot corrupt each other.
 
 ## Provisioning lifecycle
 
-A merchant must connect a supplier before Catalog Engine spends provider resources on an isolated data plane. The scheduled provisioner discovers tenants with:
+A merchant connects a supported private source before Catalog Engine allocates the isolated catalog data plane in the normal self-service flow.
 
-- an active source connection;
-- logical catalog instance still `provisioning`;
-- no physical provider state yet.
+The provisioner:
 
-It then:
+1. derives deterministic tenant provider identities;
+2. verifies the production dispatch namespace;
+3. looks up/reuses an already-created deterministic tenant D1 after interrupted attempts;
+4. creates the D1 only when necessary;
+5. stores the D1 UUID privately;
+6. uploads the tenant bootstrap/runtime Worker;
+7. binds exactly that tenant D1 as `CATALOG_DB`;
+8. binds only safe opaque tenant context;
+9. marks the physical data-plane checkpoint complete;
+10. advances onboarding to tenant schema migration.
 
-1. creates deterministic provider state/job;
-2. verifies that the single production dispatch namespace already exists;
-3. looks up the deterministic D1 database name;
-4. reuses it if a previous interrupted attempt already created it;
-5. otherwise creates the tenant D1;
-6. stores the D1 UUID privately;
-7. uploads a tenant bootstrap Worker to the dispatch namespace;
-8. binds exactly that D1 as `CATALOG_DB` to that Worker;
-9. binds only the opaque tenant ID as non-secret tenant context;
-10. marks the physical `data_plane` provisioning checkpoint complete;
-11. advances onboarding to tenant database migrations.
-
-The initial user Worker intentionally exposes only `/api/health`. Every catalog route returns `tenant_catalog_provisioning` until migrations/import/classification are complete. This prevents an empty or partially imported tenant catalog from being treated as ready.
+Provisioning is idempotent. Retrying the same intended tenant must not create duplicate D1 databases or tenant runtimes.
 
 ## Tenant-only schema migration
 
-Once the physical D1 and bootstrap Worker exist, a separate bounded runner discovers tenants at the `migrations` checkpoint. It reads the private supplier connection from the control plane and installs schema version 1 directly into that tenant D1 using Cloudflare's D1 Query API batch form.
+Tenant schema migration is version-ledgered and idempotent.
 
-The tenant database contains only the high-volume/private catalog structures needed by ingestion and storefront serving:
+The migration runner installs the current tenant data-plane schema through bounded D1 batch queries and verifies the tenant identity/source boundary before advancing onboarding.
 
-- media registry and product/media positions;
-- normalized public categories/products/meta;
-- leagues, teams and facets;
-- private supplier source configuration;
-- private supplier album fingerprints/retry state;
-- sync runs/events;
-- a tenant identity row and data-plane migration ledger.
+The current schema line is additive:
 
-It deliberately does **not** contain SaaS control-plane tables such as memberships, domains, subscriptions, theme catalog, audit log or provisioning runs.
+```text
+v1 -> base tenant catalog/source/media schema
+v2 -> later tenant catalog/runtime additions
+v3 -> versioned classification state + durable merchant overrides
+v4 -> detailed domain-neutral CEI intelligence state
+```
 
-The raw supplier URL is never embedded in static migration SQL. It is passed as a bound D1 query parameter at runtime and remains private tenant data.
+Current target:
 
-After the schema batch, the runner performs a second D1 query to verify both the expected tenant/schema identity and exactly one active source connection. Only then does it:
+`TENANT_DATA_PLANE_SCHEMA_VERSION = 4`
 
-- set the logical catalog instance schema version;
-- mark the `migrations` checkpoint successful;
-- advance onboarding to `import`.
+V4 extends previous versions rather than destructively replacing them.
 
-Migration jobs have bounded attempts, retry delay and stale-job recovery. The schema and source initialization are idempotent (`IF NOT EXISTS`, conflict-safe upserts and a migration ledger), so a Worker interruption can safely retry the same D1.
+The tenant D1 contains high-volume/private catalog structures such as:
 
-CI additionally materializes the same tenant-only schema into a standalone SQLite database and asserts that required catalog/sync tables exist while control-plane tables do not.
+- tenant/data-plane identity and migration ledger;
+- normalized products/categories/catalog metadata;
+- merchandising entities/facets;
+- media registry and product/media mapping;
+- private source configuration/index/fingerprints;
+- sync runs/events and detail state;
+- classification state;
+- durable merchant classification overrides;
+- detailed CEI product intelligence state.
+
+It deliberately does **not** contain SaaS control-plane tables such as memberships, subscriptions, customer domains, account billing state, platform audit history or provisioning runs.
+
+## CEI intelligence persistence in v4
+
+Schema v4 adds:
+
+`catalog_product_intelligence_state`
+
+The persistence model is retail-domain-neutral.
+
+The table indexes operational facts such as:
+
+- classifier/evidence/CEI contract versions;
+- Knowledge Pack identity;
+- domain and confidence;
+- knowledge state;
+- override/review/research flags;
+- conflict count.
+
+The canonical bounded `state_json` contains generic CEI claims and separates automatic inference from effective merchant-corrected state.
+
+The schema must not require a migration merely because a future Knowledge Pack introduces fields such as:
+
+- Sports: team/league/season;
+- Automotive: make/model/fitment/bolt pattern;
+- Dental: component/platform/connection.
+
+Domain code owns claim meaning. CEI Core owns validation/persistence.
+
+## Private source handling
+
+Raw supplier URLs are never embedded in static migration SQL.
+
+The source connection is supplied as a bound runtime query parameter and remains private tenant data.
+
+Provider-private source identifiers, locators and media origins remain inside the tenant data plane or minimal private queue processing. They are not public storefront fields.
+
+## Migration verification
+
+After a migration batch, the runner verifies at minimum:
+
+- the expected tenant identity;
+- the expected schema version;
+- the expected active source boundary.
+
+Only after verification does the control plane record the new tenant schema version and advance the provisioning checkpoint.
+
+Schema generation is idempotent through constructs such as:
+
+- `CREATE TABLE IF NOT EXISTS`;
+- `CREATE INDEX IF NOT EXISTS`;
+- conflict-safe upserts;
+- migration-ledger inserts.
+
+A Worker interruption can therefore safely retry the same intended migration.
+
+## Existing tenants and upgrades
+
+New tenant provisioning must reach the current required schema before dependent stages run.
+
+A future fleet-wide migration capability for already-ready/published tenants must preserve availability, tenant isolation, merchant overrides and last-known-good public state. Do not silently force an unrelated catalog rebuild merely because the application introduced a newer internal schema.
+
+Schema deployment and commercial catalog replacement remain separate responsibilities according to `DEPLOYMENT-PIPELINES.md`.
+
+## Tenant Worker readiness
+
+A bootstrap/provisioning tenant Worker must not present an empty or partially prepared catalog as a healthy published store.
+
+Catalog/runtime readiness is established only after the relevant migration, import, CEI/classification and verification checkpoints succeed.
+
+Detailed CEI state is operational/private by default; the ordinary public storefront does not gain access to private provenance/research/conflict internals merely because schema v4 stores them.
+
+## Runtime dispatch
+
+Public routing follows:
+
+```text
+hostname
+-> trusted tenant resolution
+-> server-owned tenant runtime identity
+-> TENANT_DISPATCH
+-> tenant User Worker
+-> isolated tenant CATALOG_DB
+```
+
+Routing fails closed.
+
+A client-provided Worker name or tenant identifier is never sufficient authority to select another tenant's data plane.
+
+The private internal D1 command path used by Queue workers remains inaccessible through ordinary public merchant routing.
 
 ## Idempotency and crash recovery
 
-D1 creation cannot be treated as a one-shot action. A Worker could create a database and terminate before persisting its UUID.
+D1 creation and Worker upload cannot be treated as one-shot operations.
 
-For that reason, provisioning always performs a deterministic D1 name lookup before creation. Retrying the same tenant therefore reuses the already-created database rather than producing duplicates.
+A Worker can fail after the provider resource exists but before the control plane records success. Deterministic resource names and idempotent updates therefore allow retries to reuse the intended resource rather than duplicate it.
 
-The user Worker upload uses a deterministic script name and an idempotent `PUT`, so retrying updates the same tenant Worker.
-
-Provider jobs and schema-migration jobs have independent bounded automatic attempts, retry delays and stale-running reclamation. Provider error messages are collapsed to safe error codes before persistence.
+Provider jobs and migration jobs use independent bounded attempts, retry delays and stale-running reclamation. Provider errors are reduced to safe codes before persistence.
 
 ## Runtime configuration
 
-Physical provisioning and remote tenant-D1 migration remain disabled unless dedicated platform credentials are supplied:
+Physical provisioning/migration requires dedicated platform configuration such as:
 
 - `CLOUDFLARE_PLATFORM_ACCOUNT_ID`;
 - `CLOUDFLARE_PLATFORM_API_TOKEN`;
-- `CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE` (defaults logically to `catalog-engine-production`).
+- `CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE`.
 
-The token should be dedicated to this provisioning role and have only the permissions required to create/manage D1 resources, query tenant D1 for migrations, and upload Workers for Platforms scripts. Do not reuse the broad deployment token in merchant-facing runtime code.
+The credential should be scoped to required provisioning/migration responsibilities. Do not expose it to merchant browsers or ordinary untrusted PR validation.
 
-No platform account ID/token is committed by this implementation. With the configuration absent, both the physical provisioner and schema migration runner exit before querying control-plane D1 state or making a Cloudflare API call.
+With required privileged configuration absent, provisioning/migration code fails closed before production provider mutation.
 
-## Dispatch is a separate activation step
+## Import/classification integration
 
-Creating a user Worker and isolated D1 does not automatically make that tenant routable through the public storefront Worker.
+After migration, onboarding advances through:
 
-The current hostname routing guard deliberately returns `tenant_data_plane_not_attached` for tenant #0002+ instead of falling through to tenant #0001 data.
+```text
+import
+-> CEI/classify
+-> verify/private preview readiness
+-> domain/runtime readiness
+-> publish
+```
 
-The next dispatch milestone is:
-
-1. configure the production dispatch namespace binding on the platform Worker;
-2. after hostname resolution, read the tenant's private Worker script name;
-3. invoke only that user Worker for catalog/API/media traffic;
-4. keep admin/auth/static platform responsibilities in the platform Worker;
-5. add end-to-end isolation tests with two user Workers bound to two different D1 databases;
-6. only then change a new tenant catalog instance from `provisioning` to `ready`.
-
-## Import milestone
-
-After schema migration, onboarding advances to `import`. The next engine milestone is to adapt the existing Yupoo ingestion/classification pipeline so a newly provisioned tenant imports into **its isolated D1**, not the control-plane/default D1.
-
-The target import path must preserve the existing intelligent-sync properties:
+The tenant data plane preserves:
 
 - bounded supplier concurrency;
 - private raw source state;
-- canonical Catalog Engine taxonomy;
-- media proxy registry inside the tenant data plane;
-- no public supplier URLs;
-- safe retry for incomplete albums;
-- future incremental sync continues from the tenant's private index without rereading every product detail.
-
-The tenant Worker remains in bootstrap/provisioning mode until that import, classification and verification are complete.
+- normalized evidence;
+- canonical Catalog Engine merchandising relationships;
+- safe media registry;
+- durable merchant overrides;
+- detailed CEI state;
+- future incremental sync from private fingerprints rather than repeated full crawls.
 
 ## Cost boundary
 
-The isolated model intentionally creates one D1 and one Workers for Platforms script per active merchant. Plans/quotas should therefore account for platform script usage and D1 storage/query usage. Provisioning should happen only after the merchant has provided enough onboarding information to justify allocating resources.
+The isolated model intentionally creates one D1 and one tenant Workers-for-Platforms script per active merchant/store under the current architecture.
+
+Plans/quotas should account for real platform usage. Resource allocation must remain entitlement/onboarding controlled and normal provisioning must be automatic rather than owner-operated.
+
+## Final decision rule
+
+For every tenant data-plane change ask:
+
+> Does this preserve one-tenant isolation, idempotent migration, private source state, application-vs-catalog separation, and a path to future Knowledge Packs without turning the shared CEI Core into a vertical-specific schema?
+
+If not, redesign before merge.
