@@ -2,6 +2,21 @@ import { z } from 'zod';
 
 export const CEI_INTELLIGENCE_STATE_CONTRACT_VERSION = 1;
 
+export const CEI_KNOWLEDGE_STATE = Object.freeze({
+  VERIFIED: 'VERIFIED',
+  KNOWN: 'KNOWN',
+  UNCERTAIN: 'UNCERTAIN',
+  UNKNOWN: 'UNKNOWN',
+  CONFLICT: 'CONFLICT',
+  STALE: 'STALE'
+});
+
+export const CEI_KNOWLEDGE_THRESHOLDS = Object.freeze({
+  verified: 0.95,
+  known: 0.85,
+  uncertain: 0.65
+});
+
 const identifier = z
   .string()
   .trim()
@@ -9,27 +24,40 @@ const identifier = z
   .max(96)
   .regex(/^[a-z0-9][a-z0-9:_-]*$/i);
 
-const nullableEntityId = identifier.max(80).nullable();
 const confidence = z.number().finite().min(0).max(1);
 const classificationStatus = z.enum(['automatic', 'needs_review', 'unknown']);
-
-const fieldConfidenceSchema = z
-  .record(identifier.max(48), confidence)
-  .refine((value) => Object.keys(value).length <= 24, {
-    message: 'cei_intelligence_field_confidence_too_large'
+const knowledgeState = z.enum(Object.values(CEI_KNOWLEDGE_STATE));
+const claimPrimitive = z.union([
+  z.string().trim().max(500),
+  z.number().finite(),
+  z.boolean(),
+  z.null()
+]);
+const claimObject = z
+  .record(identifier.max(48), claimPrimitive)
+  .refine((value) => Object.keys(value).length <= 16, {
+    message: 'cei_intelligence_claim_object_too_large'
   });
+const claimValue = z.union([
+  claimPrimitive,
+  z.array(claimPrimitive).max(32),
+  claimObject
+]);
 
-const seasonSchema = z
+const claimSchema = z
   .object({
-    label: z.string().trim().min(4).max(16),
-    startYear: z.number().int().min(1800).max(2200),
-    endYear: z.number().int().min(1800).max(2201),
+    value: claimValue,
     confidence,
-    evidenceSources: z.array(z.string().trim().min(1).max(64)).max(16)
+    knowledgeState,
+    evidenceSources: z.array(z.string().trim().min(1).max(96)).max(24),
+    source: z.enum(['inference', 'merchant_override'])
   })
-  .strict()
-  .refine((value) => value.endYear === value.startYear + 1, {
-    message: 'cei_intelligence_season_range_invalid'
+  .strict();
+
+const claimsSchema = z
+  .record(identifier.max(48), claimSchema)
+  .refine((value) => Object.keys(value).length <= 48, {
+    message: 'cei_intelligence_claims_too_large'
   });
 
 const conflictSchema = z
@@ -44,11 +72,8 @@ const classificationViewSchema = z
   .object({
     status: classificationStatus,
     confidence,
-    teamId: nullableEntityId,
-    leagueId: nullableEntityId,
-    facetIds: z.array(identifier.max(80)).max(32),
-    fieldConfidence: fieldConfidenceSchema,
-    season: seasonSchema.nullable(),
+    knowledgeState,
+    claims: claimsSchema,
     conflicts: z.array(conflictSchema).max(24),
     reviewRequired: z.boolean()
   })
@@ -65,67 +90,151 @@ const intelligenceStateSchema = z
     domain: z
       .object({
         id: identifier.max(48),
-        confidence
+        confidence,
+        knowledgeState
       })
       .strict(),
     automatic: classificationViewSchema,
     effective: classificationViewSchema,
-    overrideApplied: z.boolean()
+    overrideApplied: z.boolean(),
+    research: z
+      .object({
+        required: z.boolean(),
+        reasonCodes: z.array(identifier.max(80)).max(16),
+        unknownConcepts: z.array(z.string().trim().min(1).max(160)).max(64)
+      })
+      .strict()
   })
   .strict();
 
-function uniqueIds(values) {
+function uniqueStrings(values) {
   return [...new Set((values || []).filter(Boolean).map(String))];
 }
 
-function normalizeSeason(value) {
-  if (!value) return null;
-  return {
-    label: value.label,
-    startYear: Number(value.startYear),
-    endYear: Number(value.endYear),
-    confidence: Number(value.confidence),
-    evidenceSources: uniqueIds(value.evidenceSources)
-  };
+export function deriveKnowledgeState(
+  value,
+  { conflict = false, stale = false, classificationStatus = null } = {}
+) {
+  if (conflict) return CEI_KNOWLEDGE_STATE.CONFLICT;
+  if (stale) return CEI_KNOWLEDGE_STATE.STALE;
+  if (classificationStatus === 'unknown') return CEI_KNOWLEDGE_STATE.UNKNOWN;
+
+  const score = Math.max(0, Math.min(1, Number(value || 0)));
+  if (score >= CEI_KNOWLEDGE_THRESHOLDS.verified) return CEI_KNOWLEDGE_STATE.VERIFIED;
+  if (score >= CEI_KNOWLEDGE_THRESHOLDS.known) return CEI_KNOWLEDGE_STATE.KNOWN;
+  if (score >= CEI_KNOWLEDGE_THRESHOLDS.uncertain) return CEI_KNOWLEDGE_STATE.UNCERTAIN;
+  return CEI_KNOWLEDGE_STATE.UNKNOWN;
 }
 
 function normalizeConflicts(values) {
   return (values || []).map((conflict) => ({
     code: conflict.code,
     field: conflict.field,
-    candidateIds: uniqueIds(conflict.candidateIds)
+    candidateIds: uniqueStrings(conflict.candidateIds)
   }));
 }
 
-function currentView(classified) {
+function sportsFallbackClaimValue(classified, field) {
+  if (field === 'team') return classified.team?.id || null;
+  if (field === 'league') return classified.league?.id || null;
+  if (field === 'facets') return uniqueStrings((classified.facets || []).map((facet) => facet.id));
+  if (field === 'season') {
+    if (!classified.season) return null;
+    return {
+      label: classified.season.label,
+      startYear: Number(classified.season.startYear),
+      endYear: Number(classified.season.endYear)
+    };
+  }
+  return null;
+}
+
+function normalizedClaim(field, claim, conflicts, source = 'inference') {
+  const score = Number(claim?.confidence || 0);
+  const hasConflict = conflicts.some((entry) => entry.field === field);
   return {
-    status: classified.classificationStatus,
-    confidence: Number(classified.classificationConfidence),
-    teamId: classified.team?.id || null,
-    leagueId: classified.league?.id || null,
-    facetIds: uniqueIds((classified.facets || []).map((facet) => facet.id)),
-    fieldConfidence: { ...(classified.fieldConfidence || {}) },
-    season: normalizeSeason(classified.season),
-    conflicts: normalizeConflicts(classified.conflicts),
-    reviewRequired: Boolean(classified.reviewRequired)
+    value: claim?.value ?? null,
+    confidence: score,
+    knowledgeState:
+      claim?.knowledgeState || deriveKnowledgeState(score, { conflict: hasConflict }),
+    evidenceSources: uniqueStrings(claim?.evidenceSources),
+    source: claim?.source || source
   };
 }
 
-function automaticView(classified) {
-  if (classified.automaticState) {
-    return {
-      status: classified.automaticState.status,
-      confidence: Number(classified.automaticState.confidence),
-      teamId: classified.automaticState.teamId || null,
-      leagueId: classified.automaticState.leagueId || null,
-      facetIds: uniqueIds(classified.automaticState.facetIds),
-      fieldConfidence: { ...(classified.automaticState.fieldConfidence || {}) },
-      season: normalizeSeason(classified.automaticState.season),
-      conflicts: normalizeConflicts(classified.automaticState.conflicts),
-      reviewRequired: Boolean(classified.automaticState.reviewRequired)
-    };
+function claimsFromClassification(classified, conflicts, overrideFields = new Set()) {
+  if (classified?.claims && typeof classified.claims === 'object' && !Array.isArray(classified.claims)) {
+    return Object.fromEntries(
+      Object.entries(classified.claims).map(([field, claim]) => [
+        field,
+        normalizedClaim(
+          field,
+          claim,
+          conflicts,
+          overrideFields.has(field) ? 'merchant_override' : 'inference'
+        )
+      ])
+    );
   }
-  return currentView(classified);
+
+  const confidenceByField = classified?.fieldConfidence || {};
+  return Object.fromEntries(
+    Object.entries(confidenceByField).map(([field, score]) => [
+      field,
+      normalizedClaim(
+        field,
+        {
+          value: sportsFallbackClaimValue(classified, field),
+          confidence: Number(score || 0),
+          evidenceSources:
+            field === 'season' ? classified?.season?.evidenceSources || [] : []
+        },
+        conflicts,
+        overrideFields.has(field) ? 'merchant_override' : 'inference'
+      )
+    ])
+  );
+}
+
+function classificationView(classified, { overrideFields = [] } = {}) {
+  const conflicts = normalizeConflicts(classified?.conflicts);
+  const status = classified?.status || classified?.classificationStatus || 'unknown';
+  const score = Number(classified?.confidence ?? classified?.classificationConfidence ?? 0);
+  return {
+    status,
+    confidence: score,
+    knowledgeState: deriveKnowledgeState(score, {
+      conflict: conflicts.length > 0,
+      classificationStatus: status
+    }),
+    claims: claimsFromClassification(classified, conflicts, new Set(overrideFields)),
+    conflicts,
+    reviewRequired: Boolean(classified?.reviewRequired)
+  };
+}
+
+function automaticClassification(classified) {
+  if (classified?.automaticState) return classified.automaticState;
+  return classified;
+}
+
+function researchState(automatic) {
+  const reasons = new Set();
+  if (automatic.knowledgeState === CEI_KNOWLEDGE_STATE.UNKNOWN) reasons.add('knowledge_unknown');
+  if (automatic.knowledgeState === CEI_KNOWLEDGE_STATE.UNCERTAIN) reasons.add('knowledge_uncertain');
+  if (automatic.knowledgeState === CEI_KNOWLEDGE_STATE.CONFLICT) reasons.add('knowledge_conflict');
+  if (automatic.knowledgeState === CEI_KNOWLEDGE_STATE.STALE) reasons.add('knowledge_stale');
+  for (const claim of Object.values(automatic.claims)) {
+    if (claim.knowledgeState === CEI_KNOWLEDGE_STATE.UNKNOWN) reasons.add('field_unknown');
+    if (claim.knowledgeState === CEI_KNOWLEDGE_STATE.UNCERTAIN) reasons.add('field_uncertain');
+    if (claim.knowledgeState === CEI_KNOWLEDGE_STATE.CONFLICT) reasons.add('field_conflict');
+    if (claim.knowledgeState === CEI_KNOWLEDGE_STATE.STALE) reasons.add('field_stale');
+  }
+  return {
+    required: reasons.size > 0,
+    reasonCodes: [...reasons].sort(),
+    unknownConcepts: []
+  };
 }
 
 function deepFreeze(value) {
@@ -145,6 +254,12 @@ export function createCatalogIntelligenceState(classified) {
     throw new Error('cei_intelligence_classification_required');
   }
 
+  const automatic = classificationView(automaticClassification(classified));
+  const effective = classificationView(classified, {
+    overrideFields: classified.overrideFields || []
+  });
+  const domainConfidence = Number(classified.domain?.confidence || 0);
+
   const state = parseCatalogIntelligenceState({
     contractVersion: CEI_INTELLIGENCE_STATE_CONTRACT_VERSION,
     evidenceSchemaVersion: Number(classified.evidenceSchemaVersion || 1),
@@ -154,11 +269,15 @@ export function createCatalogIntelligenceState(classified) {
     knowledgePackVersion: classified.domain?.knowledgePackVersion ?? null,
     domain: {
       id: classified.domain?.id || 'unknown',
-      confidence: Number(classified.domain?.confidence || 0)
+      confidence: domainConfidence,
+      knowledgeState: deriveKnowledgeState(domainConfidence, {
+        classificationStatus: classified.domain?.id === 'unknown' ? 'unknown' : null
+      })
     },
-    automatic: automaticView(classified),
-    effective: currentView(classified),
-    overrideApplied: Boolean(classified.overrideApplied)
+    automatic,
+    effective,
+    overrideApplied: Boolean(classified.overrideApplied),
+    research: researchState(automatic)
   });
 
   return deepFreeze(state);
@@ -168,8 +287,10 @@ export function serializeCatalogIntelligenceState(classified) {
   const state = createCatalogIntelligenceState(classified);
   return Object.freeze({
     state,
-    automaticJson: JSON.stringify(state.automatic),
-    effectiveJson: JSON.stringify(state.effective),
-    conflictCount: state.effective.conflicts.length
+    stateJson: JSON.stringify(state),
+    knowledgeState: state.effective.knowledgeState,
+    conflictCount: state.effective.conflicts.length,
+    reviewRequired: state.effective.reviewRequired,
+    researchRequired: state.research.required
   });
 }
