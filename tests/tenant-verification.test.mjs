@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   runDueTenantVerifications,
+  verificationFailureCode,
   verificationFindings
 } from '../worker/tenant-verification-runner.js';
 
@@ -101,6 +102,26 @@ describe('tenant verification gate', () => {
         'merchandising_metadata_invalid'
       ])
     );
+    expect(verificationFailureCode(report)).toBe(
+      'tenant_verification_findings_merchandising_navigation_missing__merchandising_metadata_invalid'
+    );
+  });
+
+  it('keeps diagnostic error codes bounded to stable safe findings', () => {
+    expect(
+      verificationFailureCode({
+        findings: [
+          'merchandising_navigation_missing',
+          'public_source_leak',
+          'classification_version_incomplete',
+          'fourth_finding_is_not_embedded',
+          'https://private.example/token'
+        ]
+      })
+    ).toBe(
+      'tenant_verification_findings_merchandising_navigation_missing__public_source_leak__classification_version_incomplete'
+    );
+    expect(verificationFailureCode({ findings: [] })).toBe('tenant_verification_findings');
   });
 
   it('does not turn CEI review/research queues into whole-tenant verification failures', () => {
