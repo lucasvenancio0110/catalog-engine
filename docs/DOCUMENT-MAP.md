@@ -151,6 +151,7 @@ Queue resource creation, producer bindings and automatic discovery are separate 
 Required:
 
 - `AGENTS.md` synchronization rules
+- `docs/TENANT-SYNC.md`
 - `docs/PROVIDER-ENGINE.md` when source evidence/provider behavior changes
 - `docs/TENANT-IMPORT-PIPELINE.md`
 - `docs/TENANT-IMPORT-QUEUES.md` when sync shares queue/retry/runtime infrastructure
