@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CEI_STATE_JSON_MAX_BYTES,
   TENANT_DATA_PLANE_CURRENT_STATEMENTS,
   TENANT_DATA_PLANE_SCHEMA_VERSION,
   TENANT_DATA_PLANE_V4_STATEMENTS,
@@ -52,12 +53,14 @@ describe('tenant data-plane schema v4 CEI persistence', () => {
     expect(v4).toContain('domain_id');
   });
 
-  it('allows explicit CEI epistemic states and validates JSON at the database boundary', () => {
+  it('allows explicit CEI epistemic states and validates bounded JSON at the database boundary', () => {
     const v4 = TENANT_DATA_PLANE_V4_STATEMENTS.join('\n');
     for (const state of ['VERIFIED', 'KNOWN', 'UNCERTAIN', 'UNKNOWN', 'CONFLICT', 'STALE']) {
       expect(v4).toContain(`'${state}'`);
     }
+    expect(CEI_STATE_JSON_MAX_BYTES).toBe(65_536);
     expect(v4).toContain('json_valid(state_json)');
+    expect(v4).toContain('length(CAST(state_json AS BLOB)) <= 65536');
   });
 
   it('extends v3 idempotently and records schema migration 4', () => {
