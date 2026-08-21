@@ -34,6 +34,18 @@ function healthyResults(products = 12) {
   ];
 }
 
+function emptySchedulerDb() {
+  return {
+    prepare: vi.fn(() => ({
+      bind: vi.fn(() => ({
+        all: vi.fn(async () => ({ results: [] })),
+        run: vi.fn(async () => ({ meta: { changes: 0 } }))
+      })),
+      run: vi.fn(async () => ({ meta: { changes: 0 } }))
+    }))
+  };
+}
+
 describe('tenant verification gate', () => {
   it('accepts a fully classified catalog with complete CEI state while surfacing non-blocking exception metrics', () => {
     const report = verificationFindings(healthyResults(), { deferredDetailCount: 2 });
@@ -86,6 +98,26 @@ describe('tenant verification gate', () => {
     expect(report.reviewRequired).toBe(6);
     expect(report.researchRequired).toBe(5);
     expect(report.conflicts).toBe(4);
+  });
+
+  it('runs scheduler discovery with tenant dispatch and no administrative Cloudflare token', async () => {
+    const db = emptySchedulerDb();
+    const tenantDispatch = { get: vi.fn() };
+    const fetchImpl = vi.fn();
+    const summary = await runDueTenantVerifications(
+      { CATALOG_DB: db, TENANT_DISPATCH: tenantDispatch },
+      { fetchImpl }
+    );
+
+    expect(summary).toMatchObject({
+      enabled: true,
+      discovered: 0,
+      selected: 0,
+      processed: 0,
+      failed: 0
+    });
+    expect(db.prepare).toHaveBeenCalled();
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it('fails closed before reading control-plane jobs when provider runtime is absent', async () => {
