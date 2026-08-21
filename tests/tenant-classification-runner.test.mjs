@@ -1,6 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
 import { runDueTenantClassifications } from '../worker/tenant-classification-runner.js';
 
+function emptySchedulerDb() {
+  return {
+    prepare: vi.fn(() => ({
+      bind: vi.fn(() => ({
+        all: vi.fn(async () => ({ results: [] })),
+        run: vi.fn(async () => ({ meta: { changes: 0 } }))
+      })),
+      run: vi.fn(async () => ({ meta: { changes: 0 } }))
+    }))
+  };
+}
+
 describe('tenant classification scheduler', () => {
   it('fails closed before control-plane reads when platform runtime is absent', async () => {
     const db = { prepare: vi.fn() };
@@ -12,6 +24,26 @@ describe('tenant classification scheduler', () => {
       processed: 0
     });
     expect(db.prepare).not.toHaveBeenCalled();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('runs scheduler discovery with tenant dispatch and no administrative Cloudflare token', async () => {
+    const db = emptySchedulerDb();
+    const tenantDispatch = { get: vi.fn() };
+    const fetchImpl = vi.fn();
+    const result = await runDueTenantClassifications(
+      { CATALOG_DB: db, TENANT_DISPATCH: tenantDispatch },
+      { fetchImpl }
+    );
+
+    expect(result).toMatchObject({
+      enabled: true,
+      discovered: 0,
+      selected: 0,
+      processed: 0,
+      failed: 0
+    });
+    expect(db.prepare).toHaveBeenCalled();
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
