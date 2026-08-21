@@ -7,10 +7,15 @@ on:
       - ".github/workflows/cloudflare-auto-tenant-import-canary.yml"
       - "scripts/cloudflare-auto-tenant-import-canary.mjs"
       - "tests/tenant-import-auto-canary.test.mjs"
+      - "src/catalog-intelligence/**"
+      - "src/domain/catalog-classifier.js"
       - "worker/ingestion/context.js"
       - "worker/ingestion/scan-consumer.js"
       - "worker/import-scan-entry.js"
       - "worker/tenant-import-dispatcher.js"
+      - "worker/tenant-classification-runner.js"
+      - "worker/tenant-verification-runner.js"
+      - "worker/tenant-data-plane-schema-v4.js"
   workflow_run:
     workflows: ["Deploy Catalog Engine application"]
     types: [completed]
@@ -49,7 +54,7 @@ jobs:
        github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     env:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -109,7 +114,7 @@ jobs:
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
 
-      - name: Prove scheduler-driven isolated tenant import with zero manual Queue messages
+      - name: Prove scheduler-driven isolated import and CEI classify verify with zero manual Queue messages
         if: steps.automation.outputs.enabled == 'true'
         shell: bash
         run: |
@@ -128,7 +133,7 @@ jobs:
         run: |
           set -euo pipefail
           jq -n --arg state success --arg context "$STATUS_CONTEXT" \
-            --arg description "Cron discovered canary and completed isolated Queue import with zero manual messages" \
+            --arg description "Cron completed isolated Queue import and CEI classify/verify with zero manual messages" \
             --arg target_url "$RUN_URL" \
             '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
           curl --fail --silent --show-error -X POST \
@@ -148,7 +153,7 @@ jobs:
         run: |
           set -euo pipefail
           jq -n --arg state failure --arg context "$STATUS_CONTEXT" \
-            --arg description "Automatic scheduler canary failed; inspect Queue/tenant evidence before M5 closure" \
+            --arg description "Automatic tenant import/CEI canary failed; inspect isolated tenant evidence before promotion" \
             --arg target_url "$RUN_URL" \
             '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
           curl --fail --silent --show-error -X POST \

@@ -1,9 +1,11 @@
+import { CEI_INTELLIGENCE_STATE_CONTRACT_VERSION } from '../src/catalog-intelligence/core/intelligence-state.js';
 import {
   CATALOG_CLASSIFIER_KEY,
   CATALOG_CLASSIFIER_VERSION
 } from '../src/domain/catalog-classifier.js';
 import { CloudflarePlatformError, queryD1Batch } from './cloudflare-platform.js';
 import { stableOpaqueId } from './runtime-identity.js';
+import { TENANT_DATA_PLANE_SCHEMA_VERSION } from './tenant-data-plane-schema-v4.js';
 
 const DEFAULT_DISPATCH_NAMESPACE = 'catalog-engine-production';
 const MAX_AUTOMATIC_ATTEMPTS = 5;
@@ -38,14 +40,19 @@ async function discoverCandidates(db, limit) {
         WHERE r.current_step='verify'
           AND r.status IN ('running','failed','blocked')
           AND i.status='provisioning'
-          AND i.schema_version >= 3
+          AND i.schema_version >= ?3
           AND p.database_status='active'
           AND p.worker_status='active'
           AND p.d1_database_id IS NOT NULL
         ORDER BY r.created_at ASC
-        LIMIT ?3`
+        LIMIT ?4`
     )
-    .bind(CATALOG_CLASSIFIER_VERSION, CATALOG_CLASSIFIER_KEY, limit)
+    .bind(
+      CATALOG_CLASSIFIER_VERSION,
+      CATALOG_CLASSIFIER_KEY,
+      TENANT_DATA_PLANE_SCHEMA_VERSION,
+      limit
+    )
     .all();
 
   for (const row of result.results || []) {
@@ -259,6 +266,60 @@ function verificationQueries() {
                SELECT COUNT(*) FROM catalog_product_facets pf WHERE pf.facet_id=f.facet_id
              )`,
       params: []
+    },
+    {
+      sql: `SELECT COUNT(*) AS total
+              FROM catalog_product_intelligence_state s
+              JOIN catalog_products p ON p.product_id=s.product_id
+             WHERE s.contract_version=?1
+               AND s.classifier_version=?2
+               AND s.classifier_key=?3
+               AND json_valid(s.state_json)=1`,
+      params: [
+        CEI_INTELLIGENCE_STATE_CONTRACT_VERSION,
+        CATALOG_CLASSIFIER_VERSION,
+        CATALOG_CLASSIFIER_KEY
+      ]
+    },
+    {
+      sql: `SELECT COUNT(*) AS total
+              FROM catalog_products p
+              LEFT JOIN catalog_product_intelligence_state s ON s.product_id=p.product_id
+             WHERE s.product_id IS NULL
+                OR s.contract_version!=?1
+                OR s.classifier_version!=?2
+                OR s.classifier_key!=?3
+                OR json_valid(s.state_json)!=1`,
+      params: [
+        CEI_INTELLIGENCE_STATE_CONTRACT_VERSION,
+        CATALOG_CLASSIFIER_VERSION,
+        CATALOG_CLASSIFIER_KEY
+      ]
+    },
+    {
+      sql: `SELECT COUNT(*) AS total
+              FROM catalog_product_intelligence_state s
+              LEFT JOIN catalog_product_classification_overrides o ON o.product_id=s.product_id
+             WHERE s.override_applied != CASE WHEN o.product_id IS NULL THEN 0 ELSE 1 END`,
+      params: []
+    },
+    {
+      sql: `SELECT COUNT(*) AS total
+              FROM catalog_product_intelligence_state
+             WHERE review_required=1`,
+      params: []
+    },
+    {
+      sql: `SELECT COUNT(*) AS total
+              FROM catalog_product_intelligence_state
+             WHERE research_required=1`,
+      params: []
+    },
+    {
+      sql: `SELECT COUNT(*) AS total
+              FROM catalog_product_intelligence_state
+             WHERE conflict_count>0`,
+      params: []
     }
   ];
 }
@@ -270,6 +331,7 @@ function totalAt(results, index) {
 export function verificationFindings(results, { deferredDetailCount = 0 } = {}) {
   const products = totalAt(results, 0);
   const classified = totalAt(results, 1);
+  const intelligence = totalAt(results, 15);
   const findings = [];
   if (products < 1) findings.push('catalog_empty');
   if (classified !== products || totalAt(results, 2) > 0) findings.push('classification_version_incomplete');
@@ -285,10 +347,18 @@ export function verificationFindings(results, { deferredDetailCount = 0 } = {}) 
   if (totalAt(results, 12) > 0) findings.push('team_count_mismatch');
   if (totalAt(results, 13) > 0) findings.push('league_count_mismatch');
   if (totalAt(results, 14) > 0) findings.push('facet_count_mismatch');
+  if (intelligence !== products || totalAt(results, 16) > 0) {
+    findings.push('intelligence_state_incomplete');
+  }
+  if (totalAt(results, 17) > 0) findings.push('intelligence_override_state_mismatch');
   return {
     products,
     classified,
+    intelligence,
     deferredDetailCount: Math.max(0, Number(deferredDetailCount || 0)),
+    reviewRequired: totalAt(results, 18),
+    researchRequired: totalAt(results, 19),
+    conflicts: totalAt(results, 20),
     findings: findings.slice(0, MAX_FINDINGS)
   };
 }
@@ -332,7 +402,11 @@ async function finishJob(db, job, context, report) {
           JSON.stringify({
             classifierVersion: CATALOG_CLASSIFIER_VERSION,
             products: report.products,
+            intelligence: report.intelligence,
             deferredDetails: report.deferredDetailCount,
+            reviewRequired: report.reviewRequired,
+            researchRequired: report.researchRequired,
+            conflicts: report.conflicts,
             findings: []
           })
         )
@@ -382,7 +456,14 @@ async function failJob(db, job, context, errorCode, report = null) {
         .bind(
           context.provisioning_id,
           errorCode,
-          JSON.stringify({ findings, products: Number(report?.products || 0) })
+          JSON.stringify({
+            findings,
+            products: Number(report?.products || 0),
+            intelligence: Number(report?.intelligence || 0),
+            reviewRequired: Number(report?.reviewRequired || 0),
+            researchRequired: Number(report?.researchRequired || 0),
+            conflicts: Number(report?.conflicts || 0)
+          })
         )
     );
     statements.push(
@@ -406,7 +487,7 @@ export async function processTenantVerification(db, { job, env }, { fetchImpl = 
   if (context.dispatch_namespace !== platform.dispatchNamespace) {
     return { outcome: 'failed', error: 'tenant_dispatch_namespace_mismatch' };
   }
-  if (Number(context.schema_version || 0) < 3) {
+  if (Number(context.schema_version || 0) < TENANT_DATA_PLANE_SCHEMA_VERSION) {
     return { outcome: 'blocked', reason: 'tenant_schema_not_ready' };
   }
   if (!(await claimJob(db, job, context))) return { outcome: 'busy', jobId: job.job_id };

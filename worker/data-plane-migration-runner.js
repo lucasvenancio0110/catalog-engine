@@ -3,7 +3,7 @@ import { stableOpaqueId } from './runtime-identity.js';
 import {
   TENANT_DATA_PLANE_SCHEMA_VERSION,
   tenantDataPlaneCurrentBatch
-} from './tenant-data-plane-schema-v3.js';
+} from './tenant-data-plane-schema-v4.js';
 
 const DEFAULT_DISPATCH_NAMESPACE = 'catalog-engine-production';
 const MAX_AUTOMATIC_ATTEMPTS = 6;
@@ -18,6 +18,13 @@ function runtimeConfig(env) {
   return { accountId, apiToken, dispatchNamespace };
 }
 
+export function migrationResumeStep(currentStep = 'migrations') {
+  const step = String(currentStep || 'migrations');
+  if (step === 'migrations') return 'import';
+  if (step === 'classify' || step === 'verify') return 'classify';
+  throw new Error('tenant_data_plane_migration_resume_step_invalid');
+}
+
 async function migrationJobId(tenantId, version) {
   return stableOpaqueId('dpmig', `${tenantId}:v${version}`);
 }
@@ -30,7 +37,7 @@ async function discoverMigrationCandidates(db, targetVersion, limit) {
          JOIN tenant_catalog_instances i ON i.tenant_id=r.tenant_id
          JOIN tenant_data_plane_provider_state p ON p.tenant_id=r.tenant_id
          JOIN supplier_sources s ON s.tenant_id=r.tenant_id AND s.status='active'
-        WHERE r.current_step='migrations'
+        WHERE r.current_step IN ('migrations','classify','verify')
           AND r.status IN ('running','failed','blocked')
           AND i.schema_version < ?1
           AND p.database_status='active'
@@ -76,7 +83,7 @@ async function migrationContext(db, tenantId) {
       `SELECT p.d1_database_id, p.dispatch_namespace,
               s.source_key, s.provider AS source_provider, s.source_url,
               s.sync_strategy, s.removal_miss_threshold,
-              r.provisioning_id
+              r.provisioning_id, r.current_step AS resume_step
          FROM tenant_data_plane_provider_state p
          JOIN supplier_sources s ON s.tenant_id=p.tenant_id AND s.status='active'
          LEFT JOIN tenant_provisioning_runs r ON r.provisioning_id=(
@@ -133,6 +140,7 @@ async function claimMigration(db, job) {
 }
 
 async function finishMigration(db, job, version) {
+  const nextStep = migrationResumeStep(job.resume_step);
   const statements = [
     db
       .prepare(
@@ -160,16 +168,19 @@ async function finishMigration(db, job, version) {
                   metadata_json=?2, updated_at=CURRENT_TIMESTAMP
             WHERE provisioning_id=?1 AND step_key='migrations'`
         )
-        .bind(job.provisioning_id, JSON.stringify({ schemaVersion: version, isolated: true }))
+        .bind(
+          job.provisioning_id,
+          JSON.stringify({ schemaVersion: version, isolated: true, resumeStep: nextStep })
+        )
     );
     statements.push(
       db
         .prepare(
           `UPDATE tenant_provisioning_runs
-              SET status='running', current_step='import', last_error=NULL, updated_at=CURRENT_TIMESTAMP
+              SET status='running', current_step=?3, last_error=NULL, updated_at=CURRENT_TIMESTAMP
             WHERE provisioning_id=?1 AND tenant_id=?2 AND current_step='migrations'`
         )
-        .bind(job.provisioning_id, job.tenant_id)
+        .bind(job.provisioning_id, job.tenant_id, nextStep)
     );
   }
   await db.batch(statements);
@@ -238,7 +249,11 @@ export async function processTenantDataPlaneMigration(
   if (!config) return { outcome: 'queued', reason: 'cloudflare_platform_unconfigured' };
   const context = await migrationContext(db, job.tenant_id);
   if (!context?.d1_database_id) return { outcome: 'blocked', reason: 'tenant_database_not_ready' };
-  const enrichedJob = { ...job, provisioning_id: context.provisioning_id || null };
+  const enrichedJob = {
+    ...job,
+    provisioning_id: context.provisioning_id || null,
+    resume_step: context.resume_step || 'migrations'
+  };
   if (!(await claimMigration(db, enrichedJob))) return { outcome: 'busy', jobId: job.job_id };
 
   try {
@@ -283,7 +298,12 @@ export async function processTenantDataPlaneMigration(
     }
 
     await finishMigration(db, enrichedJob, job.target_schema_version);
-    return { outcome: 'success', jobId: job.job_id, schemaVersion: job.target_schema_version };
+    return {
+      outcome: 'success',
+      jobId: job.job_id,
+      schemaVersion: job.target_schema_version,
+      resumedAt: migrationResumeStep(enrichedJob.resume_step)
+    };
   } catch (error) {
     const safeCode =
       error instanceof CloudflarePlatformError ? error.code : 'tenant_d1_migration_failed';

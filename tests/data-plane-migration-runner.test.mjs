@@ -1,5 +1,11 @@
+import fs from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
-import { runDueDataPlaneMigrations } from '../worker/data-plane-migration-runner.js';
+import {
+  migrationResumeStep,
+  runDueDataPlaneMigrations
+} from '../worker/data-plane-migration-runner.js';
+
+const runnerSource = fs.readFileSync('worker/data-plane-migration-runner.js', 'utf8');
 
 describe('tenant data-plane migration scheduler', () => {
   it('does not query control-plane D1 or Cloudflare when platform runtime is unconfigured', async () => {
@@ -35,5 +41,19 @@ describe('tenant data-plane migration scheduler', () => {
 
     expect(result).toEqual({ enabled: false, reason: 'database_unbound', processed: 0 });
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('migrates in-flight classify/verify tenants and resumes them at classify instead of reimporting', () => {
+    expect(migrationResumeStep('migrations')).toBe('import');
+    expect(migrationResumeStep('classify')).toBe('classify');
+    expect(migrationResumeStep('verify')).toBe('classify');
+    expect(() => migrationResumeStep('publish')).toThrow(
+      'tenant_data_plane_migration_resume_step_invalid'
+    );
+
+    expect(runnerSource).toContain("r.current_step IN ('migrations','classify','verify')");
+    expect(runnerSource).toContain('r.current_step AS resume_step');
+    expect(runnerSource).toContain('resumeStep: nextStep');
+    expect(runnerSource).not.toContain("SET status='running', current_step='import'");
   });
 });

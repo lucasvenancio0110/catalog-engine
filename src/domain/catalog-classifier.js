@@ -1,8 +1,10 @@
 import { z } from 'zod';
 import {
+  CEI_NORMALIZED_EVIDENCE_VERSION,
   createCatalogEvidence,
   parseCatalogEvidence
 } from '../catalog-intelligence/core/evidence.js';
+import { createSportsClaims } from '../catalog-intelligence/domains/sports/claims.js';
 import { analyzeSportsEvidence } from '../catalog-intelligence/domains/sports/resolution.js';
 import {
   FACETS,
@@ -11,8 +13,8 @@ import {
   normalizeCatalogProduct
 } from './catalog-normalization.js';
 
-export const CATALOG_CLASSIFIER_VERSION = 2;
-export const CATALOG_CLASSIFIER_KEY = 'professional-v2';
+export const CATALOG_CLASSIFIER_VERSION = 3;
+export const CATALOG_CLASSIFIER_KEY = 'professional-v3';
 
 function safePublicLabel(maxLength) {
   return z
@@ -52,6 +54,52 @@ function normalizedSearchText(parts) {
     .trim();
 }
 
+function freezeClaimValue(value) {
+  if (Array.isArray(value)) return Object.freeze([...value]);
+  if (value && typeof value === 'object') return Object.freeze({ ...value });
+  return value;
+}
+
+function frozenClaims(claims = {}) {
+  return Object.freeze(
+    Object.fromEntries(
+      Object.entries(claims).map(([field, claim]) => [
+        field,
+        Object.freeze({
+          ...claim,
+          value: freezeClaimValue(claim?.value),
+          evidenceSources: Object.freeze([...(claim?.evidenceSources || [])])
+        })
+      ])
+    )
+  );
+}
+
+function automaticStateSnapshot(value) {
+  return Object.freeze({
+    status: value.classificationStatus,
+    confidence: Number(value.classificationConfidence),
+    team: value.team || null,
+    league: value.league || null,
+    facets: Object.freeze([...(value.facets || [])]),
+    fieldConfidence: Object.freeze({ ...(value.fieldConfidence || {}) }),
+    claims: frozenClaims(value.claims),
+    season: value.season ? Object.freeze({ ...value.season }) : null,
+    conflicts: Object.freeze([...(value.conflicts || [])]),
+    reviewRequired: Boolean(value.reviewRequired)
+  });
+}
+
+function merchantOverrideClaim(claim, value) {
+  return Object.freeze({
+    ...(claim || {}),
+    value: freezeClaimValue(value),
+    confidence: 1,
+    evidenceSources: Object.freeze([]),
+    source: 'merchant_override'
+  });
+}
+
 export function parseCatalogClassificationOverride(value) {
   if (value === null || value === undefined || value === '') return null;
   const candidate = typeof value === 'string' ? JSON.parse(value) : value;
@@ -69,10 +117,14 @@ export function parseCatalogClassificationOverride(value) {
 }
 
 function applyClassificationOverride(base, overrideValue) {
+  const automaticState = automaticStateSnapshot(base);
   const override = parseCatalogClassificationOverride(overrideValue);
   if (!override) {
     return {
       ...base,
+      evidenceSchemaVersion: CEI_NORMALIZED_EVIDENCE_VERSION,
+      automaticState,
+      overrideFields: Object.freeze([]),
       classifierVersion: CATALOG_CLASSIFIER_VERSION,
       classifierKey: CATALOG_CLASSIFIER_KEY,
       overrideApplied: false
@@ -128,6 +180,18 @@ function applyClassificationOverride(base, overrideValue) {
   if (leagueOverridden || (teamOverridden && team?.leagueId)) fieldConfidence.league = 1;
   if (facetsOverridden) fieldConfidence.facets = 1;
 
+  const claims = { ...(base.claims || {}) };
+  if (teamOverridden) claims.team = merchantOverrideClaim(claims.team, team?.id || null);
+  if (leagueOverridden || (teamOverridden && team?.leagueId)) {
+    claims.league = merchantOverrideClaim(claims.league, league?.id || null);
+  }
+  if (facetsOverridden) {
+    claims.facets = merchantOverrideClaim(
+      claims.facets,
+      [...new Set(facets.map((facet) => facet.id).filter(Boolean))]
+    );
+  }
+
   const automaticStatus = base.automaticClassificationStatus || base.classificationStatus;
   const automaticConfidence =
     base.automaticClassificationConfidence ?? base.classificationConfidence;
@@ -135,6 +199,10 @@ function applyClassificationOverride(base, overrideValue) {
   const conflictFreeConfidence = conflicts.length
     ? Math.min(automaticConfidence, 0.5)
     : automaticConfidence;
+  const overrideFields = [];
+  if (teamOverridden) overrideFields.push('team');
+  if (leagueOverridden || (teamOverridden && team?.leagueId)) overrideFields.push('league');
+  if (facetsOverridden) overrideFields.push('facets');
 
   return {
     ...base,
@@ -144,12 +212,16 @@ function applyClassificationOverride(base, overrideValue) {
     team,
     league,
     facets,
+    claims: frozenClaims(claims),
     conflicts,
     reviewRequired: conflicts.length > 0,
     fieldConfidence,
     classificationStatus: override.classificationStatus || conflictFreeStatus,
     classificationConfidence:
       override.classificationConfidence ?? conflictFreeConfidence,
+    evidenceSchemaVersion: CEI_NORMALIZED_EVIDENCE_VERSION,
+    automaticState,
+    overrideFields: Object.freeze(overrideFields),
     classifierVersion: CATALOG_CLASSIFIER_VERSION,
     classifierKey: CATALOG_CLASSIFIER_KEY,
     overrideApplied: true
@@ -186,6 +258,7 @@ export function classifyCatalogEvidence(evidenceValue, overrideValue = null) {
       ? Math.min(automatic.classificationConfidence, 0.5)
       : automatic.classificationConfidence
   };
+  base.claims = createSportsClaims(base, intelligence);
   return applyClassificationOverride(base, overrideValue);
 }
 
