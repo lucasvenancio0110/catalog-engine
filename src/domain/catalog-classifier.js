@@ -4,14 +4,8 @@ import {
   createCatalogEvidence,
   parseCatalogEvidence
 } from '../catalog-intelligence/core/evidence.js';
-import { createSportsClaims } from '../catalog-intelligence/domains/sports/claims.js';
-import { analyzeSportsEvidence } from '../catalog-intelligence/domains/sports/resolution.js';
-import {
-  FACETS,
-  LEAGUES,
-  TEAMS,
-  normalizeCatalogProduct
-} from './catalog-normalization.js';
+import { classifyCatalogEvidenceAutomatically } from '../catalog-intelligence/runtime.js';
+import { FACETS, LEAGUES, TEAMS } from './catalog-normalization.js';
 
 export const CATALOG_CLASSIFIER_VERSION = 3;
 export const CATALOG_CLASSIFIER_KEY = 'professional-v3';
@@ -230,35 +224,7 @@ function applyClassificationOverride(base, overrideValue) {
 
 export function classifyCatalogEvidence(evidenceValue, overrideValue = null) {
   const evidence = parseCatalogEvidence(evidenceValue);
-  const automatic = normalizeCatalogProduct(
-    {
-      sourceName: evidence.title,
-      name: evidence.title,
-      description: evidence.description,
-      sourceCategoryName: evidence.sourceCategoryName,
-      category: evidence.sourceCategoryName,
-      structuredAttributes: evidence.structuredAttributes
-    },
-    evidence.categoryPathNames
-  );
-  const intelligence = analyzeSportsEvidence(evidence, automatic);
-  const base = {
-    ...automatic,
-    automaticClassificationStatus: automatic.classificationStatus,
-    automaticClassificationConfidence: automatic.classificationConfidence,
-    domain: intelligence.domain,
-    fieldConfidence: intelligence.fieldConfidence,
-    season: intelligence.season,
-    conflicts: intelligence.conflicts,
-    reviewRequired: intelligence.reviewRequired,
-    classificationStatus: intelligence.reviewRequired
-      ? 'needs_review'
-      : automatic.classificationStatus,
-    classificationConfidence: intelligence.reviewRequired
-      ? Math.min(automatic.classificationConfidence, 0.5)
-      : automatic.classificationConfidence
-  };
-  base.claims = createSportsClaims(base, intelligence);
+  const base = classifyCatalogEvidenceAutomatically(evidence);
   return applyClassificationOverride(base, overrideValue);
 }
 

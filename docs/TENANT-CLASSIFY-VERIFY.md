@@ -20,6 +20,18 @@ Classifier v3 consumes normalized CEI Evidence rather than provider-specific pro
 
 The current production-targeted Knowledge Pack is Sports v1, but persisted CEI intelligence state must remain retail-domain-neutral so future Automotive, Dental, Fashion or other Knowledge Packs do not require a new core persistence model merely because their fields differ.
 
+### Domain Runtime / router boundary
+
+Automatic classification is composed through the CEI Domain Runtime boundary rather than by teaching the top-level classifier one retail vertical directly.
+
+A Domain Runtime owns the executable interpretation for one versioned Knowledge Pack. It receives normalized CEI Evidence and returns a validated domain hypothesis plus that domain's automatic classification/claims. The generic router validates registered runtimes, evaluates their hypotheses and selects the strongest candidate deterministically; it does not contain Sports, Automotive, Dental or other domain vocabulary itself.
+
+The launch runtime registry contains only Sports v1. A future domain becomes eligible by registering a validated runtime/Knowledge Pack, not by adding domain keywords or claim fields to CEI Core. Test-only runtimes may prove this abstraction, but they are not production Knowledge Packs or product claims.
+
+Routing must remain source-neutral: provider provenance may identify where evidence came from, but changing provider identity without changing normalized product content must not change domain semantics.
+
+Classifier identity does not change for a pure orchestration refactor when the effective Sports v3 output contract and recognition semantics remain identical. A material output/semantic change still requires an explicit classifier version/key decision.
+
 Classification runs from evidence already stored in the isolated tenant D1: source-safe product fields, private source category paths, structured evidence and controlled Knowledge Pack data. It does not refetch supplier detail pages simply to reclassify an existing stored catalog.
 
 This is important for classifier upgrades: a future classifier can reprocess stored normalized evidence without another full supplier crawl.
