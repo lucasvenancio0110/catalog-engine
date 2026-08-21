@@ -12,13 +12,34 @@ const MAX_AUTOMATIC_ATTEMPTS = 5;
 const MAX_FINDINGS = 32;
 
 function runtimeConfig(env) {
-  const accountId = String(env.CLOUDFLARE_PLATFORM_ACCOUNT_ID || '').trim();
-  const apiToken = String(env.CLOUDFLARE_PLATFORM_API_TOKEN || '').trim();
   const dispatchNamespace = String(
     env.CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE || DEFAULT_DISPATCH_NAMESPACE
   ).trim();
+  const tenantDispatch = env.TENANT_DISPATCH;
+  if (tenantDispatch && typeof tenantDispatch.get === 'function' && dispatchNamespace) {
+    return { dispatchNamespace, tenantDispatch };
+  }
+
+  const accountId = String(env.CLOUDFLARE_PLATFORM_ACCOUNT_ID || '').trim();
+  const apiToken = String(env.CLOUDFLARE_PLATFORM_API_TOKEN || '').trim();
   if (!/^[a-f0-9]{32}$/i.test(accountId) || apiToken.length < 20 || !dispatchNamespace) return null;
   return { accountId, apiToken, dispatchNamespace };
+}
+
+async function tenantD1Batch(platform, tenantId, databaseId, batch, fetchImpl) {
+  const dispatchNative = platform.tenantDispatch && typeof platform.tenantDispatch.get === 'function';
+  const effectiveBatch = dispatchNative
+    ? [{ sql: 'SELECT ?1 AS tenant_id', params: [tenantId] }, ...batch]
+    : batch;
+  const result = await queryD1Batch(
+    {
+      ...platform,
+      databaseId,
+      batch: effectiveBatch
+    },
+    { fetchImpl }
+  );
+  return dispatchNative ? result.slice(1) : result;
 }
 
 async function verificationJobId(tenantId) {
@@ -364,13 +385,12 @@ export function verificationFindings(results, { deferredDetailCount = 0 } = {}) 
 }
 
 async function runVerification(platform, context, fetchImpl) {
-  const results = await queryD1Batch(
-    {
-      ...platform,
-      databaseId: context.d1_database_id,
-      batch: verificationQueries()
-    },
-    { fetchImpl }
+  const results = await tenantD1Batch(
+    platform,
+    context.tenant_id,
+    context.d1_database_id,
+    verificationQueries(),
+    fetchImpl
   );
   return verificationFindings(results, { deferredDetailCount: context.deferred_detail_count });
 }
@@ -484,6 +504,7 @@ export async function processTenantVerification(db, { job, env }, { fetchImpl = 
   if (!platform) return { outcome: 'queued', reason: 'cloudflare_platform_unconfigured' };
   const context = await loadContext(db, job.tenant_id);
   if (!context?.d1_database_id) return { outcome: 'blocked', reason: 'tenant_database_not_ready' };
+  context.tenant_id = job.tenant_id;
   if (context.dispatch_namespace !== platform.dispatchNamespace) {
     return { outcome: 'failed', error: 'tenant_dispatch_namespace_mismatch' };
   }
