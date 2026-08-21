@@ -8,6 +8,7 @@ import {
 import { routeCatalogEvidence } from '../src/catalog-intelligence/core/domain-router.js';
 import { defineKnowledgePack } from '../src/catalog-intelligence/core/knowledge-pack.js';
 import { SPORTS_DOMAIN_RUNTIME } from '../src/catalog-intelligence/domains/sports/runtime.js';
+import { CATALOG_DOMAIN_RUNTIMES } from '../src/catalog-intelligence/runtime.js';
 import { classifyCatalogEvidence } from '../src/domain/catalog-classifier.js';
 
 const WHEELS_PACK = defineKnowledgePack({
@@ -75,6 +76,12 @@ function evidence(provenance = { providerKey: 'test-provider', sourceKey: 'prima
 }
 
 describe('CEI domain router v1', () => {
+  it('keeps the production launch registry restricted to Sports v1', () => {
+    expect(CATALOG_DOMAIN_RUNTIMES.map((runtime) => runtime.key)).toEqual(['sports-v1']);
+    expect(CATALOG_DOMAIN_RUNTIMES).not.toContain(WHEELS_RUNTIME);
+    expect(Object.isFrozen(CATALOG_DOMAIN_RUNTIMES)).toBe(true);
+  });
+
   it('selects the strongest domain runtime without teaching the Core automotive semantics', () => {
     const route = routeCatalogEvidence(evidence(), [SPORTS_DOMAIN_RUNTIME, WHEELS_RUNTIME]);
 
