@@ -1,4 +1,5 @@
 import { defineKnowledgePack } from '../../core/knowledge-pack.js';
+import { defineMerchandising } from '../../core/merchandising.js';
 
 export const SPORTS_LEAGUES = [
   { id: 'brasileirao-serie-a', name: 'Brasileirão Série A', countryCode: 'BR', countryName: 'Brasil', entityType: 'club', sortOrder: 10, aliases: ['Brazil Campeonato Brasileiro Série A', 'Campeonato Brasileiro Série A', 'Brasileirão Série A', 'Brasileirao Serie A'] },
@@ -98,6 +99,32 @@ export const SPORTS_FACETS = [
   { id: 'other-sports', type: 'collection', name: 'Outros Esportes', sortOrder: 900, aliases: ['nba','nfl','mlb','nhl','f1 racing','formula 1','basketball'] }
 ];
 
+const SPORTS_NAVIGATION_FACETS = [
+  'shirts',
+  'kits',
+  'retro',
+  'kids',
+  'training',
+  'women',
+  'shoes',
+  'player-version',
+  'long-sleeve',
+  'shorts',
+  'jackets'
+];
+
+export const SPORTS_MERCHANDISING = defineMerchandising({
+  navigation: [
+    { id: 'teams', name: 'Times', kind: 'teams', entityType: 'club', sortOrder: 10 },
+    { id: 'national-teams', name: 'Seleções', kind: 'national_teams', entityType: 'national_team', sortOrder: 20 },
+    ...SPORTS_NAVIGATION_FACETS.map((id, index) => {
+      const facet = SPORTS_FACETS.find((entry) => entry.id === id);
+      return { id: `facet:${id}`, name: facet.name, kind: 'facet', facetId: id, sortOrder: 30 + index };
+    }),
+    { id: 'other-sports', name: 'Outros Esportes', kind: 'facet', facetId: 'other-sports', sortOrder: 900 }
+  ]
+});
+
 export const SPORTS_KNOWLEDGE_PACK = defineKnowledgePack({
   key: 'sports-v1',
   domain: 'sports',
@@ -108,5 +135,6 @@ export const SPORTS_KNOWLEDGE_PACK = defineKnowledgePack({
   reviewThresholds: {
     automatic: 0.75,
     needsReview: 0.51
-  }
+  },
+  merchandising: SPORTS_MERCHANDISING
 });
