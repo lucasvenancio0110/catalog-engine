@@ -1,4 +1,5 @@
 import { CEI_INTELLIGENCE_STATE_CONTRACT_VERSION } from '../src/catalog-intelligence/core/intelligence-state.js';
+import { CEI_MERCHANDISING_CONTRACT_VERSION } from '../src/catalog-intelligence/core/merchandising.js';
 import {
   CATALOG_CLASSIFIER_KEY,
   CATALOG_CLASSIFIER_VERSION
@@ -341,6 +342,28 @@ function verificationQueries() {
               FROM catalog_product_intelligence_state
              WHERE conflict_count>0`,
       params: []
+    },
+    {
+      sql: `SELECT COUNT(*) AS total
+              FROM catalog_meta
+             WHERE key='navigation'
+               AND json_valid(value_json)=1
+               AND substr(trim(value_json),1,1)='['
+               AND trim(value_json)!='[]'`,
+      params: []
+    },
+    {
+      sql: `SELECT COUNT(*) AS total
+              FROM catalog_meta
+             WHERE key='merchandising'
+               AND json_valid(value_json)=1
+               AND CASE WHEN json_valid(value_json)=1
+                        THEN CAST(json_extract(value_json,'$.contractVersion') AS INTEGER)
+                        ELSE 0 END=?1
+               AND CASE WHEN json_valid(value_json)=1
+                        THEN CAST(json_extract(value_json,'$.navigationItems') AS INTEGER)
+                        ELSE 0 END>0`,
+      params: [CEI_MERCHANDISING_CONTRACT_VERSION]
     }
   ];
 }
@@ -372,6 +395,8 @@ export function verificationFindings(results, { deferredDetailCount = 0 } = {}) 
     findings.push('intelligence_state_incomplete');
   }
   if (totalAt(results, 17) > 0) findings.push('intelligence_override_state_mismatch');
+  if (totalAt(results, 21) !== 1) findings.push('merchandising_navigation_missing');
+  if (totalAt(results, 22) !== 1) findings.push('merchandising_metadata_invalid');
   return {
     products,
     classified,

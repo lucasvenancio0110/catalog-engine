@@ -1,3 +1,8 @@
+import {
+  CEI_MERCHANDISING_CONTRACT_VERSION,
+  defineMerchandising
+} from './merchandising.js';
+
 const PACK_KEY_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const DOMAIN_KEY_PATTERN = /^[a-z0-9][a-z0-9-]{0,31}$/;
 
@@ -22,6 +27,16 @@ function freezeEntries(entries, code) {
   return Object.freeze(frozen);
 }
 
+function normalizedMerchandising(value) {
+  if (
+    value?.contractVersion === CEI_MERCHANDISING_CONTRACT_VERSION &&
+    Array.isArray(value?.navigation)
+  ) {
+    return defineMerchandising({ navigation: value.navigation });
+  }
+  return defineMerchandising(value || {});
+}
+
 export function defineKnowledgePack({
   key,
   domain,
@@ -29,7 +44,8 @@ export function defineKnowledgePack({
   competitions = [],
   entities = [],
   facets = [],
-  reviewThresholds = {}
+  reviewThresholds = {},
+  merchandising = {}
 } = {}) {
   const normalizedVersion = Number(version);
   if (!Number.isInteger(normalizedVersion) || normalizedVersion < 1) {
@@ -56,6 +72,7 @@ export function defineKnowledgePack({
     competitions: freezeEntries(competitions, 'cei_knowledge_pack_competitions_invalid'),
     entities: freezeEntries(entities, 'cei_knowledge_pack_entities_invalid'),
     facets: freezeEntries(facets, 'cei_knowledge_pack_facets_invalid'),
-    reviewThresholds: normalizedThresholds
+    reviewThresholds: normalizedThresholds,
+    merchandising: normalizedMerchandising(merchandising)
   });
 }

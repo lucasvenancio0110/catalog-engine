@@ -30,6 +30,8 @@ function healthyResults(products = 12) {
     result(0),
     result(3),
     result(2),
+    result(1),
+    result(1),
     result(1)
   ];
 }
@@ -85,6 +87,20 @@ describe('tenant verification gate', () => {
       ])
     );
     expect(JSON.stringify(report.findings)).not.toMatch(/https?:\/\/|yupoo|token|secret/i);
+  });
+
+  it('blocks missing or invalid merchandising metadata', () => {
+    const rows = healthyResults(4);
+    rows[21] = result(0);
+    rows[22] = result(0);
+    const report = verificationFindings(rows);
+
+    expect(report.findings).toEqual(
+      expect.arrayContaining([
+        'merchandising_navigation_missing',
+        'merchandising_metadata_invalid'
+      ])
+    );
   });
 
   it('does not turn CEI review/research queues into whole-tenant verification failures', () => {
