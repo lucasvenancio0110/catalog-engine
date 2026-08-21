@@ -4,6 +4,7 @@ import {
 } from './tenant-data-plane-schema-v3.js';
 
 export const TENANT_DATA_PLANE_SCHEMA_VERSION = 4;
+export const CEI_STATE_JSON_MAX_BYTES = 65_536;
 
 export const TENANT_DATA_PLANE_V4_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS catalog_product_intelligence_state (
@@ -26,7 +27,7 @@ export const TENANT_DATA_PLANE_V4_STATEMENTS = [
     review_required INTEGER NOT NULL DEFAULT 0 CHECK (review_required IN (0,1)),
     research_required INTEGER NOT NULL DEFAULT 0 CHECK (research_required IN (0,1)),
     conflict_count INTEGER NOT NULL DEFAULT 0 CHECK (conflict_count >= 0),
-    state_json TEXT NOT NULL CHECK (json_valid(state_json)),
+    state_json TEXT NOT NULL CHECK (json_valid(state_json) AND length(CAST(state_json AS BLOB)) <= 65536),
     classified_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (product_id) REFERENCES catalog_products(product_id) ON DELETE CASCADE
