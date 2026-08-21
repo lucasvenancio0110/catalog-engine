@@ -127,7 +127,7 @@ async function createIncrementalJob(db, schedule) {
   });
   const intervalModifier = `+${intervalMinutes} minutes`;
 
-  await db.batch([
+  const batchResults = await db.batch([
     db
       .prepare(
         `INSERT OR IGNORE INTO tenant_import_jobs
@@ -140,9 +140,9 @@ async function createIncrementalJob(db, schedule) {
     db
       .prepare(
         `UPDATE tenant_sync_schedules
-            SET last_scheduled_at=?3,
+            SET last_scheduled_at=CURRENT_TIMESTAMP,
                 last_import_id=?4,
-                next_sync_at=datetime(?3, ?5),
+                next_sync_at=datetime(CURRENT_TIMESTAMP, ?5),
                 updated_at=CURRENT_TIMESTAMP
           WHERE tenant_id=?1
             AND source_key=?2
@@ -165,6 +165,9 @@ async function createIncrementalJob(db, schedule) {
         intervalModifier
       )
   ]);
+
+  const claimed = Number(batchResults?.[1]?.meta?.changes || 0) > 0;
+  if (!claimed) return { scheduled: false, importId: null };
 
   const verification = await db
     .prepare(
