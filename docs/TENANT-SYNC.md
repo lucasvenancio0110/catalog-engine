@@ -263,6 +263,91 @@ It must not expose in public/admin-safe summaries by default:
 - private media origins;
 - tenant-private evidence payloads.
 
+## M7B recurring schedule foundation
+
+M7B establishes the low-volume control-plane scheduler for recurring tenant sync without yet activating incremental Queue execution.
+
+### Control-plane schedule state
+
+`tenant_sync_schedules` owns one schedule per tenant/source and contains only bounded orchestration state:
+
+- tenant ID and source key;
+- schedule status (`active`, `paused`, `disabled`);
+- incremental interval in minutes;
+- next due time;
+- last scheduling time;
+- last opaque import/job ID.
+
+High-cardinality listing fingerprints, item events, private provider IDs and source URLs remain in the tenant data plane. The schedule table must not become a copy of the supplier catalog.
+
+### Eligibility
+
+A schedule may be created/selected only when all of the following are true:
+
+- tenant is active;
+- source is active and uses the incremental strategy;
+- tenant catalog instance/data plane is ready;
+- store is `ready` or `published`;
+- the same tenant/source has a successful initial import checkpoint;
+- no existing schedule needs to be duplicated;
+- no active import/sync job already owns the tenant/source when a due run is selected;
+- no failed `incremental`/`recovery` execution remains unresolved for that tenant/source.
+
+A failed recurring/recovery job is an exception to resolve, not permission to schedule a fresh independent execution over it. Retry/recovery/cancellation must make that state explicit before normal scheduling resumes.
+
+The default/original catalog is not special-cased into or out of this rule. It follows the same durable eligibility evidence as any other tenant.
+
+### Cadence policy
+
+Launch scheduler defaults:
+
+```text
+default interval = 360 minutes
+minimum interval = 15 minutes
+maximum interval = 10080 minutes
+```
+
+These values are an operational launch policy, **not** a permanent commercial-plan entitlement contract. Pricing/plan cadence can later map into the same validated scheduler boundary without teaching the scheduler business-plan names.
+
+Newly discovered schedules begin in the future rather than running immediately. After a due slot is claimed, the next due time is calculated from the actual scheduling time, preventing an outage or long pause from causing a catch-up storm of historical sync slots.
+
+The cadence is interval-based UTC orchestration. It does not depend on the merchant browser timezone.
+
+### Execution identity and overlap prevention
+
+M7 reuses `tenant_import_jobs` rather than creating a competing execution table. Its existing `mode='incremental'` value represents recurring sync execution.
+
+Each due slot derives a deterministic opaque `imp_...` identity from:
+
+```text
+tenant + source key + scheduled UTC slot + identity contract version
+```
+
+The raw source URL is never part of Queue/public state.
+
+The existing unique active-job constraint for `(tenant_id, source_key)` prevents an initial/recovery/incremental job from overlapping another active job for the same source. Deterministic slot identity plus conflict-safe insertion makes cron retries/races idempotent. The scheduler additionally refuses a fresh due slot while an unresolved failed incremental/recovery execution exists.
+
+### M7B activation boundary
+
+The recurring scheduler has its own explicit gate:
+
+`TENANT_SYNC_AUTOMATION_ENABLED`
+
+Only the literal string `1` enables schedule discovery/job creation. Disabled state returns before control-plane D1 scheduling work.
+
+**M7B production target keeps this value at `0`.**
+
+Therefore M7B may safely deploy:
+
+- the additive schedule migration;
+- deterministic recurring job identity;
+- the scheduler mounted on the existing five-minute platform cron;
+- regression tests and safe observability;
+
+without creating incremental jobs, producing Queue messages or changing commercial catalog data in production.
+
+M7C must first adapt the native tenant scan/detail path to `mode='incremental'`, normalized delta planning and the M7 safety decision. Only after those behaviors are regression-tested and production-proof ready may recurring sync automation be deliberately activated.
+
 ## M7A scope boundary
 
 M7A establishes and regression-tests the decision contract only.
