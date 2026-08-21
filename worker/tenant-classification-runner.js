@@ -5,8 +5,10 @@ import {
   classifyCatalogEvidence
 } from '../src/domain/catalog-classifier.js';
 import { FACETS, LEAGUES, TEAMS } from '../src/domain/catalog-normalization.js';
+import { intelligenceStateStatement } from './cei-intelligence-persistence.js';
 import { CloudflarePlatformError, queryD1Batch } from './cloudflare-platform.js';
 import { stableOpaqueId } from './runtime-identity.js';
+import { TENANT_DATA_PLANE_SCHEMA_VERSION } from './tenant-data-plane-schema-v4.js';
 
 const DEFAULT_DISPATCH_NAMESPACE = 'catalog-engine-production';
 const MAX_AUTOMATIC_ATTEMPTS = 5;
@@ -42,14 +44,14 @@ async function discoverCandidates(db, limit) {
         WHERE r.current_step='classify'
           AND r.status IN ('running','failed','blocked')
           AND i.status='provisioning'
-          AND i.schema_version >= 3
+          AND i.schema_version >= ?1
           AND p.database_status='active'
           AND p.worker_status='active'
           AND p.d1_database_id IS NOT NULL
         ORDER BY r.created_at ASC
-        LIMIT ?1`
+        LIMIT ?2`
     )
-    .bind(limit)
+    .bind(TENANT_DATA_PLANE_SCHEMA_VERSION, limit)
     .all();
 
   for (const row of result.results || []) {
@@ -326,6 +328,7 @@ function productClassificationStatements(row, classified) {
       classified.overrideApplied ? 1 : 0
     ]
   });
+  statements.push(intelligenceStateStatement(row.product_id, classified));
   return statements;
 }
 
@@ -558,6 +561,9 @@ function safeError(error) {
   if (String(error?.message || '') === 'cei_runtime_evidence_invalid') {
     return 'tenant_classification_evidence_invalid';
   }
+  if (String(error?.message || '') === 'cei_intelligence_state_invalid') {
+    return 'tenant_classification_intelligence_invalid';
+  }
   if (error?.name === 'ZodError' || /^classification_override_/.test(String(error?.message || ''))) {
     return 'tenant_classification_override_invalid';
   }
@@ -573,7 +579,7 @@ export async function processTenantClassification(db, { job, env }, { fetchImpl 
   if (context.dispatch_namespace !== platform.dispatchNamespace) {
     return { outcome: 'failed', error: 'tenant_dispatch_namespace_mismatch' };
   }
-  if (Number(context.schema_version || 0) < 3) {
+  if (Number(context.schema_version || 0) < TENANT_DATA_PLANE_SCHEMA_VERSION) {
     return { outcome: 'blocked', reason: 'tenant_schema_not_ready' };
   }
   if (!(await claimJob(db, job, context))) return { outcome: 'busy', jobId: job.job_id };
