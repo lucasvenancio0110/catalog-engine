@@ -9,14 +9,16 @@ After an isolated tenant import completes, Catalog Engine does not publish immed
 
 `src/domain/catalog-classifier.js` owns the currently active launch classifier contract.
 
-Current classifier identity:
+Current M6D target classifier identity:
 
 ```text
-CATALOG_CLASSIFIER_VERSION = 2
-CATALOG_CLASSIFIER_KEY = professional-v2
+CATALOG_CLASSIFIER_VERSION = 3
+CATALOG_CLASSIFIER_KEY = professional-v3
 ```
 
-Classifier v2 consumes normalized CEI Evidence rather than provider-specific product objects. The current production-targeted Knowledge Pack is Sports v1, but persisted CEI intelligence state must remain retail-domain-neutral so future Automotive, Dental, Fashion or other Knowledge Packs do not require a new core persistence model merely because their fields differ.
+Classifier v3 consumes normalized CEI Evidence rather than provider-specific product objects and emits the domain claims required by CEI Intelligence State v1. The Sports recognition semantics built in M6C remain intentionally compatible; the v3 bump exists because the durable classification output contract changed materially and must not be confused with a completed v2 job.
+
+The current production-targeted Knowledge Pack is Sports v1, but persisted CEI intelligence state must remain retail-domain-neutral so future Automotive, Dental, Fashion or other Knowledge Packs do not require a new core persistence model merely because their fields differ.
 
 Classification runs from evidence already stored in the isolated tenant D1: source-safe product fields, private source category paths, structured evidence and controlled Knowledge Pack data. It does not refetch supplier detail pages simply to reclassify an existing stored catalog.
 
@@ -208,6 +210,24 @@ V4 adds detailed CEI intelligence persistence while preserving existing effectiv
 New classification/verification work that depends on detailed CEI state requires schema v4.
 
 Migration generation remains idempotent and version-ledgered. Private source URLs are still runtime-bound parameters, never static migration literals.
+
+### In-flight v3 onboarding during v4 rollout
+
+A tenant already in `classify` or `verify` when schema v4 is deployed must not become stranded.
+
+The migration scheduler may reclaim schema-behind onboarding runs at `migrations`, `classify` or `verify`:
+
+```text
+migrations on old schema -> migrate -> import
+classify on old schema   -> migrate -> classify
+verify on old schema     -> migrate -> classify
+```
+
+`verify` deliberately resumes at `classify` because schema v4 introduces new CEI state that must be populated before verification can prove it.
+
+The v3 -> v4 migration is additive; it does not repeat the completed supplier import merely to create CEI persistence.
+
+Already-ready/published tenant fleet migration remains a separate lifecycle concern and must preserve last-known-good public availability.
 
 ## Public boundary
 
