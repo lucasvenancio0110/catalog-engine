@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import {
   CEI_KNOWLEDGE_STATE,
@@ -37,6 +38,7 @@ describe('CEI intelligence state', () => {
 
     expect(state.overrideApplied).toBe(true);
     expect(state.automatic.knowledgeState).toBe(CEI_KNOWLEDGE_STATE.CONFLICT);
+    expect(state.automatic.claims.team.value).not.toBe('barcelona');
     expect(state.automatic.claims.team.knowledgeState).toBe(CEI_KNOWLEDGE_STATE.CONFLICT);
     expect(state.automatic.conflicts.some((item) => item.code === 'sports_team_conflict')).toBe(true);
 
@@ -98,6 +100,15 @@ describe('CEI intelligence state', () => {
     expect(state.effective.claims.offset.knowledgeState).toBe(CEI_KNOWLEDGE_STATE.KNOWN);
     expect(Object.hasOwn(state.effective.claims, 'team')).toBe(false);
     expect(Object.hasOwn(state.effective.claims, 'league')).toBe(false);
+  });
+
+  it('keeps retail-vertical vocabulary out of the CEI Core state adapter', async () => {
+    const source = await readFile(
+      new URL('../src/catalog-intelligence/core/intelligence-state.js', import.meta.url),
+      'utf8'
+    );
+    expect(source).not.toContain('sportsFallbackClaimValue');
+    expect(source).not.toMatch(/classified\.team|classified\.league|classified\.facets|classified\.season/);
   });
 
   it('serializes one bounded canonical state for durable persistence', () => {
