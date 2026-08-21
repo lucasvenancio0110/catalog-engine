@@ -6,6 +6,7 @@ import {
 } from '../src/domain/catalog-classifier.js';
 import { FACETS, LEAGUES, TEAMS } from '../src/domain/catalog-normalization.js';
 import { intelligenceStateStatement } from './cei-intelligence-persistence.js';
+import { persistCatalogMerchandising } from './cei-merchandising-persistence.js';
 import { CloudflarePlatformError, queryD1Batch } from './cloudflare-platform.js';
 import { stableOpaqueId } from './runtime-identity.js';
 import { TENANT_DATA_PLANE_SCHEMA_VERSION } from './tenant-data-plane-schema-v4.js';
@@ -496,6 +497,7 @@ async function finalizeD1Classification(platform, context, stats, fetchImpl) {
     ],
     fetchImpl
   );
+  return persistCatalogMerchandising(platform, context, { fetchImpl });
 }
 
 async function finishJob(db, job, context, stats) {
@@ -647,9 +649,9 @@ export async function processTenantClassification(db, { job, env }, { fetchImpl 
       unknown: Number(counters?.unknown_count || 0)
     };
     if (stats.productCount < 1) throw new Error('tenant_classification_empty_catalog');
-    await finalizeD1Classification(platform, context, stats, fetchImpl);
-    await finishJob(db, job, context, stats);
-    return { outcome: 'success', jobId: job.job_id, ...stats };
+    const merchandising = await finalizeD1Classification(platform, context, stats, fetchImpl);
+    await finishJob(db, job, context, { ...stats, merchandising });
+    return { outcome: 'success', jobId: job.job_id, ...stats, merchandising };
   } catch (error) {
     const code = safeError(error);
     await failJob(db, job, context, code);
