@@ -1,5 +1,10 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { CEI_INTELLIGENCE_STATE_CONTRACT_VERSION } from '../src/catalog-intelligence/core/intelligence-state.js';
+import {
+  CATALOG_CLASSIFIER_KEY,
+  CATALOG_CLASSIFIER_VERSION
+} from '../src/domain/catalog-classifier.js';
 import {
   createD1Database,
   queryD1Batch,
@@ -7,7 +12,10 @@ import {
 } from '../worker/cloudflare-platform.js';
 import { yupooIngestionProvider } from '../worker/ingestion/providers/yupoo.js';
 import { initialTenantImportId } from '../worker/tenant-import-queue.js';
-import { tenantDataPlaneCurrentBatch } from '../worker/tenant-data-plane-schema-v3.js';
+import {
+  TENANT_DATA_PLANE_SCHEMA_VERSION,
+  tenantDataPlaneCurrentBatch
+} from '../worker/tenant-data-plane-schema-v4.js';
 
 const API_ORIGIN = 'https://api.cloudflare.com';
 const ACCOUNT_ID = String(process.env.CLOUDFLARE_ACCOUNT_ID || '').trim();
@@ -24,6 +32,7 @@ const DEFAULT_SOURCE_KEY = 'primary';
 const POLL_MS = 5_000;
 const DISCOVERY_TIMEOUT_MS = 8 * 60_000;
 const COMPLETION_TIMEOUT_MS = 18 * 60_000;
+const CEI_COMPLETION_TIMEOUT_MS = 14 * 60_000;
 const QUEUE_DRAIN_TIMEOUT_MS = 3 * 60_000;
 const QUEUE_NAMES = [
   'catalog-engine-import-scan',
@@ -270,8 +279,8 @@ async function setupFixture(scope) {
     {
       sql: `INSERT INTO tenant_catalog_instances
               (tenant_id, data_plane_key, status, schema_version, created_at, updated_at)
-            VALUES (?1, ?2, 'provisioning', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-      params: [fixture.tenantId, fixture.dataPlaneKey]
+            VALUES (?1, ?2, 'provisioning', ?3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      params: [fixture.tenantId, fixture.dataPlaneKey, TENANT_DATA_PLANE_SCHEMA_VERSION]
     },
     {
       sql: `INSERT INTO supplier_sources
@@ -311,6 +320,18 @@ async function setupFixture(scope) {
               (provisioning_id, step_key, status, attempt_count, metadata_json, updated_at)
             VALUES (?1, 'import', 'pending', 0, '{}', CURRENT_TIMESTAMP)`,
       params: [fixture.provisioningId]
+    },
+    {
+      sql: `INSERT INTO tenant_provisioning_steps
+              (provisioning_id, step_key, status, attempt_count, metadata_json, updated_at)
+            VALUES (?1, 'classify', 'pending', 0, '{}', CURRENT_TIMESTAMP)`,
+      params: [fixture.provisioningId]
+    },
+    {
+      sql: `INSERT INTO tenant_provisioning_steps
+              (provisioning_id, step_key, status, attempt_count, metadata_json, updated_at)
+            VALUES (?1, 'verify', 'pending', 0, '{}', CURRENT_TIMESTAMP)`,
+      params: [fixture.provisioningId]
     }
   ]);
   fixture.controlCreated = true;
@@ -337,12 +358,12 @@ async function controlJob(fixture) {
 
 function safeJobErrorCode(value) {
   const code = String(value || '').trim();
-  return /^(supplier|tenant_import|tenant_data_plane|catalog_provider|cloudflare_platform)_[a-z0-9_]+$/i.test(code)
+  return /^(supplier|tenant_import|tenant_data_plane|tenant_classification|tenant_verification|catalog_provider|cloudflare_platform)_[a-z0-9_]+$/i.test(code)
     ? code
     : null;
 }
 
-function importFailure(row, fallbackCode) {
+function jobFailure(row, fallbackCode) {
   const error = new Error(fallbackCode);
   error.jobErrorCode = safeJobErrorCode(row?.last_error_code);
   return error;
@@ -354,7 +375,7 @@ async function waitForSchedulerDiscovery(fixture) {
     const row = await controlJob(fixture);
     if (row) {
       if (row.status === 'failed') {
-        throw importFailure(row, 'auto_canary_scheduler_dispatch_failed');
+        throw jobFailure(row, 'auto_canary_scheduler_dispatch_failed');
       }
       return row;
     }
@@ -369,10 +390,67 @@ async function waitForCompletion(fixture) {
     const row = await controlJob(fixture);
     if (!row) throw new Error('auto_canary_import_job_missing');
     if (row.status === 'success' && row.phase === 'complete') return row;
-    if (row.status === 'failed') throw importFailure(row, 'auto_canary_import_failed');
+    if (row.status === 'failed') throw jobFailure(row, 'auto_canary_import_failed');
     await sleep(POLL_MS);
   }
   throw new Error('auto_canary_completion_timeout');
+}
+
+async function ceiControlState(fixture) {
+  const result = await controlBatch([
+    {
+      sql: `SELECT status, current_step
+              FROM tenant_provisioning_runs
+             WHERE provisioning_id=?1 AND tenant_id=?2
+             LIMIT 1`,
+      params: [fixture.provisioningId, fixture.tenantId]
+    },
+    {
+      sql: `SELECT status, classifier_version, classifier_key, last_error_code,
+                   product_count, automatic_count, review_count, unknown_count
+              FROM tenant_classification_jobs
+             WHERE tenant_id=?1
+             ORDER BY created_at DESC
+             LIMIT 1`,
+      params: [fixture.tenantId]
+    },
+    {
+      sql: `SELECT status, classifier_version, last_error_code, product_count,
+                   finding_count, findings_json
+              FROM tenant_verification_jobs
+             WHERE tenant_id=?1
+             ORDER BY created_at DESC
+             LIMIT 1`,
+      params: [fixture.tenantId]
+    }
+  ]);
+  return {
+    run: result[0]?.results?.[0] || null,
+    classification: result[1]?.results?.[0] || null,
+    verification: result[2]?.results?.[0] || null
+  };
+}
+
+async function waitForCeiCompletion(fixture) {
+  const started = Date.now();
+  while (Date.now() - started < CEI_COMPLETION_TIMEOUT_MS) {
+    const state = await ceiControlState(fixture);
+    if (state.classification?.status === 'failed') {
+      throw jobFailure(state.classification, 'auto_canary_classification_failed');
+    }
+    if (state.verification?.status === 'failed') {
+      throw jobFailure(state.verification, 'auto_canary_verification_failed');
+    }
+    if (
+      state.classification?.status === 'success' &&
+      state.verification?.status === 'success' &&
+      !['classify', 'verify'].includes(String(state.run?.current_step || ''))
+    ) {
+      return state;
+    }
+    await sleep(POLL_MS);
+  }
+  throw new Error('auto_canary_cei_completion_timeout');
 }
 
 async function verifyCatalog(fixture) {
@@ -402,7 +480,80 @@ async function verifyCatalog(fixture) {
   return { products, media, leaks };
 }
 
-async function verifyProvisioning(fixture) {
+async function verifyCeiState(fixture, expectedProducts) {
+  const result = await tenantBatch(fixture.databaseId, [
+    {
+      sql: `SELECT tenant_id, schema_version
+              FROM data_plane_identity
+             WHERE tenant_id=?1
+             LIMIT 1`,
+      params: [fixture.tenantId]
+    },
+    {
+      sql: `SELECT COUNT(*) AS total
+              FROM catalog_product_classification_state
+             WHERE classifier_version=?1 AND classifier_key=?2`,
+      params: [CATALOG_CLASSIFIER_VERSION, CATALOG_CLASSIFIER_KEY]
+    },
+    {
+      sql: `SELECT COUNT(*) AS total,
+                   SUM(CASE WHEN review_required=1 THEN 1 ELSE 0 END) AS review_required,
+                   SUM(CASE WHEN research_required=1 THEN 1 ELSE 0 END) AS research_required,
+                   SUM(conflict_count) AS conflicts
+              FROM catalog_product_intelligence_state
+             WHERE contract_version=?1
+               AND evidence_schema_version>=1
+               AND classifier_version=?2
+               AND classifier_key=?3
+               AND json_valid(state_json)`,
+      params: [
+        CEI_INTELLIGENCE_STATE_CONTRACT_VERSION,
+        CATALOG_CLASSIFIER_VERSION,
+        CATALOG_CLASSIFIER_KEY
+      ]
+    },
+    {
+      sql: `SELECT COUNT(*) AS leaks
+              FROM catalog_product_intelligence_state
+             WHERE lower(state_json) LIKE '%x.yupoo.com%'
+                OR lower(state_json) LIKE '%photo.yupoo.com%'
+                OR lower(state_json) LIKE '%http://%'
+                OR lower(state_json) LIKE '%https://%'`,
+      params: []
+    }
+  ]);
+  const identity = result[0]?.results?.[0] || null;
+  const classified = Number(result[1]?.results?.[0]?.total || 0);
+  const intelligence = result[2]?.results?.[0] || {};
+  const intelligenceTotal = Number(intelligence.total || 0);
+  const leaks = Number(result[3]?.results?.[0]?.leaks || 0);
+
+  if (!identity || identity.tenant_id !== fixture.tenantId) {
+    throw new Error('auto_canary_cei_identity_missing');
+  }
+  if (Number(identity.schema_version || 0) !== TENANT_DATA_PLANE_SCHEMA_VERSION) {
+    throw new Error('auto_canary_cei_schema_version_mismatch');
+  }
+  if (classified !== expectedProducts || intelligenceTotal !== expectedProducts) {
+    throw new Error('auto_canary_cei_state_incomplete');
+  }
+  if (leaks !== 0) throw new Error('auto_canary_cei_private_state_leak');
+
+  return {
+    schemaVersion: Number(identity.schema_version),
+    classifierVersion: CATALOG_CLASSIFIER_VERSION,
+    classifierKey: CATALOG_CLASSIFIER_KEY,
+    intelligenceContractVersion: CEI_INTELLIGENCE_STATE_CONTRACT_VERSION,
+    classified,
+    intelligence: intelligenceTotal,
+    reviewRequired: Number(intelligence.review_required || 0),
+    researchRequired: Number(intelligence.research_required || 0),
+    conflicts: Number(intelligence.conflicts || 0),
+    privateStateLeaks: leaks
+  };
+}
+
+async function verifyProvisioning(fixture, ceiState) {
   const result = await controlBatch([
     {
       sql: `SELECT status, current_step
@@ -412,27 +563,43 @@ async function verifyProvisioning(fixture) {
       params: [fixture.provisioningId, fixture.tenantId]
     },
     {
-      sql: `SELECT status, attempt_count, metadata_json
+      sql: `SELECT step_key, status, attempt_count, metadata_json
               FROM tenant_provisioning_steps
-             WHERE provisioning_id=?1 AND step_key='import'
-             LIMIT 1`,
+             WHERE provisioning_id=?1 AND step_key IN ('import','classify','verify')
+             ORDER BY step_key ASC`,
       params: [fixture.provisioningId]
     }
   ]);
   const run = result[0]?.results?.[0] || null;
-  const step = result[1]?.results?.[0] || null;
-  if (!run || !step) throw new Error('auto_canary_provisioning_state_missing');
-  if (step.status !== 'success' || Number(step.attempt_count || 0) < 1) {
+  const steps = new Map((result[1]?.results || []).map((row) => [row.step_key, row]));
+  const importStep = steps.get('import');
+  const classifyStep = steps.get('classify');
+  const verifyStep = steps.get('verify');
+  if (!run || !importStep || !classifyStep || !verifyStep) {
+    throw new Error('auto_canary_provisioning_state_missing');
+  }
+  if (importStep.status !== 'success' || Number(importStep.attempt_count || 0) < 1) {
     throw new Error('auto_canary_provisioning_import_incomplete');
   }
-  if (!['classify', 'verify', 'publish', 'complete'].includes(String(run.current_step || ''))) {
+  if (classifyStep.status !== 'success' || ceiState.classification?.status !== 'success') {
+    throw new Error('auto_canary_provisioning_classification_incomplete');
+  }
+  if (verifyStep.status !== 'success' || ceiState.verification?.status !== 'success') {
+    throw new Error('auto_canary_provisioning_verification_incomplete');
+  }
+  if (['import', 'classify', 'verify'].includes(String(run.current_step || ''))) {
     throw new Error('auto_canary_provisioning_did_not_advance');
   }
   return {
     runStatus: String(run.status || ''),
     currentStep: String(run.current_step || ''),
-    importStepStatus: String(step.status || ''),
-    importAttempts: Number(step.attempt_count || 0)
+    importStepStatus: String(importStep.status || ''),
+    importAttempts: Number(importStep.attempt_count || 0),
+    classifyStepStatus: String(classifyStep.status || ''),
+    classificationProducts: Number(ceiState.classification?.product_count || 0),
+    verificationStepStatus: String(verifyStep.status || ''),
+    verificationProducts: Number(ceiState.verification?.product_count || 0),
+    verificationFindings: Number(ceiState.verification?.finding_count || 0)
   };
 }
 
@@ -480,7 +647,9 @@ async function main() {
     const discovery = await waitForSchedulerDiscovery(fixture);
     const finalJob = await waitForCompletion(fixture);
     const catalog = await verifyCatalog(fixture);
-    const provisioning = await verifyProvisioning(fixture);
+    const ceiControl = await waitForCeiCompletion(fixture);
+    const cei = await verifyCeiState(fixture, catalog.products);
+    const provisioning = await verifyProvisioning(fixture, ceiControl);
     const finalCatalogProducts = await defaultCatalogCount();
     if (finalCatalogProducts !== baselineCatalogProducts) {
       throw new Error('auto_canary_default_catalog_changed');
@@ -491,6 +660,7 @@ async function main() {
       JSON.stringify(
         {
           automaticTenantImportCanaryPassed: true,
+          ceiPipelineVerified: true,
           automationEnabled: true,
           manualQueueMessagesProduced: false,
           schedulerDiscovered: true,
@@ -501,6 +671,7 @@ async function main() {
           deferred: Number(finalJob.deferred_detail_count || 0),
           published: Number(finalJob.published_product_count || 0),
           catalog,
+          cei,
           provisioning,
           defaultCatalogCountUnchanged: true,
           queueBacklogsClean: backlogsClean(finalBacklogs),
@@ -516,6 +687,7 @@ async function main() {
     console.error(
       JSON.stringify({
         automaticTenantImportCanaryPassed: false,
+        ceiPipelineVerified: false,
         error: code,
         jobErrorCode
       })
