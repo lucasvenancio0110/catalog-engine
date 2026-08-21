@@ -1,6 +1,5 @@
 import { parseCatalogEvidence } from '../../core/evidence.js';
 import {
-  SPORTS_FACETS,
   SPORTS_KNOWLEDGE_PACK,
   SPORTS_LEAGUES,
   SPORTS_TEAMS
@@ -17,7 +16,6 @@ const fold = (value = '') =>
     .trim();
 
 const bounded = (value) => Math.max(0, Math.min(0.99, Number(value || 0)));
-const phrase = (value) => ` ${fold(value)} `;
 
 function evidenceFields(evidence) {
   return [
@@ -105,16 +103,19 @@ function leagueCandidates(evidence) {
 
 function facetConfidence(base) {
   if (!base.facets?.length) return 0;
-  const explicit = base.facets.filter((facet) => facet.id !== 'shirts' || base.sourceName?.toLowerCase().includes('shirt') || base.sourceName?.toLowerCase().includes('jersey'));
-  return explicit.length ? 0.9 : 0.82;
+  return 0.9;
 }
 
 function sportsDomainConfidence(base, teams, leagues) {
   if (teams.length) return Math.max(0.96, teams[0].confidence);
   if (leagues.length) return Math.max(0.94, leagues[0].confidence);
   if (base.facets?.length) return 0.86;
-  const text = fold([base.sourceName, base.sourceCategoryName, ...(base.categoryPathNames || [])].join(' '));
-  if (/\b(?:football|soccer|jersey|shirt|kit|league|team|goalkeeper|training)\b/.test(text)) return 0.78;
+  const text = fold(
+    [base.sourceName, base.sourceCategoryName, ...(base.categoryPathNames || [])].join(' ')
+  );
+  if (/\b(?:football|soccer|jersey|shirt|kit|league|team|goalkeeper|training)\b/.test(text)) {
+    return 0.78;
+  }
   return 0.25;
 }
 
@@ -127,7 +128,7 @@ function inferShortSeasonYear(value, referenceStart = null) {
     if (year < referenceStart) year += 100;
     return year;
   }
-  return 2000 + number;
+  return (number >= 70 ? 1900 : 2000) + number;
 }
 
 function normalizeSeason(startRaw, endRaw) {
@@ -136,7 +137,9 @@ function normalizeSeason(startRaw, endRaw) {
   const start = startText.length === 2 ? inferShortSeasonYear(startText) : Number(startText);
   const end = endText.length === 2 ? inferShortSeasonYear(endText, start) : Number(endText);
   if (!Number.isInteger(start) || !Number.isInteger(end)) return null;
-  if (start < 1900 || start > 2099 || end !== start + 1) return null;
+  if (start < 1900 || start > 2099 || end < 1901 || end > 2100 || end !== start + 1) {
+    return null;
+  }
   return {
     label: `${start}/${String(end).slice(-2)}`,
     startYear: start,
@@ -155,8 +158,14 @@ function extractSeasonCandidates(evidence) {
     const text = String(value);
     const full = text.match(/\b((?:19|20)\d{2})\s*[\/-]\s*((?:19|20)?\d{2})\b/);
     const short = text.match(/\b(\d{2})\s*\/\s*(\d{2})\b/);
-    const normalized = full ? normalizeSeason(full[1], full[2]) : short ? normalizeSeason(short[1], short[2]) : null;
-    if (normalized) candidates.push({ ...normalized, confidence: 0.99, source: `attribute:${key}` });
+    const normalized = full
+      ? normalizeSeason(full[1], full[2])
+      : short
+        ? normalizeSeason(short[1], short[2])
+        : null;
+    if (normalized) {
+      candidates.push({ ...normalized, confidence: 0.99, source: `attribute:${key}` });
+    }
   }
 
   for (const field of evidenceFields(evidence)) {
@@ -171,7 +180,8 @@ function extractSeasonCandidates(evidence) {
         if (!normalized) continue;
         candidates.push({
           ...normalized,
-          confidence: field.key === 'title' ? 0.96 : field.key === 'source_category' ? 0.91 : 0.88,
+          confidence:
+            field.key === 'title' ? 0.96 : field.key === 'source_category' ? 0.91 : 0.88,
           source: field.key
         });
       }
@@ -205,7 +215,9 @@ function conflict(code, field, candidates) {
   return Object.freeze({
     code,
     field,
-    candidateIds: Object.freeze(candidates.map((candidate) => candidate.id || candidate.label).sort())
+    candidateIds: Object.freeze(
+      [...new Set(candidates.map((candidate) => candidate.id || candidate.label).filter(Boolean))].sort()
+    )
   });
 }
 
@@ -217,26 +229,34 @@ export function analyzeSportsEvidence(evidenceValue, baseClassification = {}) {
   const conflicts = [];
 
   const strongTeams = teams.filter((candidate) => candidate.confidence >= 0.9);
-  if (strongTeams.length > 1) conflicts.push(conflict('sports_team_conflict', 'team', strongTeams));
+  if (strongTeams.length > 1) {
+    conflicts.push(conflict('sports_team_conflict', 'team', strongTeams));
+  }
 
-  const inferredLeagueId = baseClassification.team?.leagueId || baseClassification.league?.id || null;
   const strongLeagues = leagues.filter((candidate) => candidate.confidence >= 0.9);
+  const inferredLeagueId = baseClassification.team?.leagueId || baseClassification.league?.id || null;
+  const teamLeagueIds = new Set(
+    strongTeams.map((candidate) => candidate.entry?.leagueId).filter(Boolean)
+  );
   const explicitLeagueIds = new Set(strongLeagues.map((candidate) => candidate.id));
-  if (explicitLeagueIds.size > 1 || (inferredLeagueId && explicitLeagueIds.size === 1 && !explicitLeagueIds.has(inferredLeagueId))) {
+  const supportedLeagueIds = new Set([...teamLeagueIds, ...explicitLeagueIds]);
+  if (supportedLeagueIds.size > 1) {
     conflicts.push(
-      conflict(
-        'sports_league_conflict',
-        'league',
-        strongLeagues.length ? strongLeagues : [{ id: inferredLeagueId }]
-      )
+      conflict('sports_league_conflict', 'league', [
+        ...strongLeagues,
+        ...[...teamLeagueIds].map((id) => ({ id }))
+      ])
     );
   }
 
-  if (seasons.length > 1 && seasons.filter((candidate) => candidate.confidence >= 0.88).length > 1) {
-    conflicts.push(conflict('sports_season_conflict', 'season', seasons.filter((candidate) => candidate.confidence >= 0.88)));
+  const strongSeasons = seasons.filter((candidate) => candidate.confidence >= 0.88);
+  if (strongSeasons.length > 1) {
+    conflicts.push(conflict('sports_season_conflict', 'season', strongSeasons));
   }
 
-  const versionFacets = (baseClassification.facets || []).filter((facet) => facet.type === 'version');
+  const versionFacets = (baseClassification.facets || []).filter(
+    (facet) => facet.type === 'version'
+  );
   if (versionFacets.length > 1) {
     conflicts.push(
       conflict(
@@ -248,23 +268,32 @@ export function analyzeSportsEvidence(evidenceValue, baseClassification = {}) {
   }
 
   const domainConfidence = sportsDomainConfidence(baseClassification, teams, leagues);
-  const teamConfidence = conflicts.some((item) => item.field === 'team')
+  const teamConflict = conflicts.some((item) => item.field === 'team');
+  const leagueConflict = conflicts.some((item) => item.field === 'league');
+  const seasonConflict = conflicts.some((item) => item.field === 'season');
+  const teamConfidence = teamConflict
     ? 0.45
     : baseClassification.team
-      ? Math.max(0.84, teams.find((candidate) => candidate.id === baseClassification.team.id)?.confidence || 0)
+      ? Math.max(
+          0.84,
+          teams.find((candidate) => candidate.id === baseClassification.team.id)?.confidence || 0
+        )
       : 0;
-  const leagueEvidenceConfidence = leagues.find((candidate) => candidate.id === inferredLeagueId)?.confidence || 0;
-  const leagueConfidence = conflicts.some((item) => item.field === 'league')
+  const leagueEvidenceConfidence =
+    leagues.find((candidate) => candidate.id === inferredLeagueId)?.confidence || 0;
+  const leagueConfidence = leagueConflict
     ? 0.45
     : inferredLeagueId
       ? Math.max(baseClassification.team ? 0.91 : 0.84, leagueEvidenceConfidence)
       : 0;
-  const seasonConflict = conflicts.some((item) => item.field === 'season');
   const season = seasonConflict ? null : seasons[0] || null;
 
   return Object.freeze({
     domain: Object.freeze({
-      id: domainConfidence >= SPORTS_KNOWLEDGE_PACK.reviewThresholds.needsReview ? 'sports' : 'unknown',
+      id:
+        domainConfidence >= SPORTS_KNOWLEDGE_PACK.reviewThresholds.needsReview
+          ? 'sports'
+          : 'unknown',
       confidence: bounded(domainConfidence),
       knowledgePackKey: SPORTS_KNOWLEDGE_PACK.key,
       knowledgePackVersion: SPORTS_KNOWLEDGE_PACK.version
