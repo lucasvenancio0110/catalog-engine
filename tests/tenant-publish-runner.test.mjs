@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { CATALOG_CLASSIFIER_VERSION } from '../src/domain/catalog-classifier.js';
 import {
   processTenantPublish,
   runDueTenantPublishes
@@ -25,7 +26,7 @@ function context(overrides = {}) {
     provider_status: 'active',
     ssl_status: 'active',
     verification_status: 'success',
-    classifier_version: 1,
+    classifier_version: CATALOG_CLASSIFIER_VERSION,
     finding_count: 0,
     ...overrides
   };
@@ -111,6 +112,18 @@ describe('final tenant publish checkpoint', () => {
     const db = fakeDb(context({ runtime_status: 'staged' }));
     const result = await processTenantPublish(db, { job, env: dispatchEnv(db) });
     expect(result).toEqual({ outcome: 'blocked', reason: 'tenant_publish_runtime_not_ready' });
+    expect(db.runs).toHaveLength(0);
+    expect(db.batches).toHaveLength(0);
+  });
+
+  it('blocks publish when verification belongs to a stale classifier version', async () => {
+    const staleVersion = Math.max(0, CATALOG_CLASSIFIER_VERSION - 1);
+    const db = fakeDb(context({ classifier_version: staleVersion }));
+    const result = await processTenantPublish(db, { job, env: dispatchEnv(db) });
+    expect(result).toEqual({
+      outcome: 'blocked',
+      reason: 'tenant_publish_verification_not_ready'
+    });
     expect(db.runs).toHaveLength(0);
     expect(db.batches).toHaveLength(0);
   });
