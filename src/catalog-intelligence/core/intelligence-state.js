@@ -38,11 +38,7 @@ const claimObject = z
   .refine((value) => Object.keys(value).length <= 16, {
     message: 'cei_intelligence_claim_object_too_large'
   });
-const claimValue = z.union([
-  claimPrimitive,
-  z.array(claimPrimitive).max(32),
-  claimObject
-]);
+const claimValue = z.union([claimPrimitive, z.array(claimPrimitive).max(32), claimObject]);
 
 const claimSchema = z
   .object({
@@ -134,21 +130,6 @@ function normalizeConflicts(values) {
   }));
 }
 
-function sportsFallbackClaimValue(classified, field) {
-  if (field === 'team') return classified.team?.id || null;
-  if (field === 'league') return classified.league?.id || null;
-  if (field === 'facets') return uniqueStrings((classified.facets || []).map((facet) => facet.id));
-  if (field === 'season') {
-    if (!classified.season) return null;
-    return {
-      label: classified.season.label,
-      startYear: Number(classified.season.startYear),
-      endYear: Number(classified.season.endYear)
-    };
-  }
-  return null;
-}
-
 function normalizedClaim(field, claim, conflicts, source = 'inference') {
   const score = Number(claim?.confidence || 0);
   const hasConflict = conflicts.some((entry) => entry.field === field);
@@ -184,10 +165,9 @@ function claimsFromClassification(classified, conflicts, overrideFields = new Se
       normalizedClaim(
         field,
         {
-          value: sportsFallbackClaimValue(classified, field),
+          value: null,
           confidence: Number(score || 0),
-          evidenceSources:
-            field === 'season' ? classified?.season?.evidenceSources || [] : []
+          evidenceSources: []
         },
         conflicts,
         overrideFields.has(field) ? 'merchant_override' : 'inference'
