@@ -109,6 +109,14 @@ async function dueSchedules(db, limit) {
                AND active_job.source_key=schedule.source_key
                AND active_job.status IN ('pending','queued','scanning','details','finalizing')
           )
+          AND NOT EXISTS (
+            SELECT 1
+              FROM tenant_import_jobs unresolved_job
+             WHERE unresolved_job.tenant_id=schedule.tenant_id
+               AND unresolved_job.source_key=schedule.source_key
+               AND unresolved_job.mode IN ('incremental','recovery')
+               AND unresolved_job.status='failed'
+          )
         ORDER BY schedule.next_sync_at ASC, schedule.tenant_id ASC, schedule.source_key ASC
         LIMIT ?1`
     )
@@ -155,6 +163,14 @@ async function createIncrementalJob(db, schedule) {
                  AND scheduled_job.tenant_id=?1
                  AND scheduled_job.source_key=?2
                  AND scheduled_job.mode='incremental'
+            )
+            AND NOT EXISTS (
+              SELECT 1
+                FROM tenant_import_jobs conflicting_job
+               WHERE conflicting_job.tenant_id=?1
+                 AND conflicting_job.source_key=?2
+                 AND conflicting_job.import_id<>?4
+                 AND conflicting_job.status IN ('pending','queued','scanning','details','finalizing','failed')
             )`
       )
       .bind(
