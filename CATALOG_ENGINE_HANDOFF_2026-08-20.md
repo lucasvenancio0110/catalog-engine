@@ -1,21 +1,21 @@
-# CATALOG ENGINE — HANDOFF COMPLETO DE DESENVOLVIMENTO
+# CATALOG ENGINE — HANDOFF CANÔNICO DE DESENVOLVIMENTO
 
-**Snapshot técnico:** 2026-08-20 ~21:08 BRT  
+**Snapshot técnico:** 2026-08-20 ~21:15 BRT  
 **Repositório:** `lucasvenancio0110/catalog-engine`  
 **Projeto:** CATALOG ENGINE  
 **Stack:** Vite + JavaScript ES Modules + Cloudflare Workers + D1 + Workers for Platforms + Cloudflare Queues  
 **Node:** >= 22  
 **Package:** `0.9.0`
 
-> **REGRA DE CONTINUIDADE:** este arquivo é o handoff técnico canônico para outro chat/software. Antes de qualquer write, merge, deploy ou mutação Cloudflare, revalidar `main`, PRs, Actions e estado real do Cloudflare. Atualizar este arquivo sempre que um slice/milestone relevante for concluído ou uma decisão arquitetural importante mudar.
+> **REGRA DE CONTINUIDADE:** este arquivo é a fonte canônica de retomada para outro chat/software. Antes de qualquer write, merge, deploy ou mutação Cloudflare, revalidar `main`, PRs, Actions e estado real do Cloudflare. Atualizar este arquivo sempre que um slice relevante mudar de estado.
 
 ---
 
 # 0. RESUMO EXECUTIVO
 
-Catalog Engine é uma plataforma SaaS B2B multi-tenant white-label para transformar fontes privadas de catálogo em vitrines profissionais independentes da origem do fornecedor.
+Catalog Engine é uma plataforma SaaS B2B multi-tenant white-label que transforma fontes privadas de catálogo em vitrines profissionais independentes da origem do fornecedor.
 
-Não tratar o produto como “um site que lê Yupoo”. Yupoo é apenas o provider de lançamento.
+**Não tratar o produto como “um site que lê Yupoo”.** Yupoo é apenas o provider de lançamento.
 
 Arquitetura já comprovada:
 
@@ -32,24 +32,22 @@ Arquitetura já comprovada:
 - publicação pública D1 atômica;
 - deploy de aplicação separado de publicação de catálogo;
 - Design Foundation com Lucide / Motion / Swiper;
-- Cloudflare Queues scan/detail;
-- DLQs;
-- consumers dedicados;
-- producers no Worker principal;
+- Cloudflare Queues scan/detail + DLQs;
+- consumers dedicados + producers no Worker principal;
 - isolamento real multi-tenant;
-- retry -> DLQ -> repair -> replay real;
+- retry -> DLQ -> repair -> replay comprovado;
 - scheduler automático de tenant import em produção;
 - canário scheduler-driven real sem mensagem manual inicial;
 - CEI Normalized Evidence v1;
 - runtime de classificação explicitamente CEI-native;
-- Sports Knowledge Pack v1 versionado;
-- M6C de confidence/conflicts/season já implementado em PR e com todos os gates PR verdes, aguardando gate de produção anterior antes do merge.
+- Sports Knowledge Pack v1;
+- classifier `professional-v2` com domain confidence, field confidence, semantic conflicts e season evidence.
 
 ## Milestones
 
 | Milestone | Estado |
 |---|---|
-| M0 — verdade/documentação | substancialmente concluído |
+| M0 — truth/documentation | substancialmente concluído |
 | M1 — production safety | parcial; dívidas de governança permanecem |
 | M2 — app deploy separado de catalog publication | concluído |
 | M3 — Design Foundation | concluído |
@@ -57,69 +55,160 @@ Arquitetura já comprovada:
 | M5 — automatic tenant Queue import | **CONCLUÍDO / production-proven** |
 | M6 — CEI Core + Sports Knowledge Pack v1 | **EM DESENVOLVIMENTO** |
 | M6A — CEI Normalized Evidence v1 | **CONCLUÍDO** |
-| M6B — runtime CEI + Sports Knowledge Pack v1 | **MERGEADO / deploy production SUCCESS** |
-| M6C — field confidence + semantic conflicts + reliable season | **PR #80 READY / 5 gates verdes / ainda não mergeado neste snapshot** |
+| M6B — runtime CEI + Sports Knowledge Pack v1 | **CONCLUÍDO / production-green** |
+| M6C — confidence + conflicts + reliable season | **MERGEADO / deploy SUCCESS / auto-canary pós-deploy ainda aguardando neste snapshot** |
+| M6D — persistence + verification + merchandising | **PRÓXIMO, somente após M6C auto-canary SUCCESS** |
 
 ---
 
 # 1. PONTO EXATO DE RETOMADA
 
-## `main` atual deste snapshot
+## `main` atual
 
-`5f8b0e09b118b69087a45bce70f4dcea53f731dd`
+`9b14cb2f2f1face251f348f9be8ca20cb4f66b6b`
 
 Commit:
 
-`m6: make tenant classification CEI-native and extract Sports Knowledge Pack v1`
+`m6: add evidence-aware sports confidence, conflicts and season`
+
+PR:
+
+`#80 — m6: add evidence-aware sports confidence, conflicts and season`
+
+## M6C antes do merge
+
+Head validado:
+
+`cafa89f2d94b9f5a2fe9b77358896f32d2ad810c`
+
+Gates PR após correção:
+
+- `Frontend quality` = SUCCESS;
+- `Validate tenant publish checkpoint` = SUCCESS;
+- `Validate SaaS control plane` = SUCCESS;
+- `Validate tenant provisioning` = SUCCESS;
+- `Validate tenant ingestion` = SUCCESS.
+
+O merge foi feito com expected head SHA travado.
+
+## Production deploy M6C
+
+Commit:
+
+`9b14cb2f2f1face251f348f9be8ca20cb4f66b6b`
+
+Status confirmado:
+
+`catalog-engine/application-deploy = success`
+
+Run:
+
+`32431795992`
+
+**Gate ainda aguardando neste snapshot:**
+
+`catalog-engine/tenant-import-auto-canary`
+
+O auto-canary só publica status ao concluir. Antes de iniciar M6D com writes/schema:
+
+1. consultar combined status do commit `9b14cb2...`;
+2. exigir `catalog-engine/tenant-import-auto-canary = success`;
+3. se falhar, NÃO iniciar M6D; diagnosticar e preservar evidência;
+4. se passar, marcar M6C como production-green e então abrir M6D.
+
+---
+
+# 2. M6B — PRODUCTION-GREEN
 
 PR:
 
 `#79 — m6: make tenant classification CEI-native and extract Sports Knowledge Pack v1`
 
-## M6B está mergeado
+Merge commit:
 
-PR #79 passou antes do merge:
+`5f8b0e09b118b69087a45bce70f4dcea53f731dd`
 
-- `Frontend quality` = SUCCESS;
-- `Validate tenant ingestion` = SUCCESS;
-- `Validate tenant provisioning` = SUCCESS;
-- `Validate SaaS control plane` = SUCCESS.
+## CI PR #79
 
-Production deploy após merge:
+- Frontend quality = SUCCESS;
+- Validate tenant ingestion = SUCCESS;
+- Validate tenant provisioning = SUCCESS;
+- Validate SaaS control plane = SUCCESS.
 
-- workflow: `Deploy Catalog Engine application`;
-- run: `32430935803`;
-- status context: `catalog-engine/application-deploy = success`;
-- job `deploy` = SUCCESS;
-- quality = success;
-- build + verify = success;
-- D1 migrations = success;
-- Worker/assets deploy = success;
-- Queue producer/automation verification = success;
-- existing catalog smoke = success.
+## Production evidence
 
-### Gate ainda sem status publicado neste snapshot
+Application deploy:
 
-O workflow `Cloudflare automatic tenant import canary` é acionado por `workflow_run` após deploy SUCCESS e compartilha o concurrency group `catalog-engine-production-d1`.
+- run `32430935803`;
+- `catalog-engine/application-deploy = success`.
 
-No momento deste snapshot, o commit `5f8b0e0...` ainda mostrava apenas:
+Automatic tenant import canary:
 
-`catalog-engine/application-deploy = success`
+- run `32431006844`;
+- `catalog-engine/tenant-import-auto-canary = success`.
 
-O status:
+Conclusão: tornar a classificação CEI-native e extrair o Sports Pack não regrediu o pipeline automático M5.
 
-`catalog-engine/tenant-import-auto-canary`
+## Runtime CEI boundary
 
-ainda não havia sido publicado.
+Arquivo:
 
-**Antes de mergear M6C, revalidar esse status.**
+`src/catalog-intelligence/core/runtime-evidence.js`
 
-Se o canário M6B falhar: NÃO mergear M6C até diagnosticar.  
-Se ficar SUCCESS: M6C pode avançar normalmente.
+`worker/tenant-classification-runner.js` agora:
+
+- carrega provider/source identity privada;
+- carrega source-local album identity;
+- cria CEI Normalized Evidence explicitamente;
+- chama `classifyCatalogEvidence()` diretamente;
+- aplica merchant override durável do D1 depois da inferência automática;
+- falha fechado para evidence inválido.
+
+## Knowledge Pack contract
+
+Arquivo:
+
+`src/catalog-intelligence/core/knowledge-pack.js`
+
+Contrato versionado para:
+
+- key;
+- domain;
+- version;
+- competitions;
+- entities;
+- facets;
+- review thresholds.
+
+## Sports Knowledge Pack v1
+
+Arquivo:
+
+`src/catalog-intelligence/domains/sports/knowledge-pack.js`
+
+Identity:
+
+```text
+key: sports-v1
+domain: sports
+version: 1
+```
+
+Contém conhecimento controlado de:
+
+- leagues/competitions;
+- clubs;
+- national teams;
+- aliases;
+- product/facet vocabulary;
+- audience/version/style;
+- review thresholds.
+
+`src/domain/catalog-normalization.js` mantém exports compatíveis, mas não é mais o dono dos dicionários esportivos.
 
 ---
 
-# 2. M6A — CEI NORMALIZED EVIDENCE V1 — CONCLUÍDO
+# 3. M6A — NORMALIZED EVIDENCE V1
 
 PR:
 
@@ -129,7 +218,7 @@ Merge commit:
 
 `ad35af43f5709d340c69cf2f5b32e9408bfb1b1a`
 
-Arquivo principal:
+Arquivo:
 
 `src/catalog-intelligence/core/evidence.js`
 
@@ -137,7 +226,7 @@ Contrato:
 
 `CEI_NORMALIZED_EVIDENCE_VERSION = 1`
 
-Evidence v1 atual:
+Campos:
 
 ```text
 schemaVersion
@@ -152,375 +241,314 @@ provenance.sourceKey
 provenance.sourceLocalId
 ```
 
-Regras:
+Invariantes:
 
 - strict Zod schema;
-- bounded fields/attributes;
-- provider-specific root fields são rejeitados;
-- provenance identifica origem mas não determina semântica;
-- CEI recebe normalized evidence, não Yupoo objects.
+- campos bounded;
+- provider-specific fields não entram soltos no root;
+- provenance identifica origem, mas não controla semântica;
+- CEI recebe evidence normalizado, não Yupoo/Shopify objects.
 
-Classifier passou a ter entrada canônica:
+Entrada canônica do classifier:
 
 `classifyCatalogEvidence(evidenceValue, overrideValue)`
 
-`classifyCatalogRecord(...)` permanece como compatibility adapter.
+Compatibility adapter preservado:
 
-Regression tests provam que o mesmo conteúdo com provenance Yupoo ou provider hipotético gera a mesma classificação.
+`classifyCatalogRecord(...)`
 
----
-
-# 3. M6B — RUNTIME CEI + SPORTS KNOWLEDGE PACK — CONCLUÍDO EM CÓDIGO
-
-PR:
-
-`#79`
-
-Merge commit:
-
-`5f8b0e09b118b69087a45bce70f4dcea53f731dd`
-
-## Runtime CEI boundary
-
-Novo arquivo:
-
-`src/catalog-intelligence/core/runtime-evidence.js`
-
-O `worker/tenant-classification-runner.js` agora:
-
-- carrega `provider` do tenant source;
-- carrega source-local album identity;
-- constrói CEI Evidence explicitamente;
-- chama `classifyCatalogEvidence()` diretamente;
-- continua carregando merchant override durável do tenant D1;
-- falha fechado quando runtime evidence é inválido.
-
-O runtime não depende mais de `classifyCatalogRecord()` como entrada principal.
-
-## Knowledge Pack contract
-
-Novo arquivo:
-
-`src/catalog-intelligence/core/knowledge-pack.js`
-
-Contrato versionado/fail-closed para:
-
-- pack key;
-- domain;
-- version;
-- competitions;
-- entities;
-- facets;
-- review thresholds.
-
-## Sports Knowledge Pack v1
-
-Novo arquivo:
-
-`src/catalog-intelligence/domains/sports/knowledge-pack.js`
-
-Identity:
-
-```text
-key: sports-v1
-domain: sports
-version: 1
-```
-
-Moveu do normalizador monolítico para o pack:
-
-- leagues/competitions;
-- clubs;
-- national teams;
-- aliases;
-- product/facet vocabulary;
-- audience/version/style facets;
-- review thresholds.
-
-`catalog-normalization.js` continua exportando aliases compatíveis para evitar quebra, mas os dados controlados agora pertencem ao Sports Knowledge Pack.
-
-Regression guarantee: extração mudou arquitetura, não comportamento consolidado.
+Regression tests provam que provenance Yupoo vs provider hipotético não altera classificação para o mesmo conteúdo.
 
 ---
 
-# 4. M6C — PR #80 READY, AINDA NÃO MERGEADO NESTE SNAPSHOT
+# 4. M6C — O QUE ENTROU NO MAIN
 
-PR:
-
-`#80 — m6: add evidence-aware sports confidence, conflicts and season`
-
-Branch:
-
-`m6c/cei-confidence-conflicts-season-v1`
-
-Head atual:
-
-`cafa89f2d94b9f5a2fe9b77358896f32d2ad810c`
-
-Estado do PR neste snapshot:
-
-- open;
-- ready for review;
-- mergeable;
-- 5 pipelines SUCCESS.
-
-Gates verdes:
-
-- `Frontend quality`;
-- `Validate tenant publish checkpoint`;
-- `Validate SaaS control plane`;
-- `Validate tenant provisioning`;
-- `Validate tenant ingestion`.
-
-## Mudança deliberada de versão
-
-M6C altera comportamento de classificação, portanto a identidade foi corretamente avançada para:
+Classifier identity agora é deliberadamente:
 
 ```text
 CATALOG_CLASSIFIER_VERSION = 2
 CATALOG_CLASSIFIER_KEY = professional-v2
 ```
 
-Não reverter para v1 apenas para manter fixture antiga verde.
-
-O publish checkpoint exige verification da mesma classifier version atual; o fixture foi corrigido para usar `CATALOG_CLASSIFIER_VERSION` e ganhou regressão que prova que verification antiga bloqueia publish.
-
-## Inteligência adicionada no PR #80
+**Não rebaixar para v1.** A versão mudou porque a semântica mudou.
 
 Novo arquivo:
 
 `src/catalog-intelligence/domains/sports/resolution.js`
 
-Capacidades:
+## Domain hypothesis
 
-### Domain hypothesis
+Resultado inclui:
 
-Retorna domínio `sports` ou `unknown` com confidence e identity do Knowledge Pack.
+- `domain.id` = `sports` ou `unknown`;
+- `domain.confidence`;
+- `knowledgePackKey`;
+- `knowledgePackVersion`.
 
-### Field-level confidence
+## Field-level confidence
 
-Atualmente representa confidence por:
+Atualmente:
 
 - team;
 - league;
 - facets;
 - season.
 
-### Semantic conflicts
+Isso é adicional ao global `classificationConfidence` legado.
 
-Conflitos explícitos já cobertos:
+## Semantic conflicts
+
+Tipos atuais:
 
 - `sports_team_conflict`;
 - `sports_league_conflict`;
 - `sports_season_conflict`;
 - `sports_version_conflict`.
 
-Regra central:
+Regra:
 
-**conflito explícito não deve ser escondido por first-match.**
+```text
+contradictory strong evidence
+→ do not silently first-match
+→ record explicit conflict
+→ reviewRequired=true
+→ classificationStatus=needs_review
+→ automatic classification confidence <= 0.5
+```
 
-Quando há conflito:
+## Reliable season extraction
 
-- `reviewRequired = true`;
-- `classificationStatus = needs_review`;
-- automatic classification confidence é limitado a `<= 0.5`.
+Exemplos válidos:
 
-### Season extraction
+```text
+26/27 -> 2026/27
+2026/27 -> 2026/27
+99/00 -> 1999/00
+1999/00 -> 1999/00
+```
 
-Só cria season quando existe evidência de intervalo de temporada confiável:
+Ano isolado não vira temporada:
 
-- `26/27` -> `2026/27`;
-- `2026/27` -> `2026/27`;
-- `1999/00` -> `1999/00`.
+```text
+Retro 1999 -> season=null
+```
 
-Não transforma ano isolado em season:
+Structured attributes `season`, `seasonYear` e `season_year` recebem evidência mais forte.
 
-`Retro 1999` -> season `null`.
+Se sinais fortes discordam:
 
-Structured attribute `season`/`seasonYear`/`season_year` recebe confiança maior.
+```text
+season=null
+sports_season_conflict
+needs_review
+```
 
-Se fontes fortes discordam, season fica `null` e surge `sports_season_conflict`.
+## Merchant override
 
-### Merchant override resolution
+Override explícito:
 
-Override explícito de team/league/facets:
+- continua separado da inferência da fonte;
+- persiste pelo mecanismo existente;
+- resolve apenas os conflitos de campos que realmente sobrescreve;
+- confidence do campo sobrescrito vai para `1`;
+- outros conflitos permanecem.
 
-- continua durável no mecanismo existente;
-- remove conflitos do campo que realmente resolveu;
-- confidence do campo override vai para `1`;
-- não apaga conflitos de campos não resolvidos.
+## Regression fixtures
 
-## Regression fixtures M6C
+`tests/cei-sports-resolution.test.mjs` cobre:
 
-Novo teste:
+- classificação clara Barcelona/La Liga;
+- domain + pack identity;
+- field confidence;
+- season 26/27;
+- Retro 1999 sem season inventada;
+- structured season;
+- Barcelona + Real Madrid conflict;
+- override resolve team conflict;
+- Barcelona + Premier League contradiction;
+- season 26/27 vs 25/26 conflict;
+- Player Version + Fan Version conflict;
+- unknown domain;
+- 99/00 histórico.
 
-`tests/cei-sports-resolution.test.mjs`
+## Stale classifier verification guard
 
-Cobre:
+Primeiro CI M6C revelou um fixture `classifier_version: 1` hardcoded em `tenant-publish-runner.test.mjs`.
 
-1. Barcelona clear classification;
-2. Sports domain + pack identity;
-3. field confidence;
-4. `26/27` season;
-5. `Retro 1999` não vira season;
-6. structured season;
-7. Barcelona x Real Madrid -> team conflict;
-8. merchant override resolve team conflict;
-9. Barcelona + Premier League -> league conflict;
-10. 26/27 x 25/26 -> season conflict;
-11. Player Version + Fan Version -> version conflict;
-12. unknown domain explícito;
-13. `99/00` normaliza para 1999/00.
-
-## Falha CI encontrada e corrigida
-
-Primeiro run do Frontend quality mostrou:
-
-- novos CEI tests passavam;
-- somente `tenant-publish-runner.test.mjs` falhava.
-
-Causa:
-
-fixture tinha `classifier_version: 1` hardcoded.
-
-Como M6C subiu classifier para v2, publish bloqueou corretamente por stale verification.
+O publish runner bloqueou corretamente porque verification v1 não é suficiente para classifier v2.
 
 Correção:
 
-- fixture usa `CATALOG_CLASSIFIER_VERSION`;
-- novo teste confirma que classifier stale bloqueia publish.
+- fixture agora usa `CATALOG_CLASSIFIER_VERSION`;
+- teste novo prova explicitamente que stale classifier verification bloqueia publish.
 
-Depois da correção, 5/5 workflows ficaram SUCCESS.
+Isso é uma proteção real e deve ser preservada.
 
 ---
 
-# 5. PRÓXIMA AÇÃO EXATA
+# 5. M6D — DESENHO JÁ MAPEADO, NÃO IMPLEMENTAR ATÉ CANÁRIO M6C VERDE
 
-Ordem recomendada:
+Objetivo:
 
-1. revalidar `main` e PR #80;
-2. consultar combined status do commit `5f8b0e09...`;
-3. aguardar `catalog-engine/tenant-import-auto-canary = success` do deploy M6B;
-4. se SUCCESS, mergear PR #80 com `expected_head_sha=cafa89f2...`;
-5. acompanhar application deploy do merge M6C;
-6. acompanhar automatic tenant import canary pós-deploy M6C;
-7. só então marcar M6C concluído no handoff;
-8. iniciar M6D.
+**persistência detalhada do CEI + verification integration + merchandising contract**, mantendo storefront compatível.
+
+## Lacuna confirmada
+
+Schema tenant atual é v3:
+
+`worker/tenant-data-plane-schema-v3.js`
+
+Tabela atual:
+
+`catalog_product_classification_state`
+
+só persiste:
+
+- product_id;
+- classifier_version;
+- classifier_key;
+- override_applied;
+- timestamps.
+
+`catalog_products` persiste apenas visão efetiva simplificada:
+
+- team_id;
+- league_id;
+- classification_status;
+- classification_confidence;
+- nomes/categoria/search text.
+
+Portanto, hoje **domain, fieldConfidence, season, conflicts e reviewRequired do M6C não sobrevivem de forma detalhada no D1**.
+
+## Verification atual
+
+Arquivo:
+
+`worker/tenant-verification-runner.js`
+
+Hoje verifica:
+
+- catalog non-empty;
+- classifier version/key completeness;
+- override state consistency;
+- public source leak;
+- category/media/facet orphans;
+- product count consistency.
+
+Ainda não verifica detailed CEI state/conflicts.
 
 ## M6D recomendado
 
-Depois do M6C production-green, próximo slice deve focar **schema-validated CEI persistence + verification/merchandising integration**, não pesquisa universal.
+Criar data-plane schema v4 backward-safe, provavelmente estendendo a classification state em vez de contaminar `catalog_products` com diagnóstico interno.
 
-Direção recomendada:
+Persistir dados como JSON validado/bounded ou colunas mínimas + JSON versionado, por exemplo conceitualmente:
 
-- persistir representação detalhada de domain/confidence/conflicts/season de forma versionada;
-- preservar current storefront compatibility;
-- verification deve considerar unresolved CEI conflicts;
-- review feed deve poder identificar `needs_review` e causa;
-- merchandising output deve ser derivado do Knowledge Pack + effective classification;
-- merchant override continua separado da source inference;
-- classificação rerun não pode destruir override;
-- avaliar data-plane schema v4 apenas com migration backward-safe.
+```text
+product_id
+classifier_version
+classifier_key
+knowledge_pack_key
+knowledge_pack_version
+domain_id
+domain_confidence
+field_confidence_json
+season_json
+conflicts_json
+review_required
+override_applied
+classified_at
+updated_at
+```
 
-Não iniciar M7 antes de M6 Definition of Done.
+A estrutura final deve ser definida por testes antes da migration.
+
+Regras:
+
+1. nenhum provenance privado no storefront;
+2. conflict JSON bounded e schema-validated;
+3. season schema-validated;
+4. field confidence 0..1;
+5. current public product API continua compatível;
+6. merchant override separado da automatic inference;
+7. verification deve falhar/segurar publish quando CEI state é inconsistente;
+8. **não bloquear todo catálogo apenas porque existem produtos legítimos `needs_review`**, a menos que o product contract defina isso — review precisa ser exceção operacional, não transformar qualquer ambiguidade em outage;
+9. merchandising deve consumir effective classification, não supplier folder como truth;
+10. migration v4 precisa ser idempotente/backward-safe.
+
+## Public runtime compatibility
+
+`worker/tenant-catalog-runtime.js` atualmente expõe visão pública limpa:
+
+- id;
+- name;
+- category/categoryId;
+- teamId;
+- leagueId;
+- description;
+- media;
+- entityType.
+
+Não expor field confidence/conflicts/provenance publicamente por default no M6D. Esses dados pertencem ao operational/review plane.
 
 ---
 
-# 6. M5 ESTÁ FECHADO — NÃO REABRIR SEM REGRESSÃO REAL
+# 6. M5 — CONCLUÍDO EM PRODUÇÃO
 
-Final M5 production commit:
+Final commit M5:
 
 `b917b023fde537baa0aa797d1230b7df7db5595e`
 
-PR #75:
+PR:
 
-`m5: reactivate automatic import after canary Worker identity fix`
+`#75`
 
-Production setting no fechamento:
+Application deploy:
 
-```json
-"TENANT_IMPORT_AUTOMATION_ENABLED": "1"
-```
-
-Deploy final M5:
-
-- workflow `Deploy Catalog Engine application`;
 - run `32392783507`;
 - `catalog-engine/application-deploy = success`.
 
-Automatic canary final M5:
+Automatic scheduler canary:
 
-- workflow `Cloudflare automatic tenant import canary`;
 - run `32392875597`;
 - job `96502874428`;
 - `catalog-engine/tenant-import-auto-canary = success`.
 
-Resultado central:
+Provou:
 
 ```text
 fresh isolated tenant
 → zero manual Queue messages
-→ cron descobriu tenant sozinho
-→ scan
-→ detail
-→ isolated D1 publish
+→ cron discovers tenant
+→ scan Queue
+→ detail Queue
+→ isolated D1 publication
 → 1 product / 2 media
-→ 0 supplier leaks
-→ import success
-→ provisioning advanced to classify
+→ zero supplier leaks
+→ import step success
+→ provisioning advances to classify
 → default catalog unchanged
-→ Queue/DLQ backlogs clean
+→ primary Queues/DLQs clean
 → SUCCESS
 ```
 
-Documento histórico:
+Documento histórico dedicado:
 
 `docs/M5-CLOSURE-2026-08-20.md`
 
----
+## Regressions que não podem voltar
 
-# 7. M5 REGRESSION LESSONS — NÃO PERDER
-
-## Feature bit
-
-`TENANT_IMPORT_AUTOMATION_ENABLED` é bit operacional reversível `0|1`.
-
-- ON = production state no fechamento M5;
-- OFF = rollback/fail-safe válido;
-- producers obrigatórios nos dois estados.
-
-## Queue pending race
-
-Queue message pode chegar antes de job transicionar de pending para queued.
-
-Consumer deve busy/retry, não falhar import.
-
-## Canary sequencing
-
-Automatic canary roda somente depois de application deploy SUCCESS via `workflow_run`.
-
-## Canonical tenant Worker identity
-
-```text
-tenant = t_<suffix>
-worker = ce-<suffix>
-```
-
-Não criar naming paralelo para runtime via TENANT_DISPATCH.
-
-## Não mascarar evidence
-
-- não purge Queue global para passar smoke;
-- não produzir manualmente a primeira Queue message no auto canary;
-- preservar failure evidence antes de cleanup.
+- `TENANT_IMPORT_AUTOMATION_ENABLED` é reversível `0|1`;
+- OFF continua rollback/fail-safe válido;
+- Queue message pode chegar antes de job sair de pending: consumer deve retry/busy;
+- auto-canary roda somente depois de application deploy SUCCESS;
+- tenant Worker canônico: `ce-<tenant suffix>`;
+- não usar `ce-auto-*` no hot path;
+- não purgar Queue nem produzir mensagem manual para mascarar canário;
+- preservar evidence antes de cleanup.
 
 ---
 
-# 8. CLOUDFLARE CONFIRMADO
-
-Runtime principal:
-
-Cloudflare Workers + Static Assets.
+# 7. CLOUDFLARE / RUNTIME CONFIRMADO
 
 Main Worker:
 
@@ -530,7 +558,7 @@ Entrypoint:
 
 `worker/entry-publish.js`
 
-Hosts conhecidos:
+Known hosts:
 
 - `catalog-engine.lucassantanals0110.workers.dev`
 - `catalogoengine.com`
@@ -560,7 +588,7 @@ catalog-engine-import-scan-dlq
 catalog-engine-import-detail-dlq
 ```
 
-Preferred tenant hot path:
+Tenant hot path:
 
 ```text
 Queue consumer
@@ -576,9 +604,9 @@ Private D1 command:
 
 ---
 
-# 9. SECURITY / CI BOUNDARY — NÃO REGREDIR
+# 8. SECURITY / CI INVARIANTS
 
-**PR comum não recebe Cloudflare production secrets.**
+**Ordinary PRs não recebem Cloudflare production secrets.**
 
 Pattern:
 
@@ -586,22 +614,24 @@ Pattern:
 PR
 → secret-free validation
 
-trusted main / deliberate privileged dispatch
-→ production credentials
+trusted main / deliberate privileged workflow
+→ Cloudflare production credentials
 → production mutation/read evidence
 ```
 
-Dívidas M1 abertas:
+Não executar código arbitrário de PR com production token.
+
+Dívidas M1:
 
 - branch protection / required checks;
 - direct-push bot governance;
-- Actions/toolchain governance;
-- production schema parity;
+- Actions/toolchain pinning/governance;
+- production schema parity evidence;
 - backup/rollback/recovery runbooks.
 
 ---
 
-# 10. APP DEPLOY != CATALOG PUBLICATION
+# 9. APP DEPLOY != CATALOG PUBLICATION
 
 Application deploy:
 
@@ -621,11 +651,11 @@ Default catalog publication:
 
 `.github/workflows/publish-default-catalog.yml`
 
-Mudança de CSS/Worker não deve implicar replace dos produtos do catálogo.
+Mudança de código/CSS não deve substituir automaticamente business catalog data.
 
 ---
 
-# 11. PRODUCT / PROVIDER INVARIANTS
+# 10. PRODUCT / PROVIDER INVARIANTS
 
 Fluxo alvo:
 
@@ -639,12 +669,12 @@ merchant/account
 → CEI
 → classification / verification / merchandising
 → merchant overrides
-→ effective public view
+→ effective view
 → tenant domain/custom domain
 → recurring sync
 ```
 
-Modelo essencial:
+Modelo:
 
 ```text
 SOURCE DATA
@@ -656,57 +686,15 @@ EFFECTIVE VIEW
 
 Provider Engine é source-neutral.
 
-Yupoo é adapter de lançamento, não architecture boundary.
+Yupoo é provider de lançamento, não architecture boundary.
 
-Não implementar segundo provider durante M6 apenas para “provar arquitetura”.
+Não criar segundo provider no M6 apenas para provar abstração.
 
----
-
-# 12. M6 DEFINITION OF DONE
-
-M6 — CEI Core + Sports Knowledge Pack v1.
-
-CEI Core launch capabilities:
-
-- normalized evidence schema ✅;
-- context/domain detection ✅ em M6C PR;
-- Knowledge Pack interface ✅;
-- entity/attribute resolution em evolução;
-- field-level confidence ✅ em M6C PR;
-- semantic conflict representation ✅ em M6C PR;
-- versioned classification ✅;
-- merchant overrides ✅;
-- verification integration ⏳;
-- merchandising output ⏳;
-- tenant memory boundary parcial via durable overrides;
-- schema-validated detailed CEI persistence ⏳.
-
-Sports Knowledge Pack v1:
-
-- competitions/leagues ✅;
-- clubs ✅;
-- national teams ✅;
-- product types ✅;
-- audience/version/style facets ✅;
-- season evidence ✅ em M6C PR;
-- ambiguity/conflict rules ✅ inicial em M6C PR;
-- merchandising hierarchy parcial;
-- review thresholds ✅ pack boundary, integração ainda evoluindo.
-
-M6 DoD final exige:
-
-- CEI recebe normalized evidence, não Yupoo objects;
-- supplier folder/category é evidence, não public truth;
-- merchant overrides sobrevivem reruns;
-- low-confidence/conflicting cases viram review/unknown;
-- classification + merchandising cobertos por regression fixtures;
-- detailed intelligence persistence/verification não pode depender só de memória de processo.
-
-Universal autonomous research **não é requisito M6**.
+Universal autonomous research também não é requisito M6.
 
 ---
 
-# 13. ROADMAP
+# 11. ROADMAP ATUAL
 
 ```text
 M0 truth/governance
@@ -717,9 +705,9 @@ M0 truth/governance
 → M5 automatic tenant Queue import ✅ production-proven
 → M6 CEI Core + Sports Knowledge Pack v1 ← AGORA
     M6A Normalized Evidence v1 ✅
-    M6B Runtime CEI + Sports Knowledge Pack ✅ code/deploy
-    M6C Confidence + conflicts + season ← PR #80 ready / production merge pending
-    M6D Persistence + verification + merchandising ← NEXT after M6C production-green
+    M6B Runtime CEI + Sports Knowledge Pack ✅ production-green
+    M6C Confidence + conflicts + reliable season ✅ merged + deploy green; auto-canary pending
+    M6D Persistence + verification + merchandising ← NEXT after auto-canary green
 → M7 Intelligent Sync v2
 → M8 Media hardening
 → M9+ Storefront/Theme/Portal productization
@@ -728,9 +716,11 @@ M0 truth/governance
 → launch
 ```
 
+M6 Definition of Done ainda não está completo porque detailed persistence + verification/merchandising integration ainda faltam.
+
 ---
 
-# 14. DÍVIDAS IMPORTANTES
+# 12. DÍVIDAS IMPORTANTES
 
 - branch protection / required checks;
 - direct-push bot governance;
@@ -741,17 +731,17 @@ M0 truth/governance
 - browser E2E/a11y/performance;
 - SEO/deep links;
 - fleet-level observability;
-- lifecycle dos workflows diagnósticos temporários M5.
+- lifecycle de workflows diagnósticos temporários M5.
 
-Warning atual:
+Warning observado:
 
-`actions/checkout@v4` / `actions/setup-node@v4` usam action runtime legado e o runner informa execução forçada em Node 24.
+`actions/checkout@v4` / `actions/setup-node@v4` usam action runtime legado e runners reportam execução forçada em Node 24.
 
 Não misturar toolchain upgrade com feature M6 sem necessidade.
 
 ---
 
-# 15. DOCUMENTOS IMPORTANTES
+# 13. DOCUMENTOS IMPORTANTES
 
 - `CATALOG_ENGINE_HANDOFF_2026-08-20.md`
 - `docs/CURRENT-STATE.md`
@@ -765,26 +755,28 @@ Não misturar toolchain upgrade com feature M6 sem necessidade.
 
 ---
 
-# 16. CHECKLIST PARA OUTRO SOFTWARE/CHAT
+# 14. CHECKLIST PARA OUTRO SOFTWARE/CHAT
 
-1. Revalidar `main` e PR #80.
-2. Ler este handoff inteiro.
-3. Não reabrir M5 sem regressão real.
-4. Confirmar `TENANT_IMPORT_AUTOMATION_ENABLED` se tocar import pipeline.
-5. M6A está concluído no PR #77.
-6. M6B está mergeado no PR #79 / commit `5f8b0e09...`.
-7. Application deploy M6B run `32430935803` ficou SUCCESS.
-8. Antes de mergear M6C, confirmar auto canary do M6B.
-9. PR #80 head esperado: `cafa89f2d94b9f5a2fe9b77358896f32d2ad810c`.
-10. PR #80 possui 5 workflows SUCCESS neste snapshot.
-11. Não rebaixar classifier v2 para satisfazer fixture v1.
-12. Após M6C production-green, iniciar M6D persistence/verification/merchandising.
-13. Não criar segundo provider, universal research ou redesign durante esses slices.
-14. Preservar merchant overrides.
-15. Atualizar este handoff após cada slice relevante.
+1. Ler este handoff inteiro.
+2. Revalidar `main` e Actions.
+3. M5 está fechado; não reabrir sem regressão real.
+4. M6A concluído PR #77.
+5. M6B concluído PR #79 / commit `5f8b0e09...`.
+6. M6B deploy run `32430935803` SUCCESS.
+7. M6B auto-canary run `32431006844` SUCCESS.
+8. M6C mergeado PR #80 / commit `9b14cb2...`.
+9. M6C application deploy run `32431795992` SUCCESS.
+10. **Primeira ação:** consultar `catalog-engine/tenant-import-auto-canary` do commit `9b14cb2...`.
+11. Se M6C auto-canary SUCCESS, marcar M6C production-green e iniciar M6D.
+12. Se M6C auto-canary failure, preservar evidence e diagnosticar antes de qualquer M6D write.
+13. M6D deve focar schema v4/detailed CEI persistence + verification + merchandising.
+14. Não iniciar M7 ainda.
+15. Não iniciar segundo provider/universal research/redesign durante M6D.
+16. Preservar merchant overrides e source privacy.
+17. Atualizar este handoff após cada checkpoint relevante.
 
 ---
 
-# 17. PROMPT CURTO DE RETOMADA
+# 15. PROMPT CURTO DE RETOMADA
 
-> Leia `CATALOG_ENGINE_HANDOFF_2026-08-20.md` inteiro e revalide GitHub/Cloudflare. M5 está concluído em produção. M6A e M6B estão concluídos em código; M6B foi mergeado no commit `5f8b0e09b118b69087a45bce70f4dcea53f731dd` e application deploy run `32430935803` ficou SUCCESS. O automatic canary pós-deploy ainda não havia publicado status no snapshot. M6C está no PR #80, branch `m6c/cei-confidence-conflicts-season-v1`, head `cafa89f2d94b9f5a2fe9b77358896f32d2ad810c`, mergeable e com Frontend quality, tenant publish, SaaS control plane, tenant provisioning e tenant ingestion SUCCESS. Primeiro confirme `catalog-engine/tenant-import-auto-canary` do commit M6B; se SUCCESS, mergeie PR #80 com expected head SHA, acompanhe deploy + canary e então avance para M6D persistence/verification/merchandising. Não iniciar M7 ainda.
+> Leia `CATALOG_ENGINE_HANDOFF_2026-08-20.md` inteiro e revalide GitHub/Cloudflare. M5 está production-proven. M6A e M6B estão concluídos; M6B commit `5f8b0e09b118b69087a45bce70f4dcea53f731dd` teve application deploy run `32430935803` SUCCESS e auto-canary run `32431006844` SUCCESS. M6C foi mergeado pelo PR #80 no commit `9b14cb2f2f1face251f348f9be8ca20cb4f66b6b`; application deploy run `32431795992` está SUCCESS, mas o auto-canary pós-deploy ainda aguardava status neste snapshot. Primeiro confirme `catalog-engine/tenant-import-auto-canary` do commit M6C. Se SUCCESS, marque M6C production-green e avance para M6D: schema-validated detailed CEI persistence + verification + merchandising, preservando storefront compatibility, merchant overrides e source privacy. Não iniciar M7 ainda.
