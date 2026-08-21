@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  CEI_NORMALIZED_EVIDENCE_VERSION,
   createCatalogEvidence,
   parseCatalogEvidence
 } from '../catalog-intelligence/core/evidence.js';
@@ -52,6 +53,20 @@ function normalizedSearchText(parts) {
     .trim();
 }
 
+function automaticStateSnapshot(value) {
+  return Object.freeze({
+    status: value.classificationStatus,
+    confidence: Number(value.classificationConfidence),
+    team: value.team || null,
+    league: value.league || null,
+    facets: Object.freeze([...(value.facets || [])]),
+    fieldConfidence: Object.freeze({ ...(value.fieldConfidence || {}) }),
+    season: value.season ? Object.freeze({ ...value.season }) : null,
+    conflicts: Object.freeze([...(value.conflicts || [])]),
+    reviewRequired: Boolean(value.reviewRequired)
+  });
+}
+
 export function parseCatalogClassificationOverride(value) {
   if (value === null || value === undefined || value === '') return null;
   const candidate = typeof value === 'string' ? JSON.parse(value) : value;
@@ -69,10 +84,14 @@ export function parseCatalogClassificationOverride(value) {
 }
 
 function applyClassificationOverride(base, overrideValue) {
+  const automaticState = automaticStateSnapshot(base);
   const override = parseCatalogClassificationOverride(overrideValue);
   if (!override) {
     return {
       ...base,
+      evidenceSchemaVersion: CEI_NORMALIZED_EVIDENCE_VERSION,
+      automaticState,
+      overrideFields: Object.freeze([]),
       classifierVersion: CATALOG_CLASSIFIER_VERSION,
       classifierKey: CATALOG_CLASSIFIER_KEY,
       overrideApplied: false
@@ -135,6 +154,10 @@ function applyClassificationOverride(base, overrideValue) {
   const conflictFreeConfidence = conflicts.length
     ? Math.min(automaticConfidence, 0.5)
     : automaticConfidence;
+  const overrideFields = [];
+  if (teamOverridden) overrideFields.push('team');
+  if (leagueOverridden || (teamOverridden && team?.leagueId)) overrideFields.push('league');
+  if (facetsOverridden) overrideFields.push('facets');
 
   return {
     ...base,
@@ -150,6 +173,9 @@ function applyClassificationOverride(base, overrideValue) {
     classificationStatus: override.classificationStatus || conflictFreeStatus,
     classificationConfidence:
       override.classificationConfidence ?? conflictFreeConfidence,
+    evidenceSchemaVersion: CEI_NORMALIZED_EVIDENCE_VERSION,
+    automaticState,
+    overrideFields: Object.freeze(overrideFields),
     classifierVersion: CATALOG_CLASSIFIER_VERSION,
     classifierKey: CATALOG_CLASSIFIER_KEY,
     overrideApplied: true
