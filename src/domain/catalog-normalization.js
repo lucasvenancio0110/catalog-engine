@@ -1,5 +1,6 @@
 import {
   SPORTS_FACETS,
+  SPORTS_KNOWLEDGE_PACK,
   SPORTS_LEAGUES,
   SPORTS_TEAMS
 } from '../catalog-intelligence/domains/sports/knowledge-pack.js';
@@ -117,13 +118,5 @@ export function normalizeCatalogProduct(product = {}, categoryPathNames = []) {
 }
 
 export function professionalNavigationDefinition() {
-  return [
-    { id: 'teams', name: 'Times', kind: 'teams', sortOrder: 10 },
-    { id: 'national-teams', name: 'Seleções', kind: 'national_teams', sortOrder: 20 },
-    ...['shirts','kits','retro','kids','training','women','shoes','player-version','long-sleeve','shorts','jackets'].map((id, index) => {
-      const facet = FACETS.find((entry) => entry.id === id);
-      return { id: `facet:${id}`, name: facet.name, kind: 'facet', facetId: id, sortOrder: 30 + index };
-    }),
-    { id: 'other-sports', name: 'Outros Esportes', kind: 'facet', facetId: 'other-sports', sortOrder: 900 }
-  ];
+  return SPORTS_KNOWLEDGE_PACK.merchandising.navigation.map((item) => ({ ...item }));
 }
