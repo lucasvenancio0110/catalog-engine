@@ -409,6 +409,16 @@ export function verificationFindings(results, { deferredDetailCount = 0 } = {}) 
   };
 }
 
+export function verificationFailureCode(report) {
+  const findings = (Array.isArray(report?.findings) ? report.findings : [])
+    .map((finding) => String(finding || '').trim().toLowerCase())
+    .filter((finding) => /^[a-z0-9_]{1,80}$/.test(finding))
+    .slice(0, 3);
+  return findings.length
+    ? `tenant_verification_findings_${findings.join('__')}`
+    : 'tenant_verification_findings';
+}
+
 async function runVerification(platform, context, fetchImpl) {
   const results = await tenantD1Batch(
     platform,
@@ -541,8 +551,9 @@ export async function processTenantVerification(db, { job, env }, { fetchImpl = 
   try {
     const report = await runVerification(platform, context, fetchImpl);
     if (report.findings.length) {
-      await failJob(db, job, context, 'tenant_verification_findings', report);
-      return { outcome: 'failed', jobId: job.job_id, error: 'tenant_verification_findings', ...report };
+      const code = verificationFailureCode(report);
+      await failJob(db, job, context, code, report);
+      return { outcome: 'failed', jobId: job.job_id, error: code, ...report };
     }
     await finishJob(db, job, context, report);
     return { outcome: 'success', jobId: job.job_id, ...report };
