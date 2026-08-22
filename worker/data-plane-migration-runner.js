@@ -3,10 +3,11 @@ import { stableOpaqueId } from './runtime-identity.js';
 import {
   TENANT_DATA_PLANE_SCHEMA_VERSION,
   tenantDataPlaneCurrentBatch
-} from './tenant-data-plane-schema-v4.js';
+} from './tenant-data-plane-schema-v5.js';
 
 const DEFAULT_DISPATCH_NAMESPACE = 'catalog-engine-production';
 const MAX_AUTOMATIC_ATTEMPTS = 6;
+const ACTIVE_IMPORT_STATUSES = "'pending','queued','scanning','details','finalizing'";
 
 function runtimeConfig(env) {
   const accountId = String(env.CLOUDFLARE_PLATFORM_ACCOUNT_ID || '').trim();
@@ -25,11 +26,47 @@ export function migrationResumeStep(currentStep = 'migrations') {
   throw new Error('tenant_data_plane_migration_resume_step_invalid');
 }
 
-async function migrationJobId(tenantId, version) {
-  return stableOpaqueId('dpmig', `${tenantId}:v${version}`);
+export function normalizeMigrationKind(value = 'provisioning') {
+  const kind = String(value || 'provisioning').trim();
+  if (kind === 'provisioning' || kind === 'maintenance') return kind;
+  throw new Error('tenant_data_plane_migration_kind_invalid');
 }
 
-async function discoverMigrationCandidates(db, targetVersion, limit) {
+async function migrationJobId(tenantId, version, migrationKind = 'provisioning') {
+  const kind = normalizeMigrationKind(migrationKind);
+  const seed = kind === 'provisioning' ? `${tenantId}:v${version}` : `${tenantId}:v${version}:${kind}`;
+  return stableOpaqueId('dpmig', seed);
+}
+
+async function upsertMigrationJob(db, { tenantId, targetVersion, migrationKind }) {
+  const kind = normalizeMigrationKind(migrationKind);
+  const jobId = await migrationJobId(tenantId, targetVersion, kind);
+  await db
+    .prepare(
+      `INSERT INTO tenant_data_plane_migration_jobs
+        (job_id, tenant_id, target_schema_version, migration_kind, status, attempt_count,
+         next_attempt_at, created_at, updated_at)
+       VALUES (?1, ?2, ?3, ?4, 'pending', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       ON CONFLICT(job_id) DO UPDATE SET
+         status=CASE
+           WHEN tenant_data_plane_migration_jobs.status IN ('running','success') THEN tenant_data_plane_migration_jobs.status
+           ELSE 'pending'
+         END,
+         next_attempt_at=CASE
+           WHEN tenant_data_plane_migration_jobs.status IN ('running','success') THEN tenant_data_plane_migration_jobs.next_attempt_at
+           ELSE CURRENT_TIMESTAMP
+         END,
+         last_error_code=CASE
+           WHEN tenant_data_plane_migration_jobs.status IN ('running','success') THEN tenant_data_plane_migration_jobs.last_error_code
+           ELSE NULL
+         END,
+         updated_at=CURRENT_TIMESTAMP`
+    )
+    .bind(jobId, tenantId, targetVersion, kind)
+    .run();
+}
+
+async function discoverProvisioningMigrationCandidates(db, targetVersion, limit) {
   const result = await db
     .prepare(
       `SELECT DISTINCT r.tenant_id
@@ -50,29 +87,51 @@ async function discoverMigrationCandidates(db, targetVersion, limit) {
     .all();
 
   for (const row of result.results || []) {
-    const jobId = await migrationJobId(row.tenant_id, targetVersion);
-    await db
-      .prepare(
-        `INSERT INTO tenant_data_plane_migration_jobs
-          (job_id, tenant_id, target_schema_version, status, attempt_count, next_attempt_at, created_at, updated_at)
-         VALUES (?1, ?2, ?3, 'pending', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-         ON CONFLICT(job_id) DO UPDATE SET
-           status=CASE
-             WHEN tenant_data_plane_migration_jobs.status IN ('running','success') THEN tenant_data_plane_migration_jobs.status
-             ELSE 'pending'
-           END,
-           next_attempt_at=CASE
-             WHEN tenant_data_plane_migration_jobs.status IN ('running','success') THEN tenant_data_plane_migration_jobs.next_attempt_at
-             ELSE CURRENT_TIMESTAMP
-           END,
-           last_error_code=CASE
-             WHEN tenant_data_plane_migration_jobs.status IN ('running','success') THEN tenant_data_plane_migration_jobs.last_error_code
-             ELSE NULL
-           END,
-           updated_at=CURRENT_TIMESTAMP`
-      )
-      .bind(jobId, row.tenant_id, targetVersion)
-      .run();
+    await upsertMigrationJob(db, {
+      tenantId: row.tenant_id,
+      targetVersion,
+      migrationKind: 'provisioning'
+    });
+  }
+  return (result.results || []).length;
+}
+
+async function discoverMaintenanceMigrationCandidates(db, targetVersion, limit) {
+  const result = await db
+    .prepare(
+      `SELECT DISTINCT i.tenant_id
+         FROM tenant_catalog_instances i
+         JOIN catalog_tenants t ON t.tenant_id=i.tenant_id AND t.status='active'
+         JOIN tenant_data_plane_provider_state p ON p.tenant_id=i.tenant_id
+         JOIN supplier_sources s ON s.tenant_id=i.tenant_id AND s.status='active'
+        WHERE i.status='ready'
+          AND i.schema_version < ?1
+          AND p.database_status='active'
+          AND p.worker_status='active'
+          AND p.d1_database_id IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM tenant_import_jobs j
+             WHERE j.tenant_id=i.tenant_id
+               AND j.status IN (${ACTIVE_IMPORT_STATUSES})
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM tenant_data_plane_migration_jobs m
+             WHERE m.tenant_id=i.tenant_id
+               AND m.target_schema_version=?1
+               AND m.status IN ('pending','running')
+          )
+        ORDER BY COALESCE(i.last_migration_at, i.created_at) ASC
+        LIMIT ?2`
+    )
+    .bind(targetVersion, limit)
+    .all();
+
+  for (const row of result.results || []) {
+    await upsertMigrationJob(db, {
+      tenantId: row.tenant_id,
+      targetVersion,
+      migrationKind: 'maintenance'
+    });
   }
   return (result.results || []).length;
 }
@@ -81,10 +140,12 @@ async function migrationContext(db, tenantId) {
   return db
     .prepare(
       `SELECT p.d1_database_id, p.dispatch_namespace,
+              i.status AS catalog_status,
               s.source_key, s.provider AS source_provider, s.source_url,
               s.sync_strategy, s.removal_miss_threshold,
               r.provisioning_id, r.current_step AS resume_step
          FROM tenant_data_plane_provider_state p
+         JOIN tenant_catalog_instances i ON i.tenant_id=p.tenant_id
          JOIN supplier_sources s ON s.tenant_id=p.tenant_id AND s.status='active'
          LEFT JOIN tenant_provisioning_runs r ON r.provisioning_id=(
            SELECT r2.provisioning_id
@@ -104,19 +165,34 @@ async function migrationContext(db, tenantId) {
 }
 
 async function claimMigration(db, job) {
+  const kind = normalizeMigrationKind(job.migration_kind);
   const result = await db
     .prepare(
       `UPDATE tenant_data_plane_migration_jobs
           SET status='running', attempt_count=attempt_count+1,
               started_at=COALESCE(started_at,CURRENT_TIMESTAMP), finished_at=NULL,
               last_error_code=NULL, updated_at=CURRENT_TIMESTAMP
-        WHERE job_id=?1 AND status IN ('pending','failed') AND attempt_count < ?2`
+        WHERE job_id=?1 AND status IN ('pending','failed') AND attempt_count < ?2
+          AND migration_kind=?3
+          AND (
+            ?3='provisioning'
+            OR (
+              EXISTS (
+                SELECT 1 FROM tenant_catalog_instances i
+                 WHERE i.tenant_id=?4 AND i.status='ready'
+              )
+              AND NOT EXISTS (
+                SELECT 1 FROM tenant_import_jobs j
+                 WHERE j.tenant_id=?4 AND j.status IN (${ACTIVE_IMPORT_STATUSES})
+              )
+            )
+          )`
     )
-    .bind(job.job_id, MAX_AUTOMATIC_ATTEMPTS)
+    .bind(job.job_id, MAX_AUTOMATIC_ATTEMPTS, kind, job.tenant_id)
     .run();
   if (Number(result.meta?.changes || 0) < 1) return false;
 
-  if (job.provisioning_id) {
+  if (kind === 'provisioning' && job.provisioning_id) {
     await db.batch([
       db
         .prepare(
@@ -140,7 +216,27 @@ async function claimMigration(db, job) {
 }
 
 async function finishMigration(db, job, version) {
-  const nextStep = migrationResumeStep(job.resume_step);
+  const kind = normalizeMigrationKind(job.migration_kind);
+  const nextStep = kind === 'provisioning' ? migrationResumeStep(job.resume_step) : null;
+  const catalogStatement =
+    kind === 'maintenance'
+      ? db
+          .prepare(
+            `UPDATE tenant_catalog_instances
+                SET schema_version=?2, last_migration_at=CURRENT_TIMESTAMP,
+                    last_error=NULL, updated_at=CURRENT_TIMESTAMP
+              WHERE tenant_id=?1`
+          )
+          .bind(job.tenant_id, version)
+      : db
+          .prepare(
+            `UPDATE tenant_catalog_instances
+                SET schema_version=?2, status='provisioning', last_migration_at=CURRENT_TIMESTAMP,
+                    last_error=NULL, updated_at=CURRENT_TIMESTAMP
+              WHERE tenant_id=?1`
+          )
+          .bind(job.tenant_id, version);
+
   const statements = [
     db
       .prepare(
@@ -150,16 +246,9 @@ async function finishMigration(db, job, version) {
           WHERE job_id=?1`
       )
       .bind(job.job_id),
-    db
-      .prepare(
-        `UPDATE tenant_catalog_instances
-            SET schema_version=?2, status='provisioning', last_migration_at=CURRENT_TIMESTAMP,
-                last_error=NULL, updated_at=CURRENT_TIMESTAMP
-          WHERE tenant_id=?1`
-      )
-      .bind(job.tenant_id, version)
+    catalogStatement
   ];
-  if (job.provisioning_id) {
+  if (kind === 'provisioning' && job.provisioning_id) {
     statements.push(
       db
         .prepare(
@@ -184,9 +273,28 @@ async function finishMigration(db, job, version) {
     );
   }
   await db.batch(statements);
+  return nextStep;
 }
 
 async function failMigration(db, job, safeCode) {
+  const kind = normalizeMigrationKind(job.migration_kind);
+  const catalogStatement =
+    kind === 'maintenance'
+      ? db
+          .prepare(
+            `UPDATE tenant_catalog_instances
+                SET last_error=?2, updated_at=CURRENT_TIMESTAMP
+              WHERE tenant_id=?1`
+          )
+          .bind(job.tenant_id, safeCode)
+      : db
+          .prepare(
+            `UPDATE tenant_catalog_instances
+                SET status='provisioning', last_error=?2, updated_at=CURRENT_TIMESTAMP
+              WHERE tenant_id=?1`
+          )
+          .bind(job.tenant_id, safeCode);
+
   const statements = [
     db
       .prepare(
@@ -197,15 +305,9 @@ async function failMigration(db, job, safeCode) {
           WHERE job_id=?1`
       )
       .bind(job.job_id, safeCode),
-    db
-      .prepare(
-        `UPDATE tenant_catalog_instances
-            SET status='provisioning', last_error=?2, updated_at=CURRENT_TIMESTAMP
-          WHERE tenant_id=?1`
-      )
-      .bind(job.tenant_id, safeCode)
+    catalogStatement
   ];
-  if (job.provisioning_id) {
+  if (kind === 'provisioning' && job.provisioning_id) {
     statements.push(
       db
         .prepare(
@@ -247,12 +349,17 @@ export async function processTenantDataPlaneMigration(
 ) {
   const config = runtimeConfig(env);
   if (!config) return { outcome: 'queued', reason: 'cloudflare_platform_unconfigured' };
+  const migrationKind = normalizeMigrationKind(job.migration_kind);
   const context = await migrationContext(db, job.tenant_id);
   if (!context?.d1_database_id) return { outcome: 'blocked', reason: 'tenant_database_not_ready' };
+  if (migrationKind === 'maintenance' && context.catalog_status !== 'ready') {
+    return { outcome: 'blocked', reason: 'tenant_catalog_not_ready_for_maintenance' };
+  }
   const enrichedJob = {
     ...job,
-    provisioning_id: context.provisioning_id || null,
-    resume_step: context.resume_step || 'migrations'
+    migration_kind: migrationKind,
+    provisioning_id: migrationKind === 'provisioning' ? context.provisioning_id || null : null,
+    resume_step: migrationKind === 'provisioning' ? context.resume_step || 'migrations' : null
   };
   if (!(await claimMigration(db, enrichedJob))) return { outcome: 'busy', jobId: job.job_id };
 
@@ -297,18 +404,19 @@ export async function processTenantDataPlaneMigration(
       throw new CloudflarePlatformError('tenant_d1_migration_verification_failed', 502);
     }
 
-    await finishMigration(db, enrichedJob, job.target_schema_version);
+    const resumedAt = await finishMigration(db, enrichedJob, job.target_schema_version);
     return {
       outcome: 'success',
       jobId: job.job_id,
+      migrationKind,
       schemaVersion: job.target_schema_version,
-      resumedAt: migrationResumeStep(enrichedJob.resume_step)
+      resumedAt
     };
   } catch (error) {
     const safeCode =
       error instanceof CloudflarePlatformError ? error.code : 'tenant_d1_migration_failed';
     await failMigration(db, enrichedJob, safeCode);
-    return { outcome: 'failed', jobId: job.job_id, error: safeCode };
+    return { outcome: 'failed', jobId: job.job_id, migrationKind, error: safeCode };
   }
 }
 
@@ -322,7 +430,12 @@ export async function runDueDataPlaneMigrations(
   const db = env.CATALOG_DB;
   const boundedLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 2, 1), 3);
 
-  const discovered = await discoverMigrationCandidates(
+  const provisioningDiscovered = await discoverProvisioningMigrationCandidates(
+    db,
+    TENANT_DATA_PLANE_SCHEMA_VERSION,
+    boundedLimit
+  );
+  const maintenanceDiscovered = await discoverMaintenanceMigrationCandidates(
     db,
     TENANT_DATA_PLANE_SCHEMA_VERSION,
     boundedLimit
@@ -334,25 +447,30 @@ export async function runDueDataPlaneMigrations(
           SET status='failed', next_attempt_at=CURRENT_TIMESTAMP,
               finished_at=CURRENT_TIMESTAMP, last_error_code='migration_job_stale_reclaimed',
               updated_at=CURRENT_TIMESTAMP
-        WHERE status='running' AND updated_at <= datetime(CURRENT_TIMESTAMP,'-20 minutes')`
+        WHERE status='running'
+          AND target_schema_version=?1
+          AND updated_at <= datetime(CURRENT_TIMESTAMP,'-20 minutes')`
     )
+    .bind(TENANT_DATA_PLANE_SCHEMA_VERSION)
     .run();
 
   const due = await db
     .prepare(
-      `SELECT j.job_id, j.tenant_id, j.target_schema_version, r.provisioning_id
+      `SELECT j.job_id, j.tenant_id, j.target_schema_version, j.migration_kind,
+              CASE WHEN j.migration_kind='provisioning' THEN r.provisioning_id ELSE NULL END AS provisioning_id
          FROM tenant_data_plane_migration_jobs j
          LEFT JOIN tenant_provisioning_runs r ON r.provisioning_id=(
            SELECT r2.provisioning_id FROM tenant_provisioning_runs r2
             WHERE r2.tenant_id=j.tenant_id ORDER BY r2.created_at DESC LIMIT 1
          )
         WHERE j.status IN ('pending','failed')
+          AND j.target_schema_version=?2
           AND j.attempt_count < ?1
           AND (j.next_attempt_at IS NULL OR j.next_attempt_at <= CURRENT_TIMESTAMP)
-        ORDER BY j.created_at ASC
-        LIMIT ?2`
+        ORDER BY CASE j.migration_kind WHEN 'provisioning' THEN 0 ELSE 1 END, j.created_at ASC
+        LIMIT ?3`
     )
-    .bind(MAX_AUTOMATIC_ATTEMPTS, boundedLimit)
+    .bind(MAX_AUTOMATIC_ATTEMPTS, TENANT_DATA_PLANE_SCHEMA_VERSION, boundedLimit)
     .all();
 
   const outcomes = [];
@@ -361,6 +479,7 @@ export async function runDueDataPlaneMigrations(
     outcomes.push({
       jobId: job.job_id,
       tenantId: job.tenant_id,
+      migrationKind: job.migration_kind,
       outcome: result.outcome,
       error: result.error || null
     });
@@ -368,7 +487,9 @@ export async function runDueDataPlaneMigrations(
 
   return {
     enabled: true,
-    discovered,
+    discovered: provisioningDiscovered + maintenanceDiscovered,
+    provisioningDiscovered,
+    maintenanceDiscovered,
     selected: (due.results || []).length,
     processed: outcomes.length,
     succeeded: outcomes.filter((entry) => entry.outcome === 'success').length,
