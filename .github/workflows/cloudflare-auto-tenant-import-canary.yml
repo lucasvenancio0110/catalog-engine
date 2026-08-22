@@ -15,7 +15,10 @@ on:
       - "worker/tenant-import-dispatcher.js"
       - "worker/tenant-classification-runner.js"
       - "worker/tenant-verification-runner.js"
+      - "worker/data-plane-migration-runner.js"
       - "worker/tenant-data-plane-schema-v4.js"
+      - "worker/tenant-data-plane-schema-v5.js"
+      - "migrations/0018_tenant_data_plane_fleet_migrations.sql"
   workflow_run:
     workflows: ["Deploy Catalog Engine application"]
     types: [completed]

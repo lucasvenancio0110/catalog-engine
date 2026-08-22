@@ -9,7 +9,7 @@ Catalog Engine's target SaaS data-plane model is **one isolated D1 catalog datab
 
 The platform Worker remains the hostname/control-plane boundary. It resolves the merchant hostname and, once the tenant data plane is ready, dynamically dispatches catalog/API/media requests to the correct tenant Worker. Shared storefront code can remain platform-owned while merchant-specific catalog state stays isolated.
 
-Do not collapse all merchant catalogs into one public D1 and rely only on a `tenant_id` predicate in every storefront query.
+Do not collapse all merchant catalogs into one public D1 and rely only on a `tenant_id` predicate in every storefront product query.
 
 ## Workers for Platforms model
 
@@ -43,6 +43,13 @@ A merchant never uploads Worker code. Catalog Engine owns tenant runtime code an
 
 `tenant_data_plane_migration_jobs` separately records schema migration attempts so infrastructure retry and database-schema retry cannot corrupt each other.
 
+Migration jobs distinguish two lifecycles:
+
+- `provisioning` — schema work that belongs to an active onboarding/provisioning checkpoint;
+- `maintenance` — additive schema upgrade for an already-ready tenant data plane.
+
+Historical migration jobs created before this distinction retain `provisioning` as the backward-compatible default.
+
 ## Provisioning lifecycle
 
 A merchant connects a supported private source before Catalog Engine allocates the isolated catalog data plane in the normal self-service flow.
@@ -66,7 +73,7 @@ Provisioning is idempotent. Retrying the same intended tenant must not create du
 
 Tenant schema migration is version-ledgered and idempotent.
 
-The migration runner installs the current tenant data-plane schema through bounded D1 batch queries and verifies the tenant identity/source boundary before advancing onboarding.
+The migration runner installs the current tenant data-plane schema through bounded D1 batch queries and verifies the tenant identity/source boundary before advancing onboarding or closing a maintenance upgrade.
 
 The schema line is additive:
 
@@ -75,20 +82,18 @@ v1 -> base tenant catalog/source/media schema
 v2 -> later tenant catalog/runtime additions
 v3 -> versioned classification state + durable merchant overrides
 v4 -> detailed domain-neutral CEI intelligence state
-v5 -> private staged incremental-sync state (M7C3 foundation)
+v5 -> private staged incremental-sync state
 ```
 
-### Active production target vs staged schema definition
+### Active production target
 
-The **active production migration runner currently still targets v4**:
+The active migration target is schema v5:
 
-`TENANT_DATA_PLANE_SCHEMA_VERSION = 4`
+`TENANT_DATA_PLANE_SCHEMA_VERSION = 5`
 
-M7C3 introduces the additive v5 schema definition and regression coverage without changing that production migration target in the same foundation slice.
+New/in-flight tenants are migrated to v5 through the normal provisioning migration path. Already-ready tenants below v5 are discovered as bounded maintenance work instead of being sent back through onboarding.
 
-Schema v5 becomes a production migration target only after a deliberate activation slice wires the migration runner, proves existing/new tenant upgrade behavior, and keeps recurring sync automation disabled until the incremental consumer path itself is ready.
-
-This distinction is intentional: committing a future schema definition is not equivalent to claiming the fleet has already migrated to it.
+Schema v5 activation does **not** itself enable recurring incremental sync. The staged-sync tables become available fleet-wide first; the recurring scheduler remains independently gated until the later M7 consumer/detail/verification slices are proven.
 
 Each version extends previous versions rather than destructively replacing them.
 
@@ -103,7 +108,7 @@ The tenant D1 contains high-volume/private catalog structures such as:
 - classification state;
 - durable merchant classification overrides;
 - detailed CEI product intelligence state;
-- when v5 is activated, private staged sync runs/observations/events/categories used before LKG promotion.
+- private staged sync runs/observations/events/categories used before LKG promotion.
 
 It deliberately does **not** contain SaaS control-plane tables such as memberships, subscriptions, customer domains, account billing state, platform audit history or provisioning runs.
 
@@ -202,7 +207,9 @@ After a migration batch, the runner verifies at minimum:
 - the expected schema version;
 - the expected active source boundary.
 
-Only after verification does the control plane record the new tenant schema version and advance the provisioning checkpoint.
+Only after verification does the control plane record the new tenant schema version.
+
+For a provisioning migration, the runner then resumes the owning onboarding checkpoint. For a maintenance migration, it closes only the maintenance job and updates schema metadata; it must not replay or mutate a historical provisioning run.
 
 Schema generation is idempotent through constructs such as:
 
@@ -213,11 +220,22 @@ Schema generation is idempotent through constructs such as:
 
 A Worker interruption can therefore safely retry the same intended migration.
 
-## Existing tenants and upgrades
+## Existing tenants and maintenance upgrades
 
 New tenant provisioning must reach the current required schema before dependent stages run.
 
-A future fleet-wide migration capability for already-ready/published tenants must preserve availability, tenant isolation, merchant overrides and last-known-good public state. Do not silently force an unrelated catalog rebuild merely because the application introduced a newer internal schema.
+Already-ready tenants are eligible for additive maintenance upgrade only when:
+
+- the tenant and private source remain active;
+- the isolated D1 and tenant Worker provider state are active;
+- the catalog instance is currently `ready`;
+- its schema version is below the current target;
+- no import/incremental/recovery job is actively mutating that tenant catalog;
+- no current-version migration job is already pending/running.
+
+Maintenance upgrades preserve availability. They do not set a ready catalog back to `provisioning`, do not replay historical onboarding steps and do not replace commercial catalog data. A maintenance failure records a safe migration error/retry state while the previous last-known-good storefront continues serving.
+
+This distinction is part of the M7 safety model: internal schema readiness may advance independently from catalog publication authority.
 
 Schema deployment and commercial catalog replacement remain separate responsibilities according to `DEPLOYMENT-PIPELINES.md`.
 
@@ -260,6 +278,8 @@ Provider jobs and migration jobs use independent bounded attempts, retry delays 
 
 Incremental staging follows the same principle: stage writes are run-scoped and rebuildable, while canonical promotion is a separately gated operation after verification.
 
+Maintenance schema upgrades also remain resumable. If the isolated D1 reaches the new additive schema but the control-plane completion write is interrupted, the next attempt re-applies the idempotent schema batch and then reconciles the control-plane version rather than rebuilding catalog data.
+
 ## Runtime configuration
 
 Physical provisioning/migration requires dedicated platform configuration such as:
@@ -274,7 +294,7 @@ With required privileged configuration absent, provisioning/migration code fails
 
 ## Import/classification integration
 
-After migration, onboarding advances through:
+After provisioning migration, onboarding advances through:
 
 ```text
 import
@@ -283,6 +303,8 @@ import
 -> domain/runtime readiness
 -> publish
 ```
+
+A maintenance migration for an already-ready tenant does not restart this sequence.
 
 The tenant data plane preserves:
 
