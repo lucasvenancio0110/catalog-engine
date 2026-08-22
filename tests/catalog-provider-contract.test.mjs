@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CatalogProviderError,
   assertCatalogProviderDetailResult,
+  assertCatalogProviderScanObservation,
   assertCatalogProviderScanResult,
   createCatalogProviderRegistry,
   defineCatalogProvider
@@ -73,9 +74,19 @@ describe('CatalogProvider contract', () => {
         }
       ]
     };
+    expect(assertCatalogProviderScanObservation(scan)).toBe(scan);
     expect(assertCatalogProviderScanResult(scan)).toBe(scan);
     expect(() => assertCatalogProviderScanResult({ complete: true, taxonomy: [], items: [{}] }))
       .toThrow(/catalog_provider_scan_contract_invalid/);
+
+    const partial = { ...scan, complete: false };
+    expect(assertCatalogProviderScanObservation(partial)).toBe(partial);
+    expect(() => assertCatalogProviderScanResult(partial)).toThrow(
+      /catalog_provider_scan_contract_invalid/
+    );
+    expect(() =>
+      assertCatalogProviderScanObservation({ complete: false, taxonomy: [], items: [{}] })
+    ).toThrow(/catalog_provider_scan_contract_invalid/);
 
     const detail = {
       name: 'Produto',
