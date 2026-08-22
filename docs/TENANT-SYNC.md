@@ -335,18 +335,85 @@ The recurring scheduler has its own explicit gate:
 
 Only the literal string `1` enables schedule discovery/job creation. Disabled state returns before control-plane D1 scheduling work.
 
-**M7B production target keeps this value at `0`.**
+**Production currently keeps this value at `0`.**
 
-Therefore M7B may safely deploy:
+Therefore the schedule foundation can remain deployed without creating incremental jobs, producing Queue messages or changing commercial catalog data in production.
 
-- the additive schedule migration;
-- deterministic recurring job identity;
-- the scheduler mounted on the existing five-minute platform cron;
-- regression tests and safe observability;
+M7C1 established one shared provider-neutral listing-delta Core. M7C2 established read-only tenant LKG loading + normalized provider observation + safety/delta planning. Neither slice activated recurring execution.
 
-without creating incremental jobs, producing Queue messages or changing commercial catalog data in production.
+## M7C3 staged LKG authority foundation
 
-M7C must first adapt the native tenant scan/detail path to `mode='incremental'`, normalized delta planning and the M7 safety decision. Only after those behaviors are regression-tested and production-proof ready may recurring sync automation be deliberately activated.
+M7C3 introduces the private staging boundary required before the native incremental consumer can safely mutate a large tenant catalog.
+
+The motivating constraint is architectural, not merely performance-related: the internal tenant D1 command accepts bounded batches, so a large scan cannot be promoted safely by issuing one canonical write per product across many independent batches. If such a sequence failed halfway through, the supposedly canonical LKG could become a mixture of old and new state.
+
+Therefore the authority flow is:
+
+```text
+canonical private LKG
+        ↓ remains unchanged
+normalized provider observation
+        ↓
+M7A safety + shared delta plan
+        ↓
+run-scoped private staging
+        ↓
+affected detail/CEI work when required
+        ↓
+verification
+        ↓
+set-based gated promotion
+        ↓
+new canonical private LKG
+```
+
+### Stage state
+
+The additive v5 schema definition owns run-scoped private tables for:
+
+- stage run metadata;
+- normalized supplier observations;
+- delta events;
+- normalized provider taxonomy for the run.
+
+A stage run stores its opaque `scope_id` and bounded `scope_kind`; provider URL/query syntax is not authority for scope identity.
+
+Healthy observations/events/categories are staged in bounded JSON chunks. This allows a 17k-product catalog to be assembled across resumable stage writes without changing `supplier_album_index` during the scan/staging phase.
+
+Partial/quarantined decisions store only bounded run diagnostics in this foundation; they do not stage raw observations for promotion and cannot become LKG.
+
+### Canonical run ledger
+
+Staging does not create a competing operational run model. The existing private `supplier_sync_runs` ledger remains the durable sync-run identity.
+
+The stage lifecycle opens/reuses the matching incremental run as `running`. A `preserved`, `quarantined` or staging-integrity failure closes that canonical run as `failed` with a stable safe code. A healthy run remains `running` until verified promotion closes it as `success`.
+
+Durable `supplier_sync_events` are written only during gated promotion, after the canonical run ledger already exists. This preserves its foreign-key and audit boundary.
+
+### Verification/promotion gate
+
+A canonical source-index promotion requires all of the following in the current foundation:
+
+- matching opaque run/tenant/source identity;
+- safety outcome `proceed`;
+- complete staged observation/event counts;
+- explicit stage verification;
+- transition into `promoting`;
+- `expected_detail_count = 0`.
+
+Every set-based canonical mutation is SQL-gated by the matching `promoting` stage run. Calling the promotion builder before verification is therefore a no-op, not an alternate bypass path.
+
+For this foundation, only no-detail deltas can reach verified promotion. Runs containing NEW/CHANGED/CHANGED_MOVED/RESTORED work remain `details_pending`. A later M7 slice must stage affected detail/CEI evidence and verify it before expanding promotion authority to those runs.
+
+The current promotion foundation updates **private source/index and sync ledger state only**. It is not permission to bypass downstream public catalog/CEI verification.
+
+### Schema activation boundary
+
+M7C3 defines tenant data-plane schema v5 and its contracts, but the production migration runner remains on v4 in this foundation slice.
+
+This means code/schema definition can be regression-tested before the tenant fleet is migrated. Wiring v5 as the active migration target is a separate deliberate activation step with its own proof.
+
+Likewise, `TENANT_SYNC_AUTOMATION_ENABLED=0` remains unchanged. No recurring incremental Queue execution is enabled by the staging foundation itself.
 
 ## M7A scope boundary
 
@@ -377,7 +444,13 @@ At minimum, sync safety changes must prove:
 - first healthy scan without baseline can proceed;
 - quarantined decision prevents the existing planner from advancing missing/removal;
 - safe authoritative decision allows existing repeated-miss behavior;
-- provider/domain vocabulary is absent from the generic safety Core.
+- provider/domain vocabulary is absent from the generic safety Core;
+- staging never mutates canonical LKG before verification;
+- promotion before verification is a no-op;
+- quarantined/preserved runs cannot promote;
+- large healthy observations are staged in bounded chunks rather than one D1 statement per product;
+- stage scope/run identity is opaque and tenant/source bound;
+- canonical sync-run status closes only according to safe stage outcome/promotion.
 
 Existing scoped-sync tests must continue proving detach vs global remove behavior.
 

@@ -68,20 +68,29 @@ Tenant schema migration is version-ledgered and idempotent.
 
 The migration runner installs the current tenant data-plane schema through bounded D1 batch queries and verifies the tenant identity/source boundary before advancing onboarding.
 
-The current schema line is additive:
+The schema line is additive:
 
 ```text
 v1 -> base tenant catalog/source/media schema
 v2 -> later tenant catalog/runtime additions
 v3 -> versioned classification state + durable merchant overrides
 v4 -> detailed domain-neutral CEI intelligence state
+v5 -> private staged incremental-sync state (M7C3 foundation)
 ```
 
-Current target:
+### Active production target vs staged schema definition
+
+The **active production migration runner currently still targets v4**:
 
 `TENANT_DATA_PLANE_SCHEMA_VERSION = 4`
 
-V4 extends previous versions rather than destructively replacing them.
+M7C3 introduces the additive v5 schema definition and regression coverage without changing that production migration target in the same foundation slice.
+
+Schema v5 becomes a production migration target only after a deliberate activation slice wires the migration runner, proves existing/new tenant upgrade behavior, and keeps recurring sync automation disabled until the incremental consumer path itself is ready.
+
+This distinction is intentional: committing a future schema definition is not equivalent to claiming the fleet has already migrated to it.
+
+Each version extends previous versions rather than destructively replacing them.
 
 The tenant D1 contains high-volume/private catalog structures such as:
 
@@ -93,7 +102,8 @@ The tenant D1 contains high-volume/private catalog structures such as:
 - sync runs/events and detail state;
 - classification state;
 - durable merchant classification overrides;
-- detailed CEI product intelligence state.
+- detailed CEI product intelligence state;
+- when v5 is activated, private staged sync runs/observations/events/categories used before LKG promotion.
 
 It deliberately does **not** contain SaaS control-plane tables such as memberships, subscriptions, customer domains, account billing state, platform audit history or provisioning runs.
 
@@ -123,6 +133,58 @@ The schema must not require a migration merely because a future Knowledge Pack i
 - Dental: component/platform/connection.
 
 Domain code owns claim meaning. CEI Core owns validation/persistence.
+
+## M7C3 private staged sync state in v5
+
+Schema v5 adds private, run-scoped staging structures for Intelligent Sync:
+
+- `supplier_sync_stage_runs`;
+- `supplier_sync_stage_observations`;
+- `supplier_sync_stage_events`;
+- `supplier_sync_stage_categories`.
+
+The purpose of staging is to ensure a new supplier observation cannot partially overwrite the canonical `supplier_album_index` while a large run is still being assembled.
+
+The stage run persists:
+
+- opaque run/tenant/source identity;
+- opaque `scope_id` and bounded `scope_kind`;
+- safety outcome/policy version;
+- complete/incomplete scan evidence;
+- previous known-good and current observed counts;
+- expected/staged event/detail/category counts;
+- verification and safe error codes;
+- lifecycle state such as `staging`, `planned`, `details_pending`, `verified`, `promoting`, `promoted`, `preserved` or `quarantined`.
+
+Provider-private source URLs/IDs may exist in the stage observation table because it is an isolated private data-plane structure. They are not public storefront truth.
+
+### LKG authority boundary
+
+Staging is not canonical state.
+
+```text
+canonical supplier_album_index (LKG)
+        ↓ remains serving/unchanged
+new normalized scan + safety/delta
+        ↓
+private run-scoped staging
+        ↓
+detail/CEI work where required
+        ↓
+verification
+        ↓
+set-based promotion
+        ↓
+new canonical LKG
+```
+
+Interrupted staging may leave partial **stage rows**, but it must not leave the canonical LKG half-promoted. A retry can reset/rebuild the same run-scoped stage before verification.
+
+Promotion must be fail-closed at SQL authority boundaries: only a matching stage run explicitly transitioned from verified state into `promoting` may mutate canonical private source-index state.
+
+The M7C3 foundation initially permits verification/promotion only when `expected_detail_count = 0`. Runs containing NEW/CHANGED/RESTORED work remain `details_pending` until the later detail/CEI staging slice implements and verifies those affected products.
+
+This conservative boundary is deliberate; schema presence alone must not imply that an incomplete detail pipeline is safe to publish.
 
 ## Private source handling
 
@@ -167,6 +229,8 @@ Catalog/runtime readiness is established only after the relevant migration, impo
 
 Detailed CEI state is operational/private by default; the ordinary public storefront does not gain access to private provenance/research/conflict internals merely because schema v4 stores them.
 
+Likewise, v5 staged supplier observations are operational/private and are not storefront payloads.
+
 ## Runtime dispatch
 
 Public routing follows:
@@ -193,6 +257,8 @@ D1 creation and Worker upload cannot be treated as one-shot operations.
 A Worker can fail after the provider resource exists but before the control plane records success. Deterministic resource names and idempotent updates therefore allow retries to reuse the intended resource rather than duplicate it.
 
 Provider jobs and migration jobs use independent bounded attempts, retry delays and stale-running reclamation. Provider errors are reduced to safe codes before persistence.
+
+Incremental staging follows the same principle: stage writes are run-scoped and rebuildable, while canonical promotion is a separately gated operation after verification.
 
 ## Runtime configuration
 
