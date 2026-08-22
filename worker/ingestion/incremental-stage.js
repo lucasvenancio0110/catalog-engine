@@ -2,6 +2,7 @@ export const TENANT_SYNC_STAGE_WRITE_CONTRACT_VERSION = 1;
 export const TENANT_SYNC_STAGE_JSON_MAX_BYTES = 220_000;
 export const TENANT_SYNC_STAGE_MAX_RECORDS_PER_CHUNK = 250;
 
+const SAFE_CODE_PATTERN = /^sync_[a-z0-9_]+$/;
 const EVENT_REASON_CODES = Object.freeze({
   'listing-changed': 'sync_listing_changed',
   'detail-pending': 'sync_detail_pending',
@@ -24,15 +25,34 @@ function nullableNumber(value) {
   return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : null;
 }
 
+function safeCode(value, fallback = null) {
+  const code = text(value);
+  if (!code) return fallback;
+  if (!SAFE_CODE_PATTERN.test(code)) throw new Error('tenant_sync_safe_code_invalid');
+  return code;
+}
+
 function assertIncrementalStageInput(context, scan, plan) {
   if (context?.mode !== 'incremental') throw new Error('tenant_sync_incremental_context_required');
   if (!text(context.importId) || !text(context.tenantId) || !text(context.sourceKey)) {
     throw new Error('tenant_sync_stage_identity_invalid');
   }
-  if (!scan || typeof scan.complete !== 'boolean' || !Array.isArray(scan.items) || !Array.isArray(scan.taxonomy)) {
+  if (
+    !scan ||
+    typeof scan.complete !== 'boolean' ||
+    !Array.isArray(scan.items) ||
+    !Array.isArray(scan.taxonomy)
+  ) {
     throw new Error('tenant_sync_scan_contract_invalid');
   }
-  if (!plan?.decision || !Array.isArray(plan.events) || !Array.isArray(plan.detailQueue)) {
+  if (
+    !plan?.decision ||
+    !plan.decision.scope ||
+    !text(plan.decision.scope.id) ||
+    !text(plan.decision.scope.kind) ||
+    !Array.isArray(plan.events) ||
+    !Array.isArray(plan.detailQueue)
+  ) {
     throw new Error('tenant_sync_stage_plan_invalid');
   }
 }
@@ -103,18 +123,68 @@ function jsonChunks(records) {
   return chunks;
 }
 
+function beginSyncRunQuery(context, scan, plan) {
+  const counts = plan.counts || {};
+  return {
+    sql: `INSERT INTO supplier_sync_runs
+      (run_id, tenant_id, source_key, mode, status, complete_scan, scanned_albums,
+       new_count, changed_count, moved_count, restored_count, missing_count, removed_count,
+       detail_fetch_count, started_at, finished_at, error_text)
+      VALUES (?1, ?2, ?3, 'incremental', 'running', ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
+              CURRENT_TIMESTAMP, NULL, NULL)
+      ON CONFLICT(run_id) DO UPDATE SET
+        status='running',
+        complete_scan=excluded.complete_scan,
+        scanned_albums=excluded.scanned_albums,
+        new_count=excluded.new_count,
+        changed_count=excluded.changed_count,
+        moved_count=excluded.moved_count,
+        restored_count=excluded.restored_count,
+        missing_count=excluded.missing_count,
+        removed_count=excluded.removed_count,
+        detail_fetch_count=excluded.detail_fetch_count,
+        finished_at=NULL,
+        error_text=NULL
+      WHERE supplier_sync_runs.tenant_id=excluded.tenant_id
+        AND supplier_sync_runs.source_key=excluded.source_key
+        AND supplier_sync_runs.mode='incremental'
+        AND supplier_sync_runs.status IN ('running','failed')`,
+    params: [
+      context.importId,
+      context.tenantId,
+      context.sourceKey,
+      scan.complete ? 1 : 0,
+      Number(counts.scannedAlbums ?? plan.observedCount ?? scan.items.length ?? 0),
+      Number(counts.newCount || 0),
+      Number(counts.changedCount || 0),
+      Number(counts.movedCount || 0),
+      Number(counts.restoredCount || 0),
+      Number(counts.missingCount || 0),
+      Number(counts.removedCount || 0),
+      Number(counts.detailFetchCount ?? plan.detailQueue.length ?? 0)
+    ]
+  };
+}
+
 function beginStageQuery(context, scan, plan) {
   const decision = plan.decision;
   return {
     sql: `INSERT INTO supplier_sync_stage_runs
-      (run_id, tenant_id, source_key, contract_version, state, safety_outcome,
+      (run_id, tenant_id, source_key, scope_id, scope_kind, contract_version, state, safety_outcome,
        safety_policy_version, scan_complete, previous_known_good_count, observed_count,
        disqualifying_failure_count, expected_event_count, expected_detail_count,
        staged_observation_count, staged_event_count, staged_category_count,
        verification_code, last_error_code, updated_at, verified_at, promoted_at)
-      VALUES (?1, ?2, ?3, ?4, 'staging', ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
-              0, 0, 0, NULL, NULL, CURRENT_TIMESTAMP, NULL, NULL)
+      SELECT ?1, ?2, ?3, ?4, ?5, ?6, 'staging', ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14,
+             0, 0, 0, NULL, NULL, CURRENT_TIMESTAMP, NULL, NULL
+       WHERE EXISTS (
+         SELECT 1 FROM supplier_sync_runs r
+          WHERE r.run_id=?1 AND r.tenant_id=?2 AND r.source_key=?3
+            AND r.mode='incremental' AND r.status='running'
+       )
       ON CONFLICT(run_id) DO UPDATE SET
+        scope_id=excluded.scope_id,
+        scope_kind=excluded.scope_kind,
         contract_version=excluded.contract_version,
         state='staging',
         safety_outcome=excluded.safety_outcome,
@@ -140,6 +210,8 @@ function beginStageQuery(context, scan, plan) {
       context.importId,
       context.tenantId,
       context.sourceKey,
+      decision.scope.id,
+      decision.scope.kind,
       TENANT_SYNC_STAGE_WRITE_CONTRACT_VERSION,
       decision.outcome,
       Number(decision.policyVersion || 1),
@@ -269,6 +341,9 @@ function sealStageQuery(context, plan) {
           ? 'details_pending'
           : 'planned';
   const writesExpected = outcome === 'proceed';
+  const blockedCode = writesExpected
+    ? null
+    : safeCode(plan.decision.reasons?.[0], 'sync_safety_blocked');
 
   return {
     sql: `UPDATE supplier_sync_stage_runs
@@ -290,7 +365,7 @@ function sealStageQuery(context, plan) {
                    ELSE 'failed'
                  END,
                  last_error_code=CASE
-                   WHEN ?4=0 THEN NULL
+                   WHEN ?4=0 THEN ?7
                    WHEN (SELECT COUNT(*) FROM supplier_sync_stage_observations o WHERE o.run_id=?1)=observed_count
                     AND (SELECT COUNT(*) FROM supplier_sync_stage_events e WHERE e.run_id=?1)=expected_event_count
                     AND (SELECT COUNT(*) FROM supplier_sync_stage_categories c WHERE c.run_id=?1)=?6
@@ -305,8 +380,37 @@ function sealStageQuery(context, plan) {
       context.sourceKey,
       writesExpected ? 1 : 0,
       targetState,
-      writesExpected ? Number(plan.scanTaxonomyCount || 0) : 0
+      writesExpected ? Number(plan.scanTaxonomyCount || 0) : 0,
+      blockedCode
     ]
+  };
+}
+
+function sealSyncRunQuery(context) {
+  return {
+    sql: `UPDATE supplier_sync_runs
+             SET status=CASE
+                   WHEN EXISTS (
+                     SELECT 1 FROM supplier_sync_stage_runs s
+                      WHERE s.run_id=?1 AND s.tenant_id=?2 AND s.source_key=?3
+                        AND s.state IN ('preserved','quarantined','failed')
+                   ) THEN 'failed'
+                   ELSE 'running'
+                 END,
+                 finished_at=CASE
+                   WHEN EXISTS (
+                     SELECT 1 FROM supplier_sync_stage_runs s
+                      WHERE s.run_id=?1 AND s.tenant_id=?2 AND s.source_key=?3
+                        AND s.state IN ('preserved','quarantined','failed')
+                   ) THEN CURRENT_TIMESTAMP
+                   ELSE NULL
+                 END,
+                 error_text=(
+                   SELECT s.last_error_code FROM supplier_sync_stage_runs s
+                    WHERE s.run_id=?1 AND s.tenant_id=?2 AND s.source_key=?3
+                 )
+           WHERE run_id=?1 AND tenant_id=?2 AND source_key=?3 AND status='running'`,
+    params: [context.importId, context.tenantId, context.sourceKey]
   };
 }
 
@@ -325,13 +429,16 @@ export function buildIncrementalStageWritePlan({ context, scan, plan }) {
   return Object.freeze({
     contractVersion: TENANT_SYNC_STAGE_WRITE_CONTRACT_VERSION,
     beginBatch: Object.freeze([
+      beginSyncRunQuery(context, scan, plan),
       beginStageQuery(context, scan, plan),
       clearStageQuery('supplier_sync_stage_observations', context),
       clearStageQuery('supplier_sync_stage_events', context),
       clearStageQuery('supplier_sync_stage_categories', context)
     ]),
     observationBatches: Object.freeze(
-      jsonChunks(observationRecords).map((payload) => Object.freeze([observationChunkQuery(context, payload)]))
+      jsonChunks(observationRecords).map((payload) =>
+        Object.freeze([observationChunkQuery(context, payload)])
+      )
     ),
     eventBatches: Object.freeze(
       jsonChunks(eventRecords).map((payload) => Object.freeze([eventChunkQuery(context, payload)]))
@@ -339,12 +446,19 @@ export function buildIncrementalStageWritePlan({ context, scan, plan }) {
     categoryBatches: Object.freeze(
       jsonChunks(categoryRecords).map((payload) => Object.freeze([categoryChunkQuery(context, payload)]))
     ),
-    sealBatch: Object.freeze([sealStageQuery(context, planWithTaxonomy)])
+    sealBatch: Object.freeze([
+      sealStageQuery(context, planWithTaxonomy),
+      sealSyncRunQuery(context)
+    ])
   });
 }
 
-export function buildIncrementalStageVerificationBatch({ context, verificationCode = 'sync_verified' }) {
+export function buildIncrementalStageVerificationBatch({
+  context,
+  verificationCode = 'sync_verified'
+}) {
   if (context?.mode !== 'incremental') throw new Error('tenant_sync_incremental_context_required');
+  const normalizedVerificationCode = safeCode(verificationCode, 'sync_verified');
   return Object.freeze([
     {
       sql: `UPDATE supplier_sync_stage_runs
@@ -352,13 +466,15 @@ export function buildIncrementalStageVerificationBatch({ context, verificationCo
                    last_error_code=NULL, updated_at=CURRENT_TIMESTAMP
              WHERE run_id=?1 AND tenant_id=?2 AND source_key=?3
                AND safety_outcome='proceed'
-               AND state IN ('planned','details_complete')
+               AND state='planned'
+               AND expected_detail_count=0
                AND staged_observation_count=observed_count
                AND staged_event_count=expected_event_count`,
-      params: [context.importId, context.tenantId, context.sourceKey, verificationCode]
+      params: [context.importId, context.tenantId, context.sourceKey, normalizedVerificationCode]
     },
     {
-      sql: `SELECT state, safety_outcome, observed_count, staged_observation_count,
+      sql: `SELECT state, safety_outcome, scope_id, scope_kind,
+                   observed_count, staged_observation_count,
                    expected_event_count, staged_event_count, expected_detail_count,
                    verification_code
               FROM supplier_sync_stage_runs
@@ -371,7 +487,8 @@ export function buildIncrementalStageVerificationBatch({ context, verificationCo
 function promotionGate() {
   return `EXISTS (
     SELECT 1 FROM supplier_sync_stage_runs r
-     WHERE r.run_id=?1 AND r.tenant_id=?2 AND r.source_key=?3 AND r.state='promoting'
+     WHERE r.run_id=?1 AND r.tenant_id=?2 AND r.source_key=?3
+       AND r.state='promoting' AND r.expected_detail_count=0
   )`;
 }
 
@@ -385,7 +502,8 @@ export function buildIncrementalStagePromotionBatch({ context }) {
       sql: `UPDATE supplier_sync_stage_runs
                SET state='promoting', updated_at=CURRENT_TIMESTAMP
              WHERE run_id=?1 AND tenant_id=?2 AND source_key=?3
-               AND state IN ('verified','promoting')`,
+               AND state IN ('verified','promoting')
+               AND expected_detail_count=0`,
       params
     },
     {
@@ -394,27 +512,11 @@ export function buildIncrementalStagePromotionBatch({ context }) {
                    source_url=(SELECT o.source_url FROM supplier_sync_stage_observations o WHERE o.run_id=?1 AND o.album_source_id=supplier_album_index.album_source_id),
                    source_title=(SELECT o.source_title FROM supplier_sync_stage_observations o WHERE o.run_id=?1 AND o.album_source_id=supplier_album_index.album_source_id),
                    source_category_id=(SELECT o.source_category_id FROM supplier_sync_stage_observations o WHERE o.run_id=?1 AND o.album_source_id=supplier_album_index.album_source_id),
-                   source_category_path_json=(SELECT o.source_category_path_json FROM supplier_sync_stage_observations o WHERE o.run_id=?1 AND o.album_source_id=supplier_album_index.album_source_id),
+                   source_category_path_json=(SELECT o.source_category_path_json FROM supplier_sync_stage_observations o WHERE o.run_id=?1 AND o.album_source_id=supplier_album_source_id),
                    cover_source_url=(SELECT o.cover_source_url FROM supplier_sync_stage_observations o WHERE o.run_id=?1 AND o.album_source_id=supplier_album_index.album_source_id),
                    image_count_hint=(SELECT o.image_count_hint FROM supplier_sync_stage_observations o WHERE o.run_id=?1 AND o.album_source_id=supplier_album_index.album_source_id),
                    listing_fingerprint=(SELECT o.listing_fingerprint FROM supplier_sync_stage_observations o WHERE o.run_id=?1 AND o.album_source_id=supplier_album_index.album_source_id),
-                   detail_fingerprint=CASE WHEN EXISTS (
-                     SELECT 1 FROM supplier_sync_stage_events e
-                      WHERE e.run_id=?1 AND e.album_source_id=supplier_album_index.album_source_id AND e.needs_detail=1
-                   ) THEN NULL ELSE detail_fingerprint END,
                    status='active', miss_count=0,
-                   detail_retry_count=CASE WHEN EXISTS (
-                     SELECT 1 FROM supplier_sync_stage_events e
-                      WHERE e.run_id=?1 AND e.album_source_id=supplier_album_index.album_source_id AND e.needs_detail=1
-                   ) THEN 0 ELSE detail_retry_count END,
-                   detail_retry_after=CASE WHEN EXISTS (
-                     SELECT 1 FROM supplier_sync_stage_events e
-                      WHERE e.run_id=?1 AND e.album_source_id=supplier_album_index.album_source_id AND e.needs_detail=1
-                   ) THEN NULL ELSE detail_retry_after END,
-                   detail_last_error=CASE WHEN EXISTS (
-                     SELECT 1 FROM supplier_sync_stage_events e
-                      WHERE e.run_id=?1 AND e.album_source_id=supplier_album_index.album_source_id AND e.needs_detail=1
-                   ) THEN NULL ELSE detail_last_error END,
                    last_seen_at=CURRENT_TIMESTAMP,
                    last_changed_at=CASE WHEN EXISTS (
                      SELECT 1 FROM supplier_sync_stage_events e
@@ -497,9 +599,17 @@ export function buildIncrementalStagePromotionBatch({ context }) {
       params
     },
     {
+      sql: `UPDATE supplier_sync_runs
+               SET status='success', finished_at=CURRENT_TIMESTAMP, error_text=NULL
+             WHERE run_id=?1 AND tenant_id=?2 AND source_key=?3
+               AND status='running' AND ${gate}`,
+      params
+    },
+    {
       sql: `UPDATE supplier_sync_stage_runs
                SET state='promoted', promoted_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
-             WHERE run_id=?1 AND tenant_id=?2 AND source_key=?3 AND state='promoting'`,
+             WHERE run_id=?1 AND tenant_id=?2 AND source_key=?3
+               AND state='promoting' AND expected_detail_count=0`,
       params
     },
     {
