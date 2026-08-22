@@ -86,6 +86,18 @@ function uniqueBySourceId(values, kind) {
   return byId;
 }
 
+function assertStablePublicIdentity(previous, current) {
+  if (
+    previous.publicProductId &&
+    current.publicProductId &&
+    previous.publicProductId !== current.publicProductId
+  ) {
+    const error = new Error('sync_listing_public_identity_changed');
+    error.code = 'sync_listing_public_identity_changed';
+    throw error;
+  }
+}
+
 function moved(previous, current) {
   return (
     previous.categoryId !== current.categoryId ||
@@ -138,6 +150,8 @@ export function planListingDelta(
       });
       continue;
     }
+
+    assertStablePublicIdentity(prior, observation);
 
     if (prior.status === 'deleted' || prior.status === 'missing') {
       events.push({
