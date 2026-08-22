@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { runTenantIncrementalScan } from '../worker/ingestion/incremental-scan.js';
+import {
+  loadTenantIncrementalPreviousRows,
+  planTenantIncrementalScanFromProvider
+} from '../worker/ingestion/incremental-scan.js';
 
 const context = {
   importId: 'imp_0123456789abcdefabcd',
@@ -45,12 +48,21 @@ function item(id, overrides = {}) {
   };
 }
 
-describe('isolated tenant incremental scan runner', () => {
-  it('reads the prior tenant snapshot, persists the safe plan and returns only affected detail ids', async () => {
-    const queryBatch = vi
-      .fn()
-      .mockResolvedValueOnce([{ results: [previous('100'), previous('101')] }])
-      .mockResolvedValueOnce([]);
+function expectReadOnlyCalls(queryBatch) {
+  expect(queryBatch).toHaveBeenCalled();
+  for (const [request] of queryBatch.mock.calls) {
+    expect(request.databaseId).toBe(context.dataPlane.databaseId);
+    for (const entry of request.batch) {
+      expect(entry.sql.trim()).toMatch(/^SELECT\b/i);
+    }
+  }
+}
+
+describe('isolated tenant incremental scan planning runner', () => {
+  it('reads the prior tenant snapshot and returns only affected detail ids without persisting anything', async () => {
+    const queryBatch = vi.fn().mockResolvedValueOnce([
+      { results: [previous('100'), previous('101')] }
+    ]);
     const provider = {
       scanListingIndex: vi.fn(async () => ({
         complete: true,
@@ -60,7 +72,7 @@ describe('isolated tenant incremental scan runner', () => {
       }))
     };
 
-    const result = await runTenantIncrementalScan(
+    const result = await planTenantIncrementalScanFromProvider(
       { context, provider, platform },
       { queryBatch, fetchImpl: vi.fn() }
     );
@@ -68,21 +80,14 @@ describe('isolated tenant incremental scan runner', () => {
     expect(result.outcome).toBe('planned');
     expect(result.detailIds).toEqual(['100']);
     expect(result.counts.changedCount).toBe(1);
-    expect(queryBatch).toHaveBeenCalledTimes(2);
-    const writeCall = queryBatch.mock.calls[1][0];
-    expect(writeCall.databaseId).toBe(context.dataPlane.databaseId);
-    expect(writeCall.batch.map((entry) => entry.sql).join('\n')).not.toMatch(
-      /DELETE\s+FROM\s+supplier_album_index|DELETE\s+FROM\s+catalog_products/i
-    );
+    expect(queryBatch).toHaveBeenCalledTimes(1);
+    expectReadOnlyCalls(queryBatch);
   });
 
-  it('persists only the blocked-run diagnostic and returns no detail ids after catastrophic quarantine', async () => {
+  it('returns quarantine with no detail ids and still performs no tenant mutation', async () => {
     const prior = Array.from({ length: 220 }, (_, index) => previous(String(1000 + index)));
     const observed = Array.from({ length: 20 }, (_, index) => item(String(1000 + index)));
-    const queryBatch = vi
-      .fn()
-      .mockResolvedValueOnce([{ results: prior }])
-      .mockResolvedValueOnce([]);
+    const queryBatch = vi.fn().mockResolvedValueOnce([{ results: prior }]);
     const provider = {
       scanListingIndex: vi.fn(async () => ({
         complete: true,
@@ -92,7 +97,7 @@ describe('isolated tenant incremental scan runner', () => {
       }))
     };
 
-    const result = await runTenantIncrementalScan(
+    const result = await planTenantIncrementalScanFromProvider(
       { context, provider, platform },
       { queryBatch, fetchImpl: vi.fn() }
     );
@@ -100,10 +105,7 @@ describe('isolated tenant incremental scan runner', () => {
     expect(result.outcome).toBe('quarantine');
     expect(result.reason).toBe('sync_catastrophic_volume_drop');
     expect(result.detailIds).toEqual([]);
-    const batch = queryBatch.mock.calls[1][0].batch;
-    expect(batch).toHaveLength(1);
-    expect(batch[0].sql).toContain('supplier_sync_runs');
-    expect(batch[0].sql).not.toMatch(/supplier_album_index|catalog_products|supplier_album_detail_state/);
+    expectReadOnlyCalls(queryBatch);
   });
 
   it('does not persist any tenant mutation when the provider scan itself fails', async () => {
@@ -115,19 +117,19 @@ describe('isolated tenant incremental scan runner', () => {
     };
 
     await expect(
-      runTenantIncrementalScan(
+      planTenantIncrementalScanFromProvider(
         { context, provider, platform },
         { queryBatch, fetchImpl: vi.fn() }
       )
     ).rejects.toThrow('supplier_transient_500');
     expect(queryBatch).toHaveBeenCalledTimes(1);
+    expectReadOnlyCalls(queryBatch);
   });
 
-  it('accepts an explicit incomplete provider observation only to preserve LKG with no fan-out', async () => {
-    const queryBatch = vi
-      .fn()
-      .mockResolvedValueOnce([{ results: [previous('100'), previous('101')] }])
-      .mockResolvedValueOnce([]);
+  it('accepts a validated incomplete provider observation only to preserve LKG with no fan-out', async () => {
+    const queryBatch = vi.fn().mockResolvedValueOnce([
+      { results: [previous('100'), previous('101')] }
+    ]);
     const provider = {
       scanListingIndex: vi.fn(async () => ({
         complete: false,
@@ -137,22 +139,57 @@ describe('isolated tenant incremental scan runner', () => {
       }))
     };
 
-    const result = await runTenantIncrementalScan(
+    const result = await planTenantIncrementalScanFromProvider(
       { context, provider, platform },
       { queryBatch, fetchImpl: vi.fn() }
     );
     expect(result.outcome).toBe('preserve_last_known_good');
     expect(result.detailIds).toEqual([]);
-    expect(queryBatch.mock.calls[1][0].batch).toHaveLength(1);
+    expect(result.plan.events.some((event) => ['MISSING', 'REMOVED'].includes(event.type))).toBe(false);
+    expectReadOnlyCalls(queryBatch);
   });
 
-  it('fails closed when called with the initial-import context', async () => {
+  it('pages the previous LKG snapshot by source-id cursor instead of requesting the full catalog in one response', async () => {
+    const queryBatch = vi
+      .fn()
+      .mockResolvedValueOnce([{ results: [previous('100'), previous('101')] }])
+      .mockResolvedValueOnce([{ results: [previous('102')] }]);
+
+    const rows = await loadTenantIncrementalPreviousRows(context, platform, {
+      queryBatch,
+      fetchImpl: vi.fn(),
+      pageSize: 2
+    });
+
+    expect(rows.map((row) => row.album_source_id)).toEqual(['100', '101', '102']);
+    expect(queryBatch).toHaveBeenCalledTimes(2);
+    expect(queryBatch.mock.calls[0][0].batch[0].params).toEqual([
+      context.tenantId,
+      context.sourceKey,
+      '',
+      2
+    ]);
+    expect(queryBatch.mock.calls[1][0].batch[0].params).toEqual([
+      context.tenantId,
+      context.sourceKey,
+      '101',
+      2
+    ]);
+    expectReadOnlyCalls(queryBatch);
+  });
+
+  it('fails closed when called with the initial-import context before reading tenant D1', async () => {
+    const queryBatch = vi.fn();
     await expect(
-      runTenantIncrementalScan({
-        context: { ...context, mode: 'initial' },
-        provider: { scanListingIndex: vi.fn() },
-        platform
-      })
+      planTenantIncrementalScanFromProvider(
+        {
+          context: { ...context, mode: 'initial' },
+          provider: { scanListingIndex: vi.fn() },
+          platform
+        },
+        { queryBatch }
+      )
     ).rejects.toThrow('tenant_sync_incremental_context_required');
+    expect(queryBatch).not.toHaveBeenCalled();
   });
 });
