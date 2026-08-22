@@ -15,7 +15,7 @@ export const TENANT_DATA_PLANE_V5_STATEMENTS = [
     state TEXT NOT NULL DEFAULT 'staging' CHECK (
       state IN (
         'staging','planned','details_pending','details_complete',
-        'verified','promoting','promoted','quarantined','failed'
+        'verified','promoting','promoted','preserved','quarantined','failed'
       )
     ),
     safety_outcome TEXT CHECK (
