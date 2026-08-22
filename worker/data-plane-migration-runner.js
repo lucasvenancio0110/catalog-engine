@@ -47,20 +47,7 @@ async function upsertMigrationJob(db, { tenantId, targetVersion, migrationKind }
         (job_id, tenant_id, target_schema_version, migration_kind, status, attempt_count,
          next_attempt_at, created_at, updated_at)
        VALUES (?1, ?2, ?3, ?4, 'pending', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-       ON CONFLICT(job_id) DO UPDATE SET
-         status=CASE
-           WHEN tenant_data_plane_migration_jobs.status IN ('running','success') THEN tenant_data_plane_migration_jobs.status
-           ELSE 'pending'
-         END,
-         next_attempt_at=CASE
-           WHEN tenant_data_plane_migration_jobs.status IN ('running','success') THEN tenant_data_plane_migration_jobs.next_attempt_at
-           ELSE CURRENT_TIMESTAMP
-         END,
-         last_error_code=CASE
-           WHEN tenant_data_plane_migration_jobs.status IN ('running','success') THEN tenant_data_plane_migration_jobs.last_error_code
-           ELSE NULL
-         END,
-         updated_at=CURRENT_TIMESTAMP`
+       ON CONFLICT(job_id) DO NOTHING`
     )
     .bind(jobId, tenantId, targetVersion, kind)
     .run();
