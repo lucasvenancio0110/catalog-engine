@@ -11,6 +11,8 @@ export const TENANT_DATA_PLANE_V5_STATEMENTS = [
     run_id TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL,
     source_key TEXT NOT NULL,
+    scope_id TEXT NOT NULL,
+    scope_kind TEXT NOT NULL CHECK (scope_kind IN ('catalog','category','source','legacy')),
     contract_version INTEGER NOT NULL DEFAULT 1 CHECK (contract_version >= 1),
     state TEXT NOT NULL DEFAULT 'staging' CHECK (
       state IN (
