@@ -512,7 +512,7 @@ export function buildIncrementalStagePromotionBatch({ context }) {
                    source_url=(SELECT o.source_url FROM supplier_sync_stage_observations o WHERE o.run_id=?1 AND o.album_source_id=supplier_album_index.album_source_id),
                    source_title=(SELECT o.source_title FROM supplier_sync_stage_observations o WHERE o.run_id=?1 AND o.album_source_id=supplier_album_index.album_source_id),
                    source_category_id=(SELECT o.source_category_id FROM supplier_sync_stage_observations o WHERE o.run_id=?1 AND o.album_source_id=supplier_album_index.album_source_id),
-                   source_category_path_json=(SELECT o.source_category_path_json FROM supplier_sync_stage_observations o WHERE o.run_id=?1 AND o.album_source_id=supplier_album_source_id),
+                   source_category_path_json=(SELECT o.source_category_path_json FROM supplier_sync_stage_observations o WHERE o.run_id=?1 AND o.album_source_id=supplier_album_index.album_source_id),
                    cover_source_url=(SELECT o.cover_source_url FROM supplier_sync_stage_observations o WHERE o.run_id=?1 AND o.album_source_id=supplier_album_index.album_source_id),
                    image_count_hint=(SELECT o.image_count_hint FROM supplier_sync_stage_observations o WHERE o.run_id=?1 AND o.album_source_id=supplier_album_index.album_source_id),
                    listing_fingerprint=(SELECT o.listing_fingerprint FROM supplier_sync_stage_observations o WHERE o.run_id=?1 AND o.album_source_id=supplier_album_index.album_source_id),
