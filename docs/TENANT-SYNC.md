@@ -369,7 +369,7 @@ new canonical private LKG
 
 ### Stage state
 
-The additive v5 schema definition owns run-scoped private tables for:
+The additive v5 schema owns run-scoped private tables for:
 
 - stage run metadata;
 - normalized supplier observations;
@@ -407,13 +407,30 @@ For this foundation, only no-detail deltas can reach verified promotion. Runs co
 
 The current promotion foundation updates **private source/index and sync ledger state only**. It is not permission to bypass downstream public catalog/CEI verification.
 
-### Schema activation boundary
+## M7C4 schema v5 fleet activation
 
-M7C3 defines tenant data-plane schema v5 and its contracts, but the production migration runner remains on v4 in this foundation slice.
+M7C4 makes the v5 staged-sync schema the current tenant data-plane migration target while keeping recurring sync execution independently disabled.
 
-This means code/schema definition can be regression-tested before the tenant fleet is migrated. Wiring v5 as the active migration target is a separate deliberate activation step with its own proof.
+The migration runner has two explicit lifecycle kinds:
 
-Likewise, `TENANT_SYNC_AUTOMATION_ENABLED=0` remains unchanged. No recurring incremental Queue execution is enabled by the staging foundation itself.
+- `provisioning` for onboarding/in-flight schema work;
+- `maintenance` for already-ready tenant data planes below the current schema target.
+
+Maintenance discovery is allowed only for a ready tenant with an active private source/data plane and no active initial/incremental/recovery catalog job. This prevents additive schema DDL from racing an active catalog mutation.
+
+A maintenance upgrade must **not**:
+
+- move a ready catalog back to `provisioning`;
+- replay or edit historical onboarding/provisioning steps;
+- rebuild the catalog;
+- change public catalog authority;
+- create incremental Queue work.
+
+Success updates schema metadata while preserving the current serving status. Failure records bounded retry/error evidence while preserving the prior serving state and LKG.
+
+The automatic isolated import canary creates its fixture on the current v5 schema so trusted-main evidence cannot remain green by accidentally validating only the old v4 target.
+
+`TENANT_SYNC_AUTOMATION_ENABLED=0` remains the production activation boundary after the v5 fleet migration. Schema availability is therefore proven before the native incremental scan/detail path is allowed to run automatically.
 
 ## M7A scope boundary
 
@@ -450,7 +467,9 @@ At minimum, sync safety changes must prove:
 - quarantined/preserved runs cannot promote;
 - large healthy observations are staged in bounded chunks rather than one D1 statement per product;
 - stage scope/run identity is opaque and tenant/source bound;
-- canonical sync-run status closes only according to safe stage outcome/promotion.
+- canonical sync-run status closes only according to safe stage outcome/promotion;
+- ready-tenant schema maintenance preserves serving status on success and failure;
+- schema maintenance does not overlap active tenant catalog import/sync work.
 
 Existing scoped-sync tests must continue proving detach vs global remove behavior.
 
