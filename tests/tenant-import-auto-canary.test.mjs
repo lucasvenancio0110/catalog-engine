@@ -70,7 +70,7 @@ describe('automatic tenant import production canary', () => {
   });
 
   it('creates the isolated fixture on the current tenant schema and proves CEI persistence', () => {
-    expectScript("from '../worker/tenant-data-plane-schema-v4.js'");
+    expectScript("from '../worker/tenant-data-plane-schema-v5.js'");
     expectScript('TENANT_DATA_PLANE_SCHEMA_VERSION');
     expectScript('CATALOG_CLASSIFIER_VERSION');
     expectScript('CATALOG_CLASSIFIER_KEY');
@@ -80,6 +80,7 @@ describe('automatic tenant import production canary', () => {
     expectScript('ceiPipelineVerified: true');
     expectWorkflow('src/catalog-intelligence/**');
     expectWorkflow('worker/tenant-data-plane-schema-v4.js');
+    expectWorkflow('worker/tenant-data-plane-schema-v5.js');
     expectWorkflow('tenant-classification-runner.js');
     expectWorkflow('tenant-verification-runner.js');
   });
