@@ -1,21 +1,8 @@
+import { assertCatalogProviderScanObservation } from '../../src/catalog-provider/provider-contract.js';
 import { queryD1Batch } from '../cloudflare-platform.js';
 import { stableOpaqueId } from '../runtime-identity.js';
 import { planTenantIncrementalScan } from './incremental-plan.js';
 import { buildIncrementalScanBatch } from './incremental-persistence.js';
-
-function assertIncrementalScanObservation(scan) {
-  if (
-    !scan ||
-    typeof scan.complete !== 'boolean' ||
-    !Array.isArray(scan.items) ||
-    !Array.isArray(scan.taxonomy)
-  ) {
-    const error = new Error('tenant_sync_scan_contract_invalid');
-    error.code = 'tenant_sync_scan_contract_invalid';
-    throw error;
-  }
-  return scan;
-}
 
 function disqualifyingFailureCount(scan) {
   const value = Number(
@@ -68,7 +55,7 @@ export async function runTenantIncrementalScan(
   }
 
   const previousRows = await loadPreviousRows(context, platform, fetchImpl, queryBatch);
-  const scan = assertIncrementalScanObservation(
+  const scan = assertCatalogProviderScanObservation(
     await provider.scanListingIndex(context.privateSource.url, { fetchImpl })
   );
   const plan = planTenantIncrementalScan({
