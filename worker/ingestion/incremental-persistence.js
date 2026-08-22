@@ -2,6 +2,12 @@ function text(value) {
   return String(value ?? '').trim();
 }
 
+function nullableNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function eventProductId(event) {
   return text(event?.current?.publicProductId || event?.previous?.publicProductId);
 }
@@ -73,7 +79,7 @@ function observedIndexUpsert(item, context, needsDetail) {
       item.sourceCategoryId ? text(item.sourceCategoryId) : null,
       JSON.stringify(item.sourceCategoryPath || []),
       item.coverSourceUrl || null,
-      Number.isFinite(Number(item.imageCountHint)) ? Number(item.imageCountHint) : null,
+      nullableNumber(item.imageCountHint),
       text(item.listingFingerprint),
       needsDetail ? 1 : 0
     ]
