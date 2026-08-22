@@ -80,8 +80,13 @@ export function createCatalogProviderRegistry(
   });
 }
 
-export function assertCatalogProviderScanResult(result) {
-  if (!result || result.complete !== true || !Array.isArray(result.items) || !Array.isArray(result.taxonomy)) {
+export function assertCatalogProviderScanObservation(result) {
+  if (
+    !result ||
+    typeof result.complete !== 'boolean' ||
+    !Array.isArray(result.items) ||
+    !Array.isArray(result.taxonomy)
+  ) {
     throw new CatalogProviderError('catalog_provider_scan_contract_invalid');
   }
   for (const item of result.items) {
@@ -96,6 +101,14 @@ export function assertCatalogProviderScanResult(result) {
     }
   }
   return result;
+}
+
+export function assertCatalogProviderScanResult(result) {
+  const observation = assertCatalogProviderScanObservation(result);
+  if (observation.complete !== true) {
+    throw new CatalogProviderError('catalog_provider_scan_contract_invalid');
+  }
+  return observation;
 }
 
 export function assertCatalogProviderDetailResult(result) {

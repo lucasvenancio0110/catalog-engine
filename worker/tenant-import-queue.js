@@ -62,8 +62,7 @@ export async function incrementalTenantImportId({
   );
 }
 
-export async function buildTenantImportScanMessage({ tenantId, sourceKey = 'primary' }) {
-  const importId = await initialTenantImportId({ tenantId, sourceKey });
+export function buildTenantImportScanMessageForJob({ importId, tenantId, sourceKey = 'primary' }) {
   return tenantImportMessageSchema.parse({
     version: TENANT_IMPORT_MESSAGE_VERSION,
     type: 'scan',
@@ -71,6 +70,11 @@ export async function buildTenantImportScanMessage({ tenantId, sourceKey = 'prim
     tenantId,
     sourceKey
   });
+}
+
+export async function buildTenantImportScanMessage({ tenantId, sourceKey = 'primary' }) {
+  const importId = await initialTenantImportId({ tenantId, sourceKey });
+  return buildTenantImportScanMessageForJob({ importId, tenantId, sourceKey });
 }
 
 export function buildTenantImportDetailMessage({ importId, tenantId, sourceKey, albumSourceId }) {

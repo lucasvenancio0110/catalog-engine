@@ -5,6 +5,7 @@ const tenantIdSchema = z.string().regex(/^t_[a-f0-9]{20}$/);
 const sourceKeySchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,39}$/);
 const providerKeySchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,31}$/);
 const databaseIdSchema = z.string().regex(/^[a-f0-9-]{32,40}$/i);
+const importModeSchema = z.enum(['initial', 'incremental', 'recovery']);
 
 export class TenantImportContextError extends Error {
   constructor(code, status = 409) {
@@ -15,12 +16,22 @@ export class TenantImportContextError extends Error {
   }
 }
 
-export async function loadTenantImportContext(db, { importId, tenantId, sourceKey }) {
+function allowedImportModes(values) {
+  const input = Array.isArray(values) && values.length ? values : ['initial'];
+  return new Set(input.map((value) => importModeSchema.parse(value)));
+}
+
+export async function loadTenantImportContext(
+  db,
+  { importId, tenantId, sourceKey },
+  { allowedModes = ['initial'] } = {}
+) {
   const parsed = {
     importId: importIdSchema.parse(importId),
     tenantId: tenantIdSchema.parse(tenantId),
     sourceKey: sourceKeySchema.parse(sourceKey)
   };
+  const acceptedModes = allowedImportModes(allowedModes);
 
   const row = await db
     .prepare(
@@ -48,7 +59,10 @@ export async function loadTenantImportContext(db, { importId, tenantId, sourceKe
     .first();
 
   if (!row) throw new TenantImportContextError('tenant_import_not_found', 404);
-  if (row.mode !== 'initial') throw new TenantImportContextError('tenant_import_mode_not_supported');
+  const mode = importModeSchema.parse(row.mode);
+  if (!acceptedModes.has(mode)) {
+    throw new TenantImportContextError('tenant_import_mode_not_supported');
+  }
   if (!['pending', 'queued', 'scanning', 'details', 'finalizing', 'failed'].includes(row.import_status)) {
     throw new TenantImportContextError('tenant_import_not_runnable');
   }
@@ -61,7 +75,7 @@ export async function loadTenantImportContext(db, { importId, tenantId, sourceKe
   if (Number(row.schema_version || 0) < 3) {
     throw new TenantImportContextError('tenant_schema_not_ready');
   }
-  if (row.provisioning_step && row.provisioning_step !== 'import') {
+  if (mode === 'initial' && row.provisioning_step && row.provisioning_step !== 'import') {
     throw new TenantImportContextError('tenant_import_checkpoint_mismatch');
   }
 
@@ -76,6 +90,7 @@ export async function loadTenantImportContext(db, { importId, tenantId, sourceKe
     importId: parsed.importId,
     tenantId: parsed.tenantId,
     sourceKey: parsed.sourceKey,
+    mode,
     importStatus: row.import_status,
     phase: row.phase,
     detailEnqueueCursor: Number(row.detail_enqueue_cursor || 0),
@@ -90,7 +105,7 @@ export async function loadTenantImportContext(db, { importId, tenantId, sourceKe
       databaseId: databaseIdSchema.parse(row.d1_database_id),
       dispatchNamespace: row.dispatch_namespace
     },
-    provisioningId: row.provisioning_id || null
+    provisioningId: mode === 'initial' ? row.provisioning_id || null : null
   };
 }
 

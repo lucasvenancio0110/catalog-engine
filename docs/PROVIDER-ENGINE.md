@@ -30,7 +30,7 @@ The tenant source connection domain stores the normalized provider key and priva
 
 Owns supplier-specific import behavior:
 
-- scan a connected source and return a normalized listing index;
+- scan a connected source and return a normalized listing index/observation;
 - fetch one detail item and return normalized detail evidence;
 - derive provider-stable public category/media identities;
 - expose provider-specific public-text leak signatures;
@@ -74,9 +74,11 @@ Provider-specific helper APIs may exist under the adapter implementation, but th
 
 ## Normalized listing evidence
 
-A successful provider scan returns a complete scan record containing:
+The shared provider boundary distinguishes a **validated scan observation** from an **authoritative complete scan result**.
 
-- `complete: true`;
+A normalized scan observation contains:
+
+- `complete: boolean`;
 - `taxonomy: []` provider source-category evidence;
 - `items: []` normalized listing records.
 
@@ -89,7 +91,29 @@ Each listing item must provide at least:
 
 Current Yupoo listing evidence also includes source title, category path, cover URL and image-count hint.
 
-A provider may enrich the evidence later, but CEI/sync code must not require Yupoo DOM concepts.
+Source category remains private evidence, not the public store taxonomy.
+
+### Complete initial-import result
+
+Initial import requires an authoritative complete scan. `assertCatalogProviderScanResult()` therefore accepts only `complete: true` after validating the normalized observation.
+
+The current Yupoo launch adapter returns `complete: true` when its bounded scan finishes successfully and throws when it cannot complete the scan. Initial import must never persist a partial listing as its authoritative baseline.
+
+### Incomplete synchronization observation
+
+Recurring intelligent sync may consume a normalized `complete: false` observation through `assertCatalogProviderScanObservation()` when a provider/runtime can explicitly return bounded partial evidence.
+
+That does **not** make the observation authoritative. M7 sync safety owns the consequences:
+
+- no missing inference;
+- no removal progression;
+- no destructive source-index replacement;
+- no last-known-good cursor promotion;
+- no affected-detail publication merely to make a partial run look successful.
+
+A malformed partial observation still fails the same provider evidence validation. `complete: false` is a safety signal, not permission to accept malformed provider data.
+
+This distinction lets future providers express a partial observation without weakening the complete-scan requirement of initial import.
 
 ## Normalized detail evidence
 
@@ -123,7 +147,7 @@ Queue messages remain minimal and opaque as defined by the tenant import contrac
 
 Unknown/unsupported provider keys fail closed.
 
-Malformed provider output fails the provider evidence contract before it is persisted as a complete scan/detail result.
+Malformed provider output fails the provider evidence contract before it is persisted as a complete scan/detail result or accepted as a bounded incomplete sync observation.
 
 Safe orchestration errors may expose stable machine codes such as provider-not-supported or provider-contract-invalid. Raw upstream HTML/URLs/credentials must not become public error payloads.
 
@@ -140,7 +164,7 @@ The repository contains:
 
 The underlying Yupoo parsers remain intentionally provider-specific.
 
-Production Queue resources/bindings are still not activated by this milestone. Queue activation and two-tenant end-to-end ingestion are M5.
+Production Queue resources/bindings are active and production-proven through M5. M7 recurring synchronization reuses this provider/Queue boundary under its own safety and activation gates; adding sync behavior must not weaken the initial-import contract.
 
 ## Adding a second provider
 
