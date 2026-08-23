@@ -36,6 +36,8 @@ After a trusted-main deploy that changes the tenant fleet schema target, `.githu
 
 When the automatic tenant import canary retains a fixture, `.github/workflows/cloudflare-retained-canary-diagnostic.yml` owns read-only diagnosis for the exact opaque tenant ID on trusted `main`. It may report bounded job/provisioning/CEI state, tenant schema/counts, foreign-key findings and Queue/DLQ backlogs. It must not emit supplier URLs, raw error payloads or private metadata, and it must not enqueue, purge, retry, update or delete evidence.
 
+When the fleet-maintenance canary retains its isolated success/failure/blocked trio, `.github/workflows/cloudflare-tenant-data-plane-fleet-diagnostic.yml` owns read-only diagnosis for those exact opaque tenant IDs on trusted `main`. A trusted-main dispatch may retarget only the three validated, distinct opaque IDs; the diagnostic must preserve fixtures, report bounded migration/LKG/schema/onboarding/isolation evidence, and perform no D1, Worker, Queue or DLQ mutation.
+
 A future migration architecture may separate schema deployment further, but that is a separate controlled decision.
 
 ## Manual default snapshot publication
