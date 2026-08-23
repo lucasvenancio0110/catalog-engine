@@ -50,6 +50,8 @@ Migration jobs distinguish two lifecycles:
 
 Historical migration jobs created before this distinction retain `provisioning` as the backward-compatible default.
 
+Bounded maintenance discovery considers only tenants that do not already have a deterministic migration job for the current target schema, regardless of that job's status. Existing failed jobs remain owned by the due/retry processor and keep their recorded backoff; they must not repeatedly consume discovery slots or starve unrelated ready tenants. Within the same lifecycle priority, newly pending work is selected before failed retries that are due, so an older failure cannot monopolize every bounded processing slot.
+
 ## Provisioning lifecycle
 
 A merchant connects a supported private source before Catalog Engine allocates the isolated catalog data plane in the normal self-service flow.

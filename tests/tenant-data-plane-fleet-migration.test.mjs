@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  DATA_PLANE_MIGRATION_DUE_SQL,
+  MAINTENANCE_MIGRATION_DISCOVERY_SQL,
   normalizeMigrationKind,
   processTenantDataPlaneMigration
 } from '../worker/data-plane-migration-runner.js';
@@ -37,6 +39,70 @@ function openControlDatabase() {
   `);
   database.exec(migration0011);
   return database;
+}
+
+function openMaintenanceDiscoveryDatabase() {
+  const database = new DatabaseSync(':memory:');
+  databases.push(database);
+  database.exec('PRAGMA foreign_keys = ON');
+  database.exec(`
+    CREATE TABLE catalog_tenants (
+      tenant_id TEXT PRIMARY KEY,
+      status TEXT NOT NULL
+    );
+    CREATE TABLE tenant_catalog_instances (
+      tenant_id TEXT PRIMARY KEY,
+      status TEXT NOT NULL,
+      schema_version INTEGER NOT NULL,
+      last_migration_at TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE TABLE tenant_data_plane_provider_state (
+      tenant_id TEXT PRIMARY KEY,
+      database_status TEXT NOT NULL,
+      worker_status TEXT NOT NULL,
+      d1_database_id TEXT
+    );
+    CREATE TABLE supplier_sources (
+      tenant_id TEXT NOT NULL,
+      status TEXT NOT NULL
+    );
+    CREATE TABLE tenant_import_jobs (
+      tenant_id TEXT NOT NULL,
+      status TEXT NOT NULL
+    );
+    CREATE TABLE tenant_provisioning_runs (
+      provisioning_id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+  `);
+  database.exec(migration0011);
+  database.exec(migration0018);
+  return database;
+}
+
+function insertReadyMaintenanceTenant(database, tenantId, createdAt) {
+  database
+    .prepare("INSERT INTO catalog_tenants (tenant_id,status) VALUES (?1,'active')")
+    .run(tenantId);
+  database
+    .prepare(
+      `INSERT INTO tenant_catalog_instances
+        (tenant_id,status,schema_version,last_migration_at,created_at)
+       VALUES (?1,'ready',4,NULL,?2)`
+    )
+    .run(tenantId, createdAt);
+  database
+    .prepare(
+      `INSERT INTO tenant_data_plane_provider_state
+        (tenant_id,database_status,worker_status,d1_database_id)
+       VALUES (?1,'active','active','11111111-1111-4111-8111-111111111111')`
+    )
+    .run(tenantId);
+  database
+    .prepare("INSERT INTO supplier_sources (tenant_id,status) VALUES (?1,'active')")
+    .run(tenantId);
 }
 
 function maintenanceContext(dispatchNamespace = 'catalog-engine-production') {
@@ -183,6 +249,58 @@ describe('tenant data-plane fleet migration activation', () => {
     expect(migrationRunnerSource).toContain(
       "next_attempt_at=datetime(CURRENT_TIMESTAMP,'+10 minutes')"
     );
+  });
+
+  it('does not let older failed jobs monopolize bounded maintenance discovery', () => {
+    const database = openMaintenanceDiscoveryDatabase();
+    const failedTenant = 't_aaaaaaaaaaaaaaaaaaaa';
+    const eligibleTenant = 't_bbbbbbbbbbbbbbbbbbbb';
+    const activeImportTenant = 't_cccccccccccccccccccc';
+    insertReadyMaintenanceTenant(database, failedTenant, '2000-01-01T00:00:00Z');
+    insertReadyMaintenanceTenant(database, eligibleTenant, '2001-01-01T00:00:00Z');
+    insertReadyMaintenanceTenant(database, activeImportTenant, '2002-01-01T00:00:00Z');
+    database
+      .prepare(
+        `INSERT INTO tenant_data_plane_migration_jobs
+          (job_id,tenant_id,target_schema_version,migration_kind,status,attempt_count,created_at,updated_at)
+         VALUES ('dpmig_failed',?1,5,'maintenance','failed',1,
+                 '2000-01-01T00:00:00Z','2000-01-01T00:00:00Z')`
+      )
+      .run(failedTenant);
+    database
+      .prepare("INSERT INTO tenant_import_jobs (tenant_id,status) VALUES (?1,'scanning')")
+      .run(activeImportTenant);
+
+    const candidates = database.prepare(MAINTENANCE_MIGRATION_DISCOVERY_SQL).all(5, 2);
+
+    expect(candidates).toEqual([{ tenant_id: eligibleTenant }]);
+  });
+
+  it('gives newly pending maintenance work capacity ahead of older failed retries', () => {
+    const database = openMaintenanceDiscoveryDatabase();
+    const failedTenantA = 't_dddddddddddddddddddd';
+    const failedTenantB = 't_eeeeeeeeeeeeeeeeeeee';
+    const pendingTenant = 't_ffffffffffffffffffff';
+    for (const [tenantId, createdAt] of [
+      [failedTenantA, '2000-01-01T00:00:00Z'],
+      [failedTenantB, '2001-01-01T00:00:00Z'],
+      [pendingTenant, '2002-01-01T00:00:00Z']
+    ]) {
+      insertReadyMaintenanceTenant(database, tenantId, createdAt);
+    }
+    const insertJob = database.prepare(
+      `INSERT INTO tenant_data_plane_migration_jobs
+        (job_id,tenant_id,target_schema_version,migration_kind,status,attempt_count,
+         next_attempt_at,created_at,updated_at)
+       VALUES (?1,?2,5,'maintenance',?3,1,NULL,?4,?4)`
+    );
+    insertJob.run('dpmig_failed_a', failedTenantA, 'failed', '2000-01-01T00:00:00Z');
+    insertJob.run('dpmig_failed_b', failedTenantB, 'failed', '2001-01-01T00:00:00Z');
+    insertJob.run('dpmig_pending', pendingTenant, 'pending', '2002-01-01T00:00:00Z');
+
+    const due = database.prepare(DATA_PLANE_MIGRATION_DUE_SQL).all(6, 5, 2);
+
+    expect(due.map((job) => job.job_id)).toEqual(['dpmig_pending', 'dpmig_failed_a']);
   });
 
   it('keeps migration kind validation fail-closed', () => {
