@@ -118,10 +118,13 @@ jobs:
           set -euo pipefail
           IMPORT_AUTOMATION_VALUE="$(node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('wrangler.jsonc','utf8')); process.stdout.write(String(c.vars?.TENANT_IMPORT_AUTOMATION_ENABLED || ''));" )"
           SYNC_AUTOMATION_VALUE="$(node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('wrangler.jsonc','utf8')); process.stdout.write(String(c.vars?.TENANT_SYNC_AUTOMATION_ENABLED || ''));" )"
+          PLATFORM_API_PUBLIC_FETCH="$(node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('wrangler.jsonc','utf8')); process.stdout.write(c.compatibility_flags?.includes('global_fetch_strictly_public') ? '1' : '0');" )"
           test "$IMPORT_AUTOMATION_VALUE" = "0" -o "$IMPORT_AUTOMATION_VALUE" = "1" || { echo "Invalid tenant import automation setting"; exit 1; }
           test "$SYNC_AUTOMATION_VALUE" = "0" || { echo "TENANT_SYNC_AUTOMATION_ENABLED must remain 0 for M7C4"; exit 1; }
+          test "$PLATFORM_API_PUBLIC_FETCH" = "1" || { echo "Workers for Platforms API egress must use strict public fetch"; exit 1; }
           echo "TENANT_IMPORT_AUTOMATION_ENABLED=$IMPORT_AUTOMATION_VALUE"
           echo "TENANT_SYNC_AUTOMATION_ENABLED=$SYNC_AUTOMATION_VALUE"
+          echo "GLOBAL_FETCH_STRICTLY_PUBLIC=$PLATFORM_API_PUBLIC_FETCH"
           npx --yes "wrangler@$WRANGLER_VERSION" queues info catalog-engine-import-scan | tee /tmp/scan-queue.txt
           npx --yes "wrangler@$WRANGLER_VERSION" queues info catalog-engine-import-detail | tee /tmp/detail-queue.txt
           grep -Eq 'Producers:.*worker:catalog-engine([,[:space:]]|$)' /tmp/scan-queue.txt || { echo "Main scan producer missing"; exit 1; }
