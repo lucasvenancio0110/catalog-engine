@@ -15,7 +15,10 @@ describe('retained automatic import canary diagnosis', () => {
     expect(diagnoseStart).toBeGreaterThan(validateStart);
     const validateBlock = workflow.slice(validateStart, diagnoseStart);
     expect(validateBlock).not.toContain('secrets.CLOUDFLARE');
-    expect(workflow).toContain("if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'");
+    expect(workflow).toContain("github.ref == 'refs/heads/main'");
+    expect(workflow).toContain('ref: ${{ github.sha }}');
+    expect(workflow).toContain('inputs.tenant_id');
+    expect(workflow).toContain('t_877e74005a61fd5ce924');
   });
 
   it('is read-only across D1 and Queue APIs', () => {
@@ -27,10 +30,17 @@ describe('retained automatic import canary diagnosis', () => {
     expect(script).toContain('last_error_code');
     expect(script).toContain('supplier_album_detail_state');
     expect(script).toContain('queueBacklogs');
+    expect(script).toContain('readOnly: true');
+    expect(script).toContain('PRAGMA foreign_key_check');
+    expect(script).toContain('tenant_classification_jobs');
+    expect(script).toContain('tenant_verification_jobs');
+    expect(script).toContain('supplier_sync_stage_runs');
   });
 
   it('does not print private supplier URLs', () => {
     expect(script).not.toContain('source_url');
     expect(script).not.toContain('referer_url');
+    expect(script).not.toContain('metadata_json');
+    expect(script).not.toContain('findings_json');
   });
 });

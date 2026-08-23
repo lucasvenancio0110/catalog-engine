@@ -34,6 +34,8 @@ Rules:
 
 After a trusted-main deploy that changes the tenant fleet schema target, `.github/workflows/cloudflare-tenant-data-plane-fleet-canary.yml` owns the production maintenance proof. It uses isolated v4 fixtures and the deployed cron to verify v4→v5 success, safe failure, active-import exclusion and LKG/onboarding/isolation preservation. It does not enqueue tenant import work manually or replace catalog data.
 
+When the automatic tenant import canary retains a fixture, `.github/workflows/cloudflare-retained-canary-diagnostic.yml` owns read-only diagnosis for the exact opaque tenant ID on trusted `main`. It may report bounded job/provisioning/CEI state, tenant schema/counts, foreign-key findings and Queue/DLQ backlogs. It must not emit supplier URLs, raw error payloads or private metadata, and it must not enqueue, purge, retry, update or delete evidence.
+
 A future migration architecture may separate schema deployment further, but that is a separate controlled decision.
 
 ## Manual default snapshot publication

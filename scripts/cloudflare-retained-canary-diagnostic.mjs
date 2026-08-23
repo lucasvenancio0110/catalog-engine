@@ -104,6 +104,73 @@ function rows(result, index) {
   return result[index]?.results || [];
 }
 
+function safeOperationalCode(value) {
+  const code = String(value || '').trim();
+  return /^[a-z][a-z0-9_]{2,95}$/i.test(code) ? code : null;
+}
+
+function safeImportJob(row) {
+  return {
+    importId: String(row.import_id || ''),
+    mode: String(row.mode || ''),
+    status: String(row.status || ''),
+    phase: String(row.phase || ''),
+    attemptCount: Number(row.attempt_count || 0),
+    discoveredCount: Number(row.discovered_count || 0),
+    queuedDetailCount: Number(row.queued_detail_count || 0),
+    completedDetailCount: Number(row.completed_detail_count || 0),
+    failedDetailCount: Number(row.failed_detail_count || 0),
+    deferredDetailCount: Number(row.deferred_detail_count || 0),
+    publishedProductCount: Number(row.published_product_count || 0),
+    lastErrorCode: safeOperationalCode(row.last_error_code),
+    nextAttemptAt: row.next_attempt_at || null,
+    scanLeaseUntil: row.scan_lease_until || null,
+    createdAt: row.created_at || null,
+    startedAt: row.started_at || null,
+    finishedAt: row.finished_at || null,
+    updatedAt: row.updated_at || null
+  };
+}
+
+function safeProvisioningRun(row) {
+  return {
+    provisioningId: String(row.provisioning_id || ''),
+    status: String(row.status || ''),
+    currentStep: String(row.current_step || ''),
+    lastErrorCode: safeOperationalCode(row.last_error),
+    startedAt: row.started_at || null,
+    finishedAt: row.finished_at || null,
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null
+  };
+}
+
+function safeProvisioningStep(row) {
+  return {
+    provisioningId: String(row.provisioning_id || ''),
+    stepKey: String(row.step_key || ''),
+    status: String(row.status || ''),
+    attemptCount: Number(row.attempt_count || 0),
+    lastErrorCode: safeOperationalCode(row.last_error),
+    updatedAt: row.updated_at || null
+  };
+}
+
+function safeCeiJob(row) {
+  return {
+    status: String(row.status || ''),
+    classifierVersion: Number(row.classifier_version || 0),
+    classifierKey: row.classifier_key ? String(row.classifier_key) : null,
+    productCount: Number(row.product_count || 0),
+    findingCount: Number(row.finding_count || 0),
+    lastErrorCode: safeOperationalCode(row.last_error_code),
+    createdAt: row.created_at || null,
+    startedAt: row.started_at || null,
+    finishedAt: row.finished_at || null,
+    updatedAt: row.updated_at || null
+  };
+}
+
 async function main() {
   const control = await controlBatch([
     {
@@ -128,7 +195,7 @@ async function main() {
     },
     {
       sql: `SELECT s.provisioning_id, s.step_key, s.status, s.attempt_count,
-                   s.last_error, s.metadata_json, s.updated_at
+                   s.last_error, s.updated_at
               FROM tenant_provisioning_steps s
               JOIN tenant_provisioning_runs r ON r.provisioning_id=s.provisioning_id
              WHERE r.tenant_id=?1
@@ -157,6 +224,31 @@ async function main() {
              WHERE tenant_id=?1
              LIMIT 1`,
       params: [TENANT_ID]
+    },
+    {
+      sql: `SELECT status, classifier_version, classifier_key, product_count,
+                   last_error_code, created_at, started_at, finished_at, updated_at
+              FROM tenant_classification_jobs
+             WHERE tenant_id=?1
+             ORDER BY created_at DESC
+             LIMIT 5`,
+      params: [TENANT_ID]
+    },
+    {
+      sql: `SELECT status, classifier_version, product_count, finding_count,
+                   last_error_code, created_at, started_at, finished_at, updated_at
+              FROM tenant_verification_jobs
+             WHERE tenant_id=?1
+             ORDER BY created_at DESC
+             LIMIT 5`,
+      params: [TENANT_ID]
+    },
+    {
+      sql: `SELECT mode, status, phase, COUNT(*) AS total
+              FROM tenant_import_jobs
+             GROUP BY mode, status, phase
+             ORDER BY mode, status, phase`,
+      params: []
     }
   ]);
 
@@ -190,25 +282,51 @@ async function main() {
         params: [TENANT_ID]
       },
       { sql: 'SELECT COUNT(*) AS total FROM catalog_products', params: [] },
-      { sql: 'SELECT COUNT(*) AS total FROM media_sources', params: [] }
+      { sql: 'SELECT COUNT(*) AS total FROM media_sources', params: [] },
+      {
+        sql: `SELECT tenant_id, schema_version
+                FROM data_plane_identity
+               WHERE tenant_id=?1
+               LIMIT 1`,
+        params: [TENANT_ID]
+      },
+      { sql: 'PRAGMA foreign_key_check', params: [] },
+      { sql: 'SELECT COUNT(*) AS total FROM catalog_product_classification_state', params: [] },
+      { sql: 'SELECT COUNT(*) AS total FROM catalog_product_intelligence_state', params: [] },
+      { sql: 'SELECT COUNT(*) AS total FROM supplier_sync_stage_runs', params: [] }
     ]);
     tenantState = {
-      detailStates: rows(tenant, 0),
-      albumRetryErrors: rows(tenant, 1),
+      detailStates: rows(tenant, 0).map((row) => ({
+        state: String(row.state || ''),
+        outcomeCode: safeOperationalCode(row.outcome_code),
+        lastErrorCode: safeOperationalCode(row.last_error_code),
+        total: Number(row.total || 0)
+      })),
+      albumRetryErrors: rows(tenant, 1).map((row) => ({
+        detailLastErrorCode: safeOperationalCode(row.detail_last_error),
+        total: Number(row.total || 0),
+        maxRetryCount: Number(row.max_retry_count || 0)
+      })),
       indexedAlbums: Number(rows(tenant, 2)[0]?.total || 0),
       catalogProducts: Number(rows(tenant, 3)[0]?.total || 0),
-      mediaSources: Number(rows(tenant, 4)[0]?.total || 0)
+      mediaSources: Number(rows(tenant, 4)[0]?.total || 0),
+      identity: rows(tenant, 5)[0] || null,
+      foreignKeyFindings: rows(tenant, 6).length,
+      classificationStates: Number(rows(tenant, 7)[0]?.total || 0),
+      intelligenceStates: Number(rows(tenant, 8)[0]?.total || 0),
+      stagedSyncRuns: Number(rows(tenant, 9)[0]?.total || 0)
     };
   }
 
   console.log(
     JSON.stringify(
       {
+        readOnly: true,
         retainedCanaryDiagnostic: true,
         tenantId: TENANT_ID,
-        importJobs: rows(control, 0),
-        provisioningRuns: rows(control, 1),
-        provisioningSteps: rows(control, 2),
+        importJobs: rows(control, 0).map(safeImportJob),
+        provisioningRuns: rows(control, 1).map(safeProvisioningRun),
+        provisioningSteps: rows(control, 2).map(safeProvisioningStep),
         dataPlane: provider
           ? {
               provider: provider.provider,
@@ -219,8 +337,24 @@ async function main() {
               updatedAt: provider.updated_at
             }
           : null,
-        sources: rows(control, 4),
+        sources: rows(control, 4).map((row) => ({
+          sourceKey: String(row.source_key || ''),
+          provider: String(row.provider || ''),
+          status: String(row.status || ''),
+          syncStrategy: String(row.sync_strategy || ''),
+          lastSuccessAt: row.last_success_at || null,
+          lastErrorCode: safeOperationalCode(row.last_error),
+          updatedAt: row.updated_at || null
+        })),
         catalogInstance: rows(control, 5)[0] || null,
+        classificationJobs: rows(control, 6).map(safeCeiJob),
+        verificationJobs: rows(control, 7).map(safeCeiJob),
+        importJobAggregate: rows(control, 8).map((row) => ({
+          mode: String(row.mode || ''),
+          status: String(row.status || ''),
+          phase: String(row.phase || ''),
+          total: Number(row.total || 0)
+        })),
         tenantState,
         queueBacklogs: await queueBacklogs()
       },
