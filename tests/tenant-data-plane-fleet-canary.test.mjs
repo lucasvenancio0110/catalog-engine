@@ -186,4 +186,11 @@ describe('tenant data-plane fleet maintenance production canary', () => {
     expect(script).toContain('fleet_canary_requires_recurring_sync_off');
     expect(deployWorkflow).toContain('TENANT_SYNC_AUTOMATION_ENABLED');
   });
+
+  it('requires trusted deploy to bind the infrastructure-only fleet migration runtime', () => {
+    expect(deployWorkflow).toContain('--secrets-file "$RUNTIME_SECRETS"');
+    expect(deployWorkflow).toContain('Verify main Worker infrastructure secret bindings');
+    expect(deployWorkflow).toContain('.name == "CLOUDFLARE_PLATFORM_ACCOUNT_ID"');
+    expect(deployWorkflow).toContain('.name == "CLOUDFLARE_PLATFORM_API_TOKEN"');
+  });
 });

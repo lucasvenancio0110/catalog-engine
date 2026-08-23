@@ -34,6 +34,8 @@ describe('main tenant import producer activation boundary', () => {
     expect(deploy).not.toMatch(/^\s*pull_request\s*:/m);
     expect(deploy).toContain('statuses: write');
     expect(deploy).toContain('catalog-engine/application-deploy');
-    expect(deploy).toContain('Queue producers verified and recurring sync remains off');
+    expect(deploy).toContain(
+      'App deployed + smoke passed; infrastructure bindings and sync-off boundary verified'
+    );
   });
 });
