@@ -10,6 +10,8 @@ on:
       - 'tests/tenant-data-plane-fleet-canary.test.mjs'
       - 'worker/cloudflare-platform.js'
       - 'worker/data-plane-migration-runner.js'
+      - 'worker/ingestion/tenant-data-plane.js'
+      - 'worker/tenant-data-plane-command.js'
       - 'worker/tenant-data-plane-schema-v4.js'
       - 'worker/tenant-data-plane-schema-v5.js'
       - 'migrations/0018_tenant_data_plane_fleet_migrations.sql'

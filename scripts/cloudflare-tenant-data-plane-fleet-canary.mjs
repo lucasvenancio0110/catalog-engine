@@ -100,7 +100,8 @@ export function fixtureIdentity(kind, seedOverride = '') {
     sourceUrl: 'https://fleet-canary.invalid/catalog',
     databaseId: null,
     workerCreated: false,
-    controlCreated: false
+    controlCreated: false,
+    initialWorkerVersion: null
   };
 }
 
@@ -378,7 +379,7 @@ async function controlState(fixture) {
     {
       sql: `SELECT i.status AS catalog_status, i.schema_version, i.last_migration_at,
                    i.last_error,
-                   p.setup_status, d.worker_status, d.database_status
+                   p.setup_status, d.worker_status, d.database_status, d.worker_version
               FROM tenant_catalog_instances i
               JOIN tenant_store_profiles p ON p.tenant_id=i.tenant_id
               JOIN tenant_data_plane_provider_state d ON d.tenant_id=i.tenant_id
@@ -550,6 +551,8 @@ async function verifyFixture(fixture) {
       Number(control.catalog.schema_version) !== CURRENT_SCHEMA_VERSION ||
       control.catalog.last_migration_at === HISTORICAL_TIMESTAMP ||
       control.catalog.last_error !== null ||
+      !fixture.initialWorkerVersion ||
+      control.catalog.worker_version === fixture.initialWorkerVersion ||
       control.imports.length !== 0
     ) {
       throw new Error('fleet_canary_success_state_invalid');
@@ -566,6 +569,7 @@ async function verifyFixture(fixture) {
       Number(control.catalog.schema_version) !== PREVIOUS_SCHEMA_VERSION ||
       control.catalog.last_migration_at !== HISTORICAL_TIMESTAMP ||
       control.catalog.last_error !== EXPECTED_FAILURE_CODE ||
+      control.catalog.worker_version !== fixture.initialWorkerVersion ||
       control.imports.length !== 0
     ) {
       throw new Error('fleet_canary_failure_state_invalid');
@@ -578,6 +582,7 @@ async function verifyFixture(fixture) {
       Number(control.catalog.schema_version) !== PREVIOUS_SCHEMA_VERSION ||
       control.catalog.last_migration_at !== HISTORICAL_TIMESTAMP ||
       control.catalog.last_error !== null ||
+      control.catalog.worker_version !== fixture.initialWorkerVersion ||
       control.imports.length !== 1 ||
       activeImport.mode !== 'incremental' ||
       activeImport.status !== 'scanning' ||
@@ -600,6 +605,7 @@ async function verifyFixture(fixture) {
     lkgPreserved: true,
     merchantOverridePreserved: true,
     historicalOnboardingPreserved: true,
+    runtimeCapabilityRefreshed: fixture.kind === 'success',
     stageTableCount: dataPlane.stageTableCount,
     foreignKeyFindings: dataPlane.foreignKeyFindings
   };
@@ -687,13 +693,17 @@ async function main() {
         })
       );
       await tenantBatch(fixture, initialDataPlaneSeed(fixture));
-      const worker = await uploadTenantCatalogWorker({
-        ...platformConfig(),
-        scriptName: fixture.workerScriptName,
-        databaseId: fixture.databaseId,
-        tenantId: fixture.tenantId
-      });
+      const worker = await uploadTenantCatalogWorker(
+        {
+          ...platformConfig(),
+          scriptName: fixture.workerScriptName,
+          databaseId: fixture.databaseId,
+          tenantId: fixture.tenantId
+        },
+        { includeSchemaMigration: false }
+      );
       fixture.workerCreated = true;
+      fixture.initialWorkerVersion = worker.versionId;
       await controlBatch(controlPlaneSeed(fixture, worker.versionId));
       fixture.controlCreated = true;
     }

@@ -1,5 +1,12 @@
-import { CloudflarePlatformError, queryD1Batch } from './cloudflare-platform.js';
-import { TenantDataPlaneClientError } from './ingestion/tenant-data-plane.js';
+import {
+  CloudflarePlatformError,
+  queryD1Batch,
+  uploadTenantCatalogWorker
+} from './cloudflare-platform.js';
+import {
+  migrateTenantDataPlaneSchema,
+  TenantDataPlaneClientError
+} from './ingestion/tenant-data-plane.js';
 import { stableOpaqueId } from './runtime-identity.js';
 import {
   TENANT_DATA_PLANE_SCHEMA_VERSION,
@@ -146,7 +153,7 @@ async function discoverMaintenanceMigrationCandidates(db, targetVersion, limit) 
 async function migrationContext(db, tenantId) {
   return db
     .prepare(
-      `SELECT p.d1_database_id, p.dispatch_namespace,
+      `SELECT p.d1_database_id, p.dispatch_namespace, p.worker_script_name,
               i.status AS catalog_status, i.schema_version AS current_schema_version,
               s.source_key, s.provider AS source_provider, s.source_url,
               s.sync_strategy, s.removal_miss_threshold,
@@ -222,7 +229,7 @@ async function claimMigration(db, job) {
   return true;
 }
 
-async function finishMigration(db, job, version) {
+async function finishMigration(db, job, version, workerVersion = null) {
   const kind = normalizeMigrationKind(job.migration_kind);
   const nextStep = kind === 'provisioning' ? migrationResumeStep(job.resume_step) : null;
   const catalogStatement =
@@ -255,6 +262,18 @@ async function finishMigration(db, job, version) {
       .bind(job.job_id),
     catalogStatement
   ];
+  if (kind === 'maintenance' && workerVersion) {
+    statements.push(
+      db
+        .prepare(
+          `UPDATE tenant_data_plane_provider_state
+              SET worker_version=?2, last_checked_at=CURRENT_TIMESTAMP,
+                  updated_at=CURRENT_TIMESTAMP
+            WHERE tenant_id=?1`
+        )
+        .bind(job.tenant_id, workerVersion)
+    );
+  }
   if (kind === 'provisioning' && job.provisioning_id) {
     statements.push(
       db
@@ -361,7 +380,9 @@ function retryableMigrationTransport(phase, error) {
       (['tenant_data_plane_dispatch_failed', 'tenant_data_plane_dispatch_unavailable'].includes(
         error.code
       ) ||
-        (['inspect', 'verify'].includes(phase) && error.code === 'tenant_data_plane_query_failed')))
+        (['inspect', 'verify'].includes(phase) &&
+          error.code === 'tenant_data_plane_query_failed') ||
+        (phase === 'apply' && error.code === 'tenant_data_plane_migration_failed')))
   );
 }
 
@@ -511,20 +532,55 @@ export async function processTenantDataPlaneMigration(
       currentVersion,
       targetVersion
     });
-    for (const batch of migrationBatches) {
-      await runMigrationTransportPhase(
-        'apply',
+    let preparedWorkerVersion = null;
+    if (migrationKind === 'maintenance' && currentVersion < targetVersion) {
+      if (!context.worker_script_name) {
+        throw new CloudflarePlatformError('tenant_worker_script_unavailable', 500);
+      }
+      const upload = await runMigrationTransportPhase(
+        'prepare',
         () =>
-          queryD1Batch(
+          uploadTenantCatalogWorker(
             {
               ...config,
+              scriptName: context.worker_script_name,
               databaseId: context.d1_database_id,
-              batch
+              tenantId: job.tenant_id
             },
             { fetchImpl }
           ),
         { sleepImpl, randomImpl }
       );
+      preparedWorkerVersion = upload.versionId || null;
+      await runMigrationTransportPhase(
+        'apply',
+        () =>
+          migrateTenantDataPlaneSchema(
+            {
+              tenantId: job.tenant_id,
+              dataPlane: { workerScriptName: context.worker_script_name }
+            },
+            { TENANT_DISPATCH: env.TENANT_DISPATCH },
+            targetVersion
+          ),
+        { sleepImpl, randomImpl }
+      );
+    } else {
+      for (const batch of migrationBatches) {
+        await runMigrationTransportPhase(
+          'apply',
+          () =>
+            queryD1Batch(
+              {
+                ...config,
+                databaseId: context.d1_database_id,
+                batch
+              },
+              { fetchImpl }
+            ),
+          { sleepImpl, randomImpl }
+        );
+      }
     }
     const verification = await runMigrationTransportPhase(
       'verify',
@@ -553,7 +609,12 @@ export async function processTenantDataPlaneMigration(
       throw new CloudflarePlatformError('tenant_d1_migration_verification_failed', 502);
     }
 
-    const resumedAt = await finishMigration(db, enrichedJob, job.target_schema_version);
+    const resumedAt = await finishMigration(
+      db,
+      enrichedJob,
+      job.target_schema_version,
+      preparedWorkerVersion
+    );
     return {
       outcome: 'success',
       jobId: job.job_id,

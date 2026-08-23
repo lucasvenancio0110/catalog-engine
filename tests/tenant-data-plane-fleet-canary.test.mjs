@@ -121,6 +121,8 @@ describe('tenant data-plane fleet maintenance production canary', () => {
     expect(workflow).toContain("github.event.workflow_run.head_branch == 'main'");
     expect(workflow).toContain('github.event.workflow_run.head_sha');
     expect(workflow).toContain("github.ref == 'refs/heads/main'");
+    expect(workflow).toContain("'worker/ingestion/tenant-data-plane.js'");
+    expect(workflow).toContain("'worker/tenant-data-plane-command.js'");
     expect(workflow).toMatch(/^  push:/m);
     expect(workflow).toContain(
       "github.event_name == 'workflow_dispatch' || github.event_name == 'push'"
@@ -163,6 +165,8 @@ describe('tenant data-plane fleet maintenance production canary', () => {
     expect(script).toContain("{ sql: 'PRAGMA foreign_key_check', params: [] }");
     expect(script).toContain("PRAGMA table_info('tenant_data_plane_migration_jobs')");
     expect(script).toContain('fleet_canary_control_schema_not_ready');
+    expect(script).toContain('{ includeSchemaMigration: false }');
+    expect(script).toContain("runtimeCapabilityRefreshed: fixture.kind === 'success'");
   });
 
   it('proves success, controlled failure, active-import exclusion and durable LKG/override preservation', () => {
