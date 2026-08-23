@@ -20,10 +20,30 @@ const STAGE_TABLES = [
 ];
 
 export const RETAINED_FLEET_FIXTURES = [
-  { kind: 'success', tenantId: 't_3af98441194ad6d97174' },
-  { kind: 'failure', tenantId: 't_7df63e951071d2d9938f' },
-  { kind: 'blocked', tenantId: 't_d61b367d81eeebf04a7c' }
+  { kind: 'success', tenantId: 't_93be5754bb23227af42b' },
+  { kind: 'failure', tenantId: 't_9aaf308125a28ad5aa91' },
+  { kind: 'blocked', tenantId: 't_3fb95ab5ee09702f5a05' }
 ];
+
+const FIXTURE_ENV_BY_KIND = {
+  success: 'RETAINED_FLEET_SUCCESS_TENANT_ID',
+  failure: 'RETAINED_FLEET_FAILURE_TENANT_ID',
+  blocked: 'RETAINED_FLEET_BLOCKED_TENANT_ID'
+};
+
+export function resolveRetainedFleetFixtures(env = process.env) {
+  const fixtures = RETAINED_FLEET_FIXTURES.map((fixture) => ({
+    ...fixture,
+    tenantId: String(env[FIXTURE_ENV_BY_KIND[fixture.kind]] || fixture.tenantId).trim()
+  }));
+  if (fixtures.some((fixture) => !/^t_[a-f0-9]{20}$/i.test(fixture.tenantId))) {
+    throw new Error('fleet_diagnostic_tenant_id_invalid');
+  }
+  if (new Set(fixtures.map((fixture) => fixture.tenantId)).size !== fixtures.length) {
+    throw new Error('fleet_diagnostic_tenant_ids_not_unique');
+  }
+  return fixtures;
+}
 
 const wrangler = JSON.parse(await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8'));
 const CONTROL_DB_ID = String(
@@ -208,12 +228,14 @@ function historicalOnboardingPreserved(control) {
   );
 }
 
-function lkgPreserved(fixture, tenant) {
+function lkgPreserved(fixture, tenant, schemaVersion) {
+  const expectedLedger = schemaVersion === 5 ? '1,2,3,4,5' : '1,2,3,4';
+  const expectedStageTableCount = schemaVersion === 5 ? STAGE_TABLES.length : 0;
   return Boolean(
     tenant.identity?.tenant_id === fixture.tenantId &&
-    Number(tenant.identity?.schema_version) === 4 &&
-    tenant.ledger === '1,2,3,4' &&
-    tenant.stageTableCount === 0 &&
+    Number(tenant.identity?.schema_version) === schemaVersion &&
+    tenant.ledger === expectedLedger &&
+    tenant.stageTableCount === expectedStageTableCount &&
     tenant.foreignKeyFindings === 0 &&
     tenant.mediaCount === 1 &&
     tenant.lkg?.name === 'Verified LKG Product' &&
@@ -264,12 +286,13 @@ async function inspectFixture(fixture) {
   const activeImport = control.imports.some((entry) =>
     ['pending', 'queued', 'scanning', 'details', 'finalizing'].includes(entry.status)
   );
+  const schemaVersion = Number(control.catalog?.schema_version || 0);
   return {
     kind: fixture.kind,
     tenantId: fixture.tenantId,
     catalogStatus: control.catalog?.catalog_status || null,
     storeStatus: control.catalog?.setup_status || null,
-    schemaVersion: Number(control.catalog?.schema_version || 0),
+    schemaVersion,
     safeErrorCode: control.catalog?.last_error || null,
     dispatchNamespaceMatches: control.catalog?.dispatch_namespace === DISPATCH_NAMESPACE,
     workerStatus: control.catalog?.worker_status || null,
@@ -278,7 +301,7 @@ async function inspectFixture(fixture) {
     migrationJobs: control.migrationJobs,
     activeImportPreserved: fixture.kind === 'blocked' ? activeImport : !activeImport,
     historicalOnboardingPreserved: historicalOnboardingPreserved(control),
-    lkgPreserved: lkgPreserved(fixture, tenant),
+    lkgPreserved: lkgPreserved(fixture, tenant, schemaVersion),
     merchantOverridePreserved: Boolean(tenant.lkg?.override_json),
     tenantSchemaLedger: tenant.ledger,
     stageTableCount: tenant.stageTableCount,
@@ -288,8 +311,9 @@ async function inspectFixture(fixture) {
 
 async function main() {
   validateRuntime();
+  const retainedFixtures = resolveRetainedFleetFixtures();
   const fixtures = [];
-  for (const fixture of RETAINED_FLEET_FIXTURES) fixtures.push(await inspectFixture(fixture));
+  for (const fixture of retainedFixtures) fixtures.push(await inspectFixture(fixture));
 
   const aggregate = await controlBatch([
     {

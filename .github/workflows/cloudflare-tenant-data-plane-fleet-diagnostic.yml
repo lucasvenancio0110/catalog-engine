@@ -18,6 +18,19 @@ on:
       - 'tests/tenant-data-plane-fleet-diagnostic.test.mjs'
       - 'tests/worker-platform-bindings.test.mjs'
   workflow_dispatch:
+    inputs:
+      success_tenant_id:
+        description: 'Exact opaque retained success-fixture tenant ID'
+        required: false
+        default: 't_93be5754bb23227af42b'
+      failure_tenant_id:
+        description: 'Exact opaque retained failure-fixture tenant ID'
+        required: false
+        default: 't_9aaf308125a28ad5aa91'
+      blocked_tenant_id:
+        description: 'Exact opaque retained blocked-fixture tenant ID'
+        required: false
+        default: 't_3fb95ab5ee09702f5a05'
 
 permissions:
   contents: read
@@ -55,6 +68,9 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE: catalog-engine-production
+      RETAINED_FLEET_SUCCESS_TENANT_ID: ${{ inputs.success_tenant_id || 't_93be5754bb23227af42b' }}
+      RETAINED_FLEET_FAILURE_TENANT_ID: ${{ inputs.failure_tenant_id || 't_9aaf308125a28ad5aa91' }}
+      RETAINED_FLEET_BLOCKED_TENANT_ID: ${{ inputs.blocked_tenant_id || 't_3fb95ab5ee09702f5a05' }}
       STATUS_CONTEXT: catalog-engine/tenant-data-plane-fleet-diagnostic
 
     steps:

@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   classifyFleetDiagnostic,
-  RETAINED_FLEET_FIXTURES
+  RETAINED_FLEET_FIXTURES,
+  resolveRetainedFleetFixtures
 } from '../scripts/cloudflare-tenant-data-plane-fleet-diagnostic.mjs';
 
 const workflow = fs.readFileSync(
@@ -23,12 +24,36 @@ function preservedFixture(kind) {
 }
 
 describe('retained tenant fleet canary diagnosis', () => {
-  it('targets exactly the three opaque fixtures retained by the failed trusted-main canary', () => {
+  it('defaults to exactly the three opaque fixtures retained by the latest failed trusted-main canary', () => {
     expect(RETAINED_FLEET_FIXTURES).toEqual([
-      { kind: 'success', tenantId: 't_3af98441194ad6d97174' },
-      { kind: 'failure', tenantId: 't_7df63e951071d2d9938f' },
-      { kind: 'blocked', tenantId: 't_d61b367d81eeebf04a7c' }
+      { kind: 'success', tenantId: 't_93be5754bb23227af42b' },
+      { kind: 'failure', tenantId: 't_9aaf308125a28ad5aa91' },
+      { kind: 'blocked', tenantId: 't_3fb95ab5ee09702f5a05' }
     ]);
+  });
+
+  it('accepts only three distinct opaque workflow-dispatch tenant IDs', () => {
+    expect(
+      resolveRetainedFleetFixtures({
+        RETAINED_FLEET_SUCCESS_TENANT_ID: 't_11111111111111111111',
+        RETAINED_FLEET_FAILURE_TENANT_ID: 't_22222222222222222222',
+        RETAINED_FLEET_BLOCKED_TENANT_ID: 't_33333333333333333333'
+      })
+    ).toEqual([
+      { kind: 'success', tenantId: 't_11111111111111111111' },
+      { kind: 'failure', tenantId: 't_22222222222222222222' },
+      { kind: 'blocked', tenantId: 't_33333333333333333333' }
+    ]);
+    expect(() =>
+      resolveRetainedFleetFixtures({ RETAINED_FLEET_SUCCESS_TENANT_ID: 'not-opaque' })
+    ).toThrow('fleet_diagnostic_tenant_id_invalid');
+    expect(() =>
+      resolveRetainedFleetFixtures({
+        RETAINED_FLEET_SUCCESS_TENANT_ID: 't_33333333333333333333',
+        RETAINED_FLEET_FAILURE_TENANT_ID: 't_33333333333333333333',
+        RETAINED_FLEET_BLOCKED_TENANT_ID: 't_44444444444444444444'
+      })
+    ).toThrow('fleet_diagnostic_tenant_ids_not_unique');
   });
 
   it('classifies absent Worker platform secrets plus untouched v4 evidence as runtime unconfigured', () => {
@@ -48,6 +73,12 @@ describe('retained tenant fleet canary diagnosis', () => {
   });
 
   it('is a trusted-main read-only workflow and cannot create jobs, enqueue or purge', () => {
+    expect(workflow).toContain("default: 't_93be5754bb23227af42b'");
+    expect(workflow).toContain("default: 't_9aaf308125a28ad5aa91'");
+    expect(workflow).toContain("default: 't_3fb95ab5ee09702f5a05'");
+    expect(workflow).toContain(
+      "github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'"
+    );
     expect(workflow).toContain('ref: ${{ github.sha }}');
     expect(workflow).toContain('/workers/scripts/catalog-engine/settings');
     expect(workflow).toContain('verify-worker-platform-bindings.mjs');
@@ -63,7 +94,8 @@ describe('retained tenant fleet canary diagnosis', () => {
   });
 
   it('checks v4 identity, schema ledger, LKG, override, onboarding and foreign keys', () => {
-    expect(script).toContain("tenant.ledger === '1,2,3,4'");
+    expect(script).toContain("schemaVersion === 5 ? '1,2,3,4,5' : '1,2,3,4'");
+    expect(script).toContain('schemaVersion === 5 ? STAGE_TABLES.length : 0');
     expect(script).toContain("tenant.lkg?.name === 'Verified LKG Product'");
     expect(script).toContain('tenant.lkg?.override_json');
     expect(script).toContain("control.provisioning?.status === 'success'");
