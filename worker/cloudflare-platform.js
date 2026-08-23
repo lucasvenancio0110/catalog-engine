@@ -78,7 +78,8 @@ async function apiRequest(
   } = {}
 ) {
   const url = new URL(path, API_ORIGIN);
-  if (url.origin !== API_ORIGIN) throw new CloudflarePlatformError('cloudflare_platform_invalid_request', 500);
+  if (url.origin !== API_ORIGIN)
+    throw new CloudflarePlatformError('cloudflare_platform_invalid_request', 500);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   let response;
@@ -95,9 +96,13 @@ async function apiRequest(
       ...(jsonBody ? { body: JSON.stringify(jsonBody) } : {}),
       ...(formBody ? { body: formBody } : {})
     });
-  } catch {
+  } catch (error) {
+    const timedOut = controller.signal.aborted || error?.name === 'AbortError';
     clearTimeout(timer);
-    throw new CloudflarePlatformError('cloudflare_platform_unreachable', 503);
+    throw new CloudflarePlatformError(
+      timedOut ? 'cloudflare_platform_timeout' : 'cloudflare_platform_unreachable',
+      503
+    );
   }
   clearTimeout(timer);
 
@@ -112,7 +117,8 @@ async function apiRequest(
   if (!response.ok || payload?.success !== true) {
     const providerCode = payload?.errors?.[0]?.code;
     const safeCode = Number.isFinite(Number(providerCode)) ? String(providerCode) : 'unknown';
-    const status = response.status === 429 ? 503 : response.status >= 400 && response.status < 500 ? 422 : 502;
+    const status =
+      response.status === 429 ? 503 : response.status >= 400 && response.status < 500 ? 422 : 502;
     throw new CloudflarePlatformError(`cloudflare_platform_${safeCode}`, status);
   }
   return payload.result ?? null;
@@ -287,7 +293,11 @@ async function uploadTenantWorker(
   };
   const form = new FormData();
   form.set('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-  form.set('worker.js', new Blob([workerSource], { type: 'application/javascript+module' }), 'worker.js');
+  form.set(
+    'worker.js',
+    new Blob([workerSource], { type: 'application/javascript+module' }),
+    'worker.js'
+  );
 
   const result = await apiRequest(
     `/client/v4/accounts/${config.accountId}/workers/dispatch/namespaces/${encodeURIComponent(config.dispatchNamespace)}/scripts/${encodeURIComponent(script)}`,

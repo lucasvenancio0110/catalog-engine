@@ -1,5 +1,9 @@
+import { tenantDataPlaneV1Batch } from './tenant-data-plane-schema.js';
+import { TENANT_DATA_PLANE_V2_STATEMENTS } from './tenant-data-plane-schema-v2.js';
+import { TENANT_DATA_PLANE_V3_STATEMENTS } from './tenant-data-plane-schema-v3.js';
 import {
   TENANT_DATA_PLANE_CURRENT_STATEMENTS as V4_STATEMENTS,
+  TENANT_DATA_PLANE_V4_STATEMENTS,
   tenantDataPlaneCurrentBatch as tenantDataPlaneV4Batch
 } from './tenant-data-plane-schema-v4.js';
 
@@ -104,6 +108,67 @@ export const TENANT_DATA_PLANE_CURRENT_STATEMENTS = [
   ...V4_STATEMENTS,
   ...TENANT_DATA_PLANE_V5_STATEMENTS
 ];
+
+const VERSIONED_SCHEMA_STATEMENTS = new Map([
+  [2, TENANT_DATA_PLANE_V2_STATEMENTS],
+  [3, TENANT_DATA_PLANE_V3_STATEMENTS],
+  [4, TENANT_DATA_PLANE_V4_STATEMENTS],
+  [5, TENANT_DATA_PLANE_V5_STATEMENTS]
+]);
+
+function schemaVersionCompletionBatch(tenantId, version) {
+  return [
+    {
+      sql: `UPDATE data_plane_identity
+               SET schema_version=?2, updated_at=CURRENT_TIMESTAMP
+             WHERE tenant_id=?1`,
+      params: [tenantId, version]
+    },
+    {
+      sql: `INSERT OR IGNORE INTO data_plane_schema_migrations (version, applied_at)
+            VALUES (?1, CURRENT_TIMESTAMP)`,
+      params: [version]
+    }
+  ];
+}
+
+export function tenantDataPlaneMigrationBatches({
+  tenantId,
+  source,
+  currentVersion = 0,
+  targetVersion = TENANT_DATA_PLANE_SCHEMA_VERSION
+}) {
+  const from = Number(currentVersion);
+  const target = Number(targetVersion);
+  if (
+    !Number.isInteger(from) ||
+    !Number.isInteger(target) ||
+    from < 0 ||
+    target < 1 ||
+    target > TENANT_DATA_PLANE_SCHEMA_VERSION ||
+    from > target
+  ) {
+    throw new Error('tenant_data_plane_migration_range_invalid');
+  }
+  if (from === target) return [];
+
+  const batches = [];
+  let nextVersion = from + 1;
+  if (from === 0) {
+    batches.push(tenantDataPlaneV1Batch({ tenantId, source }));
+    nextVersion = 2;
+  }
+
+  for (let version = nextVersion; version <= target; version += 1) {
+    const statements = VERSIONED_SCHEMA_STATEMENTS.get(version);
+    if (!statements) throw new Error('tenant_data_plane_migration_range_invalid');
+    batches.push([
+      ...statements.map((sql) => ({ sql, params: [] })),
+      ...schemaVersionCompletionBatch(tenantId, version)
+    ]);
+  }
+  return batches;
+}
 
 export function tenantDataPlaneCurrentBatch({ tenantId, source }) {
   const batch = tenantDataPlaneV4Batch({ tenantId, source });

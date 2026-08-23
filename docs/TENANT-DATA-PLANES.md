@@ -75,7 +75,7 @@ Provisioning is idempotent. Retrying the same intended tenant must not create du
 
 Tenant schema migration is version-ledgered and idempotent.
 
-The migration runner installs the current tenant data-plane schema through bounded D1 batch queries and verifies the tenant identity/source boundary before advancing onboarding or closing a maintenance upgrade.
+The migration runner installs the current tenant data-plane schema through bounded D1 batch queries and verifies the tenant identity/source boundary before advancing onboarding or closing a maintenance upgrade. It plans from the recorded current version: fresh provisioning applies one transactional batch per schema version, while an existing v4 tenant receives only the idempotent v5 delta instead of replaying the cumulative v1-v5 schema in one remote request.
 
 The schema line is additive:
 
@@ -220,7 +220,9 @@ Schema generation is idempotent through constructs such as:
 - conflict-safe upserts;
 - migration-ledger inserts.
 
-A Worker interruption can therefore safely retry the same intended migration.
+Each version batch records its identity version and ledger row in the same D1 transaction as that version's additive statements. Before maintenance, the runner reads the isolated D1 identity and requires a contiguous migration ledger; it fails closed if D1 is behind the control-plane claim. A later-version failure can therefore leave only an earlier complete schema version, never a half-committed version batch. The control plane remains on the previous version until final identity/source verification succeeds. If D1 is safely ahead because that final control-plane write was interrupted, the next attempt verifies and reconciles it without replaying completed schema DDL.
+
+Transport aborts are persisted as the bounded code `cloudflare_platform_timeout`, separately from `cloudflare_platform_unreachable`; neither code exposes provider response text or credentials.
 
 ## Existing tenants and maintenance upgrades
 

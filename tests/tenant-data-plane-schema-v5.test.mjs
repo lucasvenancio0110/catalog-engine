@@ -5,7 +5,8 @@ import {
   TENANT_DATA_PLANE_SCHEMA_VERSION,
   TENANT_DATA_PLANE_V5_STATEMENTS,
   TENANT_SYNC_STAGE_CONTRACT_VERSION,
-  tenantDataPlaneCurrentBatch
+  tenantDataPlaneCurrentBatch,
+  tenantDataPlaneMigrationBatches
 } from '../worker/tenant-data-plane-schema-v5.js';
 
 const databases = [];
@@ -41,7 +42,9 @@ describe('tenant data-plane schema v5 staged sync state', () => {
     }
 
     const batch = tenantDataPlaneCurrentBatch({ tenantId, source: source() });
-    const identityUpdates = batch.filter((query) => query.sql.includes('UPDATE data_plane_identity'));
+    const identityUpdates = batch.filter((query) =>
+      query.sql.includes('UPDATE data_plane_identity')
+    );
     const ledgers = batch.filter((query) =>
       query.sql.includes('INSERT OR IGNORE INTO data_plane_schema_migrations')
     );
@@ -83,5 +86,55 @@ describe('tenant data-plane schema v5 staged sync state', () => {
 
   it('does not embed the private source URL into static v5 schema SQL', () => {
     expect(TENANT_DATA_PLANE_V5_STATEMENTS.join('\n')).not.toContain(sourceUrl);
+  });
+
+  it('plans fresh provisioning as one bounded transactional batch per schema version', () => {
+    const batches = tenantDataPlaneMigrationBatches({
+      tenantId,
+      source: source(),
+      currentVersion: 0,
+      targetVersion: 5
+    });
+
+    expect(batches).toHaveLength(5);
+    expect(batches.every((batch) => batch.length > 0 && batch.length < 100)).toBe(true);
+    expect(
+      batches.map((batch) =>
+        Number(
+          batch
+            .filter((query) =>
+              query.sql.includes('INSERT OR IGNORE INTO data_plane_schema_migrations')
+            )
+            .at(-1)?.params?.[0]
+        )
+      )
+    ).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('plans a v4 maintenance retry as only the idempotent v5 delta', () => {
+    const [batch] = tenantDataPlaneMigrationBatches({
+      tenantId,
+      source: source(),
+      currentVersion: 4,
+      targetVersion: 5
+    });
+    const sql = batch.map((query) => query.sql).join('\n');
+
+    expect(batch).toHaveLength(TENANT_DATA_PLANE_V5_STATEMENTS.length + 2);
+    expect(sql).toContain('supplier_sync_stage_runs');
+    expect(sql).not.toContain('CREATE TABLE IF NOT EXISTS catalog_products');
+    expect(batch.at(-2).params).toEqual([tenantId, 5]);
+    expect(batch.at(-1).params).toEqual([5]);
+  });
+
+  it('rejects impossible migration ranges before producing D1 work', () => {
+    expect(() =>
+      tenantDataPlaneMigrationBatches({
+        tenantId,
+        source: source(),
+        currentVersion: 5,
+        targetVersion: 4
+      })
+    ).toThrow('tenant_data_plane_migration_range_invalid');
   });
 });

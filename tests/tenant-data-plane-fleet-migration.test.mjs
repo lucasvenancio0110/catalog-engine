@@ -7,6 +7,11 @@ import {
   normalizeMigrationKind,
   processTenantDataPlaneMigration
 } from '../worker/data-plane-migration-runner.js';
+import { tenantDataPlaneCurrentBatch as tenantDataPlaneV4Batch } from '../worker/tenant-data-plane-schema-v4.js';
+import {
+  TENANT_DATA_PLANE_V5_STATEMENTS,
+  tenantDataPlaneMigrationBatches
+} from '../worker/tenant-data-plane-schema-v5.js';
 
 const databases = [];
 const migrationRunnerSource = fs.readFileSync('worker/data-plane-migration-runner.js', 'utf8');
@@ -110,6 +115,7 @@ function maintenanceContext(dispatchNamespace = 'catalog-engine-production') {
     d1_database_id: DATABASE_ID,
     dispatch_namespace: dispatchNamespace,
     catalog_status: 'ready',
+    current_schema_version: 4,
     source_key: 'primary',
     source_provider: 'yupoo',
     source_url: 'https://private-supplier.x.yupoo.com/albums/',
@@ -171,6 +177,27 @@ function maintenanceJob() {
     target_schema_version: 5,
     migration_kind: 'maintenance'
   };
+}
+
+function tenantSource() {
+  return {
+    sourceKey: 'primary',
+    provider: 'yupoo',
+    sourceUrl: 'https://private-supplier.x.yupoo.com/albums/',
+    syncStrategy: 'incremental',
+    removalMissThreshold: 3
+  };
+}
+
+function applySqliteBatch(database, batch) {
+  database.exec('BEGIN');
+  try {
+    for (const query of batch) database.prepare(query.sql).run(...(query.params || []));
+    database.exec('COMMIT');
+  } catch (error) {
+    database.exec('ROLLBACK');
+    throw error;
+  }
 }
 
 afterEach(() => {
@@ -340,13 +367,28 @@ describe('tenant data-plane fleet migration activation', () => {
       d1Call += 1;
       const body = JSON.parse(options.body);
       const queries = body.batch;
+      if (d1Call === 2) {
+        expect(queries).toHaveLength(TENANT_DATA_PLANE_V5_STATEMENTS.length + 2);
+        expect(queries.map((query) => query.sql).join('\n')).toContain('supplier_sync_stage_runs');
+        expect(queries.map((query) => query.sql).join('\n')).not.toContain(
+          'CREATE TABLE IF NOT EXISTS catalog_products'
+        );
+      }
       const result =
         d1Call === 1
-          ? queries.map(() => ({ success: true, results: [] }))
-          : [
-              { success: true, results: [{ tenant_id: TENANT_ID, schema_version: '5' }] },
-              { success: true, results: [{ total: '1' }] }
-            ];
+          ? [
+              { success: true, results: [{ tenant_id: TENANT_ID, schema_version: '4' }] },
+              {
+                success: true,
+                results: [{ version: 1 }, { version: 2 }, { version: 3 }, { version: 4 }]
+              }
+            ]
+          : d1Call === 2
+            ? queries.map(() => ({ success: true, results: [] }))
+            : [
+                { success: true, results: [{ tenant_id: TENANT_ID, schema_version: '5' }] },
+                { success: true, results: [{ total: '1' }] }
+              ];
       return new Response(JSON.stringify({ success: true, result }), {
         status: 200,
         headers: { 'content-type': 'application/json' }
@@ -365,12 +407,161 @@ describe('tenant data-plane fleet migration activation', () => {
       schemaVersion: 5,
       resumedAt: null
     });
-    expect(d1Call).toBe(2);
+    expect(d1Call).toBe(3);
     expect(batches).toHaveLength(1);
     const successSql = batches[0].map((statement) => statement.sql).join('\n');
     expect(successSql).toContain('SET schema_version=?2, last_migration_at=CURRENT_TIMESTAMP');
     expect(successSql).not.toContain("SET schema_version=?2, status='provisioning'");
     expect(successSql).not.toContain('tenant_provisioning_runs');
     expect(successSql).not.toContain('tenant_provisioning_steps');
+  });
+
+  it('reconciles control state after D1 already completed v5 without replaying schema DDL', async () => {
+    const { db, batches } = fakeControlDb(maintenanceContext());
+    let d1Call = 0;
+    const fetchImpl = async (_url, options) => {
+      d1Call += 1;
+      const queries = JSON.parse(options.body).batch;
+      expect(queries).toHaveLength(2);
+      expect(queries.every((query) => query.sql.startsWith('SELECT'))).toBe(true);
+      const result =
+        d1Call === 1
+          ? [
+              { success: true, results: [{ tenant_id: TENANT_ID, schema_version: '5' }] },
+              {
+                success: true,
+                results: [
+                  { version: 1 },
+                  { version: 2 },
+                  { version: 3 },
+                  { version: 4 },
+                  { version: 5 }
+                ]
+              }
+            ]
+          : [
+              { success: true, results: [{ tenant_id: TENANT_ID, schema_version: '5' }] },
+              { success: true, results: [{ total: '1' }] }
+            ];
+      return new Response(JSON.stringify({ success: true, result }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' }
+      });
+    };
+
+    const result = await processTenantDataPlaneMigration(
+      db,
+      { job: maintenanceJob(), env: platformEnv() },
+      { fetchImpl }
+    );
+
+    expect(result).toMatchObject({ outcome: 'success', schemaVersion: 5 });
+    expect(d1Call).toBe(2);
+    expect(batches).toHaveLength(1);
+  });
+
+  it('fails closed when the tenant D1 schema ledger is not contiguous', async () => {
+    const { db, batches } = fakeControlDb(maintenanceContext());
+    const fetchImpl = async () =>
+      new Response(
+        JSON.stringify({
+          success: true,
+          result: [
+            { success: true, results: [{ tenant_id: TENANT_ID, schema_version: '4' }] },
+            { success: true, results: [{ version: 1 }, { version: 2 }, { version: 4 }] }
+          ]
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      );
+
+    const result = await processTenantDataPlaneMigration(
+      db,
+      { job: maintenanceJob(), env: platformEnv() },
+      { fetchImpl }
+    );
+
+    expect(result).toMatchObject({
+      outcome: 'failed',
+      error: 'tenant_d1_schema_state_invalid'
+    });
+    expect(batches).toHaveLength(1);
+    expect(batches[0].map((statement) => statement.sql).join('\n')).not.toContain(
+      'SET schema_version=?2, last_migration_at=CURRENT_TIMESTAMP'
+    );
+  });
+
+  it('upgrades a real v4 tenant through only the idempotent v5 delta while preserving LKG', () => {
+    const database = new DatabaseSync(':memory:');
+    databases.push(database);
+    database.exec('PRAGMA foreign_keys = ON');
+    applySqliteBatch(
+      database,
+      tenantDataPlaneV4Batch({ tenantId: TENANT_ID, source: tenantSource() })
+    );
+    database.exec(`
+      INSERT INTO catalog_categories
+        (category_id,name,depth,sort_order,product_count)
+      VALUES ('cat_lkg','Verified LKG',0,0,1);
+      INSERT INTO catalog_products
+        (product_id,name,search_text,category_id,category_name,classification_status)
+      VALUES ('prd_lkg','Verified LKG Product','verified lkg product','cat_lkg','Verified LKG','known');
+      INSERT INTO supplier_album_index
+        (tenant_id,source_key,album_source_id,public_product_id,source_url,
+         listing_fingerprint,status,miss_count)
+      VALUES ('${TENANT_ID}','primary','alb_lkg','prd_lkg',
+              'https://private-supplier.x.yupoo.com/albums/lkg','fingerprint-lkg','active',0);
+      INSERT INTO catalog_product_classification_overrides
+        (product_id,override_json,override_version)
+      VALUES ('prd_lkg','{"displayName":"Merchant LKG"}',1);
+    `);
+
+    const batches = tenantDataPlaneMigrationBatches({
+      tenantId: TENANT_ID,
+      source: tenantSource(),
+      currentVersion: 4,
+      targetVersion: 5
+    });
+    expect(batches).toHaveLength(1);
+    expect(batches[0]).toHaveLength(TENANT_DATA_PLANE_V5_STATEMENTS.length + 2);
+    applySqliteBatch(database, batches[0]);
+    applySqliteBatch(database, batches[0]);
+
+    expect(
+      database
+        .prepare('SELECT schema_version FROM data_plane_identity WHERE tenant_id=?1')
+        .get(TENANT_ID).schema_version
+    ).toBe(5);
+    expect(
+      database
+        .prepare('SELECT group_concat(version) AS versions FROM data_plane_schema_migrations')
+        .get().versions
+    ).toBe('1,2,3,4,5');
+    expect(
+      database
+        .prepare(
+          "SELECT COUNT(*) AS total FROM sqlite_master WHERE type='table' AND name LIKE 'supplier_sync_stage_%'"
+        )
+        .get().total
+    ).toBe(4);
+    expect(
+      database
+        .prepare("SELECT COUNT(*) AS total FROM catalog_products WHERE product_id='prd_lkg'")
+        .get().total
+    ).toBe(1);
+    expect(
+      database
+        .prepare(
+          "SELECT COUNT(*) AS total FROM supplier_album_index WHERE album_source_id='alb_lkg' AND status='active'"
+        )
+        .get().total
+    ).toBe(1);
+    expect(
+      database
+        .prepare(
+          "SELECT override_json FROM catalog_product_classification_overrides WHERE product_id='prd_lkg'"
+        )
+        .get().override_json
+    ).toBe('{"displayName":"Merchant LKG"}');
+    expect(database.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
   });
 });
