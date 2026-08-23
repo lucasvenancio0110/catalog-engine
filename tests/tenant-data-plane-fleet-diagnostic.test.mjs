@@ -79,6 +79,9 @@ describe('retained tenant fleet canary diagnosis', () => {
     expect(workflow).toContain(
       "github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'"
     );
+    expect(workflow).toContain("format('catalog-engine-tenant-fleet-diagnostic-pr-{0}'");
+    expect(workflow).toContain("|| 'catalog-engine-production-d1'");
+    expect(workflow).toContain("cancel-in-progress: ${{ github.event_name == 'pull_request' }}");
     expect(workflow).toContain('ref: ${{ github.sha }}');
     expect(workflow).toContain('/workers/scripts/catalog-engine/settings');
     expect(workflow).toContain('verify-worker-platform-bindings.mjs');
