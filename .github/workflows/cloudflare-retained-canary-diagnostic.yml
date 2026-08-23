@@ -2,18 +2,23 @@ name: Diagnose retained automatic import canary
 
 on:
   pull_request:
-    branches: ["main"]
+    branches: ['main']
     paths:
-      - ".github/workflows/cloudflare-retained-canary-diagnostic.yml"
-      - "scripts/cloudflare-retained-canary-diagnostic.mjs"
-      - "tests/retained-canary-diagnostic.test.mjs"
+      - '.github/workflows/cloudflare-retained-canary-diagnostic.yml'
+      - 'scripts/cloudflare-retained-canary-diagnostic.mjs'
+      - 'tests/retained-canary-diagnostic.test.mjs'
   push:
-    branches: ["main"]
+    branches: ['main']
     paths:
-      - ".github/workflows/cloudflare-retained-canary-diagnostic.yml"
-      - "scripts/cloudflare-retained-canary-diagnostic.mjs"
-      - "tests/retained-canary-diagnostic.test.mjs"
+      - '.github/workflows/cloudflare-retained-canary-diagnostic.yml'
+      - 'scripts/cloudflare-retained-canary-diagnostic.mjs'
+      - 'tests/retained-canary-diagnostic.test.mjs'
   workflow_dispatch:
+    inputs:
+      tenant_id:
+        description: 'Exact opaque retained automatic-import canary tenant ID'
+        required: false
+        default: 't_877e74005a61fd5ce924'
 
 permissions:
   contents: read
@@ -42,20 +47,22 @@ jobs:
         run: npm run quality
 
   diagnose:
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE: catalog-engine-production
-      RETAINED_CANARY_TENANT_ID: t_b866b2412c5a3404268a
+      RETAINED_CANARY_TENANT_ID: ${{ inputs.tenant_id || 't_877e74005a61fd5ce924' }}
       STATUS_CONTEXT: catalog-engine/retained-canary-diagnostic
     steps:
-      - name: Checkout trusted main
+      - name: Checkout exact trusted-main SHA
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.sha }}
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
