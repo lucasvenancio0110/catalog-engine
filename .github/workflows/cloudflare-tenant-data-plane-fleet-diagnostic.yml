@@ -1,0 +1,132 @@
+name: Diagnose retained tenant fleet canary
+
+on:
+  pull_request:
+    branches: ['main']
+    paths:
+      - '.github/workflows/cloudflare-tenant-data-plane-fleet-diagnostic.yml'
+      - 'scripts/cloudflare-tenant-data-plane-fleet-diagnostic.mjs'
+      - 'tests/tenant-data-plane-fleet-diagnostic.test.mjs'
+  push:
+    branches: ['main']
+    paths:
+      - '.github/workflows/cloudflare-tenant-data-plane-fleet-diagnostic.yml'
+      - 'scripts/cloudflare-tenant-data-plane-fleet-diagnostic.mjs'
+      - 'tests/tenant-data-plane-fleet-diagnostic.test.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: catalog-engine-production-d1
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Secret-free quality gate
+        run: npm run quality
+
+  diagnose:
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE: catalog-engine-production
+      WRANGLER_VERSION: 4.54.0
+      STATUS_CONTEXT: catalog-engine/tenant-data-plane-fleet-diagnostic
+
+    steps:
+      - name: Checkout exact trusted-main SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Quality gate before read-only diagnosis
+        run: npm run quality
+
+      - name: Inspect main Worker platform secret names only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@$WRANGLER_VERSION" secret list --name catalog-engine --config wrangler.jsonc --format json > /tmp/catalog-engine-secret-names.json
+          ACCOUNT_PRESENT="$(jq -r 'any(.[]?; .name == "CLOUDFLARE_PLATFORM_ACCOUNT_ID")' /tmp/catalog-engine-secret-names.json)"
+          TOKEN_PRESENT="$(jq -r 'any(.[]?; .name == "CLOUDFLARE_PLATFORM_API_TOKEN")' /tmp/catalog-engine-secret-names.json)"
+          echo "WORKER_PLATFORM_ACCOUNT_SECRET_PRESENT=$ACCOUNT_PRESENT" >> "$GITHUB_ENV"
+          echo "WORKER_PLATFORM_TOKEN_SECRET_PRESENT=$TOKEN_PRESENT" >> "$GITHUB_ENV"
+          echo "Worker platform account-id secret present: $ACCOUNT_PRESENT"
+          echo "Worker platform API-token secret present: $TOKEN_PRESENT"
+
+      - name: Inspect retained fleet evidence without mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/cloudflare-tenant-data-plane-fleet-diagnostic.mjs | tee /tmp/fleet-diagnostic.json
+          cat /tmp/fleet-diagnostic.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish successful read-only diagnostic evidence
+        if: ${{ success() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n --arg state success --arg context "$STATUS_CONTEXT" \
+            --arg description "Retained fleet evidence inspected read-only; see safe diagnosis" \
+            --arg target_url "$RUN_URL" \
+            '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
+          curl --fail --silent --show-error -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/statuses/$SHA" -d @/tmp/status.json
+
+      - name: Publish failed read-only diagnostic evidence
+        if: ${{ failure() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n --arg state failure --arg context "$STATUS_CONTEXT" \
+            --arg description "Retained fleet read-only diagnosis failed; preserve fixtures" \
+            --arg target_url "$RUN_URL" \
+            '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
+          curl --fail --silent --show-error -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/statuses/$SHA" -d @/tmp/status.json
