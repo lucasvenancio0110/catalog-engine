@@ -292,7 +292,7 @@ Physical provisioning/migration requires dedicated platform configuration such a
 
 The credential should be scoped to required provisioning/migration responsibilities. Do not expose it to merchant browsers or ordinary untrusted PR validation.
 
-The trusted-main application pipeline uploads the account ID and API token as Worker secrets in the same Wrangler deployment as the exact tested code SHA, then reads back only the two binding names. The secret material exists for physical provider/schema operations only. Import, classification and verification remain on `TENANT_DISPATCH` and must not be changed back to administrative D1 REST access.
+The trusted-main application pipeline uploads the account ID and API token as Worker secrets in the same Wrangler deployment as the exact tested code SHA, then verifies only the two `secret_text` binding names through the read-only Worker Script Settings API. The secret material exists for physical provider/schema operations only. Import, classification and verification remain on `TENANT_DISPATCH` and must not be changed back to administrative D1 REST access.
 
 With required privileged configuration absent, provisioning/migration code fails closed before production provider mutation.
 

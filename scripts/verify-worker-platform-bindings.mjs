@@ -1,0 +1,40 @@
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+const REQUIRED_BINDINGS = ['CLOUDFLARE_PLATFORM_ACCOUNT_ID', 'CLOUDFLARE_PLATFORM_API_TOKEN'];
+
+export function inspectWorkerPlatformBindings(payload) {
+  if (payload?.success !== true || !Array.isArray(payload?.result?.bindings)) {
+    throw new Error('worker_platform_settings_invalid');
+  }
+  const secretNames = new Set(
+    payload.result.bindings
+      .filter((binding) => binding?.type === 'secret_text')
+      .map((binding) => String(binding?.name || ''))
+  );
+  const bindings = {
+    accountIdPresent: secretNames.has(REQUIRED_BINDINGS[0]),
+    apiTokenPresent: secretNames.has(REQUIRED_BINDINGS[1])
+  };
+  return {
+    workerPlatformBindingsVerified: bindings.accountIdPresent && bindings.apiTokenPresent,
+    bindings,
+    secretValuesExposed: false
+  };
+}
+
+async function main() {
+  const settingsPath = String(process.argv[2] || '').trim();
+  if (!settingsPath) throw new Error('worker_platform_settings_path_missing');
+  const payload = JSON.parse(await readFile(settingsPath, 'utf8'));
+  const evidence = inspectWorkerPlatformBindings(payload);
+  console.log(JSON.stringify(evidence));
+  if (process.argv.includes('--require') && !evidence.workerPlatformBindingsVerified) {
+    throw new Error('worker_platform_bindings_missing');
+  }
+}
+
+const isDirectExecution =
+  Boolean(process.argv[1]) && pathToFileURL(resolve(process.argv[1])).href === import.meta.url;
+if (isDirectExecution) await main();
