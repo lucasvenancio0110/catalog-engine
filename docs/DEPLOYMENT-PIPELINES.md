@@ -23,7 +23,7 @@ Rules:
 - trusted-main deploy and post-deploy canaries check out the exact triggering/deployed SHA rather than a moving `main`, because catalog-data automation may advance the branch concurrently;
 - the workflow may apply required D1 **schema migrations** while that remains the current release model;
 - the same trusted-main deployment uploads the infrastructure-only `CLOUDFLARE_PLATFORM_ACCOUNT_ID` and `CLOUDFLARE_PLATFORM_API_TOKEN` secret bindings alongside the Worker code by using Wrangler's `--secrets-file` boundary; the temporary file is permission-restricted and deleted by an exit trap;
-- only secret names are read back after deploy. Secret values are never committed, printed or exposed to pull-request validation;
+- only secret binding names/types are read back after deploy through Cloudflare's read-only Worker Script Settings API. Secret values and unrelated binding identifiers are never emitted, committed or exposed to pull-request validation;
 - these account-level bindings belong only to physical tenant provisioning/schema migration. Tenant import, CEI classification and verification continue to use the isolated `TENANT_DISPATCH` path;
 - it does not generate public catalog SQL;
 - it does not replace catalog product/category/team/league/facet data;

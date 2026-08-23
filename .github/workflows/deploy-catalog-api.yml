@@ -14,6 +14,7 @@ on:
       - 'migrations/**'
       - 'scripts/copy-storefront-data.mjs'
       - 'scripts/verify-dist.mjs'
+      - 'scripts/verify-worker-platform-bindings.mjs'
       - 'src/**'
       - 'worker/**'
       - 'wrangler.jsonc'
@@ -101,12 +102,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          SECRET_NAMES="$(mktemp)"
-          trap 'rm -f "$SECRET_NAMES"' EXIT
-          npx --yes "wrangler@$WRANGLER_VERSION" secret list --name catalog-engine --config wrangler.jsonc --format json > "$SECRET_NAMES"
-          jq -e 'any(.[]?; .name == "CLOUDFLARE_PLATFORM_ACCOUNT_ID")' "$SECRET_NAMES" > /dev/null || { echo "CLOUDFLARE_PLATFORM_ACCOUNT_ID Worker binding is missing"; exit 1; }
-          jq -e 'any(.[]?; .name == "CLOUDFLARE_PLATFORM_API_TOKEN")' "$SECRET_NAMES" > /dev/null || { echo "CLOUDFLARE_PLATFORM_API_TOKEN Worker binding is missing"; exit 1; }
-          echo "Infrastructure runtime secret names verified; values remain hidden"
+          WORKER_SETTINGS="$(mktemp)"
+          trap 'rm -f "$WORKER_SETTINGS"' EXIT
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Accept: application/json" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/catalog-engine/settings" \
+            > "$WORKER_SETTINGS"
+          node scripts/verify-worker-platform-bindings.mjs "$WORKER_SETTINGS" --require
 
       - name: Verify tenant import producers and automation boundaries
         shell: bash

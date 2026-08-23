@@ -49,11 +49,11 @@ describe('retained tenant fleet canary diagnosis', () => {
 
   it('is a trusted-main read-only workflow and cannot create jobs, enqueue or purge', () => {
     expect(workflow).toContain('ref: ${{ github.sha }}');
-    expect(workflow).toContain(
-      'secret list --name catalog-engine --config wrangler.jsonc --format json'
-    );
+    expect(workflow).toContain('/workers/scripts/catalog-engine/settings');
+    expect(workflow).toContain('verify-worker-platform-bindings.mjs');
     expect(workflow).toContain('Inspect retained fleet evidence without mutation');
     expect(workflow).not.toContain('wrangler secret put');
+    expect(workflow).not.toContain('wrangler secret list');
     expect(script).toContain('readOnly: true');
     expect(script).not.toMatch(/\b(?:INSERT|UPDATE|DELETE|DROP|CREATE)\b/);
     expect(script).not.toContain('/messages');

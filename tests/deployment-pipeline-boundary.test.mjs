@@ -55,13 +55,12 @@ describe('production deployment pipeline boundary', () => {
     expect(workflow).toContain('trap \'rm -f "$RUNTIME_SECRETS"\' EXIT');
     expect(workflow).toContain('chmod 600 "$RUNTIME_SECRETS"');
     expect(workflow).toContain('--secrets-file "$RUNTIME_SECRETS"');
-    expect(workflow).toContain(
-      'secret list --name catalog-engine --config wrangler.jsonc --format json'
-    );
-    expect(workflow).toContain('.name == "CLOUDFLARE_PLATFORM_ACCOUNT_ID"');
-    expect(workflow).toContain('.name == "CLOUDFLARE_PLATFORM_API_TOKEN"');
+    expect(workflow).toContain('/workers/scripts/catalog-engine/settings');
+    expect(workflow).toContain('verify-worker-platform-bindings.mjs "$WORKER_SETTINGS" --require');
+    expect(workflow).toContain("'scripts/verify-worker-platform-bindings.mjs'");
     expect(workflow).not.toContain('wrangler secret put');
     expect(workflow).not.toContain('wrangler secret bulk');
+    expect(workflow).not.toContain('wrangler secret list');
     expect(verifyIndex).toBeGreaterThan(deployIndex);
   });
 });

@@ -6,13 +6,17 @@ on:
     paths:
       - '.github/workflows/cloudflare-tenant-data-plane-fleet-diagnostic.yml'
       - 'scripts/cloudflare-tenant-data-plane-fleet-diagnostic.mjs'
+      - 'scripts/verify-worker-platform-bindings.mjs'
       - 'tests/tenant-data-plane-fleet-diagnostic.test.mjs'
+      - 'tests/worker-platform-bindings.test.mjs'
   push:
     branches: ['main']
     paths:
       - '.github/workflows/cloudflare-tenant-data-plane-fleet-diagnostic.yml'
       - 'scripts/cloudflare-tenant-data-plane-fleet-diagnostic.mjs'
+      - 'scripts/verify-worker-platform-bindings.mjs'
       - 'tests/tenant-data-plane-fleet-diagnostic.test.mjs'
+      - 'tests/worker-platform-bindings.test.mjs'
   workflow_dispatch:
 
 permissions:
@@ -51,7 +55,6 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE: catalog-engine-production
-      WRANGLER_VERSION: 4.54.0
       STATUS_CONTEXT: catalog-engine/tenant-data-plane-fleet-diagnostic
 
     steps:
@@ -72,13 +75,21 @@ jobs:
       - name: Quality gate before read-only diagnosis
         run: npm run quality
 
-      - name: Inspect main Worker platform secret names only
+      - name: Inspect main Worker platform secret binding names only
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes "wrangler@$WRANGLER_VERSION" secret list --name catalog-engine --config wrangler.jsonc --format json > /tmp/catalog-engine-secret-names.json
-          ACCOUNT_PRESENT="$(jq -r 'any(.[]?; .name == "CLOUDFLARE_PLATFORM_ACCOUNT_ID")' /tmp/catalog-engine-secret-names.json)"
-          TOKEN_PRESENT="$(jq -r 'any(.[]?; .name == "CLOUDFLARE_PLATFORM_API_TOKEN")' /tmp/catalog-engine-secret-names.json)"
+          WORKER_SETTINGS="$(mktemp)"
+          BINDING_EVIDENCE="$(mktemp)"
+          trap 'rm -f "$WORKER_SETTINGS" "$BINDING_EVIDENCE"' EXIT
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Accept: application/json" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/catalog-engine/settings" \
+            > "$WORKER_SETTINGS"
+          node scripts/verify-worker-platform-bindings.mjs "$WORKER_SETTINGS" > "$BINDING_EVIDENCE"
+          ACCOUNT_PRESENT="$(jq -r '.bindings.accountIdPresent' "$BINDING_EVIDENCE")"
+          TOKEN_PRESENT="$(jq -r '.bindings.apiTokenPresent' "$BINDING_EVIDENCE")"
           echo "WORKER_PLATFORM_ACCOUNT_SECRET_PRESENT=$ACCOUNT_PRESENT" >> "$GITHUB_ENV"
           echo "WORKER_PLATFORM_TOKEN_SECRET_PRESENT=$TOKEN_PRESENT" >> "$GITHUB_ENV"
           echo "Worker platform account-id secret present: $ACCOUNT_PRESENT"
