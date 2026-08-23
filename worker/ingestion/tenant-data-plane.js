@@ -2,6 +2,8 @@ import { tenantDispatchFetcher } from '../tenant-dispatch.js';
 import {
   TENANT_DATA_PLANE_COMMAND_PATH,
   TENANT_DATA_PLANE_COMMAND_VERSION,
+  TENANT_DATA_PLANE_MIGRATION_COMMAND_PATH,
+  TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION,
   normalizeTenantDataPlaneBatch
 } from '../tenant-data-plane-command.js';
 
@@ -81,7 +83,11 @@ export async function queryTenantDataPlaneBatch(context, env, batch) {
     throw new TenantDataPlaneClientError('tenant_data_plane_response_invalid');
   }
 
-  if (!response.ok || payload?.ok !== true || Number(payload?.version) !== TENANT_DATA_PLANE_COMMAND_VERSION) {
+  if (
+    !response.ok ||
+    payload?.ok !== true ||
+    Number(payload?.version) !== TENANT_DATA_PLANE_COMMAND_VERSION
+  ) {
     const code = /^tenant_data_plane_[a-z0-9_]+$/.test(String(payload?.error || ''))
       ? String(payload.error)
       : 'tenant_data_plane_query_failed';
@@ -91,4 +97,62 @@ export async function queryTenantDataPlaneBatch(context, env, batch) {
     throw new TenantDataPlaneClientError('tenant_data_plane_response_invalid');
   }
   return payload.results;
+}
+
+export async function migrateTenantDataPlaneSchema(context, env, targetSchemaVersion) {
+  if (!tenantDataPlaneDispatchConfigured(env)) {
+    throw new TenantDataPlaneClientError('tenant_data_plane_dispatch_unbound', 503);
+  }
+  const target = dataPlaneTarget(context);
+  const schemaVersion = Number(targetSchemaVersion);
+  if (!Number.isInteger(schemaVersion) || schemaVersion < 1) {
+    throw new TenantDataPlaneClientError('tenant_data_plane_schema_target_invalid', 500);
+  }
+
+  let fetcher;
+  try {
+    fetcher = await tenantDispatchFetcher(env, target.workerScriptName);
+  } catch {
+    throw new TenantDataPlaneClientError('tenant_data_plane_dispatch_unavailable', 503);
+  }
+  const request = new Request(new URL(TENANT_DATA_PLANE_MIGRATION_COMMAND_PATH, INTERNAL_ORIGIN), {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      accept: 'application/json',
+      'x-catalog-tenant-id': target.tenantId
+    },
+    body: JSON.stringify({
+      version: TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION,
+      tenantId: target.tenantId,
+      targetSchemaVersion: schemaVersion
+    })
+  });
+
+  let response;
+  try {
+    response = await fetcher.fetch(request);
+  } catch {
+    throw new TenantDataPlaneClientError('tenant_data_plane_dispatch_failed', 503);
+  }
+  let payload;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new TenantDataPlaneClientError('tenant_data_plane_response_invalid');
+  }
+  if (
+    !response.ok ||
+    payload?.ok !== true ||
+    Number(payload?.version) !== TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION
+  ) {
+    const code = /^tenant_data_plane_[a-z0-9_]+$/.test(String(payload?.error || ''))
+      ? String(payload.error)
+      : 'tenant_data_plane_migration_failed';
+    throw new TenantDataPlaneClientError(code, response.status || 502);
+  }
+  if (Number(payload.schemaVersion) !== schemaVersion || typeof payload.applied !== 'boolean') {
+    throw new TenantDataPlaneClientError('tenant_data_plane_response_invalid');
+  }
+  return { schemaVersion, applied: payload.applied };
 }

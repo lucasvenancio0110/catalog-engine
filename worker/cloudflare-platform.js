@@ -247,15 +247,15 @@ export async function queryD1Batch(
   return rows;
 }
 
-export function tenantBootstrapWorkerSource() {
-  return tenantBootstrapWorkerSourceWithDataPlaneCommand();
+export function tenantBootstrapWorkerSource(options = {}) {
+  return tenantBootstrapWorkerSourceWithDataPlaneCommand(options);
 }
 
-export function namespacedTenantCatalogWorkerSource() {
+export function namespacedTenantCatalogWorkerSource(options = {}) {
   // Workers for Platforms disables caches.default for namespaced User Workers in
   // untrusted mode. Shadow the global Cache API so the shared runtime naturally
   // takes its no-cache path while preserving the stronger namespace isolation.
-  const source = wrapTenantWorkerSourceWithDataPlaneCommand(tenantCatalogWorkerSource());
+  const source = wrapTenantWorkerSourceWithDataPlaneCommand(tenantCatalogWorkerSource(), options);
   return `const caches = undefined;\n${source}`;
 }
 
@@ -323,12 +323,13 @@ export async function uploadTenantBootstrapWorker(input, options = {}) {
 }
 
 export async function uploadTenantCatalogWorker(input, options = {}) {
+  const { includeSchemaMigration = true, ...requestOptions } = options;
   return uploadTenantWorker(
     {
       ...input,
-      source: namespacedTenantCatalogWorkerSource(),
+      source: namespacedTenantCatalogWorkerSource({ includeSchemaMigration }),
       runtimeVersion: TENANT_CATALOG_RUNTIME_VERSION
     },
-    options
+    requestOptions
   );
 }

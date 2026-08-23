@@ -1,10 +1,18 @@
+import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it, vi } from 'vitest';
-import { queryD1Batch, tenantBootstrapWorkerSource } from '../worker/cloudflare-platform.js';
+import {
+  namespacedTenantCatalogWorkerSource,
+  queryD1Batch,
+  tenantBootstrapWorkerSource
+} from '../worker/cloudflare-platform.js';
 import {
   TENANT_DATA_PLANE_COMMAND_PATH,
+  TENANT_DATA_PLANE_MIGRATION_COMMAND_PATH,
   handleTenantDataPlaneCommand,
+  handleTenantDataPlaneSchemaMigrationCommand,
   normalizeTenantDataPlaneBatch
 } from '../worker/tenant-data-plane-command.js';
+import { tenantDataPlaneCurrentBatch as tenantDataPlaneV4Batch } from '../worker/tenant-data-plane-schema-v4.js';
 
 const tenantId = 't_0123456789abcdefabcd';
 const workerScriptName = 'ce-0123456789abcdefabcd';
@@ -40,11 +48,53 @@ function tenantFetcher(boundTenantId = tenantId) {
   };
 }
 
+function applySqliteBatch(database, batch) {
+  database.exec('BEGIN');
+  try {
+    for (const query of batch) database.prepare(query.sql).run(...(query.params || []));
+    database.exec('COMMIT');
+  } catch (error) {
+    database.exec('ROLLBACK');
+    throw error;
+  }
+}
+
+function sqliteD1(database) {
+  return {
+    prepare(sql) {
+      return {
+        sql,
+        params: [],
+        bind(...params) {
+          return { sql, params };
+        }
+      };
+    },
+    async batch(statements) {
+      database.exec('BEGIN');
+      try {
+        const results = statements.map(({ sql, params = [] }) => {
+          const statement = database.prepare(sql);
+          const read = /^\s*(SELECT|PRAGMA)\b/i.test(sql);
+          return {
+            success: true,
+            results: read ? statement.all(...params) : [],
+            meta: read ? { changes: 0 } : { changes: Number(statement.run(...params).changes || 0) }
+          };
+        });
+        database.exec('COMMIT');
+        return results;
+      } catch (error) {
+        database.exec('ROLLBACK');
+        throw error;
+      }
+    }
+  };
+}
+
 describe('native tenant data-plane command', () => {
   it('routes an ingestion batch to the deterministic tenant User Worker without Cloudflare REST credentials', async () => {
-    const get = vi.fn((scriptName) =>
-      scriptName === workerScriptName ? tenantFetcher() : null
-    );
+    const get = vi.fn((scriptName) => (scriptName === workerScriptName ? tenantFetcher() : null));
     const fetchImpl = vi.fn(() => {
       throw new Error('administrative Cloudflare D1 REST must not be used');
     });
@@ -82,18 +132,26 @@ describe('native tenant data-plane command', () => {
   it('rejects a cross-tenant command before touching D1', async () => {
     const db = fakeD1();
     db.batch = vi.fn(db.batch);
-    const request = new Request(`https://catalog-engine.internal${TENANT_DATA_PLANE_COMMAND_PATH}`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-catalog-tenant-id': 't_bbbbbbbbbbbbbbbbbbbb'
-      },
-      body: JSON.stringify({
-        version: 1,
-        tenantId: 't_bbbbbbbbbbbbbbbbbbbb',
-        batch: [{ sql: 'SELECT tenant_id FROM data_plane_identity WHERE tenant_id=?1', params: [tenantId] }]
-      })
-    });
+    const request = new Request(
+      `https://catalog-engine.internal${TENANT_DATA_PLANE_COMMAND_PATH}`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-catalog-tenant-id': 't_bbbbbbbbbbbbbbbbbbbb'
+        },
+        body: JSON.stringify({
+          version: 1,
+          tenantId: 't_bbbbbbbbbbbbbbbbbbbb',
+          batch: [
+            {
+              sql: 'SELECT tenant_id FROM data_plane_identity WHERE tenant_id=?1',
+              params: [tenantId]
+            }
+          ]
+        })
+      }
+    );
 
     const response = await handleTenantDataPlaneCommand(request, {
       TENANT_ID: tenantId,
@@ -106,22 +164,140 @@ describe('native tenant data-plane command', () => {
 
   it('allows only one-statement DML/read operations on the internal protocol', () => {
     expect(() =>
-      normalizeTenantDataPlaneBatch([
-        { sql: 'CREATE TABLE unsafe(id TEXT)', params: [] }
-      ])
+      normalizeTenantDataPlaneBatch([{ sql: 'CREATE TABLE unsafe(id TEXT)', params: [] }])
     ).toThrow('tenant_data_plane_sql_invalid');
     expect(() =>
-      normalizeTenantDataPlaneBatch([
-        { sql: 'SELECT 1; DELETE FROM catalog_products', params: [] }
-      ])
+      normalizeTenantDataPlaneBatch([{ sql: 'SELECT 1; DELETE FROM catalog_products', params: [] }])
     ).toThrow('tenant_data_plane_sql_invalid');
+  });
+
+  it('applies only the embedded versioned schema plan through the tenant D1 binding', async () => {
+    const database = new DatabaseSync(':memory:');
+    try {
+      database.exec('PRAGMA foreign_keys = ON');
+      applySqliteBatch(
+        database,
+        tenantDataPlaneV4Batch({
+          tenantId,
+          source: {
+            sourceKey: 'primary',
+            provider: 'yupoo',
+            sourceUrl: 'https://private-source.invalid/catalog',
+            syncStrategy: 'incremental',
+            removalMissThreshold: 3
+          }
+        })
+      );
+      const env = { TENANT_ID: tenantId, CATALOG_DB: sqliteD1(database) };
+      const request = () =>
+        new Request(`https://catalog-engine.internal${TENANT_DATA_PLANE_MIGRATION_COMMAND_PATH}`, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-catalog-tenant-id': tenantId
+          },
+          body: JSON.stringify({ version: 1, tenantId, targetSchemaVersion: 5 })
+        });
+
+      const first = await handleTenantDataPlaneSchemaMigrationCommand(request(), env);
+      expect(first.status).toBe(200);
+      expect(await first.json()).toMatchObject({
+        ok: true,
+        version: 1,
+        schemaVersion: 5,
+        applied: true
+      });
+      expect(
+        database
+          .prepare('SELECT group_concat(version) AS versions FROM data_plane_schema_migrations')
+          .get().versions
+      ).toBe('1,2,3,4,5');
+      expect(
+        database
+          .prepare(
+            "SELECT COUNT(*) AS total FROM sqlite_master WHERE type='table' AND name LIKE 'supplier_sync_stage_%'"
+          )
+          .get().total
+      ).toBe(4);
+
+      const replay = await handleTenantDataPlaneSchemaMigrationCommand(request(), env);
+      expect(await replay.json()).toMatchObject({ schemaVersion: 5, applied: false });
+    } finally {
+      database.close();
+    }
+  });
+
+  it('rejects caller-supplied SQL on the schema migration command', async () => {
+    const response = await handleTenantDataPlaneSchemaMigrationCommand(
+      new Request(`https://catalog-engine.internal${TENANT_DATA_PLANE_MIGRATION_COMMAND_PATH}`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-catalog-tenant-id': tenantId
+        },
+        body: JSON.stringify({
+          version: 1,
+          tenantId,
+          targetSchemaVersion: 5,
+          sql: 'DROP TABLE catalog_products'
+        })
+      }),
+      { TENANT_ID: tenantId, CATALOG_DB: fakeD1() }
+    );
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toBe('tenant_data_plane_contract_invalid');
+  });
+
+  it('executes the embedded migration command from the generated User Worker module', async () => {
+    const database = new DatabaseSync(':memory:');
+    try {
+      database.exec('PRAGMA foreign_keys = ON');
+      applySqliteBatch(
+        database,
+        tenantDataPlaneV4Batch({
+          tenantId,
+          source: {
+            sourceKey: 'primary',
+            provider: 'yupoo',
+            sourceUrl: 'https://private-source.invalid/catalog',
+            syncStrategy: 'incremental',
+            removalMissThreshold: 3
+          }
+        })
+      );
+      const source = tenantBootstrapWorkerSource();
+      const moduleUrl = `data:text/javascript;base64,${Buffer.from(source).toString('base64')}#${Date.now()}`;
+      const generatedWorker = (await import(moduleUrl)).default;
+      const response = await generatedWorker.fetch(
+        new Request(`https://catalog-engine.internal${TENANT_DATA_PLANE_MIGRATION_COMMAND_PATH}`, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-catalog-tenant-id': tenantId
+          },
+          body: JSON.stringify({ version: 1, tenantId, targetSchemaVersion: 5 })
+        }),
+        { TENANT_ID: tenantId, CATALOG_DB: sqliteD1(database) },
+        {}
+      );
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ schemaVersion: 5, applied: true });
+    } finally {
+      database.close();
+    }
   });
 
   it('ships the internal command inside bootstrap User Workers without exposing an admin API', () => {
     const source = tenantBootstrapWorkerSource();
     expect(source).toContain(TENANT_DATA_PLANE_COMMAND_PATH);
+    expect(source).toContain(TENANT_DATA_PLANE_MIGRATION_COMMAND_PATH);
     expect(source).toContain('x-catalog-tenant-id');
     expect(source).not.toContain('/api/admin/');
     expect(source).not.toContain('CLOUDFLARE_PLATFORM_API_TOKEN');
+
+    const legacy = namespacedTenantCatalogWorkerSource({ includeSchemaMigration: false });
+    expect(legacy).toContain(TENANT_DATA_PLANE_COMMAND_PATH);
+    expect(legacy).not.toContain(TENANT_DATA_PLANE_MIGRATION_COMMAND_PATH);
   });
 });
