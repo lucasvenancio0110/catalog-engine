@@ -490,6 +490,97 @@ describe('tenant data-plane fleet migration activation', () => {
     );
   });
 
+  it('persists a bounded inspect-phase code when the first D1 transport call is unreachable', async () => {
+    const { db, batches } = fakeControlDb(maintenanceContext());
+    const fetchImpl = async () => {
+      throw new Error('private network detail');
+    };
+
+    const result = await processTenantDataPlaneMigration(
+      db,
+      { job: maintenanceJob(), env: platformEnv() },
+      { fetchImpl }
+    );
+
+    expect(result).toMatchObject({
+      outcome: 'failed',
+      error: 'tenant_d1_migration_inspect_unreachable'
+    });
+    expect(batches).toHaveLength(1);
+  });
+
+  it('persists a bounded apply-phase code after a verified v4 inspection', async () => {
+    const { db, batches } = fakeControlDb(maintenanceContext());
+    let d1Call = 0;
+    const fetchImpl = async () => {
+      d1Call += 1;
+      if (d1Call === 2) throw new Error('private apply detail');
+      return new Response(
+        JSON.stringify({
+          success: true,
+          result: [
+            { success: true, results: [{ tenant_id: TENANT_ID, schema_version: '4' }] },
+            {
+              success: true,
+              results: [{ version: 1 }, { version: 2 }, { version: 3 }, { version: 4 }]
+            }
+          ]
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      );
+    };
+
+    const result = await processTenantDataPlaneMigration(
+      db,
+      { job: maintenanceJob(), env: platformEnv() },
+      { fetchImpl }
+    );
+
+    expect(result).toMatchObject({
+      outcome: 'failed',
+      error: 'tenant_d1_migration_apply_unreachable'
+    });
+    expect(d1Call).toBe(2);
+    expect(batches).toHaveLength(1);
+  });
+
+  it('persists a bounded verify-phase code after the v5 delta was accepted', async () => {
+    const { db, batches } = fakeControlDb(maintenanceContext());
+    let d1Call = 0;
+    const fetchImpl = async (_url, options) => {
+      d1Call += 1;
+      if (d1Call === 3) throw new Error('private verification detail');
+      const queries = JSON.parse(options.body).batch;
+      const result =
+        d1Call === 1
+          ? [
+              { success: true, results: [{ tenant_id: TENANT_ID, schema_version: '4' }] },
+              {
+                success: true,
+                results: [{ version: 1 }, { version: 2 }, { version: 3 }, { version: 4 }]
+              }
+            ]
+          : queries.map(() => ({ success: true, results: [] }));
+      return new Response(JSON.stringify({ success: true, result }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' }
+      });
+    };
+
+    const result = await processTenantDataPlaneMigration(
+      db,
+      { job: maintenanceJob(), env: platformEnv() },
+      { fetchImpl }
+    );
+
+    expect(result).toMatchObject({
+      outcome: 'failed',
+      error: 'tenant_d1_migration_verify_unreachable'
+    });
+    expect(d1Call).toBe(3);
+    expect(batches).toHaveLength(1);
+  });
+
   it('upgrades a real v4 tenant through only the idempotent v5 delta while preserving LKG', () => {
     const database = new DatabaseSync(':memory:');
     databases.push(database);

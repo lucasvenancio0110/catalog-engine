@@ -222,7 +222,7 @@ Schema generation is idempotent through constructs such as:
 
 Each version batch records its identity version and ledger row in the same D1 transaction as that version's additive statements. Before maintenance, the runner reads the isolated D1 identity and requires a contiguous migration ledger; it fails closed if D1 is behind the control-plane claim. A later-version failure can therefore leave only an earlier complete schema version, never a half-committed version batch. The control plane remains on the previous version until final identity/source verification succeeds. If D1 is safely ahead because that final control-plane write was interrupted, the next attempt verifies and reconciles it without replaying completed schema DDL.
 
-Transport aborts are persisted as the bounded code `cloudflare_platform_timeout`, separately from `cloudflare_platform_unreachable`; neither code exposes provider response text or credentials.
+Transport aborts are persisted separately from unreachable transport. Tenant schema maintenance phase-qualifies these bounded codes as `tenant_d1_migration_<inspect|apply|verify>_<timeout|unreachable>` so retained evidence identifies whether the failure occurred before DDL, during the idempotent version batch or during final verification. None of these codes exposes provider response text or credentials.
 
 ## Existing tenants and maintenance upgrades
 

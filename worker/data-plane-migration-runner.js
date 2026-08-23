@@ -346,6 +346,25 @@ function verifyMigrationResult(result, tenantId, expectedVersion) {
   );
 }
 
+async function runMigrationTransportPhase(phase, operation) {
+  try {
+    return await operation();
+  } catch (error) {
+    if (
+      error instanceof CloudflarePlatformError &&
+      (error.code === 'cloudflare_platform_unreachable' ||
+        error.code === 'cloudflare_platform_timeout')
+    ) {
+      const transport = error.code.endsWith('_timeout') ? 'timeout' : 'unreachable';
+      throw new CloudflarePlatformError(
+        `tenant_d1_migration_${phase}_${transport}`,
+        error.status
+      );
+    }
+    throw error;
+  }
+}
+
 async function resolveTenantSchemaVersion(
   config,
   { tenantId, databaseId, controlVersion, targetVersion },
@@ -429,15 +448,17 @@ export async function processTenantDataPlaneMigration(
     ) {
       throw new CloudflarePlatformError('tenant_data_plane_schema_state_invalid', 500);
     }
-    const currentVersion = await resolveTenantSchemaVersion(
-      config,
-      {
-        tenantId: job.tenant_id,
-        databaseId: context.d1_database_id,
-        controlVersion,
-        targetVersion
-      },
-      fetchImpl
+    const currentVersion = await runMigrationTransportPhase('inspect', () =>
+      resolveTenantSchemaVersion(
+        config,
+        {
+          tenantId: job.tenant_id,
+          databaseId: context.d1_database_id,
+          controlVersion,
+          targetVersion
+        },
+        fetchImpl
+      )
     );
     const migrationBatches = tenantDataPlaneMigrationBatches({
       tenantId: job.tenant_id,
@@ -446,31 +467,35 @@ export async function processTenantDataPlaneMigration(
       targetVersion
     });
     for (const batch of migrationBatches) {
-      await queryD1Batch(
+      await runMigrationTransportPhase('apply', () =>
+        queryD1Batch(
+          {
+            ...config,
+            databaseId: context.d1_database_id,
+            batch
+          },
+          { fetchImpl }
+        )
+      );
+    }
+    const verification = await runMigrationTransportPhase('verify', () =>
+      queryD1Batch(
         {
           ...config,
           databaseId: context.d1_database_id,
-          batch
+          batch: [
+            {
+              sql: 'SELECT tenant_id, schema_version FROM data_plane_identity WHERE tenant_id=?1 LIMIT 1',
+              params: [job.tenant_id]
+            },
+            {
+              sql: "SELECT COUNT(*) AS total FROM supplier_sources WHERE tenant_id=?1 AND source_key=?2 AND status='active'",
+              params: [job.tenant_id, context.source_key]
+            }
+          ]
         },
         { fetchImpl }
-      );
-    }
-    const verification = await queryD1Batch(
-      {
-        ...config,
-        databaseId: context.d1_database_id,
-        batch: [
-          {
-            sql: 'SELECT tenant_id, schema_version FROM data_plane_identity WHERE tenant_id=?1 LIMIT 1',
-            params: [job.tenant_id]
-          },
-          {
-            sql: "SELECT COUNT(*) AS total FROM supplier_sources WHERE tenant_id=?1 AND source_key=?2 AND status='active'",
-            params: [job.tenant_id, context.source_key]
-          }
-        ]
-      },
-      { fetchImpl }
+      )
     );
     if (!verifyMigrationResult(verification, job.tenant_id, job.target_schema_version)) {
       throw new CloudflarePlatformError('tenant_d1_migration_verification_failed', 502);
