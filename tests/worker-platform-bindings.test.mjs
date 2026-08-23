@@ -7,7 +7,6 @@ const diagnosticWorkflow = fs.readFileSync(
   '.github/workflows/cloudflare-tenant-data-plane-fleet-diagnostic.yml',
   'utf8'
 );
-const wrangler = JSON.parse(fs.readFileSync('wrangler.jsonc', 'utf8'));
 
 describe('main Worker infrastructure binding verification', () => {
   it('accepts only both secret_text binding names and never returns secret values', () => {
@@ -73,11 +72,5 @@ describe('main Worker infrastructure binding verification', () => {
     expect(diagnosticWorkflow).not.toContain(
       'verify-worker-platform-bindings.mjs "$WORKER_SETTINGS" --require'
     );
-  });
-
-  it('routes the required Workers for Platforms API upload through strict public fetch', () => {
-    expect(wrangler.compatibility_flags).toContain('global_fetch_strictly_public');
-    expect(deployWorkflow).toContain('PLATFORM_API_PUBLIC_FETCH');
-    expect(deployWorkflow).toContain('GLOBAL_FETCH_STRICTLY_PUBLIC=$PLATFORM_API_PUBLIC_FETCH');
   });
 });

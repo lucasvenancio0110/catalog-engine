@@ -125,6 +125,9 @@ describe('tenant data-plane fleet maintenance production canary', () => {
     expect(workflow).not.toMatch(/^  push:/m);
     expect(workflow).toContain("github.event_name == 'workflow_dispatch'");
     expect(workflow).toContain("github.ref == 'refs/heads/main'");
+    expect(workflow).toContain("format('catalog-engine-tenant-fleet-pr-{0}'");
+    expect(workflow).toContain("|| 'catalog-engine-production-d1'");
+    expect(workflow).toContain("cancel-in-progress: ${{ github.event_name == 'pull_request' }}");
     expect(deployWorkflow).toContain(
       "'.github/workflows/cloudflare-tenant-data-plane-fleet-canary.yml'"
     );
