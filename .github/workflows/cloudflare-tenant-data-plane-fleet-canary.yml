@@ -17,6 +17,10 @@ on:
   workflow_run:
     workflows: ['Deploy Catalog Engine application']
     types: [completed]
+  push:
+    branches: ['main']
+    paths:
+      - '.github/workflows/cloudflare-tenant-data-plane-fleet-canary.yml'
   workflow_dispatch:
 
 permissions:
@@ -47,7 +51,8 @@ jobs:
 
   canary:
     if: >-
-      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      ((github.event_name == 'workflow_dispatch' || github.event_name == 'push') &&
+       github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main')
