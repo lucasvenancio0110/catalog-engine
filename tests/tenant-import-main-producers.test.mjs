@@ -20,8 +20,10 @@ describe('main tenant import producer activation boundary', () => {
   });
 
   it('keeps code deploy separate from catalog publication and verifies producer bindings after deploy', () => {
-    expect(deploy).toContain('Verify tenant import producer bindings and automation setting');
+    expect(deploy).toContain('Verify tenant import producers and automation boundaries');
     expect(deploy).toContain('TENANT_IMPORT_AUTOMATION_ENABLED');
+    expect(deploy).toContain('TENANT_SYNC_AUTOMATION_ENABLED');
+    expect(deploy).toContain('test "$SYNC_AUTOMATION_VALUE" = "0"');
     expect(deploy).toContain('catalog-engine-import-scan');
     expect(deploy).toContain('catalog-engine-import-detail');
     expect(deploy).not.toContain('sync-public-catalog-d1.mjs');
@@ -32,6 +34,6 @@ describe('main tenant import producer activation boundary', () => {
     expect(deploy).not.toMatch(/^\s*pull_request\s*:/m);
     expect(deploy).toContain('statuses: write');
     expect(deploy).toContain('catalog-engine/application-deploy');
-    expect(deploy).toContain('Queue producers and automation setting verified');
+    expect(deploy).toContain('Queue producers verified and recurring sync remains off');
   });
 });

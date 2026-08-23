@@ -20,12 +20,16 @@ Target flow:
 Rules:
 
 - build and public-artifact verification happen before the first production mutation;
+- trusted-main deploy and post-deploy canaries check out the exact triggering/deployed SHA rather than a moving `main`, because catalog-data automation may advance the branch concurrently;
 - the workflow may apply required D1 **schema migrations** while that remains the current release model;
 - it does not generate public catalog SQL;
 - it does not replace catalog product/category/team/league/facet data;
 - it does not run supplier crawling/sync;
 - it smoke-tests the already-published catalog for application compatibility after deploy;
+- it verifies the M7 activation boundary keeps `TENANT_SYNC_AUTOMATION_ENABLED=0` until recurring sync is deliberately proven and enabled;
 - because schema migrations share the production D1, the workflow remains serialized with other production D1 mutation jobs.
+
+After a trusted-main deploy that changes the tenant fleet schema target, `.github/workflows/cloudflare-tenant-data-plane-fleet-canary.yml` owns the production maintenance proof. It uses isolated v4 fixtures and the deployed cron to verify v4→v5 success, safe failure, active-import exclusion and LKG/onboarding/isolation preservation. It does not enqueue tenant import work manually or replace catalog data.
 
 A future migration architecture may separate schema deployment further, but that is a separate controlled decision.
 

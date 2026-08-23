@@ -9,7 +9,9 @@ const script = fs.readFileSync('scripts/cloudflare-auto-tenant-import-canary.mjs
 const cloudflarePlatform = fs.readFileSync('worker/cloudflare-platform.js', 'utf8');
 
 function expectWorkflow(value) {
-  expect(workflow.includes(value), `missing automatic canary workflow contract: ${value}`).toBe(true);
+  expect(workflow.includes(value), `missing automatic canary workflow contract: ${value}`).toBe(
+    true
+  );
 }
 
 function expectScript(value) {
@@ -26,13 +28,14 @@ describe('automatic tenant import production canary', () => {
     expect(validateBlock).toContain("if: github.event_name == 'pull_request'");
     expect(validateBlock).not.toContain('secrets.CLOUDFLARE');
     expectWorkflow('workflow_run:');
-    expectWorkflow('workflows: ["Deploy Catalog Engine application"]');
+    expectWorkflow("workflows: ['Deploy Catalog Engine application']");
     expectWorkflow("github.event.workflow_run.conclusion == 'success'");
     expectWorkflow("github.event.workflow_run.head_branch == 'main'");
     expectWorkflow('secrets.CLOUDFLARE_API_TOKEN');
     expectWorkflow('secrets.CLOUDFLARE_ACCOUNT_ID');
-    expectWorkflow('Checkout trusted main');
-    expectWorkflow('ref: main');
+    expectWorkflow('Checkout exactly the deployed trusted-main SHA');
+    expectWorkflow('ref: ${{ github.event_name');
+    expectWorkflow('github.event.workflow_run.head_sha');
     expect(workflow).not.toMatch(/^  push:/m);
   });
 
@@ -70,7 +73,7 @@ describe('automatic tenant import production canary', () => {
   });
 
   it('creates the isolated fixture on the current tenant schema and proves CEI persistence', () => {
-    expectScript("from '../worker/tenant-data-plane-schema-v4.js'");
+    expectScript("from '../worker/tenant-data-plane-schema-v5.js'");
     expectScript('TENANT_DATA_PLANE_SCHEMA_VERSION');
     expectScript('CATALOG_CLASSIFIER_VERSION');
     expectScript('CATALOG_CLASSIFIER_KEY');
@@ -80,6 +83,7 @@ describe('automatic tenant import production canary', () => {
     expectScript('ceiPipelineVerified: true');
     expectWorkflow('src/catalog-intelligence/**');
     expectWorkflow('worker/tenant-data-plane-schema-v4.js');
+    expectWorkflow('worker/tenant-data-plane-schema-v5.js');
     expectWorkflow('tenant-classification-runner.js');
     expectWorkflow('tenant-verification-runner.js');
   });

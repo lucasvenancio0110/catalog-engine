@@ -8,6 +8,7 @@ on:
       - 'migrations/0013_tenant_import_scan_resume.sql'
       - 'migrations/0014_tenant_classify_verify_jobs.sql'
       - 'migrations/0017_tenant_sync_schedules.sql'
+      - 'migrations/0018_tenant_data_plane_fleet_migrations.sql'
       - 'src/catalog-provider/**'
       - 'src/domain/catalog-classifier.js'
       - 'src/sync/**'
@@ -85,7 +86,7 @@ jobs:
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='tenant_verification_jobs';")" = '1'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='tenant_sync_schedules';")" = '1'
 
-      - name: Verify tenant data-plane v3 classification tables
+      - name: Verify current tenant data-plane schema
         shell: bash
         run: |
           set -euo pipefail
@@ -97,10 +98,12 @@ jobs:
           SOURCE_URL='https://supplier-test.x.yupoo.com/albums/' \
           node scripts/emit-tenant-data-plane-schema.mjs
           sqlite3 "$TENANT_DB" < "$SQL"
-          test "$(sqlite3 "$TENANT_DB" "SELECT schema_version FROM data_plane_identity LIMIT 1;")" = '3'
-          test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM data_plane_schema_migrations WHERE version IN (1,2,3);")" = '3'
+          test "$(sqlite3 "$TENANT_DB" "SELECT schema_version FROM data_plane_identity LIMIT 1;")" = '5'
+          test "$(sqlite3 "$TENANT_DB" "SELECT GROUP_CONCAT(version, ',') FROM (SELECT version FROM data_plane_schema_migrations ORDER BY version);")" = '1,2,3,4,5'
           test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='supplier_category_index';")" = '1'
           test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='supplier_album_detail_state';")" = '1'
           test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='catalog_product_classification_state';")" = '1'
           test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='catalog_product_classification_overrides';")" = '1'
+          test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='catalog_product_intelligence_state';")" = '1'
+          test "$(sqlite3 "$TENANT_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('supplier_sync_stage_runs','supplier_sync_stage_observations','supplier_sync_stage_events','supplier_sync_stage_categories');")" = '4'
           sqlite3 "$TENANT_DB" 'PRAGMA foreign_key_check;'

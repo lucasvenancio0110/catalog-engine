@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
-const readWorkflow = (name) => readFile(new URL(`../.github/workflows/${name}`, import.meta.url), 'utf8');
+const readWorkflow = (name) =>
+  readFile(new URL(`../.github/workflows/${name}`, import.meta.url), 'utf8');
 
 describe('production deployment pipeline boundary', () => {
   it('keeps catalog data replacement out of the application deployment workflow', async () => {
@@ -15,6 +16,8 @@ describe('production deployment pipeline boundary', () => {
     expect(workflow).toContain('npm run build');
     expect(workflow).toContain('npm run build:verify');
     expect(workflow).toContain('wrangler@$WRANGLER_VERSION" deploy');
+    expect(workflow).toContain('Checkout triggering main SHA');
+    expect(workflow).toContain('ref: ${{ github.sha }}');
 
     const buildIndex = workflow.indexOf('npm run build');
     const migrationIndex = workflow.indexOf('d1 migrations apply CATALOG_DB --remote');
