@@ -22,15 +22,15 @@ on:
       success_tenant_id:
         description: 'Exact opaque retained success-fixture tenant ID'
         required: false
-        default: 't_93be5754bb23227af42b'
+        default: 't_738c4f69d777b0438c91'
       failure_tenant_id:
         description: 'Exact opaque retained failure-fixture tenant ID'
         required: false
-        default: 't_9aaf308125a28ad5aa91'
+        default: 't_9ffa524d8dca857b6a8e'
       blocked_tenant_id:
         description: 'Exact opaque retained blocked-fixture tenant ID'
         required: false
-        default: 't_3fb95ab5ee09702f5a05'
+        default: 't_f360c5407f8b90b24cda'
 
 permissions:
   contents: read
@@ -68,9 +68,9 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE: catalog-engine-production
-      RETAINED_FLEET_SUCCESS_TENANT_ID: ${{ inputs.success_tenant_id || 't_93be5754bb23227af42b' }}
-      RETAINED_FLEET_FAILURE_TENANT_ID: ${{ inputs.failure_tenant_id || 't_9aaf308125a28ad5aa91' }}
-      RETAINED_FLEET_BLOCKED_TENANT_ID: ${{ inputs.blocked_tenant_id || 't_3fb95ab5ee09702f5a05' }}
+      RETAINED_FLEET_SUCCESS_TENANT_ID: ${{ inputs.success_tenant_id || 't_738c4f69d777b0438c91' }}
+      RETAINED_FLEET_FAILURE_TENANT_ID: ${{ inputs.failure_tenant_id || 't_9ffa524d8dca857b6a8e' }}
+      RETAINED_FLEET_BLOCKED_TENANT_ID: ${{ inputs.blocked_tenant_id || 't_f360c5407f8b90b24cda' }}
       STATUS_CONTEXT: catalog-engine/tenant-data-plane-fleet-diagnostic
 
     steps:
