@@ -428,7 +428,7 @@ A maintenance upgrade must **not**:
 
 Success updates schema metadata while preserving the current serving status. Failure records bounded retry/error evidence while preserving the prior serving state and LKG.
 
-The automatic isolated import canary creates its fixture on the current v5 schema so trusted-main evidence cannot remain green by accidentally validating only the old v4 target.
+The automatic isolated import canary creates its fixture on the current v5 schema so trusted-main evidence cannot remain green by accidentally validating only the old v4 target. A separate trusted-main fleet canary begins with ready v4 data planes and waits for scheduler-owned maintenance. It must prove success, safe failure and active-import exclusion while preserving LKG, merchant overrides, serving state and historical onboarding. It does not create migration jobs, produce Queue messages or purge evidence.
 
 `TENANT_SYNC_AUTOMATION_ENABLED=0` remains the production activation boundary after the v5 fleet migration. Schema availability is therefore proven before the native incremental scan/detail path is allowed to run automatically.
 

@@ -2,21 +2,21 @@ name: Deploy Catalog Engine application
 
 on:
   push:
-    branches: ["main"]
+    branches: ['main']
     paths:
-      - ".github/workflows/deploy-catalog-api.yml"
-      - "index.html"
-      - "app.html"
-      - "package.json"
-      - "package-lock.json"
-      - "vite.config.*"
-      - "config/dependency-policy.json"
-      - "migrations/**"
-      - "scripts/copy-storefront-data.mjs"
-      - "scripts/verify-dist.mjs"
-      - "src/**"
-      - "worker/**"
-      - "wrangler.jsonc"
+      - '.github/workflows/deploy-catalog-api.yml'
+      - 'index.html'
+      - 'app.html'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.*'
+      - 'config/dependency-policy.json'
+      - 'migrations/**'
+      - 'scripts/copy-storefront-data.mjs'
+      - 'scripts/verify-dist.mjs'
+      - 'src/**'
+      - 'worker/**'
+      - 'wrangler.jsonc'
   workflow_dispatch:
 
 permissions:
@@ -42,10 +42,10 @@ jobs:
       STATUS_CONTEXT: catalog-engine/application-deploy
 
     steps:
-      - name: Checkout main
+      - name: Checkout triggering main SHA
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.sha }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -76,13 +76,16 @@ jobs:
       - name: Deploy Worker and static application assets
         run: npx --yes "wrangler@$WRANGLER_VERSION" deploy --config wrangler.jsonc
 
-      - name: Verify tenant import producer bindings and automation setting
+      - name: Verify tenant import producers and automation boundaries
         shell: bash
         run: |
           set -euo pipefail
-          AUTOMATION_VALUE="$(node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('wrangler.jsonc','utf8')); process.stdout.write(String(c.vars?.TENANT_IMPORT_AUTOMATION_ENABLED || ''));" )"
-          test "$AUTOMATION_VALUE" = "0" -o "$AUTOMATION_VALUE" = "1" || { echo "Invalid tenant import automation setting"; exit 1; }
-          echo "TENANT_IMPORT_AUTOMATION_ENABLED=$AUTOMATION_VALUE"
+          IMPORT_AUTOMATION_VALUE="$(node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('wrangler.jsonc','utf8')); process.stdout.write(String(c.vars?.TENANT_IMPORT_AUTOMATION_ENABLED || ''));" )"
+          SYNC_AUTOMATION_VALUE="$(node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('wrangler.jsonc','utf8')); process.stdout.write(String(c.vars?.TENANT_SYNC_AUTOMATION_ENABLED || ''));" )"
+          test "$IMPORT_AUTOMATION_VALUE" = "0" -o "$IMPORT_AUTOMATION_VALUE" = "1" || { echo "Invalid tenant import automation setting"; exit 1; }
+          test "$SYNC_AUTOMATION_VALUE" = "0" || { echo "TENANT_SYNC_AUTOMATION_ENABLED must remain 0 for M7C4"; exit 1; }
+          echo "TENANT_IMPORT_AUTOMATION_ENABLED=$IMPORT_AUTOMATION_VALUE"
+          echo "TENANT_SYNC_AUTOMATION_ENABLED=$SYNC_AUTOMATION_VALUE"
           npx --yes "wrangler@$WRANGLER_VERSION" queues info catalog-engine-import-scan | tee /tmp/scan-queue.txt
           npx --yes "wrangler@$WRANGLER_VERSION" queues info catalog-engine-import-detail | tee /tmp/detail-queue.txt
           grep -Eq 'Producers:.*worker:catalog-engine([,[:space:]]|$)' /tmp/scan-queue.txt || { echo "Main scan producer missing"; exit 1; }
@@ -135,7 +138,7 @@ jobs:
         run: |
           set -euo pipefail
           jq -n --arg state success --arg context "$STATUS_CONTEXT" \
-            --arg description "App deployed + smoke passed; Queue producers and automation setting verified" \
+            --arg description "App deployed + smoke passed; Queue producers verified and recurring sync remains off" \
             --arg target_url "$RUN_URL" \
             '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
           curl --fail --silent --show-error -X POST \
@@ -155,7 +158,7 @@ jobs:
         run: |
           set -euo pipefail
           jq -n --arg state failure --arg context "$STATUS_CONTEXT" \
-            --arg description "Application deploy/smoke failed; inspect tenant import automation state before retry" \
+            --arg description "Application deploy/smoke failed; inspect tenant automation boundaries before retry" \
             --arg target_url "$RUN_URL" \
             '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
           curl --fail --silent --show-error -X POST \
