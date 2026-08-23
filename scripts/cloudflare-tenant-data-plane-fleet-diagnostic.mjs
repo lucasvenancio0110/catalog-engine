@@ -20,9 +20,9 @@ const STAGE_TABLES = [
 ];
 
 export const RETAINED_FLEET_FIXTURES = [
-  { kind: 'success', tenantId: 't_952c92923334f2c9d7a4' },
-  { kind: 'failure', tenantId: 't_dffb8ce3732362b3985d' },
-  { kind: 'blocked', tenantId: 't_0ea6b34ffc1e72e7dd81' }
+  { kind: 'success', tenantId: 't_5088dfe58e440ca72105' },
+  { kind: 'failure', tenantId: 't_da118d3755c5d03b2486' },
+  { kind: 'blocked', tenantId: 't_8018414cbccc78523186' }
 ];
 
 const FIXTURE_ENV_BY_KIND = {
