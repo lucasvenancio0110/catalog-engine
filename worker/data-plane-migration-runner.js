@@ -9,6 +9,46 @@ const DEFAULT_DISPATCH_NAMESPACE = 'catalog-engine-production';
 const MAX_AUTOMATIC_ATTEMPTS = 6;
 const ACTIVE_IMPORT_STATUSES = "'pending','queued','scanning','details','finalizing'";
 
+export const MAINTENANCE_MIGRATION_DISCOVERY_SQL = `SELECT DISTINCT i.tenant_id
+         FROM tenant_catalog_instances i
+         JOIN catalog_tenants t ON t.tenant_id=i.tenant_id AND t.status='active'
+         JOIN tenant_data_plane_provider_state p ON p.tenant_id=i.tenant_id
+         JOIN supplier_sources s ON s.tenant_id=i.tenant_id AND s.status='active'
+        WHERE i.status='ready'
+          AND i.schema_version < ?1
+          AND p.database_status='active'
+          AND p.worker_status='active'
+          AND p.d1_database_id IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM tenant_import_jobs j
+             WHERE j.tenant_id=i.tenant_id
+               AND j.status IN (${ACTIVE_IMPORT_STATUSES})
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM tenant_data_plane_migration_jobs m
+             WHERE m.tenant_id=i.tenant_id
+               AND m.target_schema_version=?1
+          )
+        ORDER BY COALESCE(i.last_migration_at, i.created_at) ASC
+        LIMIT ?2`;
+
+export const DATA_PLANE_MIGRATION_DUE_SQL = `SELECT j.job_id, j.tenant_id,
+              j.target_schema_version, j.migration_kind,
+              CASE WHEN j.migration_kind='provisioning' THEN r.provisioning_id ELSE NULL END AS provisioning_id
+         FROM tenant_data_plane_migration_jobs j
+         LEFT JOIN tenant_provisioning_runs r ON r.provisioning_id=(
+           SELECT r2.provisioning_id FROM tenant_provisioning_runs r2
+            WHERE r2.tenant_id=j.tenant_id ORDER BY r2.created_at DESC LIMIT 1
+         )
+        WHERE j.status IN ('pending','failed')
+          AND j.target_schema_version=?2
+          AND j.attempt_count < ?1
+          AND (j.next_attempt_at IS NULL OR j.next_attempt_at <= CURRENT_TIMESTAMP)
+        ORDER BY CASE j.migration_kind WHEN 'provisioning' THEN 0 ELSE 1 END,
+                 CASE j.status WHEN 'pending' THEN 0 ELSE 1 END,
+                 j.created_at ASC
+        LIMIT ?3`;
+
 function runtimeConfig(env) {
   const accountId = String(env.CLOUDFLARE_PLATFORM_ACCOUNT_ID || '').trim();
   const apiToken = String(env.CLOUDFLARE_PLATFORM_API_TOKEN || '').trim();
@@ -85,31 +125,7 @@ async function discoverProvisioningMigrationCandidates(db, targetVersion, limit)
 
 async function discoverMaintenanceMigrationCandidates(db, targetVersion, limit) {
   const result = await db
-    .prepare(
-      `SELECT DISTINCT i.tenant_id
-         FROM tenant_catalog_instances i
-         JOIN catalog_tenants t ON t.tenant_id=i.tenant_id AND t.status='active'
-         JOIN tenant_data_plane_provider_state p ON p.tenant_id=i.tenant_id
-         JOIN supplier_sources s ON s.tenant_id=i.tenant_id AND s.status='active'
-        WHERE i.status='ready'
-          AND i.schema_version < ?1
-          AND p.database_status='active'
-          AND p.worker_status='active'
-          AND p.d1_database_id IS NOT NULL
-          AND NOT EXISTS (
-            SELECT 1 FROM tenant_import_jobs j
-             WHERE j.tenant_id=i.tenant_id
-               AND j.status IN (${ACTIVE_IMPORT_STATUSES})
-          )
-          AND NOT EXISTS (
-            SELECT 1 FROM tenant_data_plane_migration_jobs m
-             WHERE m.tenant_id=i.tenant_id
-               AND m.target_schema_version=?1
-               AND m.status IN ('pending','running')
-          )
-        ORDER BY COALESCE(i.last_migration_at, i.created_at) ASC
-        LIMIT ?2`
-    )
+    .prepare(MAINTENANCE_MIGRATION_DISCOVERY_SQL)
     .bind(targetVersion, limit)
     .all();
 
@@ -442,21 +458,7 @@ export async function runDueDataPlaneMigrations(
     .run();
 
   const due = await db
-    .prepare(
-      `SELECT j.job_id, j.tenant_id, j.target_schema_version, j.migration_kind,
-              CASE WHEN j.migration_kind='provisioning' THEN r.provisioning_id ELSE NULL END AS provisioning_id
-         FROM tenant_data_plane_migration_jobs j
-         LEFT JOIN tenant_provisioning_runs r ON r.provisioning_id=(
-           SELECT r2.provisioning_id FROM tenant_provisioning_runs r2
-            WHERE r2.tenant_id=j.tenant_id ORDER BY r2.created_at DESC LIMIT 1
-         )
-        WHERE j.status IN ('pending','failed')
-          AND j.target_schema_version=?2
-          AND j.attempt_count < ?1
-          AND (j.next_attempt_at IS NULL OR j.next_attempt_at <= CURRENT_TIMESTAMP)
-        ORDER BY CASE j.migration_kind WHEN 'provisioning' THEN 0 ELSE 1 END, j.created_at ASC
-        LIMIT ?3`
-    )
+    .prepare(DATA_PLANE_MIGRATION_DUE_SQL)
     .bind(MAX_AUTOMATIC_ATTEMPTS, TENANT_DATA_PLANE_SCHEMA_VERSION, boundedLimit)
     .all();
 
