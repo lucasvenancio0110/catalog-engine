@@ -76,7 +76,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes "wrangler@$WRANGLER_VERSION" secret list --name catalog-engine --config wrangler.jsonc > /tmp/catalog-engine-secret-names.json
+          npx --yes "wrangler@$WRANGLER_VERSION" secret list --name catalog-engine --config wrangler.jsonc --format json > /tmp/catalog-engine-secret-names.json
           ACCOUNT_PRESENT="$(jq -r 'any(.[]?; .name == "CLOUDFLARE_PLATFORM_ACCOUNT_ID")' /tmp/catalog-engine-secret-names.json)"
           TOKEN_PRESENT="$(jq -r 'any(.[]?; .name == "CLOUDFLARE_PLATFORM_API_TOKEN")' /tmp/catalog-engine-secret-names.json)"
           echo "WORKER_PLATFORM_ACCOUNT_SECRET_PRESENT=$ACCOUNT_PRESENT" >> "$GITHUB_ENV"
