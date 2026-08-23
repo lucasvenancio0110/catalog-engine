@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest';
 import {
   controlPlaneSeed,
   fixtureIdentity,
-  initialDataPlaneSeed
+  initialDataPlaneSeed,
+  retainedMigrationFailureEvidence
 } from '../scripts/cloudflare-tenant-data-plane-fleet-canary.mjs';
 import { tenantDataPlaneCurrentBatch as tenantDataPlaneV4Batch } from '../worker/tenant-data-plane-schema-v4.js';
 
@@ -121,7 +122,9 @@ describe('tenant data-plane fleet maintenance production canary', () => {
     expect(workflow).toContain('github.event.workflow_run.head_sha');
     expect(workflow).toContain("github.ref == 'refs/heads/main'");
     expect(workflow).toMatch(/^  push:/m);
-    expect(workflow).toContain("github.event_name == 'workflow_dispatch' || github.event_name == 'push'");
+    expect(workflow).toContain(
+      "github.event_name == 'workflow_dispatch' || github.event_name == 'push'"
+    );
     const pushStart = workflow.indexOf('  push:');
     const dispatchStart = workflow.indexOf('  workflow_dispatch:', pushStart);
     const pushContract = workflow.slice(pushStart, dispatchStart);
@@ -188,6 +191,29 @@ describe('tenant data-plane fleet maintenance production canary', () => {
     expect(script.slice(retainedEvidenceStart, mainStart)).not.toContain(
       'databaseId: fixture.databaseId'
     );
+    expect(script).toContain('migrationFailureEvidence');
+  });
+
+  it('bounds retained migration failure details to stable safe fields', () => {
+    expect(
+      retainedMigrationFailureEvidence('success', {
+        status: 'failed',
+        attempt_count: 3,
+        last_error_code: 'tenant_d1_migration_apply_unreachable'
+      })
+    ).toEqual({
+      kind: 'success',
+      status: 'failed',
+      attemptCount: 3,
+      safeErrorCode: 'tenant_d1_migration_apply_unreachable'
+    });
+    expect(
+      retainedMigrationFailureEvidence('success', {
+        status: 'failed',
+        attempt_count: 1,
+        last_error_code: 'https://private.example/token'
+      }).safeErrorCode
+    ).toBe('fleet_canary_migration_error_invalid');
   });
 
   it('keeps recurring tenant sync explicitly off in deploy and canary gates', () => {
