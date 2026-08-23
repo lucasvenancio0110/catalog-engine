@@ -5,6 +5,7 @@ on:
     branches: ['main']
     paths:
       - '.github/workflows/deploy-catalog-api.yml'
+      - '.github/workflows/cloudflare-tenant-data-plane-fleet-canary.yml'
       - 'index.html'
       - 'app.html'
       - 'package.json'

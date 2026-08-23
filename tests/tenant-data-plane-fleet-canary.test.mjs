@@ -110,7 +110,7 @@ describe('tenant data-plane fleet maintenance production canary', () => {
     database.close();
   });
 
-  it('keeps PR validation secret-free and production execution tied to trusted main', () => {
+  it('keeps PR validation secret-free and production execution behind a completed trusted-main deploy', () => {
     const validateStart = workflow.indexOf('  validate:');
     const canaryStart = workflow.indexOf('  canary:');
     expect(validateStart).toBeGreaterThan(-1);
@@ -120,21 +120,14 @@ describe('tenant data-plane fleet maintenance production canary', () => {
     expect(workflow).toContain("github.event.workflow_run.conclusion == 'success'");
     expect(workflow).toContain("github.event.workflow_run.head_branch == 'main'");
     expect(workflow).toContain('github.event.workflow_run.head_sha');
-    expect(workflow).toContain("github.ref == 'refs/heads/main'");
     expect(workflow).toContain("'worker/ingestion/tenant-data-plane.js'");
     expect(workflow).toContain("'worker/tenant-data-plane-command.js'");
-    expect(workflow).toMatch(/^  push:/m);
-    expect(workflow).toContain(
-      "github.event_name == 'workflow_dispatch' || github.event_name == 'push'"
-    );
-    const pushStart = workflow.indexOf('  push:');
-    const dispatchStart = workflow.indexOf('  workflow_dispatch:', pushStart);
-    const pushContract = workflow.slice(pushStart, dispatchStart);
-    expect(pushContract).toContain("branches: ['main']");
-    expect(pushContract).toContain(
+    expect(workflow).not.toMatch(/^  push:/m);
+    expect(workflow).toContain("github.event_name == 'workflow_dispatch'");
+    expect(workflow).toContain("github.ref == 'refs/heads/main'");
+    expect(deployWorkflow).toContain(
       "'.github/workflows/cloudflare-tenant-data-plane-fleet-canary.yml'"
     );
-    expect(pushContract).not.toContain('worker/');
   });
 
   it('proves scheduler ownership without manually creating migration jobs or touching Queue messages', () => {
