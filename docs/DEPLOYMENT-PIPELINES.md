@@ -24,6 +24,7 @@ Rules:
 - the workflow may apply required D1 **schema migrations** while that remains the current release model;
 - the same trusted-main deployment uploads the infrastructure-only `CLOUDFLARE_PLATFORM_ACCOUNT_ID` and `CLOUDFLARE_PLATFORM_API_TOKEN` secret bindings alongside the Worker code by using Wrangler's `--secrets-file` boundary; the temporary file is permission-restricted and deleted by an exit trap;
 - only secret binding names/types are read back after deploy through Cloudflare's read-only Worker Script Settings API. Secret values and unrelated binding identifiers are never emitted, committed or exposed to pull-request validation;
+- the deploy gate requires the main Worker's `global_fetch_strictly_public` compatibility flag so the exceptional Workers for Platforms administrative upload request reaches Cloudflare's public API; this does not authorize tenant D1 REST maintenance, which remains binding-only;
 - these account-level bindings belong only to physical tenant provisioning, fresh-provisioning schema work and Workers for Platforms script preparation. Maintenance schema inspection/application/verification, tenant import, CEI classification and verification use the isolated `TENANT_DISPATCH` path;
 - it does not generate public catalog SQL;
 - it does not replace catalog product/category/team/league/facet data;
@@ -33,6 +34,8 @@ Rules:
 - because schema migrations share the production D1, the workflow remains serialized with other production D1 mutation jobs.
 
 After a trusted-main deploy that changes the tenant fleet schema target, `.github/workflows/cloudflare-tenant-data-plane-fleet-canary.yml` owns the production maintenance proof. It uses isolated v4 fixtures with the prior internal-command capability and the deployed cron to verify automatic runtime-capability refresh, binding-native v4→v5 success, safe failure, active-import exclusion and LKG/onboarding/isolation preservation. It does not enqueue tenant import work manually or replace catalog data. On unexpected failure it reports only bounded migration job evidence and retains the isolated fixtures. A trusted-main change to the fleet-canary workflow is owned by the application-deploy path filter and reaches the proof only through the successful deploy's `workflow_run`; the fleet workflow must not start a competing direct-push run in the shared production-D1 concurrency group.
+
+The fleet workflow's secret-free pull-request validation uses a PR-scoped concurrency group and may run alongside production. Only the privileged trusted-main canary uses `catalog-engine-production-d1`; validation must not occupy or replace the single pending production slot.
 
 When the automatic tenant import canary retains a fixture, `.github/workflows/cloudflare-retained-canary-diagnostic.yml` owns read-only diagnosis for the exact opaque tenant ID on trusted `main`. It may report bounded job/provisioning/CEI state, tenant schema/counts, foreign-key findings and Queue/DLQ backlogs. It must not emit supplier URLs, raw error payloads or private metadata, and it must not enqueue, purge, retry, update or delete evidence.
 
