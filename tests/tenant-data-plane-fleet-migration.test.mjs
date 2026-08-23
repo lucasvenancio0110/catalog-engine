@@ -16,6 +16,11 @@ const migration0018 = fs.readFileSync(
   'migrations/0018_tenant_data_plane_fleet_migrations.sql',
   'utf8'
 );
+const saasWorkflow = fs.readFileSync('.github/workflows/validate-saas-control-plane.yml', 'utf8');
+const ingestionWorkflow = fs.readFileSync(
+  '.github/workflows/validate-tenant-ingestion.yml',
+  'utf8'
+);
 
 const TENANT_ID = 't_0123456789abcdefabcd';
 const DATABASE_ID = '11111111-1111-4111-8111-111111111111';
@@ -157,9 +162,27 @@ describe('tenant data-plane fleet migration activation', () => {
     expect(migrationRunnerSource).toContain('j.target_schema_version=?2');
   });
 
+  it('keeps tenant schema CI aligned with the v5 fleet target and migration ownership', () => {
+    for (const workflow of [saasWorkflow, ingestionWorkflow]) {
+      expect(workflow).toContain('schema_version FROM data_plane_identity');
+      expect(workflow).toContain("= '5'");
+      expect(workflow).toContain("= '1,2,3,4,5'");
+      expect(workflow).toContain('catalog_product_intelligence_state');
+      expect(workflow).toContain('supplier_sync_stage_runs');
+      expect(workflow).toContain('supplier_sync_stage_observations');
+      expect(workflow).toContain('supplier_sync_stage_events');
+      expect(workflow).toContain('supplier_sync_stage_categories');
+    }
+    expect(ingestionWorkflow).toContain("'migrations/0018_tenant_data_plane_fleet_migrations.sql'");
+    expect(ingestionWorkflow).toContain('name: Verify current tenant data-plane schema');
+    expect(ingestionWorkflow).not.toContain('Verify tenant data-plane v3 classification tables');
+  });
+
   it('does not let discovery erase a failed migration retry backoff', () => {
     expect(migrationRunnerSource).toContain('ON CONFLICT(job_id) DO NOTHING');
-    expect(migrationRunnerSource).toContain("next_attempt_at=datetime(CURRENT_TIMESTAMP,'+10 minutes')");
+    expect(migrationRunnerSource).toContain(
+      "next_attempt_at=datetime(CURRENT_TIMESTAMP,'+10 minutes')"
+    );
   });
 
   it('keeps migration kind validation fail-closed', () => {
