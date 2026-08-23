@@ -428,6 +428,8 @@ A maintenance upgrade must **not**:
 
 Success updates schema metadata while preserving the current serving status. Failure records bounded retry/error evidence while preserving the prior serving state and LKG.
 
+Migration application is version-aware and bounded. Fresh provisioning applies the additive line as one transactional D1 batch per version; maintenance reads the isolated D1 identity/contiguous ledger and, from v4, applies only the v5 statements plus the v5 identity/ledger completion writes. It must not resend the cumulative v1-v5 schema as one remote batch. The control-plane schema version advances only after final tenant identity/source verification, so retrying a partially completed additive sequence remains idempotent while the prior LKG continues serving; an already-complete D1 can be reconciled after an interrupted control-plane completion write without replaying DDL.
+
 The automatic isolated import canary creates its fixture on the current v5 schema so trusted-main evidence cannot remain green by accidentally validating only the old v4 target. A separate trusted-main fleet canary begins with ready v4 data planes and waits for scheduler-owned maintenance. It must prove success, safe failure and active-import exclusion while preserving LKG, merchant overrides, serving state and historical onboarding. It does not create migration jobs, produce Queue messages or purge evidence.
 
 `TENANT_SYNC_AUTOMATION_ENABLED=0` remains the production activation boundary after the v5 fleet migration. Schema availability is therefore proven before the native incremental scan/detail path is allowed to run automatically.

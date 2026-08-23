@@ -2,7 +2,7 @@ import { CloudflarePlatformError, queryD1Batch } from './cloudflare-platform.js'
 import { stableOpaqueId } from './runtime-identity.js';
 import {
   TENANT_DATA_PLANE_SCHEMA_VERSION,
-  tenantDataPlaneCurrentBatch
+  tenantDataPlaneMigrationBatches
 } from './tenant-data-plane-schema-v5.js';
 
 const DEFAULT_DISPATCH_NAMESPACE = 'catalog-engine-production';
@@ -74,7 +74,8 @@ export function normalizeMigrationKind(value = 'provisioning') {
 
 async function migrationJobId(tenantId, version, migrationKind = 'provisioning') {
   const kind = normalizeMigrationKind(migrationKind);
-  const seed = kind === 'provisioning' ? `${tenantId}:v${version}` : `${tenantId}:v${version}:${kind}`;
+  const seed =
+    kind === 'provisioning' ? `${tenantId}:v${version}` : `${tenantId}:v${version}:${kind}`;
   return stableOpaqueId('dpmig', seed);
 }
 
@@ -143,7 +144,7 @@ async function migrationContext(db, tenantId) {
   return db
     .prepare(
       `SELECT p.d1_database_id, p.dispatch_namespace,
-              i.status AS catalog_status,
+              i.status AS catalog_status, i.schema_version AS current_schema_version,
               s.source_key, s.provider AS source_provider, s.source_url,
               s.sync_strategy, s.removal_miss_threshold,
               r.provisioning_id, r.current_step AS resume_step
@@ -345,6 +346,46 @@ function verifyMigrationResult(result, tenantId, expectedVersion) {
   );
 }
 
+async function resolveTenantSchemaVersion(
+  config,
+  { tenantId, databaseId, controlVersion, targetVersion },
+  fetchImpl
+) {
+  if (controlVersion === 0) return 0;
+  const result = await queryD1Batch(
+    {
+      ...config,
+      databaseId,
+      batch: [
+        {
+          sql: 'SELECT tenant_id, schema_version FROM data_plane_identity WHERE tenant_id=?1 LIMIT 1',
+          params: [tenantId]
+        },
+        {
+          sql: 'SELECT version FROM data_plane_schema_migrations ORDER BY version ASC',
+          params: []
+        }
+      ]
+    },
+    { fetchImpl }
+  );
+  const identity = result[0]?.results?.[0];
+  const version = Number(identity?.schema_version);
+  const ledger = (result[1]?.results || []).map((row) => Number(row.version));
+  const ledgerIsContiguous =
+    ledger.length === version && ledger.every((entry, index) => entry === index + 1);
+  if (
+    identity?.tenant_id !== tenantId ||
+    !Number.isInteger(version) ||
+    version < controlVersion ||
+    version > targetVersion ||
+    !ledgerIsContiguous
+  ) {
+    throw new CloudflarePlatformError('tenant_d1_schema_state_invalid', 500);
+  }
+  return version;
+}
+
 export async function processTenantDataPlaneMigration(
   db,
   { job, env },
@@ -377,15 +418,43 @@ export async function processTenantDataPlaneMigration(
       syncStrategy: context.sync_strategy,
       removalMissThreshold: Number(context.removal_miss_threshold || 3)
     };
-    const batch = tenantDataPlaneCurrentBatch({ tenantId: job.tenant_id, source });
-    await queryD1Batch(
+    const controlVersion = Number(context.current_schema_version);
+    const targetVersion = Number(job.target_schema_version);
+    if (
+      !Number.isInteger(controlVersion) ||
+      !Number.isInteger(targetVersion) ||
+      controlVersion < 0 ||
+      targetVersion !== TENANT_DATA_PLANE_SCHEMA_VERSION ||
+      controlVersion > targetVersion
+    ) {
+      throw new CloudflarePlatformError('tenant_data_plane_schema_state_invalid', 500);
+    }
+    const currentVersion = await resolveTenantSchemaVersion(
+      config,
       {
-        ...config,
+        tenantId: job.tenant_id,
         databaseId: context.d1_database_id,
-        batch
+        controlVersion,
+        targetVersion
       },
-      { fetchImpl }
+      fetchImpl
     );
+    const migrationBatches = tenantDataPlaneMigrationBatches({
+      tenantId: job.tenant_id,
+      source,
+      currentVersion,
+      targetVersion
+    });
+    for (const batch of migrationBatches) {
+      await queryD1Batch(
+        {
+          ...config,
+          databaseId: context.d1_database_id,
+          batch
+        },
+        { fetchImpl }
+      );
+    }
     const verification = await queryD1Batch(
       {
         ...config,
@@ -396,7 +465,7 @@ export async function processTenantDataPlaneMigration(
             params: [job.tenant_id]
           },
           {
-            sql: 'SELECT COUNT(*) AS total FROM supplier_sources WHERE tenant_id=?1 AND source_key=?2 AND status=\'active\'',
+            sql: "SELECT COUNT(*) AS total FROM supplier_sources WHERE tenant_id=?1 AND source_key=?2 AND status='active'",
             params: [job.tenant_id, context.source_key]
           }
         ]
@@ -423,10 +492,7 @@ export async function processTenantDataPlaneMigration(
   }
 }
 
-export async function runDueDataPlaneMigrations(
-  env,
-  { fetchImpl = fetch, limit = 2 } = {}
-) {
+export async function runDueDataPlaneMigrations(env, { fetchImpl = fetch, limit = 2 } = {}) {
   if (!env.CATALOG_DB) return { enabled: false, reason: 'database_unbound', processed: 0 };
   const config = runtimeConfig(env);
   if (!config) return { enabled: false, reason: 'cloudflare_platform_unconfigured', processed: 0 };

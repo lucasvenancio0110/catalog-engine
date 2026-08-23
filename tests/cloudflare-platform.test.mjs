@@ -81,10 +81,7 @@ describe('Cloudflare Workers for Platforms adapter', () => {
       ]);
     });
 
-    const result = await queryD1Batch(
-      { ...baseConfig, databaseId, batch },
-      { fetchImpl }
-    );
+    const result = await queryD1Batch({ ...baseConfig, databaseId, batch }, { fetchImpl });
     expect(result).toHaveLength(2);
   });
 
@@ -179,6 +176,20 @@ describe('Cloudflare Workers for Platforms adapter', () => {
       name: 'CloudflarePlatformError',
       code: 'cloudflare_platform_10090',
       status: 422
+    });
+  });
+
+  it('distinguishes a bounded platform timeout from a generic network failure', async () => {
+    const fetchImpl = async () => {
+      const error = new Error('private timeout detail');
+      error.name = 'AbortError';
+      throw error;
+    };
+
+    await expect(assertDispatchNamespace(baseConfig, { fetchImpl })).rejects.toMatchObject({
+      name: 'CloudflarePlatformError',
+      code: 'cloudflare_platform_timeout',
+      status: 503
     });
   });
 });
