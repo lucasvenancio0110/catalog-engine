@@ -54,10 +54,17 @@ jobs:
           cache: npm
 
       - name: Validate Cloudflare credentials
+        env:
+          CLOUDFLARE_PLATFORM_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_PLATFORM_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_PLATFORM_API_TOKEN: ${{ secrets.CLOUDFLARE_PLATFORM_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
         shell: bash
         run: |
+          set -euo pipefail
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
+          test -n "$CLOUDFLARE_PLATFORM_ACCOUNT_ID" || { echo "CLOUDFLARE_PLATFORM_ACCOUNT_ID is missing"; exit 1; }
+          test -n "$CLOUDFLARE_PLATFORM_API_TOKEN" || { echo "CLOUDFLARE_PLATFORM_API_TOKEN is missing"; exit 1; }
+          test "$CLOUDFLARE_PLATFORM_ACCOUNT_ID" = "$CLOUDFLARE_ACCOUNT_ID" || { echo "Cloudflare platform account does not match the deploy account"; exit 1; }
 
       - name: Install project dependencies
         run: npm ci
@@ -74,7 +81,32 @@ jobs:
         run: npx --yes "wrangler@$WRANGLER_VERSION" d1 migrations apply CATALOG_DB --remote --config wrangler.jsonc
 
       - name: Deploy Worker and static application assets
-        run: npx --yes "wrangler@$WRANGLER_VERSION" deploy --config wrangler.jsonc
+        env:
+          CLOUDFLARE_PLATFORM_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_PLATFORM_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_PLATFORM_API_TOKEN: ${{ secrets.CLOUDFLARE_PLATFORM_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUNTIME_SECRETS="$(mktemp)"
+          trap 'rm -f "$RUNTIME_SECRETS"' EXIT
+          chmod 600 "$RUNTIME_SECRETS"
+          jq -n \
+            --arg accountId "$CLOUDFLARE_PLATFORM_ACCOUNT_ID" \
+            --arg apiToken "$CLOUDFLARE_PLATFORM_API_TOKEN" \
+            '{CLOUDFLARE_PLATFORM_ACCOUNT_ID:$accountId,CLOUDFLARE_PLATFORM_API_TOKEN:$apiToken}' \
+            > "$RUNTIME_SECRETS"
+          npx --yes "wrangler@$WRANGLER_VERSION" deploy --config wrangler.jsonc --secrets-file "$RUNTIME_SECRETS"
+
+      - name: Verify main Worker infrastructure secret bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          SECRET_NAMES="$(mktemp)"
+          trap 'rm -f "$SECRET_NAMES"' EXIT
+          npx --yes "wrangler@$WRANGLER_VERSION" secret list --name catalog-engine --config wrangler.jsonc --format json > "$SECRET_NAMES"
+          jq -e 'any(.[]?; .name == "CLOUDFLARE_PLATFORM_ACCOUNT_ID")' "$SECRET_NAMES" > /dev/null || { echo "CLOUDFLARE_PLATFORM_ACCOUNT_ID Worker binding is missing"; exit 1; }
+          jq -e 'any(.[]?; .name == "CLOUDFLARE_PLATFORM_API_TOKEN")' "$SECRET_NAMES" > /dev/null || { echo "CLOUDFLARE_PLATFORM_API_TOKEN Worker binding is missing"; exit 1; }
+          echo "Infrastructure runtime secret names verified; values remain hidden"
 
       - name: Verify tenant import producers and automation boundaries
         shell: bash
@@ -138,7 +170,7 @@ jobs:
         run: |
           set -euo pipefail
           jq -n --arg state success --arg context "$STATUS_CONTEXT" \
-            --arg description "App deployed + smoke passed; Queue producers verified and recurring sync remains off" \
+            --arg description "App deployed + smoke passed; infrastructure bindings and sync-off boundary verified" \
             --arg target_url "$RUN_URL" \
             '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
           curl --fail --silent --show-error -X POST \

@@ -15,13 +15,16 @@ Owned by `.github/workflows/deploy-catalog-api.yml`.
 
 Target flow:
 
-`checkout main -> install -> quality -> build -> build:verify -> schema migrations -> Worker/assets deploy -> smoke existing catalog`
+`checkout exact main SHA -> install -> quality -> build -> build:verify -> schema migrations -> Worker/assets + infrastructure secrets in one deploy -> verify secret names -> smoke existing catalog`
 
 Rules:
 
 - build and public-artifact verification happen before the first production mutation;
 - trusted-main deploy and post-deploy canaries check out the exact triggering/deployed SHA rather than a moving `main`, because catalog-data automation may advance the branch concurrently;
 - the workflow may apply required D1 **schema migrations** while that remains the current release model;
+- the same trusted-main deployment uploads the infrastructure-only `CLOUDFLARE_PLATFORM_ACCOUNT_ID` and `CLOUDFLARE_PLATFORM_API_TOKEN` secret bindings alongside the Worker code by using Wrangler's `--secrets-file` boundary; the temporary file is permission-restricted and deleted by an exit trap;
+- only secret names are read back after deploy. Secret values are never committed, printed or exposed to pull-request validation;
+- these account-level bindings belong only to physical tenant provisioning/schema migration. Tenant import, CEI classification and verification continue to use the isolated `TENANT_DISPATCH` path;
 - it does not generate public catalog SQL;
 - it does not replace catalog product/category/team/league/facet data;
 - it does not run supplier crawling/sync;
@@ -100,6 +103,7 @@ As tenant-isolated Queue processing becomes primary, per-tenant concurrency/lock
 
 - application deploy cannot call `sync-public-catalog-d1.mjs` or own the public catalog SQL directory;
 - application build/verify occurs before remote migrations/deploy;
+- the exact Worker code deployment includes and then verifies the two infrastructure migration secret names without printing their values;
 - default snapshot publication remains manual;
 - default snapshot publication cannot deploy the Worker or apply remote migrations.
 
