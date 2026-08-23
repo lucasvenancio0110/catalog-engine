@@ -50,7 +50,9 @@ async function cloudflareRequest(path) {
   const payload = await response.json().catch(() => null);
   if (!response.ok || payload?.success !== true) {
     const providerCode = Number(payload?.errors?.[0]?.code);
-    const code = Number.isFinite(providerCode) ? String(providerCode) : String(response.status || 'unknown');
+    const code = Number.isFinite(providerCode)
+      ? String(providerCode)
+      : String(response.status || 'unknown');
     throw new Error(`retained_canary_cloudflare_${code}`);
   }
   return payload.result ?? null;

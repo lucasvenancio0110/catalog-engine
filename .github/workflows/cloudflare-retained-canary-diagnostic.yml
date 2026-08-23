@@ -2,23 +2,23 @@ name: Diagnose retained automatic import canary
 
 on:
   pull_request:
-    branches: ["main"]
+    branches: ['main']
     paths:
-      - ".github/workflows/cloudflare-retained-canary-diagnostic.yml"
-      - "scripts/cloudflare-retained-canary-diagnostic.mjs"
-      - "tests/retained-canary-diagnostic.test.mjs"
+      - '.github/workflows/cloudflare-retained-canary-diagnostic.yml'
+      - 'scripts/cloudflare-retained-canary-diagnostic.mjs'
+      - 'tests/retained-canary-diagnostic.test.mjs'
   push:
-    branches: ["main"]
+    branches: ['main']
     paths:
-      - ".github/workflows/cloudflare-retained-canary-diagnostic.yml"
-      - "scripts/cloudflare-retained-canary-diagnostic.mjs"
-      - "tests/retained-canary-diagnostic.test.mjs"
+      - '.github/workflows/cloudflare-retained-canary-diagnostic.yml'
+      - 'scripts/cloudflare-retained-canary-diagnostic.mjs'
+      - 'tests/retained-canary-diagnostic.test.mjs'
   workflow_dispatch:
     inputs:
       tenant_id:
-        description: "Exact opaque retained automatic-import canary tenant ID"
+        description: 'Exact opaque retained automatic-import canary tenant ID'
         required: false
-        default: "t_877e74005a61fd5ce924"
+        default: 't_877e74005a61fd5ce924'
 
 permissions:
   contents: read
