@@ -19,7 +19,9 @@ permissions:
   statuses: write
 
 concurrency:
-  group: catalog-engine-tenant-import-queue-infra
+  # Worker/Queue control-plane mutations must not overlap the application
+  # deploy or trusted production canaries that use the same Worker/Queues.
+  group: catalog-engine-production-d1
   cancel-in-progress: false
 
 jobs:

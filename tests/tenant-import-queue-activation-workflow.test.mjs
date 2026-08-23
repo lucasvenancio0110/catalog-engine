@@ -17,6 +17,12 @@ describe('trusted tenant Queue activation workflow', () => {
     expectPresent('secrets.CLOUDFLARE_ACCOUNT_ID');
   });
 
+  it('serializes Worker and Queue control-plane mutations with trusted production work', () => {
+    expectPresent('group: catalog-engine-production-d1');
+    expectPresent('cancel-in-progress: false');
+    expect(workflow).not.toContain('group: catalog-engine-tenant-import-queue-infra');
+  });
+
   it('preserves the configured automation state instead of forcing OFF during consumer deployment', () => {
     expectPresent('Validate tenant import automation setting');
     expectPresent('TENANT_IMPORT_AUTOMATION_ENABLED');

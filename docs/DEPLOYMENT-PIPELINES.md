@@ -95,9 +95,9 @@ Current sync/recovery workflows can still persist a sanitized snapshot to Git fo
 
 ## Production serialization
 
-Jobs that mutate the shared/default production D1 currently use the `catalog-engine-production-d1` concurrency group with `cancel-in-progress: false`.
+Jobs that mutate the shared/default production D1 currently use the `catalog-engine-production-d1` concurrency group with `cancel-in-progress: false`. The tenant import Queue-consumer activation workflow shares this group because deploying its Worker consumers and inspecting/attaching Queue control-plane resources must not overlap the application Worker deploy or trusted production canaries using those Queues.
 
-This prevents application migrations, catalog publication and default sync/recovery from racing each other.
+This prevents application migrations, Worker/Queue deployments, catalog publication, default sync/recovery and trusted production canaries from racing each other.
 
 As tenant-isolated Queue processing becomes primary, per-tenant concurrency/locking must replace unnecessary global serialization for tenant data planes.
 
