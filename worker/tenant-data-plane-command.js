@@ -23,6 +23,7 @@ const TENANT_DATA_PLANE_MIGRATION_STATEMENTS = Object.freeze({
   4: TENANT_DATA_PLANE_V4_STATEMENTS,
   5: TENANT_DATA_PLANE_V5_STATEMENTS
 });
+const TENANT_DATA_PLANE_MIGRATION_TARGET_VERSION = CURRENT_TENANT_DATA_PLANE_SCHEMA_VERSION;
 
 export class TenantDataPlaneCommandError extends Error {
   constructor(code, status = 400) {
@@ -175,7 +176,7 @@ async function inspectTenantDataPlaneSchema(database, tenantId) {
   if (
     identity?.tenant_id !== tenantId ||
     version < 1 ||
-    version > CURRENT_TENANT_DATA_PLANE_SCHEMA_VERSION ||
+    version > TENANT_DATA_PLANE_MIGRATION_TARGET_VERSION ||
     !ledgerIsContiguous
   ) {
     throw new TenantDataPlaneCommandError('tenant_data_plane_schema_state_invalid', 409);
@@ -241,7 +242,7 @@ export async function handleTenantDataPlaneSchemaMigrationCommand(request, env) 
   if (
     Number(payload?.version) !== TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION ||
     String(payload?.tenantId || '') !== boundTenantId ||
-    Number(payload?.targetSchemaVersion) !== CURRENT_TENANT_DATA_PLANE_SCHEMA_VERSION ||
+    Number(payload?.targetSchemaVersion) !== TENANT_DATA_PLANE_MIGRATION_TARGET_VERSION ||
     Object.keys(payload || {}).some(
       (key) => !['version', 'tenantId', 'targetSchemaVersion'].includes(key)
     )
@@ -253,7 +254,7 @@ export async function handleTenantDataPlaneSchemaMigrationCommand(request, env) 
     const previousVersion = await inspectTenantDataPlaneSchema(env.CATALOG_DB, boundTenantId);
     for (
       let version = previousVersion + 1;
-      version <= CURRENT_TENANT_DATA_PLANE_SCHEMA_VERSION;
+      version <= TENANT_DATA_PLANE_MIGRATION_TARGET_VERSION;
       version += 1
     ) {
       const statements = tenantDataPlaneSchemaMigrationBatch(
@@ -271,7 +272,7 @@ export async function handleTenantDataPlaneSchemaMigrationCommand(request, env) 
       }
     }
     const schemaVersion = await inspectTenantDataPlaneSchema(env.CATALOG_DB, boundTenantId);
-    if (schemaVersion !== CURRENT_TENANT_DATA_PLANE_SCHEMA_VERSION) {
+    if (schemaVersion !== TENANT_DATA_PLANE_MIGRATION_TARGET_VERSION) {
       throw new TenantDataPlaneCommandError('tenant_data_plane_migration_verification_failed', 502);
     }
     return Response.json(
@@ -295,7 +296,7 @@ export async function handleTenantDataPlaneSchemaMigrationCommand(request, env) 
 
 function commandRuntimeFactorySource({ includeSchemaMigration = true } = {}) {
   const migrationRuntime = includeSchemaMigration
-    ? `const TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION=${TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION};\nconst TENANT_DATA_PLANE_MIGRATION_COMMAND_PATH=${JSON.stringify(TENANT_DATA_PLANE_MIGRATION_COMMAND_PATH)};\nconst CURRENT_TENANT_DATA_PLANE_SCHEMA_VERSION=${CURRENT_TENANT_DATA_PLANE_SCHEMA_VERSION};\nconst TENANT_DATA_PLANE_MIGRATION_STATEMENTS=${JSON.stringify(TENANT_DATA_PLANE_MIGRATION_STATEMENTS)};\n${inspectTenantDataPlaneSchema.toString()}\n${tenantDataPlaneSchemaMigrationBatch.toString()}\n${handleTenantDataPlaneSchemaMigrationCommand.toString()}\n`
+    ? `const TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION=${TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION};\nconst TENANT_DATA_PLANE_MIGRATION_COMMAND_PATH=${JSON.stringify(TENANT_DATA_PLANE_MIGRATION_COMMAND_PATH)};\nconst TENANT_DATA_PLANE_MIGRATION_TARGET_VERSION=${TENANT_DATA_PLANE_MIGRATION_TARGET_VERSION};\nconst TENANT_DATA_PLANE_MIGRATION_STATEMENTS=${JSON.stringify(TENANT_DATA_PLANE_MIGRATION_STATEMENTS)};\n${inspectTenantDataPlaneSchema.toString()}\n${tenantDataPlaneSchemaMigrationBatch.toString()}\n${handleTenantDataPlaneSchemaMigrationCommand.toString()}\n`
     : '';
   return `const TENANT_DATA_PLANE_COMMAND_VERSION=${TENANT_DATA_PLANE_COMMAND_VERSION};\nconst TENANT_DATA_PLANE_COMMAND_PATH=${JSON.stringify(TENANT_DATA_PLANE_COMMAND_PATH)};\nconst TENANT_ID_PATTERN=/^t_[a-f0-9]{20}$/;\nconst MAX_BODY_BYTES=${MAX_BODY_BYTES};\nconst MAX_BATCH_SIZE=${MAX_BATCH_SIZE};\nconst MAX_SQL_BYTES=${MAX_SQL_BYTES};\nconst MAX_PARAMS=${MAX_PARAMS};\nconst ALLOWED_SQL_PREFIX=/^(SELECT|INSERT|UPDATE|DELETE)\\b/i;\n${TenantDataPlaneCommandError.toString()}\n${normalizeParam.toString()}\n${normalizeTenantDataPlaneBatch.toString()}\n${safeJsonError.toString()}\n${handleTenantDataPlaneCommand.toString()}\n${migrationRuntime}`;
 }

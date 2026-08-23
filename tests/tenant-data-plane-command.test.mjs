@@ -248,6 +248,46 @@ describe('native tenant data-plane command', () => {
     expect((await response.json()).error).toBe('tenant_data_plane_contract_invalid');
   });
 
+  it('executes the embedded migration command from the generated User Worker module', async () => {
+    const database = new DatabaseSync(':memory:');
+    try {
+      database.exec('PRAGMA foreign_keys = ON');
+      applySqliteBatch(
+        database,
+        tenantDataPlaneV4Batch({
+          tenantId,
+          source: {
+            sourceKey: 'primary',
+            provider: 'yupoo',
+            sourceUrl: 'https://private-source.invalid/catalog',
+            syncStrategy: 'incremental',
+            removalMissThreshold: 3
+          }
+        })
+      );
+      const source = tenantBootstrapWorkerSource();
+      const moduleUrl = `data:text/javascript;base64,${Buffer.from(source).toString('base64')}#${Date.now()}`;
+      const generatedWorker = (await import(moduleUrl)).default;
+      const response = await generatedWorker.fetch(
+        new Request(`https://catalog-engine.internal${TENANT_DATA_PLANE_MIGRATION_COMMAND_PATH}`, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-catalog-tenant-id': tenantId
+          },
+          body: JSON.stringify({ version: 1, tenantId, targetSchemaVersion: 5 })
+        }),
+        { TENANT_ID: tenantId, CATALOG_DB: sqliteD1(database) },
+        {}
+      );
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ schemaVersion: 5, applied: true });
+    } finally {
+      database.close();
+    }
+  });
+
   it('ships the internal command inside bootstrap User Workers without exposing an admin API', () => {
     const source = tenantBootstrapWorkerSource();
     expect(source).toContain(TENANT_DATA_PLANE_COMMAND_PATH);
