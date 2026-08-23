@@ -32,6 +32,14 @@ const STAGE_TABLES = [
   'supplier_sync_stage_categories'
 ];
 
+class FleetCanaryError extends Error {
+  constructor(code, migrationFailureEvidence = null) {
+    super(code);
+    this.name = 'FleetCanaryError';
+    this.migrationFailureEvidence = migrationFailureEvidence;
+  }
+}
+
 const wrangler = JSON.parse(await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8'));
 const CONTROL_DB_ID = String(
   wrangler.d1_databases?.find((entry) => entry.binding === 'CATALOG_DB')?.database_id || ''
@@ -314,6 +322,18 @@ async function migrationJob(fixture) {
   return result[0]?.results?.[0] || null;
 }
 
+export function retainedMigrationFailureEvidence(kind, job) {
+  const safeCode = String(job?.last_error_code || '');
+  return {
+    kind,
+    status: String(job?.status || 'unknown').slice(0, 24),
+    attemptCount: Number(job?.attempt_count || 0),
+    safeErrorCode: /^[a-z0-9_]{1,120}$/i.test(safeCode)
+      ? safeCode
+      : 'fleet_canary_migration_error_invalid'
+  };
+}
+
 async function waitForSchedulerOwnedOutcomes(fixtures) {
   const successFixture = fixtures.find((fixture) => fixture.kind === 'success');
   const failureFixture = fixtures.find((fixture) => fixture.kind === 'failure');
@@ -328,13 +348,21 @@ async function waitForSchedulerOwnedOutcomes(fixtures) {
     ]);
 
     if (blockedJob) throw new Error('fleet_canary_active_import_was_not_excluded');
-    if (successJob?.status === 'failed') throw new Error('fleet_canary_upgrade_failed');
+    if (successJob?.status === 'failed') {
+      throw new FleetCanaryError(
+        'fleet_canary_upgrade_failed',
+        retainedMigrationFailureEvidence('success', successJob)
+      );
+    }
     if (failureJob?.status === 'success') throw new Error('fleet_canary_expected_failure_missing');
     if (
       failureJob?.status === 'failed' &&
       String(failureJob.last_error_code || '') !== EXPECTED_FAILURE_CODE
     ) {
-      throw new Error('fleet_canary_failure_code_unexpected');
+      throw new FleetCanaryError(
+        'fleet_canary_failure_code_unexpected',
+        retainedMigrationFailureEvidence('failure', failureJob)
+      );
     }
 
     if (successJob?.status === 'success' && failureJob?.status === 'failed') {
@@ -704,6 +732,9 @@ async function main() {
       JSON.stringify({
         tenantDataPlaneFleetCanaryPassed: false,
         error: code,
+        ...(error instanceof FleetCanaryError && error.migrationFailureEvidence
+          ? { migrationFailureEvidence: error.migrationFailureEvidence }
+          : {}),
         fleetCanaryFixturesRetained: true,
         fixtures: retainedFixtureEvidence(fixtures)
       })

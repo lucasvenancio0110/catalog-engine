@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   DATA_PLANE_MIGRATION_DUE_SQL,
   MAINTENANCE_MIGRATION_DISCOVERY_SQL,
@@ -416,6 +416,109 @@ describe('tenant data-plane fleet migration activation', () => {
     expect(successSql).not.toContain('tenant_provisioning_steps');
   });
 
+  it('retries binding reads and keeps only additive DDL on the administrative path', async () => {
+    const { db, batches } = fakeControlDb(maintenanceContext());
+    let dispatchCall = 0;
+    const delays = [];
+    const get = vi.fn(() => ({
+      async fetch(request) {
+        dispatchCall += 1;
+        const payload = await request.json();
+        expect(payload.batch).toHaveLength(2);
+        if (dispatchCall < 3) {
+          return Response.json(
+            { ok: false, error: 'tenant_data_plane_query_failed' },
+            { status: 502 }
+          );
+        }
+        const results =
+          dispatchCall === 3
+            ? [
+                { success: true, results: [{ tenant_id: TENANT_ID, schema_version: 4 }] },
+                {
+                  success: true,
+                  results: [{ version: 1 }, { version: 2 }, { version: 3 }, { version: 4 }]
+                }
+              ]
+            : [
+                { success: true, results: [{ tenant_id: TENANT_ID, schema_version: 5 }] },
+                { success: true, results: [{ total: 1 }] }
+              ];
+        return Response.json({ ok: true, version: 1, results });
+      }
+    }));
+    const fetchImpl = vi.fn(async (_url, options) => {
+      const queries = JSON.parse(options.body).batch;
+      expect(queries).toHaveLength(TENANT_DATA_PLANE_V5_STATEMENTS.length + 2);
+      return Response.json({
+        success: true,
+        result: queries.map(() => ({ success: true, results: [] }))
+      });
+    });
+
+    const result = await processTenantDataPlaneMigration(
+      db,
+      {
+        job: maintenanceJob(),
+        env: { ...platformEnv(), TENANT_DISPATCH: { get } }
+      },
+      {
+        fetchImpl,
+        sleepImpl: async (delay) => delays.push(delay),
+        randomImpl: () => 0
+      }
+    );
+
+    expect(result).toMatchObject({ outcome: 'success', schemaVersion: 5 });
+    expect(get).toHaveBeenCalledTimes(4);
+    expect(get).toHaveBeenCalledWith(`ce-${TENANT_ID.slice(2)}`);
+    expect(dispatchCall).toBe(4);
+    expect(delays).toEqual([100, 200]);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(batches).toHaveLength(1);
+  });
+
+  it('retries a bounded unreachable inspection with exponential backoff before succeeding', async () => {
+    const { db } = fakeControlDb(maintenanceContext());
+    let d1Call = 0;
+    const delays = [];
+    const fetchImpl = async (_url, options) => {
+      d1Call += 1;
+      if (d1Call < 3) throw new Error('private transient detail');
+      const queries = JSON.parse(options.body).batch;
+      const result =
+        d1Call === 3
+          ? [
+              { success: true, results: [{ tenant_id: TENANT_ID, schema_version: '4' }] },
+              {
+                success: true,
+                results: [{ version: 1 }, { version: 2 }, { version: 3 }, { version: 4 }]
+              }
+            ]
+          : d1Call === 4
+            ? queries.map(() => ({ success: true, results: [] }))
+            : [
+                { success: true, results: [{ tenant_id: TENANT_ID, schema_version: '5' }] },
+                { success: true, results: [{ total: '1' }] }
+              ];
+      return Response.json({ success: true, result });
+    };
+
+    const result = await processTenantDataPlaneMigration(
+      db,
+      { job: maintenanceJob(), env: platformEnv() },
+      {
+        fetchImpl,
+        sleepImpl: async (delay) => delays.push(delay),
+        randomImpl: () => 0
+      }
+    );
+
+    expect(result).toMatchObject({ outcome: 'success', schemaVersion: 5 });
+    expect(d1Call).toBe(5);
+    expect(delays).toEqual([100, 200]);
+  });
+
   it('reconciles control state after D1 already completed v5 without replaying schema DDL', async () => {
     const { db, batches } = fakeControlDb(maintenanceContext());
     let d1Call = 0;
@@ -452,7 +555,7 @@ describe('tenant data-plane fleet migration activation', () => {
     const result = await processTenantDataPlaneMigration(
       db,
       { job: maintenanceJob(), env: platformEnv() },
-      { fetchImpl }
+      { fetchImpl, sleepImpl: async () => {}, randomImpl: () => 0 }
     );
 
     expect(result).toMatchObject({ outcome: 'success', schemaVersion: 5 });
@@ -514,7 +617,7 @@ describe('tenant data-plane fleet migration activation', () => {
     let d1Call = 0;
     const fetchImpl = async () => {
       d1Call += 1;
-      if (d1Call === 2) throw new Error('private apply detail');
+      if (d1Call >= 2) throw new Error('private apply detail');
       return new Response(
         JSON.stringify({
           success: true,
@@ -533,14 +636,14 @@ describe('tenant data-plane fleet migration activation', () => {
     const result = await processTenantDataPlaneMigration(
       db,
       { job: maintenanceJob(), env: platformEnv() },
-      { fetchImpl }
+      { fetchImpl, sleepImpl: async () => {}, randomImpl: () => 0 }
     );
 
     expect(result).toMatchObject({
       outcome: 'failed',
       error: 'tenant_d1_migration_apply_unreachable'
     });
-    expect(d1Call).toBe(2);
+    expect(d1Call).toBe(4);
     expect(batches).toHaveLength(1);
   });
 
@@ -549,7 +652,7 @@ describe('tenant data-plane fleet migration activation', () => {
     let d1Call = 0;
     const fetchImpl = async (_url, options) => {
       d1Call += 1;
-      if (d1Call === 3) throw new Error('private verification detail');
+      if (d1Call >= 3) throw new Error('private verification detail');
       const queries = JSON.parse(options.body).batch;
       const result =
         d1Call === 1
@@ -570,14 +673,14 @@ describe('tenant data-plane fleet migration activation', () => {
     const result = await processTenantDataPlaneMigration(
       db,
       { job: maintenanceJob(), env: platformEnv() },
-      { fetchImpl }
+      { fetchImpl, sleepImpl: async () => {}, randomImpl: () => 0 }
     );
 
     expect(result).toMatchObject({
       outcome: 'failed',
       error: 'tenant_d1_migration_verify_unreachable'
     });
-    expect(d1Call).toBe(3);
+    expect(d1Call).toBe(5);
     expect(batches).toHaveLength(1);
   });
 
