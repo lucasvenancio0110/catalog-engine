@@ -144,6 +144,8 @@ describe('tenant data-plane fleet maintenance production canary', () => {
     expect(deployWorkflow).toContain(
       "'.github/workflows/cloudflare-tenant-data-plane-fleet-canary.yml'"
     );
+    expect(deployWorkflow).toContain("'scripts/cloudflare-tenant-data-plane-fleet-canary.mjs'");
+    expect(deployWorkflow).toContain("'tests/tenant-data-plane-fleet-canary.test.mjs'");
   });
 
   it('proves scheduler ownership without manually creating migration jobs or touching Queue messages', () => {
