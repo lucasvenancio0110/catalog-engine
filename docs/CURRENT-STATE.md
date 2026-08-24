@@ -397,7 +397,7 @@ This proves the additive v5→v6 mechanism and representative success/failure/bl
 
 Still not active in production:
 
-- controlled tenant/source enrollment for recurring sync;
+- M7D2 controlled tenant/source enrollment and scheduling guards are being implemented on a dedicated branch; they are not production-proven until the exact merged SHA passes trusted deploy and the inert enrollment proof;
 - recurring incremental scan execution;
 - affected-detail fan-out into private stage;
 - affected-only CEI reprocessing;

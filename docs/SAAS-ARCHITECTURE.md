@@ -306,6 +306,8 @@ Candidate tenant jobs include:
 
 Jobs require bounded retry/backoff, idempotency and per-tenant isolation.
 
+Recurring tenant sync adds a separate low-cardinality rollout authority in the control plane. A source is eligible only when the global gate, an explicitly enrolled `(tenant_id, source_key)` row and the configured active cohort all agree. Missing rows and existing tenants default to disabled. A bounded per-tick cap provides operational backpressure, while active/unresolved import, recovery or tenant data-plane migration work blocks conflicting selection. Enrollment metadata must never carry product data, supplier URLs or private evidence, and merchants do not self-enroll into a platform pilot.
+
 ## Automation-first architecture
 
 The target operating model is:
