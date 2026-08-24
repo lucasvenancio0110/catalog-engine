@@ -196,6 +196,9 @@ describe('tenant data-plane fleet maintenance production canary', () => {
     expect(script).toContain("runtimeCapabilityRefreshed: fixture.kind === 'success'");
     expect(script).toContain('TENANT_SYNC_CANDIDATE_TABLES');
     expect(script).toContain('candidateRowsCreated: dataPlane.candidateRowCount');
+    expect(script).toContain('TENANT_SYNC_CANDIDATE_TABLES.map((table) => ({');
+    expect(script).toContain('candidateRows.reduce(');
+    expect(script).not.toContain("join(' UNION ALL ')");
     expect(script).toContain('fleet_canary_historical_stage_changed');
   });
 
