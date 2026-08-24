@@ -366,8 +366,8 @@ The table below is the canonical M7 slice order. Detailed behavior and safety in
 | M7C3 — Private staged sync state                       | **PRODUCTION GREEN — listing foundation**                          | Assemble listing/delta state privately while LKG remains authoritative.                               |
 | M7C4 — Schema v5 fleet activation                      | **PRODUCTION GREEN**                                               | Additive ready-tenant fleet migration for listing-stage storage.                                      |
 | M7D1 — Candidate State Schema v6                       | **PRODUCTION GREEN**                                               | Private relational storage for candidate detail, media, CEI and merchandising, still inert.           |
-| M7D2 — Controlled Enrollment and Scheduling Guard      | **IN PROGRESS**                                                    | Default-disabled tenant/source enrollment, per-cycle limits, kill switch and conflict-safe selection. |
-| M7D3 — Incremental Dispatch and Scan-to-Stage          | **PLANNED**                                                        | Connect live incremental jobs to provider scan, safety, delta and private stage without changing LKG. |
+| M7D2 — Controlled Enrollment and Scheduling Guard      | **PRODUCTION GREEN**                                               | Default-disabled tenant/source enrollment, per-cycle limits, kill switch and conflict-safe selection. |
+| M7D3 — Incremental Dispatch and Scan-to-Stage          | **PLANNED — NEXT**                                                 | Connect live incremental jobs to provider scan, safety, delta and private stage without changing LKG. |
 | M7D4 — Staged Affected Detail                          | **PLANNED**                                                        | Fetch and stage detail/media only for events that require it, with bounded idempotent retry.          |
 | M7D5 — Affected-only CEI Candidate Processing          | **PLANNED**                                                        | Reprocess only affected candidates while preserving merchant overrides and generic CEI boundaries.    |
 | M7D6 — Candidate Verification                          | **PLANNED**                                                        | Verify the complete candidate view, counts, relationships, media, CEI and privacy before promotion.   |
@@ -862,14 +862,13 @@ If that condition is not true, the product is still assisted service/infrastruct
 
 ## Immediate execution order from this document
 
-1. Execute M7D2 controlled enrollment and scheduling guard while recurring sync remains globally disabled.
-2. Execute M7D3 through M7D6: scan-to-stage, affected detail, affected-only CEI and candidate verification.
-3. Resolve the M7D7 promotion-authority architecture decision with measured D1 evidence, then execute M7D7 and M7D8.
-4. Execute M7D9 recovery-safe removal semantics and M7D10 recovery/replay/observability.
-5. Resolve the M7D11 backend/UI scope decision and deliver the approved safe change/review-feed boundary.
-6. Execute M7E only after explicit cohort, operational-limit and activation approval; keep recurring sync off until then.
-7. Decompose M8 in a planning PR immediately before M8 execution. Any names such as M8A/M8B remain **PROPOSED** until that PR merges.
-8. Decompose M9 the same way immediately before Storefront UX 2.0 execution. Any names such as M9A/M9B remain **PROPOSED** until that PR merges.
-9. Continue M10 -> M17 as the productization path, decomposing each macro milestone before implementation where more than one bounded PR is required.
-10. Finish remaining M1 governance debt through focused safety PRs without displacing the active milestone unless it becomes a blocker.
-11. Do not enter closed beta before M18-M20 launch gates are materially complete.
+1. Execute M7D3 through M7D6: scan-to-stage, affected detail, affected-only CEI and candidate verification.
+2. Resolve the M7D7 promotion-authority architecture decision with measured D1 evidence, then execute M7D7 and M7D8.
+3. Execute M7D9 recovery-safe removal semantics and M7D10 recovery/replay/observability.
+4. Resolve the M7D11 backend/UI scope decision and deliver the approved safe change/review-feed boundary.
+5. Execute M7E only after explicit cohort, operational-limit and activation approval; keep recurring sync off until then.
+6. Decompose M8 in a planning PR immediately before M8 execution. Any names such as M8A/M8B remain **PROPOSED** until that PR merges.
+7. Decompose M9 the same way immediately before Storefront UX 2.0 execution. Any names such as M9A/M9B remain **PROPOSED** until that PR merges.
+8. Continue M10 -> M17 as the productization path, decomposing each macro milestone before implementation where more than one bounded PR is required.
+9. Finish remaining M1 governance debt through focused safety PRs without displacing the active milestone unless it becomes a blocker.
+10. Do not enter closed beta before M18-M20 launch gates are materially complete.

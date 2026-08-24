@@ -491,6 +491,8 @@ Implementation contract:
 
 Production deployment for this slice must prove after migration that the table exists, zero sources are enrolled, the active cohort is empty, the per-tick cap is `1` and recurring automation remains `0`. That is an inert control proof, not an Intelligent Sync canary and not permission to activate M7 early.
 
+Production closure: PR `#129` merged as `f49ad81b6dbb64e07e5e7a6b5ab63b0433e00b16`. Trusted deploy run `32754985570` / job `97520332890` proved migration 0020, zero enrollment rows, empty cohort, cap `1` and recurring flag `0`; fleet regression run `32755082787` / job `97520639483` and automatic import/CEI regression run `32755082862` / job `97522279085` passed on that exact SHA with zero manual Queue messages. M7D2 is therefore production-proven as an inert control boundary; recurring Intelligent Sync remains pending and M7D3 is next.
+
 ### M7D3 — Incremental Dispatch and Scan-to-Stage
 
 Commercial outcome: detect real supplier changes while preserving the merchant's store during outage or suspicious results.
