@@ -477,6 +477,20 @@ Required contract:
 
 This slice keeps `TENANT_SYNC_AUTOMATION_ENABLED=0`, creates no manual Queue evidence and does not connect the incremental consumer.
 
+Implementation contract:
+
+- `tenant_sync_enrollments` is low-cardinality control-plane authorization keyed by exact `(tenant_id, source_key)`; absence of a row is disabled and a newly inserted row defaults to `disabled`;
+- an `enrolled` row requires a bounded lowercase `cohort_key`; merchant-facing APIs do not self-enroll a source, because pilot rollout authority is a platform operation;
+- `TENANT_SYNC_ACTIVE_COHORT` must be a valid non-empty cohort and match the row exactly; unset/invalid configuration returns before D1 work;
+- `TENANT_SYNC_MAX_JOBS_PER_TICK` is technically bounded to `1..10` and defaults to `1`. It is an operational backpressure control, not a plan entitlement;
+- discovery and final job claim both re-check enrollment. Selection also re-checks tenant/source readiness, successful initial import, active/failing import work and tenant data-plane migration conflicts;
+- tenant migration jobs in `pending`, `running` or unresolved `failed` state block every source for that tenant. Incremental/recovery failures block the affected source until recovery resolves them;
+- one aggregate `decisionCounts` map reports only stable safe reason codes/counts. It contains no tenant/source/provider identifier or supplier evidence;
+- the global flag and cohort enrollment are independent kill switches. Turning either off stops new claims without deleting schedules, jobs, stages or LKG;
+- `migrations/0020_tenant_sync_controlled_enrollment.sql` is additive, creates no enrollment rows and has no down migration. Previous code can ignore the inert table.
+
+Production deployment for this slice must prove after migration that the table exists, zero sources are enrolled, the active cohort is empty, the per-tick cap is `1` and recurring automation remains `0`. That is an inert control proof, not an Intelligent Sync canary and not permission to activate M7 early.
+
 ### M7D3 — Incremental Dispatch and Scan-to-Stage
 
 Commercial outcome: detect real supplier changes while preserving the merchant's store during outage or suspicious results.

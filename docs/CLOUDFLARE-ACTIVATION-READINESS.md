@@ -80,3 +80,7 @@ The readiness plan also established a durable rollout principle:
 > A real customer should not be used as the experiment that proves a new provider/isolation path.
 
 New infrastructure primitives should be proven with isolated test tenants before becoming a normal self-service merchant path.
+
+## Separate recurring-sync activation boundary
+
+The historical dispatch activation above does not authorize tenant recurring sync. Current M7 rollout remains governed by `TENANT-SYNC.md`: `TENANT_SYNC_AUTOMATION_ENABLED=0`, an empty `TENANT_SYNC_ACTIVE_COHORT` and default-disabled control-plane enrollment keep scheduling inert. M7D2 may deploy and verify those controls, but only the later activation-only M7E decision may select a real tenant/source cohort and enable recurring execution after the complete pipeline is proven.

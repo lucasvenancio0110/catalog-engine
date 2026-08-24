@@ -18,8 +18,14 @@ describe('M7B recurring sync activation boundary', () => {
     expect(config.triggers?.crons).toEqual(['*/5 * * * *']);
     expect(config.vars?.TENANT_IMPORT_AUTOMATION_ENABLED).toBe('1');
     expect(config.vars?.TENANT_SYNC_AUTOMATION_ENABLED).toBe('0');
+    expect(config.vars?.TENANT_SYNC_ACTIVE_COHORT).toBe('');
+    expect(config.vars?.TENANT_SYNC_MAX_JOBS_PER_TICK).toBe('1');
     expect(deployWorkflow).toContain('SYNC_AUTOMATION_VALUE');
     expect(deployWorkflow).toContain('test "$SYNC_AUTOMATION_VALUE" = "0"');
+    expect(deployWorkflow).toContain('test -z "$SYNC_COHORT_VALUE"');
+    expect(deployWorkflow).toContain('test "$SYNC_LIMIT_VALUE" = "1"');
+    expect(deployWorkflow).toContain('FROM tenant_sync_enrollments');
+    expect(deployWorkflow).toContain("Number(row.enrolled_rows) !== 0");
     expect(deployWorkflow).toContain('TENANT_SYNC_AUTOMATION_ENABLED=$SYNC_AUTOMATION_VALUE');
   });
 
@@ -38,7 +44,10 @@ describe('M7B recurring sync activation boundary', () => {
     expect(scheduler).toContain("unresolved_job.mode IN ('incremental','recovery')");
     expect(scheduler).toContain("unresolved_job.status='failed'");
     expect(scheduler).toContain(
-      "conflicting_job.status IN ('pending','queued','scanning','details','finalizing','failed')"
+      "conflicting_job.status IN ('pending','queued','scanning','details','finalizing')"
     );
+    expect(scheduler).toContain("conflicting_job.mode IN ('incremental','recovery')");
+    expect(scheduler).toContain("conflicting_job.status='failed'");
+    expect(scheduler).toContain("migration_job.status IN ('pending','running','failed')");
   });
 });

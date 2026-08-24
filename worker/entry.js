@@ -18,6 +18,7 @@ function safeScheduleSummary(summary) {
   return {
     enabled: summary.enabled,
     reason: summary.reason || null,
+    limit: summary.limit || 0,
     discovered: summary.discovered || 0,
     selected: summary.selected || 0,
     processed: summary.processed || 0,
@@ -25,7 +26,15 @@ function safeScheduleSummary(summary) {
     scheduled: summary.scheduled || 0,
     succeeded: summary.succeeded || 0,
     failed: summary.failed || 0,
-    busy: summary.busy || 0
+    busy: summary.busy || 0,
+    decisionCounts:
+      summary.decisionCounts && typeof summary.decisionCounts === 'object'
+        ? Object.fromEntries(
+            Object.entries(summary.decisionCounts)
+              .filter(([code, total]) => /^tenant_sync_[a-z_]+$/.test(code) && Number(total) >= 0)
+              .map(([code, total]) => [code, Number(total)])
+          )
+        : {}
   };
 }
 

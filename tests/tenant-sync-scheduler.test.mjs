@@ -7,7 +7,14 @@ import {
   tenantSyncAutomationEnabled
 } from '../worker/tenant-sync-scheduler.js';
 
-const migrationPath = new URL('../migrations/0017_tenant_sync_schedules.sql', import.meta.url);
+const scheduleMigrationPath = new URL(
+  '../migrations/0017_tenant_sync_schedules.sql',
+  import.meta.url
+);
+const enrollmentMigrationPath = new URL(
+  '../migrations/0020_tenant_sync_controlled_enrollment.sql',
+  import.meta.url
+);
 const databases = [];
 
 class BoundStatement {
@@ -109,8 +116,16 @@ async function createDatabase() {
     CREATE UNIQUE INDEX idx_tenant_import_jobs_one_active
       ON tenant_import_jobs (tenant_id, source_key)
       WHERE status IN ('pending', 'queued', 'scanning', 'details', 'finalizing');
+
+    CREATE TABLE tenant_data_plane_migration_jobs (
+      job_id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'success', 'failed', 'cancelled')),
+      FOREIGN KEY (tenant_id) REFERENCES catalog_tenants(tenant_id) ON DELETE CASCADE
+    );
   `);
-  database.exec(await readFile(migrationPath, 'utf8'));
+  database.exec(await readFile(scheduleMigrationPath, 'utf8'));
+  database.exec(await readFile(enrollmentMigrationPath, 'utf8'));
   return { database, d1: new D1SqliteAdapter(database) };
 }
 
@@ -152,6 +167,34 @@ function seedTenant(
   }
 }
 
+function seedEnrollment(
+  database,
+  {
+    tenantId = 't_0123456789abcdefabcd',
+    sourceKey = 'primary',
+    status = 'enrolled',
+    cohortKey = 'pilot'
+  } = {}
+) {
+  database
+    .prepare(
+      `INSERT INTO tenant_sync_enrollments
+        (tenant_id, source_key, status, cohort_key)
+       VALUES (?, ?, ?, ?)`
+    )
+    .run(tenantId, sourceKey, status, cohortKey);
+}
+
+function enabledEnv(d1, overrides = {}) {
+  return {
+    CATALOG_DB: d1,
+    TENANT_SYNC_AUTOMATION_ENABLED: '1',
+    TENANT_SYNC_ACTIVE_COHORT: 'pilot',
+    TENANT_SYNC_MAX_JOBS_PER_TICK: '1',
+    ...overrides
+  };
+}
+
 afterEach(() => {
   while (databases.length) databases.pop().close();
 });
@@ -171,9 +214,10 @@ describe('tenant recurring sync scheduler', () => {
         CATALOG_DB: { prepare },
         TENANT_SYNC_AUTOMATION_ENABLED: '0'
       })
-    ).toEqual({
+    ).toMatchObject({
       enabled: false,
       reason: 'tenant_sync_automation_disabled',
+      limit: 0,
       discovered: 0,
       selected: 0,
       scheduled: 0
@@ -182,13 +226,51 @@ describe('tenant recurring sync scheduler', () => {
   });
 
   it('fails closed when the control-plane database binding is absent', async () => {
-    expect(await runDueTenantSyncScheduling({ TENANT_SYNC_AUTOMATION_ENABLED: '1' })).toEqual({
+    expect(await runDueTenantSyncScheduling({ TENANT_SYNC_AUTOMATION_ENABLED: '1' })).toMatchObject({
       enabled: false,
       reason: 'database_unbound',
+      limit: 0,
       discovered: 0,
       selected: 0,
       scheduled: 0
     });
+  });
+
+  it('performs zero D1 work when the active cohort is absent or invalid', async () => {
+    const prepare = vi.fn(() => {
+      throw new Error('scheduler must not query D1 without a valid cohort');
+    });
+    const base = { CATALOG_DB: { prepare }, TENANT_SYNC_AUTOMATION_ENABLED: '1' };
+
+    await expect(runDueTenantSyncScheduling(base)).resolves.toMatchObject({
+      enabled: false,
+      reason: 'tenant_sync_cohort_unset'
+    });
+    await expect(
+      runDueTenantSyncScheduling({ ...base, TENANT_SYNC_ACTIVE_COHORT: 'Pilot Invalid' })
+    ).resolves.toMatchObject({ enabled: false, reason: 'tenant_sync_cohort_invalid' });
+    expect(prepare).not.toHaveBeenCalled();
+  });
+
+  it('defaults every existing tenant/source to disabled until an enrollment row exists', async () => {
+    const { database, d1 } = await createDatabase();
+    seedTenant(database);
+
+    const result = await runDueTenantSyncScheduling(enabledEnv(d1));
+
+    expect(result).toMatchObject({
+      enabled: true,
+      reason: 'tenant_sync_no_matching_enrollment',
+      discovered: 0,
+      selected: 0,
+      scheduled: 0
+    });
+    expect(database.prepare('SELECT COUNT(*) AS total FROM tenant_sync_enrollments').get().total).toBe(
+      0
+    );
+    expect(database.prepare('SELECT COUNT(*) AS total FROM tenant_sync_schedules').get().total).toBe(
+      0
+    );
   });
 
   it('enrols only ready active incremental sources with a successful initial import', async () => {
@@ -210,11 +292,17 @@ describe('tenant recurring sync scheduler', () => {
       tenantId: 't_4123456789abcdefabcd',
       instanceStatus: 'migrating'
     });
+    for (const tenantId of [
+      't_0123456789abcdefabcd',
+      't_1123456789abcdefabcd',
+      't_2123456789abcdefabcd',
+      't_3123456789abcdefabcd',
+      't_4123456789abcdefabcd'
+    ]) {
+      seedEnrollment(database, { tenantId });
+    }
 
-    const result = await runDueTenantSyncScheduling({
-      CATALOG_DB: d1,
-      TENANT_SYNC_AUTOMATION_ENABLED: '1'
-    });
+    const result = await runDueTenantSyncScheduling(enabledEnv(d1));
 
     expect(result).toMatchObject({ enabled: true, discovered: 1, selected: 0, scheduled: 0 });
     const schedules = database
@@ -234,7 +322,8 @@ describe('tenant recurring sync scheduler', () => {
   it('creates one deterministic pending incremental job only when the schedule becomes due', async () => {
     const { database, d1 } = await createDatabase();
     seedTenant(database);
-    const env = { CATALOG_DB: d1, TENANT_SYNC_AUTOMATION_ENABLED: '1' };
+    seedEnrollment(database);
+    const env = enabledEnv(d1);
 
     await runDueTenantSyncScheduling(env);
     database
@@ -274,7 +363,8 @@ describe('tenant recurring sync scheduler', () => {
   it('does not create a duplicate while any import job for the source is active', async () => {
     const { database, d1 } = await createDatabase();
     seedTenant(database);
-    const env = { CATALOG_DB: d1, TENANT_SYNC_AUTOMATION_ENABLED: '1' };
+    seedEnrollment(database);
+    const env = enabledEnv(d1);
 
     await runDueTenantSyncScheduling(env);
     database
@@ -301,7 +391,8 @@ describe('tenant recurring sync scheduler', () => {
   it('creates a distinct job for a later due slot after the prior job becomes terminal', async () => {
     const { database, d1 } = await createDatabase();
     seedTenant(database);
-    const env = { CATALOG_DB: d1, TENANT_SYNC_AUTOMATION_ENABLED: '1' };
+    seedEnrollment(database);
+    const env = enabledEnv(d1);
 
     await runDueTenantSyncScheduling(env);
     database
@@ -326,6 +417,164 @@ describe('tenant recurring sync scheduler', () => {
     expect(ids).toHaveLength(2);
     expect(new Set(ids).size).toBe(2);
     expect(ids).toContain(firstId);
+  });
+
+  it('selects only the exact enrolled cohort and reports safe aggregate reasons', async () => {
+    const { database, d1 } = await createDatabase();
+    const pilotTenant = 't_0123456789abcdefabcd';
+    const otherTenant = 't_1123456789abcdefabcd';
+    const disabledTenant = 't_2123456789abcdefabcd';
+    seedTenant(database, { tenantId: pilotTenant });
+    seedTenant(database, { tenantId: otherTenant });
+    seedTenant(database, { tenantId: disabledTenant });
+    seedEnrollment(database, { tenantId: pilotTenant });
+    seedEnrollment(database, { tenantId: otherTenant, cohortKey: 'later' });
+    seedEnrollment(database, {
+      tenantId: disabledTenant,
+      status: 'disabled',
+      cohortKey: null
+    });
+
+    const result = await runDueTenantSyncScheduling(enabledEnv(d1));
+    const schedules = database.prepare('SELECT tenant_id FROM tenant_sync_schedules').all();
+
+    expect(schedules.map((row) => row.tenant_id)).toEqual([pilotTenant]);
+    expect(result.decisionCounts).toMatchObject({
+      tenant_sync_enrollment_disabled: 1,
+      tenant_sync_cohort_mismatch: 1,
+      tenant_sync_not_due: 1
+    });
+    expect(JSON.stringify(result)).not.toContain(otherTenant);
+    expect(JSON.stringify(result)).not.toContain(disabledTenant);
+  });
+
+  it('caps work per tick even when more enrolled schedules are due', async () => {
+    const { database, d1 } = await createDatabase();
+    for (const tenantId of [
+      't_0123456789abcdefabcd',
+      't_1123456789abcdefabcd',
+      't_2123456789abcdefabcd'
+    ]) {
+      seedTenant(database, { tenantId });
+      seedEnrollment(database, { tenantId });
+    }
+
+    await runDueTenantSyncScheduling(enabledEnv(d1), { limit: 10 });
+    database
+      .prepare("UPDATE tenant_sync_schedules SET next_sync_at=datetime(CURRENT_TIMESTAMP,'-5 minutes')")
+      .run();
+    const result = await runDueTenantSyncScheduling(
+      enabledEnv(d1, { TENANT_SYNC_MAX_JOBS_PER_TICK: '2' })
+    );
+
+    expect(result).toMatchObject({ limit: 2, selected: 2, scheduled: 2 });
+    expect(
+      database.prepare("SELECT COUNT(*) AS total FROM tenant_import_jobs WHERE mode='incremental'").get()
+        .total
+    ).toBe(2);
+  });
+
+  it.each(['pending', 'running', 'failed'])(
+    'blocks scheduling while a tenant data-plane migration is %s',
+    async (migrationStatus) => {
+      const { database, d1 } = await createDatabase();
+      seedTenant(database);
+      seedEnrollment(database);
+      await runDueTenantSyncScheduling(enabledEnv(d1));
+      database
+        .prepare("UPDATE tenant_sync_schedules SET next_sync_at=datetime(CURRENT_TIMESTAMP,'-5 minutes')")
+        .run();
+      database
+        .prepare(
+          'INSERT INTO tenant_data_plane_migration_jobs (job_id, tenant_id, status) VALUES (?, ?, ?)'
+        )
+        .run('dpmig_0123456789abcdefabcd', 't_0123456789abcdefabcd', migrationStatus);
+
+      const result = await runDueTenantSyncScheduling(enabledEnv(d1));
+
+      expect(result).toMatchObject({ selected: 0, scheduled: 0 });
+      expect(result.decisionCounts.tenant_sync_migration_conflict).toBe(1);
+      expect(
+        database.prepare("SELECT COUNT(*) AS total FROM tenant_import_jobs WHERE mode='incremental'").get()
+          .total
+      ).toBe(0);
+    }
+  );
+
+  it('blocks unresolved failures and active imports with deterministic reason codes', async () => {
+    const { database, d1 } = await createDatabase();
+    seedTenant(database);
+    seedEnrollment(database);
+    await runDueTenantSyncScheduling(enabledEnv(d1));
+    database
+      .prepare("UPDATE tenant_sync_schedules SET next_sync_at=datetime(CURRENT_TIMESTAMP,'-5 minutes')")
+      .run();
+    database
+      .prepare(
+        `INSERT INTO tenant_import_jobs
+          (import_id, tenant_id, source_key, mode, status, phase)
+         VALUES ('imp_failed_recovery01', 't_0123456789abcdefabcd', 'primary',
+                 'recovery', 'failed', 'scan')`
+      )
+      .run();
+
+    const failed = await runDueTenantSyncScheduling(enabledEnv(d1));
+    expect(failed.decisionCounts.tenant_sync_unresolved_failure).toBe(1);
+    expect(failed).toMatchObject({ selected: 0, scheduled: 0 });
+
+    database.prepare("UPDATE tenant_import_jobs SET status='success' WHERE mode='recovery'").run();
+    database
+      .prepare(
+        `INSERT INTO tenant_import_jobs
+          (import_id, tenant_id, source_key, mode, status, phase)
+         VALUES ('imp_active_initial001', 't_0123456789abcdefabcd', 'primary',
+                 'initial', 'pending', 'scan')`
+      )
+      .run();
+
+    const active = await runDueTenantSyncScheduling(enabledEnv(d1));
+    expect(active.decisionCounts.tenant_sync_job_conflict).toBe(1);
+    expect(active).toMatchObject({ selected: 0, scheduled: 0 });
+  });
+
+  it('stops new claims through either kill switch without deleting durable state', async () => {
+    const { database, d1 } = await createDatabase();
+    seedTenant(database);
+    seedEnrollment(database);
+    await runDueTenantSyncScheduling(enabledEnv(d1));
+    database
+      .prepare("UPDATE tenant_sync_schedules SET next_sync_at=datetime(CURRENT_TIMESTAMP,'-5 minutes')")
+      .run();
+
+    const globalOff = await runDueTenantSyncScheduling(
+      enabledEnv(d1, { TENANT_SYNC_AUTOMATION_ENABLED: '0' })
+    );
+    database
+      .prepare("UPDATE tenant_sync_enrollments SET status='disabled', cohort_key=NULL")
+      .run();
+    const cohortOff = await runDueTenantSyncScheduling(enabledEnv(d1));
+
+    expect(globalOff.reason).toBe('tenant_sync_automation_disabled');
+    expect(cohortOff).toMatchObject({ scheduled: 0, selected: 0 });
+    expect(cohortOff.decisionCounts.tenant_sync_enrollment_disabled).toBe(1);
+    expect(database.prepare('SELECT COUNT(*) AS total FROM tenant_sync_schedules').get().total).toBe(
+      1
+    );
+    expect(database.prepare("SELECT COUNT(*) AS total FROM tenant_import_jobs WHERE mode='initial'").get().total).toBe(
+      1
+    );
+  });
+
+  it('rejects invalid enrollment state at the control-plane schema boundary', async () => {
+    const { database } = await createDatabase();
+    seedTenant(database);
+
+    expect(() => seedEnrollment(database, { cohortKey: null })).toThrow();
+    expect(() => seedEnrollment(database, { cohortKey: 'Pilot' })).toThrow();
+    seedEnrollment(database, { status: 'disabled', cohortKey: null });
+    expect(
+      database.prepare('SELECT status, cohort_key FROM tenant_sync_enrollments').get()
+    ).toEqual({ status: 'disabled', cohort_key: null });
   });
 
   it('uses a stable opaque identity per tenant/source/scheduled slot', async () => {
@@ -354,8 +603,9 @@ describe('tenant recurring sync scheduler', () => {
   it('keeps interval policy bounded and migration/provider-neutral', async () => {
     const { database, d1 } = await createDatabase();
     seedTenant(database);
+    seedEnrollment(database);
     await runDueTenantSyncScheduling(
-      { CATALOG_DB: d1, TENANT_SYNC_AUTOMATION_ENABLED: '1' },
+      enabledEnv(d1),
       { defaultIntervalMinutes: 1 }
     );
     const schedule = database
@@ -363,9 +613,16 @@ describe('tenant recurring sync scheduler', () => {
       .get();
     expect(Number(schedule.incremental_interval_minutes)).toBe(15);
 
-    const migration = await readFile(migrationPath, 'utf8');
-    expect(migration).toContain('BETWEEN 15 AND 10080');
-    expect(migration).toContain('idx_tenant_sync_schedules_due');
-    expect(migration).not.toMatch(/https?:\/\/|yupoo|shopify|woo ?commerce/i);
+    const [scheduleMigration, enrollmentMigration] = await Promise.all([
+      readFile(scheduleMigrationPath, 'utf8'),
+      readFile(enrollmentMigrationPath, 'utf8')
+    ]);
+    expect(scheduleMigration).toContain('BETWEEN 15 AND 10080');
+    expect(scheduleMigration).toContain('idx_tenant_sync_schedules_due');
+    expect(enrollmentMigration).toContain("DEFAULT 'disabled'");
+    expect(enrollmentMigration).toContain('idx_tenant_sync_enrollments_cohort');
+    expect(`${scheduleMigration}\n${enrollmentMigration}`).not.toMatch(
+      /https?:\/\/|yupoo|shopify|woo ?commerce/i
+    );
   });
 });

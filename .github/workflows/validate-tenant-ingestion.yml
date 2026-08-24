@@ -10,6 +10,7 @@ on:
       - 'migrations/0017_tenant_sync_schedules.sql'
       - 'migrations/0018_tenant_data_plane_fleet_migrations.sql'
       - 'migrations/0019_tenant_data_plane_migration_capability.sql'
+      - 'migrations/0020_tenant_sync_controlled_enrollment.sql'
       - 'src/catalog-provider/**'
       - 'src/domain/catalog-classifier.js'
       - 'src/sync/**'
@@ -88,6 +89,8 @@ jobs:
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='tenant_classification_jobs';")" = '1'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='tenant_verification_jobs';")" = '1'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='tenant_sync_schedules';")" = '1'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='tenant_sync_enrollments';")" = '1'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_sync_enrollments WHERE status='enrolled';")" = '0'
 
       - name: Verify current tenant data-plane schema
         shell: bash

@@ -129,10 +129,28 @@ jobs:
           set -euo pipefail
           IMPORT_AUTOMATION_VALUE="$(node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('wrangler.jsonc','utf8')); process.stdout.write(String(c.vars?.TENANT_IMPORT_AUTOMATION_ENABLED || ''));" )"
           SYNC_AUTOMATION_VALUE="$(node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('wrangler.jsonc','utf8')); process.stdout.write(String(c.vars?.TENANT_SYNC_AUTOMATION_ENABLED || ''));" )"
+          SYNC_COHORT_VALUE="$(node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('wrangler.jsonc','utf8')); process.stdout.write(String(c.vars?.TENANT_SYNC_ACTIVE_COHORT || ''));" )"
+          SYNC_LIMIT_VALUE="$(node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('wrangler.jsonc','utf8')); process.stdout.write(String(c.vars?.TENANT_SYNC_MAX_JOBS_PER_TICK || ''));" )"
           test "$IMPORT_AUTOMATION_VALUE" = "0" -o "$IMPORT_AUTOMATION_VALUE" = "1" || { echo "Invalid tenant import automation setting"; exit 1; }
-          test "$SYNC_AUTOMATION_VALUE" = "0" || { echo "TENANT_SYNC_AUTOMATION_ENABLED must remain 0 for M7D1"; exit 1; }
+          test "$SYNC_AUTOMATION_VALUE" = "0" || { echo "TENANT_SYNC_AUTOMATION_ENABLED must remain 0 for M7D2"; exit 1; }
+          test -z "$SYNC_COHORT_VALUE" || { echo "TENANT_SYNC_ACTIVE_COHORT must remain empty for M7D2"; exit 1; }
+          test "$SYNC_LIMIT_VALUE" = "1" || { echo "TENANT_SYNC_MAX_JOBS_PER_TICK must remain 1 for M7D2"; exit 1; }
           echo "TENANT_IMPORT_AUTOMATION_ENABLED=$IMPORT_AUTOMATION_VALUE"
           echo "TENANT_SYNC_AUTOMATION_ENABLED=$SYNC_AUTOMATION_VALUE"
+          echo "TENANT_SYNC_ACTIVE_COHORT=disabled"
+          echo "TENANT_SYNC_MAX_JOBS_PER_TICK=$SYNC_LIMIT_VALUE"
+          npx --yes "wrangler@$WRANGLER_VERSION" d1 execute CATALOG_DB --remote --config wrangler.jsonc --json \
+            --command "SELECT COUNT(*) AS enrollment_rows, COALESCE(SUM(CASE WHEN status='enrolled' THEN 1 ELSE 0 END),0) AS enrolled_rows FROM tenant_sync_enrollments" \
+            > /tmp/tenant-sync-enrollment-proof.json
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const payload = JSON.parse(fs.readFileSync('/tmp/tenant-sync-enrollment-proof.json', 'utf8'));
+          const batch = Array.isArray(payload) ? payload : [payload];
+          const row = batch.flatMap((entry) => entry?.results || [])[0];
+          if (!row) throw new Error('M7D2 enrollment proof returned no result');
+          if (Number(row.enrolled_rows) !== 0) throw new Error('M7D2 unexpectedly found enrolled sources');
+          console.log(`M7D2 enrollment_rows=${Number(row.enrollment_rows || 0)} enrolled_rows=0`);
+          NODE
           npx --yes "wrangler@$WRANGLER_VERSION" queues info catalog-engine-import-scan | tee /tmp/scan-queue.txt
           npx --yes "wrangler@$WRANGLER_VERSION" queues info catalog-engine-import-detail | tee /tmp/detail-queue.txt
           grep -Eq 'Producers:.*worker:catalog-engine([,[:space:]]|$)' /tmp/scan-queue.txt || { echo "Main scan producer missing"; exit 1; }
