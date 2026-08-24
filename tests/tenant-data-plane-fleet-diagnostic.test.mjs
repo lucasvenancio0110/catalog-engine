@@ -15,20 +15,23 @@ const script = fs.readFileSync('scripts/cloudflare-tenant-data-plane-fleet-diagn
 function preservedFixture(kind) {
   return {
     kind,
-    schemaVersion: 4,
+    schemaVersion: 5,
     migrationJobs: [],
+    migrationCommandVersion: kind === 'blocked' ? 0 : 2,
     activeImportPreserved: true,
     historicalOnboardingPreserved: true,
-    lkgPreserved: true
+    lkgPreserved: true,
+    candidateRowsCreated: 0,
+    foreignKeyFindings: 0
   };
 }
 
 describe('retained tenant fleet canary diagnosis', () => {
   it('defaults to exactly the three opaque fixtures retained by the latest failed trusted-main canary', () => {
     expect(RETAINED_FLEET_FIXTURES).toEqual([
-      { kind: 'success', tenantId: 't_bcbcdba75017bbd7e69b' },
-      { kind: 'failure', tenantId: 't_f99926b821ca91baa2bb' },
-      { kind: 'blocked', tenantId: 't_4963394770c85357a30f' }
+      { kind: 'success', tenantId: 't_bbd0a31ebb9924fd5e0d' },
+      { kind: 'failure', tenantId: 't_35633dac7b86302d566b' },
+      { kind: 'blocked', tenantId: 't_b4ac85a21b382cbeaea6' }
     ]);
   });
 
@@ -56,7 +59,7 @@ describe('retained tenant fleet canary diagnosis', () => {
     ).toThrow('fleet_diagnostic_tenant_ids_not_unique');
   });
 
-  it('classifies absent Worker platform secrets plus untouched v4 evidence as runtime unconfigured', () => {
+  it('classifies absent Worker platform secrets without inventing scheduler success', () => {
     expect(
       classifyFleetDiagnostic({
         fixtures: ['success', 'failure', 'blocked'].map(preservedFixture),
@@ -66,16 +69,44 @@ describe('retained tenant fleet canary diagnosis', () => {
     ).toEqual({
       rootCause: 'worker_platform_runtime_unconfigured',
       allJobsAbsent: true,
-      allV4LkgPreserved: true,
+      allLkgPreserved: true,
       blockedImportPreserved: true,
       workerPlatformRuntimeConfigured: false
     });
   });
 
+  it('classifies expected v5 to v6 outcomes reached after the canary process failed', () => {
+    const fixtures = ['success', 'failure', 'blocked'].map(preservedFixture);
+    fixtures[0].schemaVersion = 6;
+    fixtures[0].migrationJobs = [{ status: 'success', last_error_code: null }];
+    fixtures[1].migrationJobs = [
+      { status: 'failed', last_error_code: 'tenant_dispatch_namespace_mismatch' }
+    ];
+    expect(
+      classifyFleetDiagnostic({
+        fixtures,
+        accountSecretPresent: true,
+        tokenSecretPresent: true
+      }).rootCause
+    ).toBe('expected_outcomes_reached_after_canary_failure');
+  });
+
+  it('distinguishes a missing trusted capability marker from scheduler discovery', () => {
+    const fixtures = ['success', 'failure', 'blocked'].map(preservedFixture);
+    fixtures[0].migrationCommandVersion = 0;
+    expect(
+      classifyFleetDiagnostic({
+        fixtures,
+        accountSecretPresent: true,
+        tokenSecretPresent: true
+      }).rootCause
+    ).toBe('trusted_preparation_not_committed');
+  });
+
   it('is a trusted-main read-only workflow and cannot create jobs, enqueue or purge', () => {
-    expect(workflow).toContain("default: 't_bcbcdba75017bbd7e69b'");
-    expect(workflow).toContain("default: 't_f99926b821ca91baa2bb'");
-    expect(workflow).toContain("default: 't_4963394770c85357a30f'");
+    expect(workflow).toContain("default: 't_bbd0a31ebb9924fd5e0d'");
+    expect(workflow).toContain("default: 't_35633dac7b86302d566b'");
+    expect(workflow).toContain("default: 't_b4ac85a21b382cbeaea6'");
     expect(script).toContain('migrationCommandSafeError');
     expect(workflow).toContain(
       "github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'"
@@ -97,9 +128,11 @@ describe('retained tenant fleet canary diagnosis', () => {
     expect(script).not.toContain('.sendBatch(');
   });
 
-  it('checks v4 identity, schema ledger, LKG, override, onboarding and foreign keys', () => {
-    expect(script).toContain("schemaVersion === 5 ? '1,2,3,4,5' : '1,2,3,4'");
-    expect(script).toContain('schemaVersion === 5 ? STAGE_TABLES.length : 0');
+  it('checks v5/v6 identity, ledgers, candidate storage, LKG and foreign keys', () => {
+    expect(script).toContain("? '1,2,3,4,5,6' : '1,2,3,4,5'");
+    expect(script).toContain('TENANT_SYNC_CANDIDATE_TABLES.length : 0');
+    expect(script).toContain('candidateRowCount === 0');
+    expect(script).toContain("tenant.historicalStage?.state === 'preserved'");
     expect(script).toContain("tenant.lkg?.name === 'Verified LKG Product'");
     expect(script).toContain('tenant.lkg?.override_json');
     expect(script).toContain("control.provisioning?.status === 'success'");

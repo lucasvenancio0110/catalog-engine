@@ -1,7 +1,14 @@
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { queryD1Batch } from '../worker/cloudflare-platform.js';
+import { TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION } from '../worker/tenant-data-plane-command.js';
+import { TENANT_DATA_PLANE_SCHEMA_VERSION as PREVIOUS_SCHEMA_VERSION } from '../worker/tenant-data-plane-schema-v5.js';
+import {
+  TENANT_DATA_PLANE_SCHEMA_VERSION as CURRENT_SCHEMA_VERSION,
+  TENANT_SYNC_CANDIDATE_TABLES
+} from '../worker/tenant-data-plane-schema-v6.js';
 
 const ACCOUNT_ID = String(process.env.CLOUDFLARE_ACCOUNT_ID || '').trim();
 const API_TOKEN = String(process.env.CLOUDFLARE_API_TOKEN || '').trim();
@@ -12,17 +19,21 @@ const WORKER_ACCOUNT_SECRET_PRESENT =
   String(process.env.WORKER_PLATFORM_ACCOUNT_SECRET_PRESENT || '') === 'true';
 const WORKER_TOKEN_SECRET_PRESENT =
   String(process.env.WORKER_PLATFORM_TOKEN_SECRET_PRESENT || '') === 'true';
-const STAGE_TABLES = [
+const LISTING_STAGE_TABLES = [
   'supplier_sync_stage_runs',
   'supplier_sync_stage_observations',
   'supplier_sync_stage_events',
   'supplier_sync_stage_categories'
 ];
+const EXPECTED_FAILURE_CODE = 'tenant_dispatch_namespace_mismatch';
+const HISTORICAL_TIMESTAMP = '2000-01-01T00:00:00Z';
+const HISTORICAL_CONTEXT = '{"fleetCanary":"historical"}';
+const HISTORICAL_MIGRATION_METADATA = '{"schemaVersion":5,"sentinel":"unchanged"}';
 
 export const RETAINED_FLEET_FIXTURES = [
-  { kind: 'success', tenantId: 't_bcbcdba75017bbd7e69b' },
-  { kind: 'failure', tenantId: 't_f99926b821ca91baa2bb' },
-  { kind: 'blocked', tenantId: 't_4963394770c85357a30f' }
+  { kind: 'success', tenantId: 't_bbd0a31ebb9924fd5e0d' },
+  { kind: 'failure', tenantId: 't_35633dac7b86302d566b' },
+  { kind: 'blocked', tenantId: 't_b4ac85a21b382cbeaea6' }
 ];
 
 const FIXTURE_ENV_BY_KIND = {
@@ -61,6 +72,12 @@ function validateRuntime() {
   if (!/^[a-f0-9-]{32,40}$/i.test(CONTROL_DB_ID)) {
     throw new Error('fleet_diagnostic_control_database_invalid');
   }
+  if (PREVIOUS_SCHEMA_VERSION !== 5 || CURRENT_SCHEMA_VERSION !== 6) {
+    throw new Error('fleet_diagnostic_schema_contract_mismatch');
+  }
+  if (String(wrangler.vars?.TENANT_SYNC_AUTOMATION_ENABLED || '') !== '0') {
+    throw new Error('fleet_diagnostic_requires_recurring_sync_off');
+  }
 }
 
 function platformConfig() {
@@ -92,7 +109,10 @@ function fixtureIds({ tenantId }) {
   return {
     sourceKey: 'fleet-canary',
     productId: `prd_${suffix}`,
-    provisioningId: `p_${suffix}`
+    provisioningId: `p_${suffix}`,
+    albumSourceId: `alb_${suffix}`,
+    stageRunId: `sync_${suffix}`,
+    listingFingerprint: createHash('sha256').update(`lkg:${suffix}`).digest('hex')
   };
 }
 
@@ -118,9 +138,9 @@ async function inspectControlFixture(fixture) {
                    last_error_code, next_attempt_at, created_at, started_at,
                    finished_at, updated_at
               FROM tenant_data_plane_migration_jobs
-             WHERE tenant_id=?1 AND target_schema_version=5
+             WHERE tenant_id=?1 AND target_schema_version=CAST(?2 AS INTEGER)
              ORDER BY created_at DESC`,
-      params: [fixture.tenantId]
+      params: [fixture.tenantId, CURRENT_SCHEMA_VERSION]
     },
     {
       sql: `SELECT mode, status, phase, attempt_count, last_error_code,
@@ -166,7 +186,8 @@ async function inspectControlFixture(fixture) {
 
 async function inspectTenantFixture(fixture, databaseId) {
   const ids = fixtureIds(fixture);
-  const stagePlaceholders = STAGE_TABLES.map(() => '?').join(',');
+  const listingStagePlaceholders = LISTING_STAGE_TABLES.map(() => '?').join(',');
+  const candidateStagePlaceholders = TENANT_SYNC_CANDIDATE_TABLES.map(() => '?').join(',');
   const result = await tenantBatch(databaseId, [
     {
       sql: `SELECT tenant_id, schema_version
@@ -183,8 +204,23 @@ async function inspectTenantFixture(fixture, databaseId) {
     {
       sql: `SELECT COUNT(*) AS total
               FROM sqlite_master
-             WHERE type='table' AND name IN (${stagePlaceholders})`,
-      params: STAGE_TABLES
+             WHERE type='table' AND name IN (${listingStagePlaceholders})`,
+      params: LISTING_STAGE_TABLES
+    },
+    {
+      sql: `SELECT COUNT(*) AS total
+              FROM sqlite_master
+             WHERE type='table' AND name IN (${candidateStagePlaceholders})`,
+      params: TENANT_SYNC_CANDIDATE_TABLES
+    },
+    {
+      sql: `SELECT r.state, r.safety_outcome, r.verification_code,
+                   COUNT(c.category_source_id) AS categories
+              FROM supplier_sync_stage_runs r
+              LEFT JOIN supplier_sync_stage_categories c ON c.run_id=r.run_id
+             WHERE r.run_id=?1
+             GROUP BY r.run_id`,
+      params: [ids.stageRunId]
     },
     {
       sql: `SELECT p.name, p.description, p.classification_status,
@@ -193,22 +229,36 @@ async function inspectTenantFixture(fixture, databaseId) {
               FROM catalog_products p
               JOIN supplier_album_index a
                 ON a.public_product_id=p.product_id
-               AND a.tenant_id=?1 AND a.source_key=?2
+               AND a.tenant_id=?1 AND a.source_key=?2 AND a.album_source_id=?3
               JOIN catalog_product_classification_overrides o ON o.product_id=p.product_id
-             WHERE p.product_id=?3
+             WHERE p.product_id=?4
              LIMIT 1`,
-      params: [fixture.tenantId, ids.sourceKey, ids.productId]
+      params: [fixture.tenantId, ids.sourceKey, ids.albumSourceId, ids.productId]
     },
     { sql: 'SELECT COUNT(*) AS total FROM media_sources', params: [] },
     { sql: 'PRAGMA foreign_key_check', params: [] }
   ]);
+  const candidateStageTableCount = Number(first(result, 3)?.total || 0);
+  let candidateRowCount = 0;
+  if (candidateStageTableCount === TENANT_SYNC_CANDIDATE_TABLES.length) {
+    const candidateRowsSql = TENANT_SYNC_CANDIDATE_TABLES.map(
+      (table) => `SELECT COUNT(*) AS total FROM ${table}`
+    ).join(' UNION ALL ');
+    const candidateRows = await tenantBatch(databaseId, [
+      { sql: `SELECT COALESCE(SUM(total),0) AS total FROM (${candidateRowsSql})`, params: [] }
+    ]);
+    candidateRowCount = Number(first(candidateRows, 0)?.total || 0);
+  }
   return {
     identity: first(result, 0),
     ledger: String(first(result, 1)?.versions || ''),
-    stageTableCount: Number(first(result, 2)?.total || 0),
-    lkg: first(result, 3),
-    mediaCount: Number(first(result, 4)?.total || 0),
-    foreignKeyFindings: rows(result, 5).length
+    listingStageTableCount: Number(first(result, 2)?.total || 0),
+    candidateStageTableCount,
+    candidateRowCount,
+    historicalStage: first(result, 4),
+    lkg: first(result, 5),
+    mediaCount: Number(first(result, 6)?.total || 0),
+    foreignKeyFindings: rows(result, 7).length
   };
 }
 
@@ -216,33 +266,41 @@ function historicalOnboardingPreserved(control) {
   return Boolean(
     control.provisioning?.status === 'success' &&
     control.provisioning?.current_step === 'complete' &&
-    control.provisioning?.context_json === '{"fleetCanary":"historical"}' &&
-    control.provisioning?.started_at === '2000-01-01T00:00:00Z' &&
-    control.provisioning?.finished_at === '2000-01-01T00:00:00Z' &&
-    control.provisioning?.created_at === '2000-01-01T00:00:00Z' &&
-    control.provisioning?.updated_at === '2000-01-01T00:00:00Z' &&
+    control.provisioning?.context_json === HISTORICAL_CONTEXT &&
+    control.provisioning?.started_at === HISTORICAL_TIMESTAMP &&
+    control.provisioning?.finished_at === HISTORICAL_TIMESTAMP &&
+    control.provisioning?.created_at === HISTORICAL_TIMESTAMP &&
+    control.provisioning?.updated_at === HISTORICAL_TIMESTAMP &&
     control.provisioning?.last_error === null &&
     control.migrationStep?.status === 'success' &&
     Number(control.migrationStep?.attempt_count) === 1 &&
-    control.migrationStep?.metadata_json === '{"schemaVersion":4,"sentinel":"unchanged"}' &&
-    control.migrationStep?.updated_at === '2000-01-01T00:00:00Z' &&
+    control.migrationStep?.metadata_json === HISTORICAL_MIGRATION_METADATA &&
+    control.migrationStep?.updated_at === HISTORICAL_TIMESTAMP &&
     control.migrationStep?.last_error === null
   );
 }
 
 function lkgPreserved(fixture, tenant, schemaVersion) {
-  const expectedLedger = schemaVersion === 5 ? '1,2,3,4,5' : '1,2,3,4';
-  const expectedStageTableCount = schemaVersion === 5 ? STAGE_TABLES.length : 0;
+  const expectedLedger = schemaVersion === CURRENT_SCHEMA_VERSION ? '1,2,3,4,5,6' : '1,2,3,4,5';
+  const expectedCandidateStageTableCount =
+    schemaVersion === CURRENT_SCHEMA_VERSION ? TENANT_SYNC_CANDIDATE_TABLES.length : 0;
   return Boolean(
     tenant.identity?.tenant_id === fixture.tenantId &&
     Number(tenant.identity?.schema_version) === schemaVersion &&
     tenant.ledger === expectedLedger &&
-    tenant.stageTableCount === expectedStageTableCount &&
+    tenant.listingStageTableCount === LISTING_STAGE_TABLES.length &&
+    tenant.candidateStageTableCount === expectedCandidateStageTableCount &&
+    tenant.candidateRowCount === 0 &&
     tenant.foreignKeyFindings === 0 &&
     tenant.mediaCount === 1 &&
+    tenant.historicalStage?.state === 'preserved' &&
+    tenant.historicalStage?.safety_outcome === 'preserve_last_known_good' &&
+    tenant.historicalStage?.verification_code === 'historical_preserved' &&
+    Number(tenant.historicalStage?.categories) === 1 &&
     tenant.lkg?.name === 'Verified LKG Product' &&
     tenant.lkg?.description === 'Verified tenant LKG' &&
     tenant.lkg?.classification_status === 'known' &&
+    tenant.lkg?.listing_fingerprint === fixtureIds(fixture).listingFingerprint &&
     tenant.lkg?.detail_fingerprint === 'detail-lkg-v1' &&
     tenant.lkg?.status === 'active' &&
     Number(tenant.lkg?.miss_count) === 0 &&
@@ -253,26 +311,60 @@ function lkgPreserved(fixture, tenant, schemaVersion) {
 
 export function classifyFleetDiagnostic({ fixtures, accountSecretPresent, tokenSecretPresent }) {
   const allJobsAbsent = fixtures.every((fixture) => fixture.migrationJobs.length === 0);
-  const allV4LkgPreserved = fixtures.every(
+  const allLkgPreserved = fixtures.every(
     (fixture) =>
-      Number(fixture.schemaVersion) === 4 &&
+      [PREVIOUS_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION].includes(Number(fixture.schemaVersion)) &&
       fixture.lkgPreserved === true &&
-      fixture.historicalOnboardingPreserved === true
+      fixture.historicalOnboardingPreserved === true &&
+      fixture.foreignKeyFindings === 0 &&
+      fixture.candidateRowsCreated === 0
   );
+  const successFixture = fixtures.find((fixture) => fixture.kind === 'success');
+  const failureFixture = fixtures.find((fixture) => fixture.kind === 'failure');
+  const blockedFixture = fixtures.find((fixture) => fixture.kind === 'blocked');
+  const successJob = successFixture?.migrationJobs?.[0] || null;
+  const failureJob = failureFixture?.migrationJobs?.[0] || null;
+  const blockedJob = blockedFixture?.migrationJobs?.[0] || null;
   const blockedImportPreserved = fixtures.some(
     (fixture) => fixture.kind === 'blocked' && fixture.activeImportPreserved === true
   );
   const platformRuntimeConfigured = accountSecretPresent && tokenSecretPresent;
   let rootCause = 'fleet_scheduler_state_requires_review';
-  if (allJobsAbsent && allV4LkgPreserved && blockedImportPreserved && !platformRuntimeConfigured) {
+  if (!platformRuntimeConfigured) {
     rootCause = 'worker_platform_runtime_unconfigured';
-  } else if (!allJobsAbsent) {
-    rootCause = 'scheduler_progressed_after_failed_canary';
+  } else if (!allLkgPreserved) {
+    rootCause = 'retained_integrity_requires_review';
+  } else if (blockedJob) {
+    rootCause = 'active_import_exclusion_failed';
+  } else if (
+    !successJob &&
+    Number(successFixture?.migrationCommandVersion || 0) <
+      TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION
+  ) {
+    rootCause = 'trusted_preparation_not_committed';
+  } else if (!successJob) {
+    rootCause = 'success_fixture_not_discovered';
+  } else if (successJob.status === 'failed') {
+    rootCause = 'success_migration_failed';
+  } else if (!failureJob) {
+    rootCause = 'controlled_failure_not_discovered';
+  } else if (
+    successJob.status === 'success' &&
+    failureJob.status === 'failed' &&
+    failureJob.last_error_code === EXPECTED_FAILURE_CODE &&
+    blockedImportPreserved
+  ) {
+    rootCause = 'expected_outcomes_reached_after_canary_failure';
+  } else if (
+    failureJob.status !== 'failed' ||
+    failureJob.last_error_code !== EXPECTED_FAILURE_CODE
+  ) {
+    rootCause = 'controlled_failure_contract_changed';
   }
   return {
     rootCause,
     allJobsAbsent,
-    allV4LkgPreserved,
+    allLkgPreserved,
     blockedImportPreserved,
     workerPlatformRuntimeConfigured: platformRuntimeConfigured
   };
@@ -309,7 +401,9 @@ async function inspectFixture(fixture) {
     lkgPreserved: lkgPreserved(fixture, tenant, schemaVersion),
     merchantOverridePreserved: Boolean(tenant.lkg?.override_json),
     tenantSchemaLedger: tenant.ledger,
-    stageTableCount: tenant.stageTableCount,
+    listingStageTableCount: tenant.listingStageTableCount,
+    candidateStageTableCount: tenant.candidateStageTableCount,
+    candidateRowsCreated: tenant.candidateRowCount,
     foreignKeyFindings: tenant.foreignKeyFindings
   };
 }
@@ -324,10 +418,10 @@ async function main() {
     {
       sql: `SELECT target_schema_version, migration_kind, status, COUNT(*) AS total
               FROM tenant_data_plane_migration_jobs
-             WHERE target_schema_version=5
+             WHERE target_schema_version=CAST(?1 AS INTEGER)
              GROUP BY target_schema_version, migration_kind, status
              ORDER BY migration_kind, status`,
-      params: []
+      params: [CURRENT_SCHEMA_VERSION]
     },
     { sql: 'SELECT COUNT(*) AS total FROM catalog_products', params: [] }
   ]);
