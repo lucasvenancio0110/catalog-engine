@@ -26,9 +26,9 @@ function preservedFixture(kind) {
 describe('retained tenant fleet canary diagnosis', () => {
   it('defaults to exactly the three opaque fixtures retained by the latest failed trusted-main canary', () => {
     expect(RETAINED_FLEET_FIXTURES).toEqual([
-      { kind: 'success', tenantId: 't_01dd1cca59866965a1e0' },
-      { kind: 'failure', tenantId: 't_eedbd596921ad6eba18c' },
-      { kind: 'blocked', tenantId: 't_7911175400766cb6c7b6' }
+      { kind: 'success', tenantId: 't_bcbcdba75017bbd7e69b' },
+      { kind: 'failure', tenantId: 't_f99926b821ca91baa2bb' },
+      { kind: 'blocked', tenantId: 't_4963394770c85357a30f' }
     ]);
   });
 
@@ -73,9 +73,10 @@ describe('retained tenant fleet canary diagnosis', () => {
   });
 
   it('is a trusted-main read-only workflow and cannot create jobs, enqueue or purge', () => {
-    expect(workflow).toContain("default: 't_01dd1cca59866965a1e0'");
-    expect(workflow).toContain("default: 't_eedbd596921ad6eba18c'");
-    expect(workflow).toContain("default: 't_7911175400766cb6c7b6'");
+    expect(workflow).toContain("default: 't_bcbcdba75017bbd7e69b'");
+    expect(workflow).toContain("default: 't_f99926b821ca91baa2bb'");
+    expect(workflow).toContain("default: 't_4963394770c85357a30f'");
+    expect(script).toContain('migrationCommandSafeError');
     expect(workflow).toContain(
       "github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'"
     );

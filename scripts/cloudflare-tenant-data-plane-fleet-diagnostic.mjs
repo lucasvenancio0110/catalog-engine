@@ -20,9 +20,9 @@ const STAGE_TABLES = [
 ];
 
 export const RETAINED_FLEET_FIXTURES = [
-  { kind: 'success', tenantId: 't_01dd1cca59866965a1e0' },
-  { kind: 'failure', tenantId: 't_eedbd596921ad6eba18c' },
-  { kind: 'blocked', tenantId: 't_7911175400766cb6c7b6' }
+  { kind: 'success', tenantId: 't_bcbcdba75017bbd7e69b' },
+  { kind: 'failure', tenantId: 't_f99926b821ca91baa2bb' },
+  { kind: 'blocked', tenantId: 't_4963394770c85357a30f' }
 ];
 
 const FIXTURE_ENV_BY_KIND = {
@@ -103,7 +103,9 @@ async function inspectControlFixture(fixture) {
       sql: `SELECT i.status AS catalog_status, i.schema_version, i.last_migration_at,
                    i.last_error, p.setup_status, p.published_at,
                    d.dispatch_namespace, d.worker_status, d.database_status,
-                   d.d1_database_id
+                   d.d1_database_id, d.migration_command_version,
+                   d.migration_command_prepared_at,
+                   d.migration_command_last_error_code
               FROM tenant_catalog_instances i
               JOIN tenant_store_profiles p ON p.tenant_id=i.tenant_id
               JOIN tenant_data_plane_provider_state d ON d.tenant_id=i.tenant_id
@@ -297,6 +299,9 @@ async function inspectFixture(fixture) {
     dispatchNamespaceMatches: control.catalog?.dispatch_namespace === DISPATCH_NAMESPACE,
     workerStatus: control.catalog?.worker_status || null,
     databaseStatus: control.catalog?.database_status || null,
+    migrationCommandVersion: Number(control.catalog?.migration_command_version || 0),
+    migrationCommandPreparedAt: control.catalog?.migration_command_prepared_at || null,
+    migrationCommandSafeError: control.catalog?.migration_command_last_error_code || null,
     source: control.source,
     migrationJobs: control.migrationJobs,
     activeImportPreserved: fixture.kind === 'blocked' ? activeImport : !activeImport,
