@@ -61,6 +61,8 @@ describe('retained fleet canary cleanup', () => {
     expect(cleanupStart).toBeGreaterThan(validateStart);
     expect(workflow.slice(validateStart, cleanupStart)).not.toContain('secrets.CLOUDFLARE');
     expect(workflow).toContain("if: github.event_name == 'push'");
+    expect(workflow).toContain("format('catalog-engine-retained-fleet-cleanup-pr-{0}'");
+    expect(workflow).toContain("|| 'catalog-engine-production-d1'");
     expect(workflow).toContain("PROVEN_FLEET_CANARY_RUN_ID: '32685477736'");
     expect(script).toContain("TENANT_SYNC_AUTOMATION_ENABLED || '') !== '0'");
   });

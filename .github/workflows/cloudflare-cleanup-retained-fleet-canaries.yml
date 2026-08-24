@@ -19,8 +19,11 @@ permissions:
   statuses: write
 
 concurrency:
-  group: catalog-engine-production-d1
-  cancel-in-progress: false
+  group: >-
+    ${{ github.event_name == 'pull_request'
+        && format('catalog-engine-retained-fleet-cleanup-pr-{0}', github.event.pull_request.number)
+        || 'catalog-engine-production-d1' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   validate:
