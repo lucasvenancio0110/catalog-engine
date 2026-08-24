@@ -10,9 +10,12 @@ import {
 import { TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION } from '../worker/tenant-data-plane-command.js';
 import {
   TENANT_DATA_PLANE_SCHEMA_VERSION as PREVIOUS_SCHEMA_VERSION,
-  tenantDataPlaneCurrentBatch as tenantDataPlaneV4Batch
-} from '../worker/tenant-data-plane-schema-v4.js';
-import { TENANT_DATA_PLANE_SCHEMA_VERSION as CURRENT_SCHEMA_VERSION } from '../worker/tenant-data-plane-schema-v5.js';
+  tenantDataPlaneCurrentBatch as tenantDataPlaneV5Batch
+} from '../worker/tenant-data-plane-schema-v5.js';
+import {
+  TENANT_DATA_PLANE_SCHEMA_VERSION as CURRENT_SCHEMA_VERSION,
+  TENANT_SYNC_CANDIDATE_TABLES
+} from '../worker/tenant-data-plane-schema-v6.js';
 import { prepareTenantMigrationCommandCapability } from './cloudflare-tenant-data-plane-fleet-prepare.mjs';
 
 const API_ORIGIN = 'https://api.cloudflare.com';
@@ -25,9 +28,9 @@ const POLL_MS = 5_000;
 const COMPLETION_TIMEOUT_MS = 22 * 60_000;
 const HISTORICAL_TIMESTAMP = '2000-01-01T00:00:00Z';
 const HISTORICAL_CONTEXT = '{"fleetCanary":"historical"}';
-const HISTORICAL_MIGRATION_METADATA = '{"schemaVersion":4,"sentinel":"unchanged"}';
+const HISTORICAL_MIGRATION_METADATA = '{"schemaVersion":5,"sentinel":"unchanged"}';
 const EXPECTED_FAILURE_CODE = 'tenant_dispatch_namespace_mismatch';
-const STAGE_TABLES = [
+const LISTING_STAGE_TABLES = [
   'supplier_sync_stage_runs',
   'supplier_sync_stage_observations',
   'supplier_sync_stage_events',
@@ -52,7 +55,7 @@ function validateRuntime() {
   if (!/^[a-z0-9][a-z0-9_-]{1,62}$/i.test(DISPATCH_NAMESPACE)) {
     throw new Error('fleet_canary_dispatch_namespace_invalid');
   }
-  if (PREVIOUS_SCHEMA_VERSION !== 4 || CURRENT_SCHEMA_VERSION !== 5) {
+  if (PREVIOUS_SCHEMA_VERSION !== 5 || CURRENT_SCHEMA_VERSION !== 6) {
     throw new Error('fleet_canary_schema_contract_mismatch');
   }
   if (!/^[a-f0-9-]{32,40}$/i.test(CONTROL_DB_ID)) {
@@ -97,6 +100,8 @@ export function fixtureIdentity(kind, seedOverride = '') {
     categoryId: `cat_${suffix}`,
     productId: `prd_${suffix}`,
     mediaId: `med_${suffix}`,
+    stageRunId: `sync_${suffix}`,
+    stageCategoryId: `stage_cat_${suffix}`,
     albumSourceId: `alb_${suffix}`,
     listingFingerprint: createHash('sha256').update(`lkg:${suffix}`).digest('hex'),
     overrideJson: JSON.stringify({ displayName: `Fleet Canary ${kind}` }),
@@ -215,6 +220,21 @@ export function initialDataPlaneSeed(fixture) {
               (product_id, override_json, override_version, created_at, updated_at)
             VALUES (?1, ?2, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
       params: [fixture.productId, fixture.overrideJson]
+    },
+    {
+      sql: `INSERT INTO supplier_sync_stage_runs
+              (run_id, tenant_id, source_key, scope_id, scope_kind, state,
+               safety_outcome, safety_policy_version, scan_complete,
+               previous_known_good_count, observed_count, verification_code)
+            VALUES (?1, ?2, ?3, 'catalog', 'catalog', 'preserved',
+                    'preserve_last_known_good', 1, 0, 1, 0, 'historical_preserved')`,
+      params: [fixture.stageRunId, fixture.tenantId, fixture.sourceKey]
+    },
+    {
+      sql: `INSERT INTO supplier_sync_stage_categories
+              (run_id, category_source_id, name, depth, sort_order)
+            VALUES (?1, ?2, 'Historical private category', 0, 0)`,
+      params: [fixture.stageRunId, fixture.stageCategoryId]
     }
   ];
 }
@@ -429,7 +449,8 @@ async function controlState(fixture) {
 }
 
 async function dataPlaneState(fixture) {
-  const stagePlaceholders = STAGE_TABLES.map(() => '?').join(',');
+  const listingStagePlaceholders = LISTING_STAGE_TABLES.map(() => '?').join(',');
+  const candidateStagePlaceholders = TENANT_SYNC_CANDIDATE_TABLES.map(() => '?').join(',');
   const result = await tenantBatch(fixture, [
     {
       sql: `SELECT tenant_id, schema_version
@@ -446,8 +467,23 @@ async function dataPlaneState(fixture) {
     {
       sql: `SELECT COUNT(*) AS total
               FROM sqlite_master
-             WHERE type='table' AND name IN (${stagePlaceholders})`,
-      params: STAGE_TABLES
+             WHERE type='table' AND name IN (${listingStagePlaceholders})`,
+      params: LISTING_STAGE_TABLES
+    },
+    {
+      sql: `SELECT COUNT(*) AS total
+              FROM sqlite_master
+             WHERE type='table' AND name IN (${candidateStagePlaceholders})`,
+      params: TENANT_SYNC_CANDIDATE_TABLES
+    },
+    {
+      sql: `SELECT r.state, r.safety_outcome, r.verification_code,
+                   COUNT(c.category_source_id) AS categories
+              FROM supplier_sync_stage_runs r
+              LEFT JOIN supplier_sync_stage_categories c ON c.run_id=r.run_id
+             WHERE r.run_id=?1
+             GROUP BY r.run_id`,
+      params: [fixture.stageRunId]
     },
     {
       sql: `SELECT p.name, p.description, p.classification_status,
@@ -464,12 +500,26 @@ async function dataPlaneState(fixture) {
     },
     { sql: 'PRAGMA foreign_key_check', params: [] }
   ]);
+  const candidateStageTableCount = Number(result[3]?.results?.[0]?.total || 0);
+  let candidateRowCount = 0;
+  if (candidateStageTableCount === TENANT_SYNC_CANDIDATE_TABLES.length) {
+    const candidateRowsSql = TENANT_SYNC_CANDIDATE_TABLES.map(
+      (table) => `SELECT COUNT(*) AS total FROM ${table}`
+    ).join(' UNION ALL ');
+    const candidateRows = await tenantBatch(fixture, [
+      { sql: `SELECT COALESCE(SUM(total),0) AS total FROM (${candidateRowsSql})`, params: [] }
+    ]);
+    candidateRowCount = Number(candidateRows[0]?.results?.[0]?.total || 0);
+  }
   return {
     identity: result[0]?.results?.[0] || null,
     ledger: String(result[1]?.results?.[0]?.versions || ''),
-    stageTableCount: Number(result[2]?.results?.[0]?.total || 0),
-    lkg: result[3]?.results?.[0] || null,
-    foreignKeyFindings: (result[4]?.results || []).length
+    listingStageTableCount: Number(result[2]?.results?.[0]?.total || 0),
+    candidateStageTableCount,
+    candidateRowCount,
+    historicalStage: result[4]?.results?.[0] || null,
+    lkg: result[5]?.results?.[0] || null,
+    foreignKeyFindings: (result[6]?.results || []).length
   };
 }
 
@@ -504,17 +554,28 @@ function assertHistoricalOnboardingPreserved(state) {
 }
 
 function assertLkgPreserved(fixture, state, expectedSchemaVersion) {
-  const expectedLedger = expectedSchemaVersion === CURRENT_SCHEMA_VERSION ? '1,2,3,4,5' : '1,2,3,4';
-  const expectedStageTables =
-    expectedSchemaVersion === CURRENT_SCHEMA_VERSION ? STAGE_TABLES.length : 0;
+  const expectedLedger =
+    expectedSchemaVersion === CURRENT_SCHEMA_VERSION ? '1,2,3,4,5,6' : '1,2,3,4,5';
+  const expectedCandidateStageTables =
+    expectedSchemaVersion === CURRENT_SCHEMA_VERSION ? TENANT_SYNC_CANDIDATE_TABLES.length : 0;
   if (
     state.identity?.tenant_id !== fixture.tenantId ||
     Number(state.identity?.schema_version) !== expectedSchemaVersion ||
     state.ledger !== expectedLedger ||
-    state.stageTableCount !== expectedStageTables ||
+    state.listingStageTableCount !== LISTING_STAGE_TABLES.length ||
+    state.candidateStageTableCount !== expectedCandidateStageTables ||
+    state.candidateRowCount !== 0 ||
     state.foreignKeyFindings !== 0
   ) {
     throw new Error('fleet_canary_data_plane_schema_invalid');
+  }
+  if (
+    state.historicalStage?.state !== 'preserved' ||
+    state.historicalStage?.safety_outcome !== 'preserve_last_known_good' ||
+    state.historicalStage?.verification_code !== 'historical_preserved' ||
+    Number(state.historicalStage?.categories) !== 1
+  ) {
+    throw new Error('fleet_canary_historical_stage_changed');
   }
   if (
     !state.lkg ||
@@ -621,7 +682,9 @@ async function verifyFixture(fixture) {
     merchantOverridePreserved: true,
     historicalOnboardingPreserved: true,
     runtimeCapabilityRefreshed: fixture.kind === 'success',
-    stageTableCount: dataPlane.stageTableCount,
+    listingStageTableCount: dataPlane.listingStageTableCount,
+    candidateStageTableCount: dataPlane.candidateStageTableCount,
+    candidateRowsCreated: dataPlane.candidateRowCount,
     foreignKeyFindings: dataPlane.foreignKeyFindings
   };
 }
@@ -696,7 +759,7 @@ async function main() {
       fixture.databaseId = database.databaseId;
       await tenantBatch(
         fixture,
-        tenantDataPlaneV4Batch({
+        tenantDataPlaneV5Batch({
           tenantId: fixture.tenantId,
           source: {
             provider: 'yupoo',

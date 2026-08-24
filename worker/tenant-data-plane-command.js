@@ -1,14 +1,15 @@
 import { TENANT_DATA_PLANE_V2_STATEMENTS } from './tenant-data-plane-schema-v2.js';
 import { TENANT_DATA_PLANE_V3_STATEMENTS } from './tenant-data-plane-schema-v3.js';
 import { TENANT_DATA_PLANE_V4_STATEMENTS } from './tenant-data-plane-schema-v4.js';
+import { TENANT_DATA_PLANE_V5_STATEMENTS } from './tenant-data-plane-schema-v5.js';
 import {
   TENANT_DATA_PLANE_SCHEMA_VERSION as CURRENT_TENANT_DATA_PLANE_SCHEMA_VERSION,
-  TENANT_DATA_PLANE_V5_STATEMENTS
-} from './tenant-data-plane-schema-v5.js';
+  TENANT_DATA_PLANE_V6_STATEMENTS
+} from './tenant-data-plane-schema-v6.js';
 
 export const TENANT_DATA_PLANE_COMMAND_VERSION = 1;
 export const TENANT_DATA_PLANE_COMMAND_PATH = '/_catalog/internal/d1-batch';
-export const TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION = 1;
+export const TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION = 2;
 export const TENANT_DATA_PLANE_MIGRATION_COMMAND_PATH = '/_catalog/internal/schema-migrate';
 
 const TENANT_ID_PATTERN = /^t_[a-f0-9]{20}$/;
@@ -21,7 +22,8 @@ const TENANT_DATA_PLANE_MIGRATION_STATEMENTS = Object.freeze({
   2: TENANT_DATA_PLANE_V2_STATEMENTS,
   3: TENANT_DATA_PLANE_V3_STATEMENTS,
   4: TENANT_DATA_PLANE_V4_STATEMENTS,
-  5: TENANT_DATA_PLANE_V5_STATEMENTS
+  5: TENANT_DATA_PLANE_V5_STATEMENTS,
+  6: TENANT_DATA_PLANE_V6_STATEMENTS
 });
 const TENANT_DATA_PLANE_MIGRATION_TARGET_VERSION = CURRENT_TENANT_DATA_PLANE_SCHEMA_VERSION;
 
