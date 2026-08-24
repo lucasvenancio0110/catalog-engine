@@ -90,6 +90,18 @@ describe('tenant data-plane fleet maintenance production canary', () => {
     expect(
       database
         .prepare(
+          `SELECT GROUP_CONCAT(kind, ',') AS kinds
+             FROM (
+               SELECT CASE WHEN migration_command_version=1 THEN 'prepared' ELSE 'pending' END AS kind
+                 FROM tenant_data_plane_provider_state
+                ORDER BY tenant_id
+             )`
+        )
+        .get().kinds
+    ).toContain('prepared');
+    expect(
+      database
+        .prepare(
           `SELECT mode, status, phase
              FROM tenant_import_jobs
             WHERE mode='incremental'`
@@ -161,7 +173,9 @@ describe('tenant data-plane fleet maintenance production canary', () => {
     expect(script).toContain("{ sql: 'PRAGMA foreign_key_check', params: [] }");
     expect(script).toContain("PRAGMA table_info('tenant_data_plane_migration_jobs')");
     expect(script).toContain('fleet_canary_control_schema_not_ready');
-    expect(script).toContain('{ includeSchemaMigration: false }');
+    expect(script).toContain("{ includeSchemaMigration: fixture.kind === 'failure' }");
+    expect(script).toContain('prepareTenantMigrationCommandCapability(successFixture');
+    expect(script).toContain('trustedCiOwnedWorkerPreparation: true');
     expect(script).toContain("runtimeCapabilityRefreshed: fixture.kind === 'success'");
   });
 
@@ -228,6 +242,9 @@ describe('tenant data-plane fleet maintenance production canary', () => {
     expect(deployWorkflow).toContain('/workers/scripts/catalog-engine/settings');
     expect(deployWorkflow).toContain(
       'verify-worker-platform-bindings.mjs "$WORKER_SETTINGS" --require'
+    );
+    expect(deployWorkflow).toContain(
+      'Prepare eligible tenant migration command capabilities from trusted CI'
     );
   });
 });

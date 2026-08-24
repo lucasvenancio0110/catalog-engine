@@ -7,7 +7,9 @@ on:
       - '.github/workflows/cloudflare-tenant-data-plane-fleet-canary.yml'
       - '.github/workflows/deploy-catalog-api.yml'
       - 'scripts/cloudflare-tenant-data-plane-fleet-canary.mjs'
+      - 'scripts/cloudflare-tenant-data-plane-fleet-prepare.mjs'
       - 'tests/tenant-data-plane-fleet-canary.test.mjs'
+      - 'tests/tenant-data-plane-fleet-preparation.test.mjs'
       - 'worker/cloudflare-platform.js'
       - 'worker/data-plane-migration-runner.js'
       - 'worker/ingestion/tenant-data-plane.js'
@@ -15,6 +17,7 @@ on:
       - 'worker/tenant-data-plane-schema-v4.js'
       - 'worker/tenant-data-plane-schema-v5.js'
       - 'migrations/0018_tenant_data_plane_fleet_migrations.sql'
+      - 'migrations/0019_tenant_data_plane_migration_capability.sql'
       - 'wrangler.jsonc'
   workflow_run:
     workflows: ['Deploy Catalog Engine application']

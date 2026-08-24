@@ -1,13 +1,10 @@
-import {
-  CloudflarePlatformError,
-  queryD1Batch,
-  uploadTenantCatalogWorker
-} from './cloudflare-platform.js';
+import { CloudflarePlatformError, queryD1Batch } from './cloudflare-platform.js';
 import {
   migrateTenantDataPlaneSchema,
   TenantDataPlaneClientError
 } from './ingestion/tenant-data-plane.js';
 import { stableOpaqueId } from './runtime-identity.js';
+import { TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION } from './tenant-data-plane-command.js';
 import {
   TENANT_DATA_PLANE_SCHEMA_VERSION,
   tenantDataPlaneMigrationBatches
@@ -29,6 +26,7 @@ export const MAINTENANCE_MIGRATION_DISCOVERY_SQL = `SELECT DISTINCT i.tenant_id
           AND p.database_status='active'
           AND p.worker_status='active'
           AND p.d1_database_id IS NOT NULL
+          AND p.migration_command_version >= ?2
           AND NOT EXISTS (
             SELECT 1 FROM tenant_import_jobs j
              WHERE j.tenant_id=i.tenant_id
@@ -40,24 +38,29 @@ export const MAINTENANCE_MIGRATION_DISCOVERY_SQL = `SELECT DISTINCT i.tenant_id
                AND m.target_schema_version=?1
           )
         ORDER BY COALESCE(i.last_migration_at, i.created_at) ASC
-        LIMIT ?2`;
+        LIMIT ?3`;
 
 export const DATA_PLANE_MIGRATION_DUE_SQL = `SELECT j.job_id, j.tenant_id,
               j.target_schema_version, j.migration_kind,
               CASE WHEN j.migration_kind='provisioning' THEN r.provisioning_id ELSE NULL END AS provisioning_id
          FROM tenant_data_plane_migration_jobs j
+         JOIN tenant_data_plane_provider_state p ON p.tenant_id=j.tenant_id
          LEFT JOIN tenant_provisioning_runs r ON r.provisioning_id=(
            SELECT r2.provisioning_id FROM tenant_provisioning_runs r2
             WHERE r2.tenant_id=j.tenant_id ORDER BY r2.created_at DESC LIMIT 1
          )
         WHERE j.status IN ('pending','failed')
           AND j.target_schema_version=?2
+          AND (
+            j.migration_kind='provisioning'
+            OR p.migration_command_version >= ?3
+          )
           AND j.attempt_count < ?1
           AND (j.next_attempt_at IS NULL OR j.next_attempt_at <= CURRENT_TIMESTAMP)
         ORDER BY CASE j.migration_kind WHEN 'provisioning' THEN 0 ELSE 1 END,
                  CASE j.status WHEN 'pending' THEN 0 ELSE 1 END,
                  j.created_at ASC
-        LIMIT ?3`;
+        LIMIT ?4`;
 
 function runtimeConfig(env) {
   const accountId = String(env.CLOUDFLARE_PLATFORM_ACCOUNT_ID || '').trim();
@@ -137,7 +140,7 @@ async function discoverProvisioningMigrationCandidates(db, targetVersion, limit)
 async function discoverMaintenanceMigrationCandidates(db, targetVersion, limit) {
   const result = await db
     .prepare(MAINTENANCE_MIGRATION_DISCOVERY_SQL)
-    .bind(targetVersion, limit)
+    .bind(targetVersion, TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION, limit)
     .all();
 
   for (const row of result.results || []) {
@@ -154,6 +157,7 @@ async function migrationContext(db, tenantId) {
   return db
     .prepare(
       `SELECT p.d1_database_id, p.dispatch_namespace, p.worker_script_name,
+              p.migration_command_version,
               i.status AS catalog_status, i.schema_version AS current_schema_version,
               s.source_key, s.provider AS source_provider, s.source_url,
               s.sync_strategy, s.removal_miss_threshold,
@@ -199,10 +203,21 @@ async function claimMigration(db, job) {
                 SELECT 1 FROM tenant_import_jobs j
                  WHERE j.tenant_id=?4 AND j.status IN (${ACTIVE_IMPORT_STATUSES})
               )
+              AND EXISTS (
+                SELECT 1 FROM tenant_data_plane_provider_state p
+                 WHERE p.tenant_id=?4
+                   AND p.migration_command_version>=?5
+              )
             )
           )`
     )
-    .bind(job.job_id, MAX_AUTOMATIC_ATTEMPTS, kind, job.tenant_id)
+    .bind(
+      job.job_id,
+      MAX_AUTOMATIC_ATTEMPTS,
+      kind,
+      job.tenant_id,
+      TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION
+    )
     .run();
   if (Number(result.meta?.changes || 0) < 1) return false;
 
@@ -229,7 +244,7 @@ async function claimMigration(db, job) {
   return true;
 }
 
-async function finishMigration(db, job, version, workerVersion = null) {
+async function finishMigration(db, job, version) {
   const kind = normalizeMigrationKind(job.migration_kind);
   const nextStep = kind === 'provisioning' ? migrationResumeStep(job.resume_step) : null;
   const catalogStatement =
@@ -262,18 +277,6 @@ async function finishMigration(db, job, version, workerVersion = null) {
       .bind(job.job_id),
     catalogStatement
   ];
-  if (kind === 'maintenance' && workerVersion) {
-    statements.push(
-      db
-        .prepare(
-          `UPDATE tenant_data_plane_provider_state
-              SET worker_version=?2, last_checked_at=CURRENT_TIMESTAMP,
-                  updated_at=CURRENT_TIMESTAMP
-            WHERE tenant_id=?1`
-        )
-        .bind(job.tenant_id, workerVersion)
-    );
-  }
   if (kind === 'provisioning' && job.provisioning_id) {
     statements.push(
       db
@@ -429,10 +432,13 @@ async function runMigrationTransportPhase(
 
 async function resolveTenantSchemaVersion(
   config,
-  { tenantId, databaseId, controlVersion, targetVersion },
+  { tenantId, databaseId, controlVersion, targetVersion, requireDispatch = false },
   { fetchImpl, tenantDispatch }
 ) {
   if (controlVersion === 0) return 0;
+  if (requireDispatch && !(tenantDispatch && typeof tenantDispatch.get === 'function')) {
+    throw new TenantDataPlaneClientError('tenant_data_plane_dispatch_unbound', 503);
+  }
   const result = await queryD1Batch(
     {
       ...config,
@@ -493,6 +499,12 @@ export async function processTenantDataPlaneMigration(
     if (context.dispatch_namespace !== config.dispatchNamespace) {
       throw new CloudflarePlatformError('tenant_dispatch_namespace_mismatch', 500);
     }
+    if (
+      migrationKind === 'maintenance' &&
+      Number(context.migration_command_version || 0) < TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION
+    ) {
+      throw new CloudflarePlatformError('tenant_migration_command_not_prepared', 409);
+    }
     const source = {
       sourceKey: context.source_key,
       provider: context.source_provider,
@@ -520,7 +532,8 @@ export async function processTenantDataPlaneMigration(
             tenantId: job.tenant_id,
             databaseId: context.d1_database_id,
             controlVersion,
-            targetVersion
+            targetVersion,
+            requireDispatch: migrationKind === 'maintenance'
           },
           { fetchImpl, tenantDispatch: env.TENANT_DISPATCH }
         ),
@@ -532,26 +545,10 @@ export async function processTenantDataPlaneMigration(
       currentVersion,
       targetVersion
     });
-    let preparedWorkerVersion = null;
     if (migrationKind === 'maintenance' && currentVersion < targetVersion) {
       if (!context.worker_script_name) {
         throw new CloudflarePlatformError('tenant_worker_script_unavailable', 500);
       }
-      const upload = await runMigrationTransportPhase(
-        'prepare',
-        () =>
-          uploadTenantCatalogWorker(
-            {
-              ...config,
-              scriptName: context.worker_script_name,
-              databaseId: context.d1_database_id,
-              tenantId: job.tenant_id
-            },
-            { fetchImpl }
-          ),
-        { sleepImpl, randomImpl }
-      );
-      preparedWorkerVersion = upload.versionId || null;
       await runMigrationTransportPhase(
         'apply',
         () =>
@@ -609,12 +606,7 @@ export async function processTenantDataPlaneMigration(
       throw new CloudflarePlatformError('tenant_d1_migration_verification_failed', 502);
     }
 
-    const resumedAt = await finishMigration(
-      db,
-      enrichedJob,
-      job.target_schema_version,
-      preparedWorkerVersion
-    );
+    const resumedAt = await finishMigration(db, enrichedJob, job.target_schema_version);
     return {
       outcome: 'success',
       jobId: job.job_id,
@@ -663,7 +655,12 @@ export async function runDueDataPlaneMigrations(env, { fetchImpl = fetch, limit 
 
   const due = await db
     .prepare(DATA_PLANE_MIGRATION_DUE_SQL)
-    .bind(MAX_AUTOMATIC_ATTEMPTS, TENANT_DATA_PLANE_SCHEMA_VERSION, boundedLimit)
+    .bind(
+      MAX_AUTOMATIC_ATTEMPTS,
+      TENANT_DATA_PLANE_SCHEMA_VERSION,
+      TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION,
+      boundedLimit
+    )
     .all();
 
   const outcomes = [];

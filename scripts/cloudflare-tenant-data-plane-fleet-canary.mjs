@@ -7,11 +7,13 @@ import {
   queryD1Batch,
   uploadTenantCatalogWorker
 } from '../worker/cloudflare-platform.js';
+import { TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION } from '../worker/tenant-data-plane-command.js';
 import {
   TENANT_DATA_PLANE_SCHEMA_VERSION as PREVIOUS_SCHEMA_VERSION,
   tenantDataPlaneCurrentBatch as tenantDataPlaneV4Batch
 } from '../worker/tenant-data-plane-schema-v4.js';
 import { TENANT_DATA_PLANE_SCHEMA_VERSION as CURRENT_SCHEMA_VERSION } from '../worker/tenant-data-plane-schema-v5.js';
+import { prepareTenantMigrationCommandCapability } from './cloudflare-tenant-data-plane-fleet-prepare.mjs';
 
 const API_ORIGIN = 'https://api.cloudflare.com';
 const ACCOUNT_ID = String(process.env.CLOUDFLARE_ACCOUNT_ID || '').trim();
@@ -144,10 +146,12 @@ async function defaultCatalogCount() {
 
 async function assertControlSchemaReady() {
   const result = await controlBatch([
-    { sql: "PRAGMA table_info('tenant_data_plane_migration_jobs')", params: [] }
+    { sql: "PRAGMA table_info('tenant_data_plane_migration_jobs')", params: [] },
+    { sql: "PRAGMA table_info('tenant_data_plane_provider_state')", params: [] }
   ]);
-  const columns = new Set((result[0]?.results || []).map((row) => String(row.name || '')));
-  if (!columns.has('migration_kind')) {
+  const jobColumns = new Set((result[0]?.results || []).map((row) => String(row.name || '')));
+  const providerColumns = new Set((result[1]?.results || []).map((row) => String(row.name || '')));
+  if (!jobColumns.has('migration_kind') || !providerColumns.has('migration_command_version')) {
     throw new Error('fleet_canary_control_schema_not_ready');
   }
 }
@@ -261,8 +265,10 @@ export function controlPlaneSeed(fixture, workerVersion) {
       sql: `INSERT INTO tenant_data_plane_provider_state
               (tenant_id, provider, dispatch_namespace, worker_script_name,
                d1_database_name, d1_database_id, worker_status, database_status,
-               worker_version, last_checked_at, created_at, updated_at)
-            VALUES (?1, 'cloudflare_wfp', ?2, ?3, ?4, ?5, 'active', 'active', ?6,
+               worker_version, migration_command_version, migration_command_prepared_at,
+               last_checked_at, created_at, updated_at)
+            VALUES (?1, 'cloudflare_wfp', ?2, ?3, ?4, ?5, 'active', 'active', ?6, ?7,
+                    CASE WHEN ?7>0 THEN CURRENT_TIMESTAMP ELSE NULL END,
                     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
       params: [
         fixture.tenantId,
@@ -270,7 +276,8 @@ export function controlPlaneSeed(fixture, workerVersion) {
         fixture.workerScriptName,
         fixture.databaseName,
         fixture.databaseId,
-        workerVersion || 'fleet-canary'
+        workerVersion || 'fleet-canary',
+        fixture.kind === 'failure' ? TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION : 0
       ]
     },
     {
@@ -379,7 +386,8 @@ async function controlState(fixture) {
     {
       sql: `SELECT i.status AS catalog_status, i.schema_version, i.last_migration_at,
                    i.last_error,
-                   p.setup_status, d.worker_status, d.database_status, d.worker_version
+                   p.setup_status, d.worker_status, d.database_status, d.worker_version,
+                   d.migration_command_version, d.migration_command_last_error_code
               FROM tenant_catalog_instances i
               JOIN tenant_store_profiles p ON p.tenant_id=i.tenant_id
               JOIN tenant_data_plane_provider_state d ON d.tenant_id=i.tenant_id
@@ -535,7 +543,8 @@ async function verifyFixture(fixture) {
     control.catalog?.catalog_status !== 'ready' ||
     control.catalog?.setup_status !== 'published' ||
     control.catalog?.worker_status !== 'active' ||
-    control.catalog?.database_status !== 'active'
+    control.catalog?.database_status !== 'active' ||
+    control.catalog?.migration_command_last_error_code !== null
   ) {
     throw new Error('fleet_canary_serving_state_changed');
   }
@@ -551,6 +560,8 @@ async function verifyFixture(fixture) {
       Number(control.catalog.schema_version) !== CURRENT_SCHEMA_VERSION ||
       control.catalog.last_migration_at === HISTORICAL_TIMESTAMP ||
       control.catalog.last_error !== null ||
+      Number(control.catalog.migration_command_version) !==
+        TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION ||
       !fixture.initialWorkerVersion ||
       control.catalog.worker_version === fixture.initialWorkerVersion ||
       control.imports.length !== 0
@@ -569,6 +580,8 @@ async function verifyFixture(fixture) {
       Number(control.catalog.schema_version) !== PREVIOUS_SCHEMA_VERSION ||
       control.catalog.last_migration_at !== HISTORICAL_TIMESTAMP ||
       control.catalog.last_error !== EXPECTED_FAILURE_CODE ||
+      Number(control.catalog.migration_command_version) !==
+        TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION ||
       control.catalog.worker_version !== fixture.initialWorkerVersion ||
       control.imports.length !== 0
     ) {
@@ -582,6 +595,7 @@ async function verifyFixture(fixture) {
       Number(control.catalog.schema_version) !== PREVIOUS_SCHEMA_VERSION ||
       control.catalog.last_migration_at !== HISTORICAL_TIMESTAMP ||
       control.catalog.last_error !== null ||
+      Number(control.catalog.migration_command_version) !== 0 ||
       control.catalog.worker_version !== fixture.initialWorkerVersion ||
       control.imports.length !== 1 ||
       activeImport.mode !== 'incremental' ||
@@ -700,12 +714,22 @@ async function main() {
           databaseId: fixture.databaseId,
           tenantId: fixture.tenantId
         },
-        { includeSchemaMigration: false }
+        { includeSchemaMigration: fixture.kind === 'failure' }
       );
       fixture.workerCreated = true;
       fixture.initialWorkerVersion = worker.versionId;
       await controlBatch(controlPlaneSeed(fixture, worker.versionId));
       fixture.controlCreated = true;
+    }
+
+    const successFixture = fixtures.find((fixture) => fixture.kind === 'success');
+    const preparation = await prepareTenantMigrationCommandCapability(successFixture, {
+      platform: platformConfig(),
+      controlBatch,
+      allowFleetCanary: true
+    });
+    if (preparation.outcome !== 'prepared') {
+      throw new Error('fleet_canary_trusted_preparation_failed');
     }
 
     await waitForSchedulerOwnedOutcomes(fixtures);
@@ -723,6 +747,7 @@ async function main() {
         {
           tenantDataPlaneFleetCanaryPassed: true,
           schedulerOwnedMaintenance: true,
+          trustedCiOwnedWorkerPreparation: true,
           manualQueueMessagesProduced: false,
           recurringSyncAutomationEnabled: false,
           previousSchemaVersion: PREVIOUS_SCHEMA_VERSION,
