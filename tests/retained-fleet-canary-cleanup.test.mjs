@@ -13,19 +13,21 @@ const script = fs.readFileSync('scripts/cloudflare-cleanup-retained-fleet-canari
 
 describe('retained fleet canary cleanup', () => {
   it('targets the complete unique audited fixture set', () => {
-    expect(RETAINED_FLEET_CANARY_FIXTURES).toHaveLength(24);
-    expect(new Set(RETAINED_FLEET_CANARY_FIXTURES.map((fixture) => fixture.tenantId)).size).toBe(
-      24
-    );
+    expect(RETAINED_FLEET_CANARY_FIXTURES).toEqual([
+      { kind: 'success', tenantId: 't_bbd0a31ebb9924fd5e0d' },
+      { kind: 'failure', tenantId: 't_35633dac7b86302d566b' },
+      { kind: 'blocked', tenantId: 't_b4ac85a21b382cbeaea6' }
+    ]);
+    expect(new Set(RETAINED_FLEET_CANARY_FIXTURES.map((fixture) => fixture.tenantId)).size).toBe(3);
     expect(
       RETAINED_FLEET_CANARY_FIXTURES.filter((fixture) => fixture.kind === 'success')
-    ).toHaveLength(8);
+    ).toHaveLength(1);
     expect(
       RETAINED_FLEET_CANARY_FIXTURES.filter((fixture) => fixture.kind === 'failure')
-    ).toHaveLength(8);
+    ).toHaveLength(1);
     expect(
       RETAINED_FLEET_CANARY_FIXTURES.filter((fixture) => fixture.kind === 'blocked')
-    ).toHaveLength(8);
+    ).toHaveLength(1);
   });
 
   it('fails closed unless every present row has the deterministic private fixture identity', () => {
@@ -63,7 +65,9 @@ describe('retained fleet canary cleanup', () => {
     expect(workflow).toContain("if: github.event_name == 'push'");
     expect(workflow).toContain("format('catalog-engine-retained-fleet-cleanup-pr-{0}'");
     expect(workflow).toContain("|| 'catalog-engine-production-d1'");
-    expect(workflow).toContain("PROVEN_FLEET_CANARY_RUN_ID: '32685477736'");
+    expect(workflow).toContain("PROVEN_FLEET_CANARY_RUN_ID: '32735316785'");
+    expect(workflow).toContain('after trusted v5-to-v6 proof');
+    expect(script).toContain("PROVEN_FLEET_CANARY_RUN_ID = '32735316785'");
     expect(script).toContain("TENANT_SYNC_AUTOMATION_ENABLED || '') !== '0'");
   });
 
