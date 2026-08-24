@@ -395,9 +395,43 @@ After the newer canary passed, PR `#126` updated the exact cleanup list. Commit 
 
 This proves the additive v5→v6 mechanism and representative success/failure/blocked/isolation boundaries. It does not prove that every real tenant is already on v6: the trusted deploy selected zero ordinary tenants for preparation, and no complete live fleet inventory was reopened.
 
+### M7D2 controlled enrollment and scheduling guard — production-proven
+
+M7D2 entered `main` through PR `#129` at commit:
+
+`f49ad81b6dbb64e07e5e7a6b5ab63b0433e00b16`
+
+The PR's ten secret-free validation workflows passed on exact head `6f10d4df55b2ce174c4284430d6d982f52a48b94`; `95` test files / `498` tests passed. Privileged fleet, Queue and automatic-import jobs were correctly skipped in PR context and were not treated as production proof.
+
+Trusted-main application deploy:
+
+- run `32754985570`, job `97520332890` = **SUCCESS** on the exact merged SHA;
+- migration `0020_tenant_sync_controlled_enrollment.sql` applied successfully;
+- the remote proof found the enrollment table with `0` rows and `0` enrolled sources;
+- deployed configuration kept `TENANT_SYNC_AUTOMATION_ENABLED=0`, an empty active cohort and a per-tick cap of `1`;
+- Worker version `1e1a7eff-16ae-440a-ba99-e2b2db31562c` was deployed;
+- `95` test files / `498` tests, public build/leak verification, Queue producer checks and application smoke passed.
+
+Dedicated tenant data-plane fleet regression canary:
+
+- run `32755082787`, job `97520639483` = **SUCCESS** on the exact application SHA;
+- scheduler-owned success/failure/blocked/isolation coverage remained green;
+- the success fixture upgraded v5→v6 with twelve candidate tables, zero candidate rows and zero foreign-key findings;
+- the controlled failure stayed on v5, the blocked fixture stayed on v5 and the unrelated tenant remained isolated;
+- cleanup completed, recurring sync stayed disabled and `manualQueueMessagesProduced=false`.
+
+Automatic import/CEI regression canary:
+
+- run `32755082862`, job `97522279085` = **SUCCESS** on the exact application SHA;
+- cron discovered and completed one isolated import without any manual Queue message;
+- one product/two media reached schema v6, classifier v3 / `professional-v3`, classification and verification with zero findings or public/private leaks;
+- default catalog preservation and clean Queue/DLQ backlogs passed;
+- the secret-free validation job was correctly skipped because the event was the trusted deploy's `workflow_run`.
+
+This proves the M7D2 control boundary in production while it is inert: no tenant/source is implicitly enrolled, both global activation and an exact active cohort remain required, selection is capped, and conflicting imports, sync/recovery failures and data-plane migrations are blocked by code and tests. It does **not** prove recurring Intelligent Sync end to end, create a real pilot cohort or authorize changing the recurring-sync flag.
+
 Still not active in production:
 
-- M7D2 controlled tenant/source enrollment and scheduling guards are being implemented on a dedicated branch; they are not production-proven until the exact merged SHA passes trusted deploy and the inert enrollment proof;
 - recurring incremental scan execution;
 - affected-detail fan-out into private stage;
 - affected-only CEI reprocessing;
@@ -406,7 +440,7 @@ Still not active in production:
 - repeated-miss removal activation;
 - merchant-facing durable change/review feed.
 
-These are the next M7 slices. The schema/scheduler foundation does not authorize enabling recurring sync early.
+These are the next M7 slices, beginning with M7D3 incremental dispatch and scan-to-stage. The schema/scheduler foundation does not authorize enabling recurring sync early.
 
 ## Provider Engine state
 
@@ -500,9 +534,9 @@ Current milestone:
 
 M7's primary safety goal is that supplier outages, partial scans, malformed scans or implausible complete-scan volume drops cannot silently destroy a healthy published catalog.
 
-Immediate next slice: M7D2 controlled enrollment and scheduling guard, default-disabled for every existing tenant while the global recurring-sync flag remains `0`. Then connect incremental scan-to-stage, affected detail, affected-only CEI, staged verification and verified promotion in separate slices. Recurring sync remains disabled until that complete path and its scheduler-owned production canary exist.
+Immediate next slice: M7D3 incremental dispatch and scan-to-stage, still without changing canonical LKG or enabling recurring sync. Then connect affected detail, affected-only CEI, staged verification and verified promotion in separate slices. Recurring sync remains disabled until that complete path and its scheduler-owned production canary exist.
 
-The complete approved M7 slice ledger now lives in `DEVELOPMENT-ROADMAP.md`, with detailed contracts in `TENANT-SYNC.md`. M7D2 is **PLANNED — NEXT**; M7D3–M7D11 are planned in order; M7E remains an explicit activation decision. This planning record does not change production behavior or prove any pending slice.
+The complete approved M7 slice ledger now lives in `DEVELOPMENT-ROADMAP.md`, with detailed contracts in `TENANT-SYNC.md`. M7D2 is **PRODUCTION GREEN**; M7D3 is **PLANNED — NEXT**; M7D4–M7D11 are planned in order; M7E remains an explicit activation decision. This planning record does not change production behavior or prove any pending slice.
 
 Future macro milestones such as M8 and M9 do not yet have approved A/B subdivisions. Their sub-slices must be proposed and merged through the decomposition protocol immediately before execution; a future contributor may not invent those names or treat a conversational proposal as approved scope.
 
