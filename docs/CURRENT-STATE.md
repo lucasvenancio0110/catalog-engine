@@ -1,7 +1,7 @@
 # Catalog Engine — Current State
 
 Status: **Living operational truth**  
-Snapshot: **2026-08-21 after M6 production closure**  
+Snapshot: **2026-08-24 after M7C4 production closure**
 Purpose: record what is implemented/proven now, separate from durable product contracts and future roadmap work.
 
 ## How to use this document
@@ -31,7 +31,7 @@ Milestone state:
 - M4 Provider Engine: **complete**;
 - M5 automatic tenant Queue import: **complete / production-proven**;
 - M6 CEI Core + Sports Knowledge Pack v1: **complete / production-proven**;
-- **M7 Intelligent Sync v2: current execution milestone**.
+- **M7 Intelligent Sync v2: current execution milestone; safety/scheduling/delta/staging/schema-fleet foundations through M7C4 are production-proven**.
 
 ## Final M6 production checkpoint
 
@@ -277,6 +277,89 @@ M6D production canaries found two real issues before closure:
 
 The final canary passed after both were corrected. Verification was not weakened to obtain green status.
 
+## M7 foundation state — M7A through M7C4 production-proven
+
+M7 remains the active milestone, but its safety and data-plane foundations through tenant schema v5 fleet activation are now proven in production.
+
+Implemented foundation:
+
+- M7A catastrophic-diff safety decision preserves LKG on partial/disqualified scans and quarantines implausible complete drops;
+- M7B per-tenant recurring scheduler foundation reuses incremental `tenant_import_jobs`, has deterministic opaque slot identity and keeps unresolved failures durable;
+- M7C1 shared provider-neutral listing delta semantics own NEW/CHANGED/MOVED/RESTORED/MISSING/REMOVED;
+- M7C2 native incremental scan planning reads paginated LKG and remains strictly read/plan-only;
+- M7C3 private schema-v5 staged sync state keeps canonical LKG untouched until verification/promotion and deliberately leaves detail-bearing runs in `details_pending`;
+- M7C4 activates schema v5 for fresh tenants and additive maintenance upgrades of already-ready v4 tenants.
+
+M7C4's final production boundary is:
+
+```text
+trusted-main deploy CI
+→ upload current existing-tenant User Worker capability
+→ conditionally promote durable migration_command_version marker
+→ cron discovers only prepared ready/idle v4 tenants
+→ TENANT_DISPATCH inspect/apply/verify
+→ control-plane schema promotion only after verification
+```
+
+The cron runner does not call the Workers for Platforms administrative upload API and maintenance D1 work does not fall back to D1 REST. A ready storefront continues serving its previous LKG throughout preparation/migration failure. Active imports prevent maintenance discovery/claim.
+
+Final M7C4 production implementation commit:
+
+`0d08daae7d78ea90d62816443b8ab56bde8a13c4`
+
+Trusted-main application deploy:
+
+- run `32685409063` = **SUCCESS**;
+- exact tested/deployed SHA matched `0d08daae7d78ea90d62816443b8ab56bde8a13c4`;
+- control-plane migrations `0018` and `0019` applied;
+- schema target `5`, migration-command contract `1`;
+- Worker secret binding names verified without exposing values;
+- trusted-CI fleet preparation completed without failure;
+- `TENANT_SYNC_AUTOMATION_ENABLED=0` remained enforced;
+- default catalog build/smoke stayed valid and private/supplier leak checks remained zero.
+
+Automatic import/CEI production canary:
+
+- run `32685477694` = **SUCCESS**;
+- scheduler-owned discovery and Queue processing, zero manual Queue messages;
+- fresh isolated tenant schema v5;
+- classifier v3 / `professional-v3` and intelligence contract v1;
+- verification findings and public/private leaks zero;
+- default catalog unchanged and Queue/DLQ backlogs clean.
+
+Dedicated existing-tenant fleet maintenance canary:
+
+- run `32685477736` = **SUCCESS**;
+- scheduler-owned, zero manual Queue messages;
+- trusted-CI capability preparation used the same production helper;
+- success fixture upgraded v4→v5 with exact ledger `1,2,3,4,5` and four private staging tables;
+- controlled failure fixture remained v4 with LKG, merchant override and historical onboarding intact;
+- active-import fixture remained v4 and received no migration job;
+- all fixtures had zero foreign-key findings;
+- unrelated-tenant isolation and default catalog preservation passed;
+- healthy-run fixtures were cleaned only after the complete proof.
+
+Production defects found and fixed before M7C4 closure:
+
+1. runtime Worker-to-Workers-API preparation was unreachable; ownership moved to trusted deploy CI and maintenance remained binding-native;
+2. the fleet canary initially omitted its trusted dispatch namespace when invoking the preparation helper; fail-closed validation caught it;
+3. D1 stringifies bound parameters, so the retained-fixture opt-in required explicit integer casts; production-style string-bound regression coverage was added;
+4. deploy path ownership did not initially include fleet canary script/test changes; the trusted deploy trigger and regression were corrected.
+
+Failure evidence was retained through diagnosis. After the final production proof, cleanup commit `8640ce3588c410daee2fb1e00b2b0f1e8115247a` ran targeted workflow `32687014275` successfully: all 24 audited historical fleet fixtures were found and removed, with no Queue send/purge operation. `TENANT_SYNC_AUTOMATION_ENABLED` remained `0`.
+
+Still not active in production:
+
+- recurring incremental scan execution;
+- affected-detail fan-out into private stage;
+- affected-only CEI reprocessing;
+- staged detail completion/verification;
+- verified canonical promotion and cursor advancement;
+- repeated-miss removal activation;
+- merchant-facing durable change/review feed.
+
+These are the next M7 slices. The schema/scheduler foundation does not authorize enabling recurring sync early.
+
 ## Provider Engine state
 
 Launch provider remains **Yupoo only**.
@@ -359,6 +442,7 @@ M0 truth/governance
 → M4 Provider Engine ✅
 → M5 automatic tenant Queue import ✅ production-proven
 → M6 CEI Core + Sports Knowledge Pack v1 ✅ production-proven
+→ M7A–M7C4 sync safety, delta/staging and schema-v5 fleet foundations ✅ production-proven
 ```
 
 Current milestone:
@@ -366,6 +450,8 @@ Current milestone:
 **M7 — Intelligent Sync v2**
 
 M7's primary safety goal is that supplier outages, partial scans, malformed scans or implausible complete-scan volume drops cannot silently destroy a healthy published catalog.
+
+Immediate next slice: staged affected-detail integration, followed by affected-only CEI, staged verification and verified promotion. Recurring sync remains disabled until that complete path and its production canary exist.
 
 Then:
 
