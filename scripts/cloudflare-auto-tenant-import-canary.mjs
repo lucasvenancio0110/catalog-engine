@@ -15,7 +15,7 @@ import { initialTenantImportId } from '../worker/tenant-import-queue.js';
 import {
   TENANT_DATA_PLANE_SCHEMA_VERSION,
   tenantDataPlaneCurrentBatch
-} from '../worker/tenant-data-plane-schema-v5.js';
+} from '../worker/tenant-data-plane-schema-v6.js';
 
 const API_ORIGIN = 'https://api.cloudflare.com';
 const ACCOUNT_ID = String(process.env.CLOUDFLARE_ACCOUNT_ID || '').trim();
@@ -104,7 +104,9 @@ async function cloudflareRequest(path, { method = 'GET', allowNotFound = false }
   const payload = await response.json().catch(() => null);
   if (!response.ok || payload?.success !== true) {
     const providerCode = Number(payload?.errors?.[0]?.code);
-    const code = Number.isFinite(providerCode) ? String(providerCode) : String(response.status || 'unknown');
+    const code = Number.isFinite(providerCode)
+      ? String(providerCode)
+      : String(response.status || 'unknown');
     throw new Error(`auto_canary_cloudflare_${code}`);
   }
   return payload.result ?? null;
@@ -274,7 +276,11 @@ async function setupFixture(scope) {
       sql: `INSERT INTO catalog_tenants
               (tenant_id, slug, display_name, status, created_at, updated_at)
             VALUES (?1, ?2, ?3, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-      params: [fixture.tenantId, `auto-canary-${fixture.tenantId.slice(2)}`, 'Automatic Import Canary']
+      params: [
+        fixture.tenantId,
+        `auto-canary-${fixture.tenantId.slice(2)}`,
+        'Automatic Import Canary'
+      ]
     },
     {
       sql: `INSERT INTO tenant_catalog_instances
@@ -358,7 +364,9 @@ async function controlJob(fixture) {
 
 function safeJobErrorCode(value) {
   const code = String(value || '').trim();
-  return /^(supplier|tenant_import|tenant_data_plane|tenant_classification|tenant_verification|catalog_provider|cloudflare_platform)_[a-z0-9_]+$/i.test(code)
+  return /^(supplier|tenant_import|tenant_data_plane|tenant_classification|tenant_verification|catalog_provider|cloudflare_platform)_[a-z0-9_]+$/i.test(
+    code
+  )
     ? code
     : null;
 }

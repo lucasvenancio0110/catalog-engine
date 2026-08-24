@@ -2,7 +2,7 @@ import { writeFile } from 'node:fs/promises';
 import {
   TENANT_DATA_PLANE_CURRENT_STATEMENTS,
   TENANT_DATA_PLANE_SCHEMA_VERSION
-} from '../worker/tenant-data-plane-schema-v5.js';
+} from '../worker/tenant-data-plane-schema-v6.js';
 
 const output = process.env.TENANT_DATA_PLANE_SQL_OUT || '/tmp/catalog-engine-tenant-data-plane.sql';
 const tenantId = process.env.TENANT_ID || 't_0123456789abcdefabcd';
@@ -22,7 +22,8 @@ function literal(value) {
 
 const ledgerStatements = Array.from(
   { length: TENANT_DATA_PLANE_SCHEMA_VERSION },
-  (_entry, index) => `INSERT OR IGNORE INTO data_plane_schema_migrations (version) VALUES (${index + 1});`
+  (_entry, index) =>
+    `INSERT OR IGNORE INTO data_plane_schema_migrations (version) VALUES (${index + 1});`
 );
 const sql = [
   'PRAGMA foreign_keys = ON;',

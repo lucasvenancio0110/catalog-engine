@@ -409,7 +409,7 @@ The current promotion foundation updates **private source/index and sync ledger 
 
 ## M7C4 schema v5 fleet activation
 
-M7C4 makes the v5 staged-sync schema the current tenant data-plane migration target while keeping recurring sync execution independently disabled.
+M7C4 made the v5 staged-sync schema the tenant data-plane migration target at closure while keeping recurring sync execution independently disabled. M7D1 supersedes the active code target with additive v6 candidate storage; the v5 listing-stage contract remains unchanged and cumulative.
 
 The migration runner has two explicit lifecycle kinds:
 
@@ -432,9 +432,31 @@ Migration application is version-aware and bounded. Fresh provisioning applies t
 
 Maintenance transport failures are persisted with bounded phase-qualified codes for `inspect`, `apply` and `verify`. This preserves private provider details while distinguishing a failure before any schema work from an idempotent apply interruption or a post-apply verification failure.
 
-The automatic isolated import canary creates its fixture on the current v5 schema so trusted-main evidence cannot remain green by accidentally validating only the old v4 target. A separate trusted-main fleet canary begins with ready v4 data planes and waits for scheduler-owned maintenance. It must prove success, safe failure and active-import exclusion while preserving LKG, merchant overrides, serving state and historical onboarding. It does not create migration jobs, produce Queue messages or purge evidence.
+The M7C4 automatic isolated import canary created its fixture on v5 so trusted-main evidence could not remain green by accidentally validating only the old v4 target. Its separate trusted-main fleet canary began with ready v4 data planes and waited for scheduler-owned maintenance. That proof covered success, safe failure and active-import exclusion while preserving LKG, merchant overrides, serving state and historical onboarding. It did not create migration jobs, produce Queue messages or purge evidence.
 
 `TENANT_SYNC_AUTOMATION_ENABLED=0` remains the production activation boundary after the v5 fleet migration. Schema availability is therefore proven before the native incremental scan/detail path is allowed to run automatically.
+
+## M7D1 candidate state schema v6
+
+M7D1 adds storage authority only. It does not connect incremental dispatch, fetch affected detail, run affected-only CEI, verify candidates, promote candidates or advance a cursor. `TENANT_SYNC_AUTOMATION_ENABLED=0` remains mandatory.
+
+Schema v6 adds a private relational candidate model rooted at `supplier_sync_stage_runs`:
+
+- `supplier_sync_stage_catalog_categories`, `supplier_sync_stage_leagues`, `supplier_sync_stage_teams` and `supplier_sync_stage_facets` store candidate taxonomy and merchandising entities;
+- `supplier_sync_stage_media_sources`, `supplier_sync_stage_product_details`, `supplier_sync_stage_product_media`, `supplier_sync_stage_product_categories` and `supplier_sync_stage_product_facets` store normalized affected-detail output without writing canonical product/media rows;
+- `supplier_sync_stage_classification_state` records classifier identity plus the exact durable merchant-override version/timestamp used to derive the candidate;
+- `supplier_sync_stage_intelligence_state` stores bounded domain-neutral CEI state and provenance;
+- `supplier_sync_stage_catalog_meta` stores bounded classification, normalization, navigation and merchandising candidate metadata.
+
+Every candidate row belongs to one opaque `run_id` and is removed by foreign-key cascade only when that exact stage run is deliberately deleted. Candidate products must match both the staged observation and staged event through the same `(run_id, album_source_id, public_product_id)` identity. Product/media/category/facet/classification/intelligence relationships are enforced relationally. Normalized evidence, detailed CEI state and catalog metadata retain bounded valid JSON only where the underlying contracts are structured documents; one opaque catalog JSON blob is not a candidate authority.
+
+The canonical `catalog_*`, `media_sources`, `product_media`, private supplier index and merchant override tables are outside the candidate ownership tree. A candidate cleanup cannot delete or update them. Public runtime readers do not query `supplier_sync_stage_*`, and source URLs/evidence in candidate tables remain private.
+
+The v5→v6 migration is strictly additive and idempotent. It creates tables/indexes, advances tenant identity to 6 and appends ledger version 6 in one transactional version batch. A failed batch leaves the complete v5 schema/LKG authoritative; down migrations and destructive cleanup are prohibited. Merely applying v6 creates no candidate rows.
+
+The immutable User Worker migration map now requires migration-command capability v2. Trusted CI uploads the v6-capable Worker before promoting that marker, so a stale v5 Worker cannot become scheduler-eligible for target 6. The trusted fleet proof starts with ready v5 fixtures and must cover v5→v6 success, controlled failure, active-import exclusion, unrelated-tenant isolation, contiguous ledger `1,2,3,4,5,6`, preservation of v5 listing-stage evidence/LKG/override/onboarding and zero candidate rows produced by the migration itself. It remains scheduler-owned and produces no Queue message manually.
+
+Retention duration for promoted, preserved, quarantined and failed candidate evidence remains an operational/product decision. Until that decision is explicit, failures retain evidence and cleanup must use an exact audited run/fixture list; schema v6 does not add automatic age-based deletion.
 
 ## M7A scope boundary
 

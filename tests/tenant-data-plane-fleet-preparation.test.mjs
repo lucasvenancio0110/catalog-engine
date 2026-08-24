@@ -111,7 +111,7 @@ describe('trusted tenant migration-command preparation', () => {
     ).resolves.toEqual({
       tenantId: candidate.tenant_id,
       outcome: 'prepared',
-      migrationCommandVersion: 1
+      migrationCommandVersion: 2
     });
     expect(uploadWorker).toHaveBeenCalledTimes(1);
     expect(calls.map((entry) => entry.sql)).toEqual([
@@ -164,7 +164,7 @@ describe('trusted tenant migration-command preparation', () => {
         candidate.dispatch_namespace
       );
     database
-      .prepare("INSERT INTO tenant_catalog_instances VALUES (?1,'ready',4)")
+      .prepare("INSERT INTO tenant_catalog_instances VALUES (?1,'ready',5)")
       .run(candidate.tenant_id);
     database
       .prepare("INSERT INTO supplier_sources VALUES (?1,'fleet-canary','active')")
@@ -174,8 +174,8 @@ describe('trusted tenant migration-command preparation', () => {
       candidate.worker_script_name,
       candidate.d1_database_id,
       candidate.dispatch_namespace,
-      '5',
-      '1',
+      '6',
+      '2',
       '1'
     ];
 
@@ -189,7 +189,7 @@ describe('trusted tenant migration-command preparation', () => {
           'SELECT migration_command_version, worker_version FROM tenant_data_plane_provider_state'
         )
         .get()
-    ).toEqual({ migration_command_version: 1, worker_version: 'worker-command-v1' });
+    ).toEqual({ migration_command_version: 2, worker_version: 'worker-command-v1' });
     database.close();
   });
 
@@ -282,7 +282,7 @@ describe('trusted tenant migration-command preparation', () => {
     expect(runner).toContain('p.migration_command_version >= ?2');
   });
 
-  it('uses the same preparer in the v4 to v5 canary without preparing the blocked fixture', () => {
+  it('uses the same preparer in the v5 to v6 canary without preparing the blocked fixture', () => {
     expect(canary).toContain('prepareTenantMigrationCommandCapability(successFixture');
     expect(canary).toContain('allowFleetCanary: true');
     expect(canary).toContain("{ includeSchemaMigration: fixture.kind === 'failure' }");

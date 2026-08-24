@@ -130,7 +130,7 @@ jobs:
           IMPORT_AUTOMATION_VALUE="$(node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('wrangler.jsonc','utf8')); process.stdout.write(String(c.vars?.TENANT_IMPORT_AUTOMATION_ENABLED || ''));" )"
           SYNC_AUTOMATION_VALUE="$(node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('wrangler.jsonc','utf8')); process.stdout.write(String(c.vars?.TENANT_SYNC_AUTOMATION_ENABLED || ''));" )"
           test "$IMPORT_AUTOMATION_VALUE" = "0" -o "$IMPORT_AUTOMATION_VALUE" = "1" || { echo "Invalid tenant import automation setting"; exit 1; }
-          test "$SYNC_AUTOMATION_VALUE" = "0" || { echo "TENANT_SYNC_AUTOMATION_ENABLED must remain 0 for M7C4"; exit 1; }
+          test "$SYNC_AUTOMATION_VALUE" = "0" || { echo "TENANT_SYNC_AUTOMATION_ENABLED must remain 0 for M7D1"; exit 1; }
           echo "TENANT_IMPORT_AUTOMATION_ENABLED=$IMPORT_AUTOMATION_VALUE"
           echo "TENANT_SYNC_AUTOMATION_ENABLED=$SYNC_AUTOMATION_VALUE"
           npx --yes "wrangler@$WRANGLER_VERSION" queues info catalog-engine-import-scan | tee /tmp/scan-queue.txt
