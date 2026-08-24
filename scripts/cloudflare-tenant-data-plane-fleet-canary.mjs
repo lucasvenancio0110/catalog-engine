@@ -89,6 +89,7 @@ export function fixtureIdentity(kind, seedOverride = '') {
     sourceKey: 'fleet-canary',
     workerScriptName: `ce-${suffix}`,
     databaseName: `cefm-${suffix}`,
+    dispatchNamespace: DISPATCH_NAMESPACE,
     dataPlaneKey: `fleet-canary-${suffix}`,
     provisioningId: `p_${suffix}`,
     idempotencyKey: `fleet-canary:${suffix}`,
