@@ -121,6 +121,78 @@ describe('trusted tenant migration-command preparation', () => {
     expect(calls[1].params.at(-1)).toBe('worker-command-v1');
   });
 
+  it('keeps the retained-canary opt-in valid after the D1 boundary stringifies parameters', () => {
+    const database = new DatabaseSync(':memory:');
+    database.exec(`CREATE TABLE tenant_data_plane_provider_state (
+      tenant_id TEXT PRIMARY KEY,
+      worker_script_name TEXT NOT NULL,
+      d1_database_id TEXT NOT NULL,
+      dispatch_namespace TEXT NOT NULL,
+      database_status TEXT NOT NULL,
+      worker_status TEXT NOT NULL,
+      worker_version TEXT,
+      last_checked_at TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE tenant_catalog_instances (
+      tenant_id TEXT PRIMARY KEY,
+      status TEXT NOT NULL,
+      schema_version INTEGER NOT NULL
+    );
+    CREATE TABLE supplier_sources (
+      tenant_id TEXT NOT NULL,
+      source_key TEXT NOT NULL,
+      status TEXT NOT NULL
+    );
+    CREATE TABLE tenant_import_jobs (
+      tenant_id TEXT NOT NULL,
+      status TEXT NOT NULL
+    );`);
+    database.exec(migration);
+    database
+      .prepare(
+        `INSERT INTO tenant_data_plane_provider_state
+        (tenant_id,worker_script_name,d1_database_id,dispatch_namespace,
+         database_status,worker_status,worker_version)
+        VALUES (?1,?2,?3,?4,'active','active','old-worker')`
+      )
+      .run(
+        candidate.tenant_id,
+        candidate.worker_script_name,
+        candidate.d1_database_id,
+        candidate.dispatch_namespace
+      );
+    database
+      .prepare("INSERT INTO tenant_catalog_instances VALUES (?1,'ready',4)")
+      .run(candidate.tenant_id);
+    database
+      .prepare("INSERT INTO supplier_sources VALUES (?1,'fleet-canary','active')")
+      .run(candidate.tenant_id);
+    const params = [
+      candidate.tenant_id,
+      candidate.worker_script_name,
+      candidate.d1_database_id,
+      candidate.dispatch_namespace,
+      '5',
+      '1',
+      '1'
+    ];
+
+    expect(database.prepare(FLEET_PREPARATION_ELIGIBILITY_SQL).get(...params).total).toBe(1);
+    expect(
+      database.prepare(FLEET_PREPARATION_PROMOTION_SQL).run(...params, 'worker-command-v1').changes
+    ).toBe(1);
+    expect(
+      database
+        .prepare(
+          'SELECT migration_command_version, worker_version FROM tenant_data_plane_provider_state'
+        )
+        .get()
+    ).toEqual({ migration_command_version: 1, worker_version: 'worker-command-v1' });
+    database.close();
+  });
+
   it('persists only a bounded safe code when upload fails and never promotes capability', async () => {
     const calls = [];
     const controlBatch = vi.fn(async (batch) => {

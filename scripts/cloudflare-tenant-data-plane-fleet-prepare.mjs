@@ -59,7 +59,7 @@ export const FLEET_PREPARATION_ELIGIBILITY_SQL = `SELECT COUNT(*) AS total
             SELECT 1 FROM supplier_sources s
              WHERE s.tenant_id=p.tenant_id
                AND s.status='active'
-               AND (?7=1 OR s.source_key<>'fleet-canary')
+               AND (CAST(?7 AS INTEGER)=1 OR s.source_key<>'fleet-canary')
           )
           AND NOT EXISTS (
             SELECT 1 FROM tenant_import_jobs j
@@ -91,7 +91,7 @@ export const FLEET_PREPARATION_PROMOTION_SQL = `UPDATE tenant_data_plane_provide
             SELECT 1 FROM supplier_sources s
              WHERE s.tenant_id=?1
                AND s.status='active'
-               AND (?7=1 OR s.source_key<>'fleet-canary')
+               AND (CAST(?7 AS INTEGER)=1 OR s.source_key<>'fleet-canary')
           )
           AND NOT EXISTS (
             SELECT 1 FROM tenant_import_jobs j

@@ -269,7 +269,7 @@ export function controlPlaneSeed(fixture, workerVersion) {
                worker_version, migration_command_version, migration_command_prepared_at,
                last_checked_at, created_at, updated_at)
             VALUES (?1, 'cloudflare_wfp', ?2, ?3, ?4, ?5, 'active', 'active', ?6, ?7,
-                    CASE WHEN ?7>0 THEN CURRENT_TIMESTAMP ELSE NULL END,
+                    CASE WHEN CAST(?7 AS INTEGER)>0 THEN CURRENT_TIMESTAMP ELSE NULL END,
                     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
       params: [
         fixture.tenantId,

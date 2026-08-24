@@ -100,6 +100,18 @@ describe('tenant data-plane fleet maintenance production canary', () => {
         )
         .get().kinds
     ).toContain('prepared');
+    const capabilityRows = database.prepare(
+      `SELECT migration_command_version, migration_command_prepared_at
+           FROM tenant_data_plane_provider_state
+          WHERE tenant_id=?1`
+    );
+    for (const kind of ['success', 'blocked']) {
+      const fixture = fixtureIdentity(kind, `fleet-canary-control-${kind}`);
+      expect(capabilityRows.get(fixture.tenantId)).toEqual({
+        migration_command_version: 0,
+        migration_command_prepared_at: null
+      });
+    }
     expect(
       database
         .prepare(
