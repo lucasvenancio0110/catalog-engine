@@ -10,6 +10,7 @@ Before any repository change:
 1. `AGENTS.md`
 2. `docs/DOCUMENT-GOVERNANCE.md`
 3. this file
+4. `docs/DEVELOPMENT-CONTINUITY.md`
 
 For any material product/architecture change, also inspect:
 
@@ -17,6 +18,8 @@ For any material product/architecture change, also inspect:
 - `docs/DEVELOPMENT-ROADMAP.md` — the current execution milestone/order.
 
 The state/roadmap documents do not override focused normative contracts. They prevent a contributor from treating a completed activation as future work or building a future milestone out of order without an explicit decision.
+
+`DEVELOPMENT-CONTINUITY.md` owns live-GitHub revalidation, evidence labels, milestone decomposition, slice tracking and handoff updates. It is mandatory for human and AI contributors and does not replace the focused owner documents.
 
 Then read the documents mapped to the affected area below.
 
@@ -226,9 +229,23 @@ Required:
 
 - `docs/DEVELOPMENT-ROADMAP.md`
 - `docs/CURRENT-STATE.md`
+- `docs/DEVELOPMENT-CONTINUITY.md`
 - every focused normative document whose product behavior/scope changes
 
 If a roadmap decision changes a durable product contract (for example introducing trial before payment), the focused normative documents must be updated in the same PR. The roadmap alone cannot override them.
+
+## AI continuity / milestone decomposition / handoff
+
+Required:
+
+- `AGENTS.md`;
+- `docs/DOCUMENT-GOVERNANCE.md`;
+- `docs/DEVELOPMENT-CONTINUITY.md`;
+- `docs/CURRENT-STATE.md`;
+- `docs/DEVELOPMENT-ROADMAP.md`;
+- every focused owner document for the current or proposed slice.
+
+Handoffs are transfer snapshots, not owner documents. Update state and roadmap before producing a handoff when the execution truth changed.
 
 ## Rule for cross-cutting changes
 

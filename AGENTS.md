@@ -11,13 +11,16 @@ Before changing or adding anything in this repository, contributors must:
 1. read this `AGENTS.md`;
 2. read `docs/DOCUMENT-GOVERNANCE.md`;
 3. read `docs/DOCUMENT-MAP.md`;
-4. read every document mapped to the affected product/technical area;
-5. for material product/architecture work, inspect `docs/CURRENT-STATE.md` and the relevant milestone in `docs/DEVELOPMENT-ROADMAP.md`;
-6. compare the proposed change with documented invariants before coding;
-7. update the owning document in the same PR when the intended behavior changes;
-8. never silently implement a decision that contradicts current documentation.
+4. read `docs/DEVELOPMENT-CONTINUITY.md`;
+5. read every document mapped to the affected product/technical area;
+6. for material product/architecture work, inspect `docs/CURRENT-STATE.md` and the relevant milestone in `docs/DEVELOPMENT-ROADMAP.md`;
+7. compare the proposed change with documented invariants before coding;
+8. update the owning document in the same PR when the intended behavior changes;
+9. never silently implement a decision that contradicts current documentation.
 
 If a new product decision should replace an old instruction, change the instruction deliberately and explain that change in the PR. Code and documentation must merge together when they define the same behavior.
+
+Every new AI/contributor session must revalidate live GitHub and follow the startup, milestone-decomposition, slice-tracking and handoff rules in `docs/DEVELOPMENT-CONTINUITY.md`. No contributor may invent a sub-milestone, silently advance the execution point or treat a historical handoff as authority over live code and current normative documents.
 
 For every change ask: **which tenant/account owns this, which documented contract does it touch, and does it introduce manual per-customer work that should be automated?**
 
