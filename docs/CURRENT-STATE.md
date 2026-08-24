@@ -1,7 +1,7 @@
 # Catalog Engine — Current State
 
 Status: **Living operational truth**  
-Snapshot: **2026-08-24 after M7C4 production closure**
+Snapshot: **2026-08-24 after M7D1 production closure**
 Purpose: record what is implemented/proven now, separate from durable product contracts and future roadmap work.
 
 ## How to use this document
@@ -11,7 +11,7 @@ This document owns mutable implementation/deployment truth.
 - Product/business invariants remain in focused normative documents.
 - Architecture contracts remain in `SAAS-ARCHITECTURE.md`, `TENANCY.md`, `PROVIDER-ENGINE.md`, `CEI.md` and tenant subsystem documents.
 - Execution order lives in `DEVELOPMENT-ROADMAP.md`.
-- Cross-tool continuation lives in root `CATALOG_ENGINE_HANDOFF_2026-08-20.md`.
+- Root handoffs remain historical context and do not override this living state or focused normative contracts.
 - M6 historical production evidence lives in `docs/M6-CLOSURE-2026-08-21.md`.
 
 ## Repository baseline
@@ -31,7 +31,7 @@ Milestone state:
 - M4 Provider Engine: **complete**;
 - M5 automatic tenant Queue import: **complete / production-proven**;
 - M6 CEI Core + Sports Knowledge Pack v1: **complete / production-proven**;
-- **M7 Intelligent Sync v2: current execution milestone; safety/scheduling/delta/staging/schema-fleet foundations through M7C4 are production-proven**.
+- **M7 Intelligent Sync v2: current execution milestone; safety/scheduling/delta/staging/schema-fleet/candidate-state foundations through M7D1 are production-proven**.
 
 ## Final M6 production checkpoint
 
@@ -277,9 +277,9 @@ M6D production canaries found two real issues before closure:
 
 The final canary passed after both were corrected. Verification was not weakened to obtain green status.
 
-## M7 foundation state — M7A through M7C4 production-proven
+## M7 foundation state — M7A through M7D1 production-proven
 
-M7 remains the active milestone, but its safety and data-plane foundations through tenant schema v5 fleet activation are now proven in production.
+M7 remains the active milestone, but its safety and data-plane foundations through additive tenant schema v6 candidate-state activation are now proven in production.
 
 Implemented foundation:
 
@@ -288,7 +288,8 @@ Implemented foundation:
 - M7C1 shared provider-neutral listing delta semantics own NEW/CHANGED/MOVED/RESTORED/MISSING/REMOVED;
 - M7C2 native incremental scan planning reads paginated LKG and remains strictly read/plan-only;
 - M7C3 private schema-v5 staged sync state keeps canonical LKG untouched until verification/promotion and deliberately leaves detail-bearing runs in `details_pending`;
-- M7C4 activates schema v5 for fresh tenants and additive maintenance upgrades of already-ready v4 tenants.
+- M7C4 activates schema v5 for fresh tenants and additive maintenance upgrades of already-ready v4 tenants;
+- M7D1 adds private relational candidate detail/media/CEI/merchandising storage in schema v6 without writing candidate rows, changing canonical authority or enabling recurring sync.
 
 M7C4's final production boundary is:
 
@@ -348,8 +349,54 @@ Production defects found and fixed before M7C4 closure:
 
 Failure evidence was retained through diagnosis. After the final production proof, cleanup commit `8640ce3588c410daee2fb1e00b2b0f1e8115247a` ran targeted workflow `32687014275` successfully: all 24 audited historical fleet fixtures were found and removed, with no Queue send/purge operation. `TENANT_SYNC_AUTOMATION_ENABLED` remained `0`.
 
+### M7D1 candidate-state schema v6 — production-proven
+
+M7D1 entered `main` through PR `#123` at commit `50d48c77a7cb3b2e172efe7f338622068b4f2bd4`. The final production-proven application code, including the D1-safe proof-query correction from PR `#125`, is:
+
+`91a931986f1e67948688cefa8b97b09c4345bcac`
+
+PR `#124` added read-only diagnosis for the retained v5/v6 fleet evidence. It did not mutate D1, Workers, Queues or DLQs.
+
+Trusted-main application deploy:
+
+- run `32735164418`, job `97456296604` = **SUCCESS**;
+- exact tested/deployed SHA matched `91a931986f1e67948688cefa8b97b09c4345bcac`;
+- `95` test files / `488` tests passed on Node 22 after `npm ci` installed 158 packages with zero reported vulnerabilities;
+- schema target `6`, migration-command contract `2`;
+- Worker version `fc91e925-3e27-42cf-a5b6-5c122c1bc3d0`;
+- no control-plane D1 migration remained pending;
+- public build verification passed for 17,039 products and 49,046 opaque proxy routes with supplier/private-state leaks at zero;
+- `TENANT_IMPORT_AUTOMATION_ENABLED=1` and `TENANT_SYNC_AUTOMATION_ENABLED=0`;
+- Queue producers and existing-catalog smoke passed.
+
+Automatic import/CEI regression canary:
+
+- run `32735316780`, job `97456605679` = **SUCCESS** on the exact application SHA;
+- scheduler discovered and completed one isolated automatic import without a manual Queue message;
+- fresh tenant schema v6, one product/two media, classifier v3 / `professional-v3`, zero verification findings and zero public/private leaks;
+- default catalog stayed unchanged and Queue/DLQ backlogs were clean.
+
+Dedicated v5→v6 fleet maintenance canary:
+
+- run `32735316785`, job `97462323561` = **SUCCESS** on the exact application SHA;
+- scheduler-owned maintenance and trusted-CI User Worker preparation both executed;
+- zero manual Queue messages and recurring sync remained disabled;
+- success fixture upgraded v5→v6 in one attempt, retained four v5 listing-stage tables, gained twelve candidate tables, created zero candidate rows and had zero foreign-key findings;
+- controlled namespace-mismatch fixture remained ready on v5 with migration status `failed` and safe error `tenant_dispatch_namespace_mismatch`;
+- active-import fixture remained ready on v5, received no migration job and stayed excluded from maintenance;
+- all three fixtures preserved LKG, merchant override and historical onboarding;
+- default catalog preservation and unrelated-tenant isolation passed;
+- the canary removed its own new fixtures after the complete proof.
+
+The first v5→v6 fleet run `32732232684` retained its success/failure/blocked fixtures because D1 rejected a compound `UNION ALL` aggregate used only by the proof query (`cloudflare_platform_7500`). The additive migration itself had reached the expected outcomes. Read-only diagnostic run `32735164386`, job `97456121698`, confirmed those outcomes after the proof was changed to twelve bounded simple counts in one D1 batch; no assertion was weakened.
+
+After the newer canary passed, PR `#126` updated the exact cleanup list. Commit `945d0d80ec4d721b62d74e56e2fdd4058969efb7` ran cleanup workflow `32738847875`, job `97468141754` = **SUCCESS**: three audited targets, three removed, zero absent, control state removed, no Queue send/purge path and recurring sync still disabled.
+
+This proves the additive v5→v6 mechanism and representative success/failure/blocked/isolation boundaries. It does not prove that every real tenant is already on v6: the trusted deploy selected zero ordinary tenants for preparation, and no complete live fleet inventory was reopened.
+
 Still not active in production:
 
+- controlled tenant/source enrollment for recurring sync;
 - recurring incremental scan execution;
 - affected-detail fan-out into private stage;
 - affected-only CEI reprocessing;
@@ -426,6 +473,7 @@ Do not claim without new evidence:
 - universal CEI autonomous research;
 - a second production provider;
 - production Automotive/Fashion/Dental Knowledge Packs;
+- every real tenant currently running tenant data-plane schema v6;
 - full browser Core Web Vitals/accessibility quality;
 - production billing integration;
 - public-launch readiness.
@@ -442,7 +490,7 @@ M0 truth/governance
 → M4 Provider Engine ✅
 → M5 automatic tenant Queue import ✅ production-proven
 → M6 CEI Core + Sports Knowledge Pack v1 ✅ production-proven
-→ M7A–M7C4 sync safety, delta/staging and schema-v5 fleet foundations ✅ production-proven
+→ M7A–M7D1 sync safety, delta/staging, schema fleet and candidate-state foundations ✅ production-proven
 ```
 
 Current milestone:
@@ -451,7 +499,7 @@ Current milestone:
 
 M7's primary safety goal is that supplier outages, partial scans, malformed scans or implausible complete-scan volume drops cannot silently destroy a healthy published catalog.
 
-Immediate next slice: staged affected-detail integration, followed by affected-only CEI, staged verification and verified promotion. Recurring sync remains disabled until that complete path and its production canary exist.
+Immediate next slice: M7D2 controlled enrollment and scheduling guard, default-disabled for every existing tenant while the global recurring-sync flag remains `0`. Then connect incremental scan-to-stage, affected detail, affected-only CEI, staged verification and verified promotion in separate slices. Recurring sync remains disabled until that complete path and its scheduler-owned production canary exist.
 
 Then:
 
