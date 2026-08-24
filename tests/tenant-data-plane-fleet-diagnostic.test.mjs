@@ -132,6 +132,9 @@ describe('retained tenant fleet canary diagnosis', () => {
     expect(script).toContain("? '1,2,3,4,5,6' : '1,2,3,4,5'");
     expect(script).toContain('TENANT_SYNC_CANDIDATE_TABLES.length : 0');
     expect(script).toContain('candidateRowCount === 0');
+    expect(script).toContain('TENANT_SYNC_CANDIDATE_TABLES.map((table) => ({');
+    expect(script).toContain('candidateRows.reduce(');
+    expect(script).not.toContain("join(' UNION ALL ')");
     expect(script).toContain("tenant.historicalStage?.state === 'preserved'");
     expect(script).toContain("tenant.lkg?.name === 'Verified LKG Product'");
     expect(script).toContain('tenant.lkg?.override_json');

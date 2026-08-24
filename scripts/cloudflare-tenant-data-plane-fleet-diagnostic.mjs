@@ -241,13 +241,17 @@ async function inspectTenantFixture(fixture, databaseId) {
   const candidateStageTableCount = Number(first(result, 3)?.total || 0);
   let candidateRowCount = 0;
   if (candidateStageTableCount === TENANT_SYNC_CANDIDATE_TABLES.length) {
-    const candidateRowsSql = TENANT_SYNC_CANDIDATE_TABLES.map(
-      (table) => `SELECT COUNT(*) AS total FROM ${table}`
-    ).join(' UNION ALL ');
-    const candidateRows = await tenantBatch(databaseId, [
-      { sql: `SELECT COALESCE(SUM(total),0) AS total FROM (${candidateRowsSql})`, params: [] }
-    ]);
-    candidateRowCount = Number(first(candidateRows, 0)?.total || 0);
+    const candidateRows = await tenantBatch(
+      databaseId,
+      TENANT_SYNC_CANDIDATE_TABLES.map((table) => ({
+        sql: `SELECT COUNT(*) AS total FROM ${table}`,
+        params: []
+      }))
+    );
+    candidateRowCount = candidateRows.reduce(
+      (total, entry) => total + Number(entry?.results?.[0]?.total || 0),
+      0
+    );
   }
   return {
     identity: first(result, 0),
