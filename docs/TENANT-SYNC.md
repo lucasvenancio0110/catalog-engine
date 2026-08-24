@@ -37,7 +37,7 @@ versioned safety policy
 4. A suspicious run preserves the previous last-known-good public catalog until the run is resolved or a later healthy run supersedes it.
 5. A product leaving one complete scope is detached from that scope; it is globally removed only when no other active scope owns it and the removal contract is satisfied.
 6. Repeated-miss policy may confirm removal only after the run has first passed the sync safety decision.
-7. Detail fetch is limited to NEW/CHANGED/RESTORED or retry-required products; unchanged products are not re-fetched by default.
+7. Detail fetch is limited to NEW/CHANGED/CHANGED_MOVED/RESTORED or retry-required products; unchanged and MOVED-only products are not re-fetched by default.
 8. Cursor/state promotion happens only after downstream verification. Planning or fetching alone is never authority to advance the last-known-good cursor.
 9. Retry/replay is idempotent and may not duplicate catalog identity or corrupt another tenant.
 10. Sync decisions and operational summaries use stable safe codes and opaque IDs. Supplier URLs/raw provider IDs remain private.
@@ -457,6 +457,140 @@ The v5→v6 migration is strictly additive and idempotent. It creates tables/ind
 The immutable User Worker migration map now requires migration-command capability v2. Trusted CI uploads the v6-capable Worker before promoting that marker, so a stale v5 Worker cannot become scheduler-eligible for target 6. The trusted fleet proof starts with ready v5 fixtures and must cover v5→v6 success, controlled failure, active-import exclusion, unrelated-tenant isolation, contiguous ledger `1,2,3,4,5,6`, preservation of v5 listing-stage evidence/LKG/override/onboarding and zero candidate rows produced by the migration itself. It remains scheduler-owned and produces no Queue message manually.
 
 Retention duration for promoted, preserved, quarantined and failed candidate evidence remains an operational/product decision. Until that decision is explicit, failures retain evidence and cleanup must use an exact audited run/fixture list; schema v6 does not add automatic age-based deletion.
+
+## Remaining M7 execution contract
+
+The roadmap formally orders M7D2 through M7E. Each slice is a bounded safety claim; no slice may enable recurring sync before the activation-only M7E change.
+
+### M7D2 — Controlled Enrollment and Scheduling Guard
+
+Commercial outcome: start a future pilot without exposing every eligible merchant to the same operational risk.
+
+Required contract:
+
+- global activation **and** explicit tenant/source enrollment are both required;
+- every existing tenant/source defaults to disabled;
+- selection has a bounded per-cycle cap and deterministic reason codes for selected/blocked state;
+- initial import, recurring sync, recovery and data-plane migration remain mutually exclusive for the same tenant/source;
+- unresolved failed work blocks a conflicting fresh schedule;
+- a kill switch can stop new claims without deleting jobs, stages or LKG.
+
+This slice keeps `TENANT_SYNC_AUTOMATION_ENABLED=0`, creates no manual Queue evidence and does not connect the incremental consumer.
+
+### M7D3 — Incremental Dispatch and Scan-to-Stage
+
+Commercial outcome: detect real supplier changes while preserving the merchant's store during outage or suspicious results.
+
+Required contract:
+
+- the dispatcher resolves tenant/source from control-plane authority rather than browser input;
+- the consumer reads paginated private LKG, invokes the provider contract and applies safety before destructive delta semantics;
+- observations, events and categories are staged idempotently in bounded chunks;
+- partial, unhealthy, empty or implausible scans preserve/quarantine and cannot advance cursor;
+- initial import behavior remains unchanged;
+- no canonical catalog/index/product/media/CEI write occurs in this slice.
+
+### M7D4 — Staged Affected Detail
+
+Commercial outcome: cost and processing time become proportional to actual change.
+
+Required contract:
+
+- detail fan-out is exactly NEW, CHANGED, CHANGED_MOVED, RESTORED and explicit retries;
+- MOVED-only and unchanged observations produce no detail fetch;
+- normalized detail, media and evidence are written only to the matching private candidate run;
+- delivery, counters and writes are deduplicated and idempotent under at-least-once Queue delivery;
+- retry is bounded and an individual failed item prevents verification without damaging the healthy canonical product;
+- cross-tenant/source/run payload mismatch fails closed.
+
+### M7D5 — Affected-only CEI Candidate Processing
+
+Commercial outcome: maintain intelligent organization without repeatedly classifying the entire catalog or losing merchant decisions.
+
+Required contract:
+
+- CEI runs only for candidates whose content requires it;
+- MOVED-only and unchanged products reuse existing intelligence;
+- Normalized Evidence and the generic Domain Runtime remain the Core boundary;
+- Sports is selected through the production Knowledge Pack registry, never embedded into CEI Core;
+- merchant override is durable truth and is reapplied to the candidate effective view;
+- classifier/Knowledge Pack migrations remain explicit jobs, not hidden recurring-sync side effects;
+- evidence, claims, confidence and provenance remain private and verifiable.
+
+### M7D6 — Candidate Verification
+
+Commercial outcome: a technically finished but incorrect or privacy-leaking update never reaches shoppers.
+
+Verification must evaluate the complete proposed view — unchanged LKG plus candidates and removals — without mutating LKG. Blocking checks include:
+
+- closed/deduplicated expected and received counts;
+- stable identity, uniqueness and stage/run/source ownership;
+- product, taxonomy, membership, media and referential integrity;
+- required detail for every event that needs it;
+- CEI state, claims, provenance, merchandising and merchant-override preservation;
+- no supplier URL, raw provider ID, credentials, private media origin or private evidence in the public projection;
+- safety-authorized MISSING/REMOVED semantics and no orphaned state.
+
+Only zero blocking findings may transition a stage to `verified`. Repeated verification is idempotent and findings remain private/auditable.
+
+### M7D7 — Promotion Authority Primitive
+
+Commercial outcome: shoppers see the old verified catalog or the new verified catalog, never a half-updated mixture.
+
+Before implementation, measured D1 evidence and an explicit architecture decision must select one authority boundary:
+
+- a proven bounded set-based transaction; or
+- versioned/generation state with one atomic active-authority pointer switch.
+
+Chunked canonical writes without an authority flip are prohibited. The chosen contract must cover verified-only entry, competing leases, crash before/after switch, concurrent-reader consistency, previous-LKG recovery, large-catalog limits and tenant/source isolation. A schema change, if required, must be additive and fleet-proven while inactive.
+
+### M7D8 — Verified Promotion and Cursor Commit
+
+Commercial outcome: publish an approved update once and resume safely after interruption.
+
+Required state flow:
+
+```text
+verified -> promoting -> promoted
+                         ↓
+               cursor/schedule commit
+```
+
+Promotion requires an idempotency key plus phase-aware lease/compare-and-set. Unverified stages are rejected. Cursor and schedule never advance before the authority switch and complete finalization. Redelivery after the switch recognizes already-promoted state and commits the remaining control metadata once. Cleanup cannot delete canonical state or the rollback authority.
+
+### M7D9 — Repeated Miss and Safe Removal
+
+Commercial outcome: remove products truly gone from the supplier without deleting healthy products because of a failed scan.
+
+Required contract:
+
+- only independent complete, healthy, plausible and safety-authorized promoted runs progress miss state;
+- duplicate delivery/run does not increment twice;
+- incomplete scope or category exit cannot reduce unrelated/global membership;
+- threshold and scope identity are explicit and versioned;
+- REMOVED is a candidate event that must verify and promote;
+- RESTORED resets/progresses the ledger deterministically and can safely return a removed product;
+- outage, 429/5xx, malformed HTML, pagination failure, zero and catastrophic drop never progress removal.
+
+### M7D10 — Recovery, Replay and Operational Observability
+
+Commercial outcome: ordinary failures recover without daily owner intervention while exceptions remain diagnosable.
+
+Required proof covers duplicate Queue delivery, expired lease/reclaim, crash between listing chunks, affected-detail failure, crash before/after verify, crash before/during/after authority switch, post-promotion redelivery, partial-item error, DLQ/replay and unrelated-tenant continuity. Retries are bounded, errors are phase-aware and safe, unresolved failed work blocks conflicts, and evidence is retained until exact audited cleanup. Global Queue/DLQ purge and manual Queue messages are not proof mechanisms.
+
+### M7D11 — Safe Change and Review Feed
+
+Commercial outcome: support the product principle “automate normal operations; surface only exceptions.”
+
+The backend projection must represent NEW, CHANGED, MOVED, RESTORED, REMOVED, review-required, preserved and quarantined outcomes with stable opaque public IDs, tenant-scoped authorization, pagination and redaction. It must not expose supplier URL, raw provider ID, private media origin, evidence, credentials or infrastructure terminology. Whether a full customer UI closes M7 or moves to M11 remains a product-scope decision; a safe backend boundary cannot be skipped.
+
+### M7E — Deliberate Activation
+
+M7E is an activation-only PR after M7D2–M7D11 and explicit user approval. It contains no feature code or migration.
+
+Before changing the recurring gate, decide the authorized tenant/source cohort, operating window, per-tick cap, expansion criteria and rollback owner. The trusted scheduler-owned production canary must use the exact deployed code and zero manual Queue messages. It must exercise NEW, CHANGED, MOVED, RESTORED, safe threshold removal, incomplete/implausible quarantine, LKG preservation, affected-only CEI, merchant override, tenant isolation, final cursor ordering and explained clean Queue/DLQ state.
+
+Failure first disables global/cohort scheduling, blocks new claims, preserves LKG/stage/evidence and lets in-flight work reach a documented safe boundary. It never deletes data or purges evidence to appear green.
 
 ## M7A scope boundary
 

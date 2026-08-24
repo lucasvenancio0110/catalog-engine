@@ -13,6 +13,9 @@ Purpose: make sequencing, gates and scope explicit so the project does not drift
 5. Do not build universal/future scope merely because the architecture permits it.
 6. Launch scope is intentionally narrower than the long-term Catalog Engine vision.
 7. Documentation and implementation change together when a milestone changes an existing contract.
+8. A future milestone receives `A`, `B` or numbered sub-slices only through the decomposition process in `DEVELOPMENT-CONTINUITY.md`; names discussed before that PR are proposals, not approved work.
+9. A contributor may not silently advance, rename or reorder the active slice. Roadmap status and `CURRENT-STATE.md` must remain consistent with the evidence level actually reached.
+10. Every transfer to a new human or AI follows the live revalidation and handoff protocol in `DEVELOPMENT-CONTINUITY.md`.
 
 ## Launch product definition
 
@@ -349,6 +352,35 @@ A complete scan dropping from ~17k products to a few hundred should enter `suspi
 Definition of Done:
 
 A supplier outage, malformed scan or abnormal result cannot silently destroy a healthy published catalog.
+
+## M7 approved execution ledger
+
+The table below is the canonical M7 slice order. Detailed behavior and safety invariants remain owned by `TENANT-SYNC.md`; production evidence remains owned by `CURRENT-STATE.md`.
+
+| Slice                                                  | Status                                                             | Bounded outcome                                                                                       |
+| ------------------------------------------------------ | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| M7A — Sync safety decision                             | **PRODUCTION GREEN**                                               | Preserve/quarantine partial, unhealthy or implausible scans before destructive delta reasoning.       |
+| M7B — Recurring scheduler foundation                   | **PRODUCTION GREEN — foundation disabled**                         | Durable per-tenant schedule/job foundation with recurring automation still off.                       |
+| M7C1 — Shared listing delta                            | **PRODUCTION GREEN**                                               | One provider-neutral NEW/CHANGED/MOVED/RESTORED/MISSING/REMOVED contract.                             |
+| M7C2 — Incremental planning                            | **PRODUCTION GREEN — read-only foundation**                        | Read paginated private LKG and calculate a safe plan without canonical mutation.                      |
+| M7C3 — Private staged sync state                       | **PRODUCTION GREEN — listing foundation**                          | Assemble listing/delta state privately while LKG remains authoritative.                               |
+| M7C4 — Schema v5 fleet activation                      | **PRODUCTION GREEN**                                               | Additive ready-tenant fleet migration for listing-stage storage.                                      |
+| M7D1 — Candidate State Schema v6                       | **PRODUCTION GREEN**                                               | Private relational storage for candidate detail, media, CEI and merchandising, still inert.           |
+| M7D2 — Controlled Enrollment and Scheduling Guard      | **PLANNED — NEXT**                                                 | Default-disabled tenant/source enrollment, per-cycle limits, kill switch and conflict-safe selection. |
+| M7D3 — Incremental Dispatch and Scan-to-Stage          | **PLANNED**                                                        | Connect live incremental jobs to provider scan, safety, delta and private stage without changing LKG. |
+| M7D4 — Staged Affected Detail                          | **PLANNED**                                                        | Fetch and stage detail/media only for events that require it, with bounded idempotent retry.          |
+| M7D5 — Affected-only CEI Candidate Processing          | **PLANNED**                                                        | Reprocess only affected candidates while preserving merchant overrides and generic CEI boundaries.    |
+| M7D6 — Candidate Verification                          | **PLANNED**                                                        | Verify the complete candidate view, counts, relationships, media, CEI and privacy before promotion.   |
+| M7D7 — Promotion Authority Primitive                   | **PLANNED — architecture decision required before implementation** | Prove one atomic authority boundary so readers never see a mixed old/new catalog.                     |
+| M7D8 — Verified Promotion and Cursor Commit            | **PLANNED**                                                        | Promote verified state idempotently and advance cursor/schedule only after the authority switch.      |
+| M7D9 — Repeated Miss and Safe Removal                  | **PLANNED**                                                        | Apply authoritative repeated-miss, multi-scope membership, removal and restoration semantics.         |
+| M7D10 — Recovery, Replay and Operational Observability | **PLANNED**                                                        | Close crash, lease, duplicate delivery, DLQ/replay and safe diagnostic paths.                         |
+| M7D11 — Safe Change and Review Feed                    | **PLANNED — scope decision before customer UI**                    | Project promoted changes and exceptions through opaque, tenant-scoped, redacted events.               |
+| M7E — Deliberate Activation                            | **DECISION REQUIRED**                                              | Activation-only change for an explicitly approved canary cohort and scheduler-owned production proof. |
+
+M7D2 through M7D11 must remain separate implementation claims unless a later documentation decision proves a safer decomposition. M7E may not contain feature code or migrations. `TENANT_SYNC_AUTOMATION_ENABLED` remains `0` until the M7E decision and complete production proof.
+
+M7 is complete only when the safe recurring path is connected end to end, recovery is proven, the agreed review-feed scope is delivered and M7E passes on the exact trusted-main code. Schema or scheduler foundations alone do not close M7.
 
 ---
 
@@ -830,10 +862,14 @@ If that condition is not true, the product is still assisted service/infrastruct
 
 ## Immediate execution order from this document
 
-1. Finish M0 in a documentation-only PR.
-2. Execute M2 (code/data deployment separation) as the next runtime P0.
-3. Finish remaining M1 controls that do not block M2.
-4. Execute M3 Design Foundation before building additional customer-facing feature surfaces.
-5. Proceed M4 -> M8 on engine/data safety while using the new design foundation for any exposed UI.
-6. Execute M9 -> M17 as the productization path.
-7. Do not enter closed beta before M18-M20 launch gates are materially complete.
+1. Execute M7D2 controlled enrollment and scheduling guard while recurring sync remains globally disabled.
+2. Execute M7D3 through M7D6: scan-to-stage, affected detail, affected-only CEI and candidate verification.
+3. Resolve the M7D7 promotion-authority architecture decision with measured D1 evidence, then execute M7D7 and M7D8.
+4. Execute M7D9 recovery-safe removal semantics and M7D10 recovery/replay/observability.
+5. Resolve the M7D11 backend/UI scope decision and deliver the approved safe change/review-feed boundary.
+6. Execute M7E only after explicit cohort, operational-limit and activation approval; keep recurring sync off until then.
+7. Decompose M8 in a planning PR immediately before M8 execution. Any names such as M8A/M8B remain **PROPOSED** until that PR merges.
+8. Decompose M9 the same way immediately before Storefront UX 2.0 execution. Any names such as M9A/M9B remain **PROPOSED** until that PR merges.
+9. Continue M10 -> M17 as the productization path, decomposing each macro milestone before implementation where more than one bounded PR is required.
+10. Finish remaining M1 governance debt through focused safety PRs without displacing the active milestone unless it becomes a blocker.
+11. Do not enter closed beta before M18-M20 launch gates are materially complete.

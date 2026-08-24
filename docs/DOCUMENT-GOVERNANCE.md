@@ -13,12 +13,13 @@ Before changing or adding behavior, every human or AI contributor must:
 1. identify the affected product/technical area;
 2. read `AGENTS.md`;
 3. read `docs/DOCUMENT-MAP.md`;
-4. read every normative document mapped to that area;
-5. inspect adjacent implementation documents when the change crosses boundaries;
-6. compare the proposed change with documented invariants;
-7. change code only after that comparison;
-8. update the relevant document in the same PR when the intended behavior changes;
-9. run the required quality gates and inspect CI results before merge.
+4. read `docs/DEVELOPMENT-CONTINUITY.md`;
+5. read every normative document mapped to that area;
+6. inspect adjacent implementation documents when the change crosses boundaries;
+7. compare the proposed change with documented invariants;
+8. change code only after that comparison;
+9. update the relevant document in the same PR when the intended behavior changes;
+10. run the required quality gates and inspect CI results before merge.
 
 A change is incomplete when the code and the documents disagree.
 
@@ -50,6 +51,12 @@ Current product-level documents include:
 - `CUSTOMER-PORTAL.md` — `app.catalogoengine.com` customer experience;
 - `TENANCY.md` — account/store/tenant boundaries and isolation contract.
 
+Cross-cutting execution documents include:
+
+- `CURRENT-STATE.md` — mutable implementation and production evidence;
+- `DEVELOPMENT-ROADMAP.md` — approved execution order and milestone status;
+- `DEVELOPMENT-CONTINUITY.md` — contributor startup, milestone decomposition, evidence and handoff protocol.
+
 Existing architecture/implementation documents remain authoritative for their narrower technical areas, including `SAAS-ARCHITECTURE.md`, `CUSTOM-DOMAINS.md`, `TENANT-DATA-PLANES.md`, `TENANT-IMPORT-PIPELINE.md`, `TENANT-CLASSIFY-VERIFY.md`, `TENANT-PUBLISH.md` and related documents.
 
 ## Normative hierarchy
@@ -63,6 +70,8 @@ Use this order when interpreting instructions:
 5. historical/overview documents such as `PRODUCT-BUSINESS-BLUEPRINT.md`.
 
 A lower-level document may be more technically specific, but it may not silently overturn a higher-level business/security invariant. If two current normative documents genuinely conflict, stop the implementation and resolve the documentation conflict in the same PR.
+
+Closure documents and handoffs are historical snapshots. They may preserve evidence and transfer context, but they cannot override live GitHub, current code, `CURRENT-STATE.md`, the roadmap or a focused owner contract.
 
 ## Product decisions vs implementation details
 

@@ -11,6 +11,7 @@ This document owns mutable implementation/deployment truth.
 - Product/business invariants remain in focused normative documents.
 - Architecture contracts remain in `SAAS-ARCHITECTURE.md`, `TENANCY.md`, `PROVIDER-ENGINE.md`, `CEI.md` and tenant subsystem documents.
 - Execution order lives in `DEVELOPMENT-ROADMAP.md`.
+- Contributor startup, evidence labels, milestone decomposition and handoff updates are governed by `DEVELOPMENT-CONTINUITY.md`.
 - Root handoffs remain historical context and do not override this living state or focused normative contracts.
 - M6 historical production evidence lives in `docs/M6-CLOSURE-2026-08-21.md`.
 
@@ -500,6 +501,10 @@ Current milestone:
 M7's primary safety goal is that supplier outages, partial scans, malformed scans or implausible complete-scan volume drops cannot silently destroy a healthy published catalog.
 
 Immediate next slice: M7D2 controlled enrollment and scheduling guard, default-disabled for every existing tenant while the global recurring-sync flag remains `0`. Then connect incremental scan-to-stage, affected detail, affected-only CEI, staged verification and verified promotion in separate slices. Recurring sync remains disabled until that complete path and its scheduler-owned production canary exist.
+
+The complete approved M7 slice ledger now lives in `DEVELOPMENT-ROADMAP.md`, with detailed contracts in `TENANT-SYNC.md`. M7D2 is **PLANNED — NEXT**; M7D3–M7D11 are planned in order; M7E remains an explicit activation decision. This planning record does not change production behavior or prove any pending slice.
+
+Future macro milestones such as M8 and M9 do not yet have approved A/B subdivisions. Their sub-slices must be proposed and merged through the decomposition protocol immediately before execution; a future contributor may not invent those names or treat a conversational proposal as approved scope.
 
 Then:
 
