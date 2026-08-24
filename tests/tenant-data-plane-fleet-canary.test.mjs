@@ -21,6 +21,7 @@ describe('tenant data-plane fleet maintenance production canary', () => {
     const database = new DatabaseSync(':memory:');
     database.exec('PRAGMA foreign_keys = ON');
     const fixture = fixtureIdentity('success', 'fleet-canary-unit-fixture');
+    expect(fixture.dispatchNamespace).toBe('catalog-engine-production');
     const source = {
       provider: 'yupoo',
       sourceKey: fixture.sourceKey,
