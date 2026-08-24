@@ -3,7 +3,6 @@
   "name": "catalog-engine",
   "main": "./worker/entry-publish.js",
   "compatibility_date": "2026-08-17",
-  "compatibility_flags": ["global_fetch_strictly_public"],
   "vars": {
     "CATALOG_PLATFORM_HOSTS": "catalog-engine.lucassantanals0110.workers.dev,catalogoengine.com,app.catalogoengine.com",
     "CATALOG_ADMIN_HOST": "app.catalogoengine.com",
