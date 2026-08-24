@@ -5,37 +5,16 @@ import { queryD1Batch } from '../worker/cloudflare-platform.js';
 
 const API_ORIGIN = 'https://api.cloudflare.com';
 const DEFAULT_DISPATCH_NAMESPACE = 'catalog-engine-production';
-const PROVEN_FLEET_CANARY_RUN_ID = '32685477736';
+const PROVEN_FLEET_CANARY_RUN_ID = '32735316785';
 
 export const RETAINED_FLEET_CANARY_FIXTURES = Object.freeze([
-  { kind: 'success', tenantId: 't_3af98441194ad6d97174' },
-  { kind: 'failure', tenantId: 't_7df63e951071d2d9938f' },
-  { kind: 'blocked', tenantId: 't_d61b367d81eeebf04a7c' },
-  { kind: 'success', tenantId: 't_93be5754bb23227af42b' },
-  { kind: 'failure', tenantId: 't_9aaf308125a28ad5aa91' },
-  { kind: 'blocked', tenantId: 't_3fb95ab5ee09702f5a05' },
-  { kind: 'success', tenantId: 't_738c4f69d777b0438c91' },
-  { kind: 'failure', tenantId: 't_9ffa524d8dca857b6a8e' },
-  { kind: 'blocked', tenantId: 't_f360c5407f8b90b24cda' },
-  { kind: 'success', tenantId: 't_952c92923334f2c9d7a4' },
-  { kind: 'failure', tenantId: 't_dffb8ce3732362b3985d' },
-  { kind: 'blocked', tenantId: 't_0ea6b34ffc1e72e7dd81' },
-  { kind: 'success', tenantId: 't_5088dfe58e440ca72105' },
-  { kind: 'failure', tenantId: 't_da118d3755c5d03b2486' },
-  { kind: 'blocked', tenantId: 't_8018414cbccc78523186' },
-  { kind: 'success', tenantId: 't_01dd1cca59866965a1e0' },
-  { kind: 'failure', tenantId: 't_eedbd596921ad6eba18c' },
-  { kind: 'blocked', tenantId: 't_7911175400766cb6c7b6' },
-  { kind: 'success', tenantId: 't_f3d92350a5553da6c345' },
-  { kind: 'failure', tenantId: 't_74ff252a9da84c074be6' },
-  { kind: 'blocked', tenantId: 't_d7b8482ec643060a128d' },
-  { kind: 'success', tenantId: 't_bcbcdba75017bbd7e69b' },
-  { kind: 'failure', tenantId: 't_f99926b821ca91baa2bb' },
-  { kind: 'blocked', tenantId: 't_4963394770c85357a30f' }
+  { kind: 'success', tenantId: 't_bbd0a31ebb9924fd5e0d' },
+  { kind: 'failure', tenantId: 't_35633dac7b86302d566b' },
+  { kind: 'blocked', tenantId: 't_b4ac85a21b382cbeaea6' }
 ]);
 
 function validateFixtureSet(fixtures) {
-  if (fixtures.length !== 24) throw new Error('fleet_cleanup_fixture_set_incomplete');
+  if (fixtures.length !== 3) throw new Error('fleet_cleanup_fixture_set_incomplete');
   if (new Set(fixtures.map((fixture) => fixture.tenantId)).size !== fixtures.length) {
     throw new Error('fleet_cleanup_fixture_set_duplicate');
   }

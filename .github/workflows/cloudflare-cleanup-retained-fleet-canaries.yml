@@ -51,7 +51,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE: catalog-engine-production
-      PROVEN_FLEET_CANARY_RUN_ID: '32685477736'
+      PROVEN_FLEET_CANARY_RUN_ID: '32735316785'
       STATUS_CONTEXT: catalog-engine/retained-fleet-canary-cleanup
     steps:
       - name: Checkout exact trusted-main SHA
@@ -84,7 +84,7 @@ jobs:
         run: |
           set -euo pipefail
           jq -n --arg state success --arg context "$STATUS_CONTEXT" \
-            --arg description "Exact retained fleet fixtures removed after trusted v4-to-v5 proof" \
+            --arg description "Exact retained fleet fixtures removed after trusted v5-to-v6 proof" \
             --arg target_url "$RUN_URL" \
             '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
           curl --fail --silent --show-error -X POST \
