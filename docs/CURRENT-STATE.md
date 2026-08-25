@@ -1,7 +1,7 @@
 # Catalog Engine — Current State
 
 Status: **Living operational truth**  
-Snapshot: **2026-08-25 after M7D5 production closure**
+Snapshot: **2026-08-25 after M7D6 production closure**
 Purpose: record what is implemented/proven now, separate from durable product contracts and future roadmap work.
 
 ## How to use this document
@@ -17,6 +17,7 @@ This document owns mutable implementation/deployment truth.
 - M7D3 production closure evidence lives in `docs/M7D3-CLOSURE-2026-08-25.md`.
 - M7D4 production closure evidence lives in `docs/M7D4-CLOSURE-2026-08-25.md`.
 - M7D5 production closure evidence lives in `docs/M7D5-CLOSURE-2026-08-25.md`.
+- M7D6 production closure evidence lives in `docs/M7D6-CLOSURE-2026-08-25.md`.
 
 ## Repository baseline
 
@@ -35,7 +36,7 @@ Milestone state:
 - M4 Provider Engine: **complete**;
 - M5 automatic tenant Queue import: **complete / production-proven**;
 - M6 CEI Core + Sports Knowledge Pack v1: **complete / production-proven**;
-- **M7 Intelligent Sync v2: current execution milestone; safety/scheduling/delta/staging/schema-fleet/candidate-state foundations plus controlled enrollment, live incremental dispatch/scan, affected-detail completion and affected-only CEI candidate processing through M7D5 are production-proven**.
+- **M7 Intelligent Sync v2: current execution milestone; safety/scheduling/delta/staging/schema-fleet/candidate-state foundations plus controlled enrollment, live incremental dispatch/scan, affected-detail completion, affected-only CEI candidate processing and complete private candidate verification through M7D6 are production-proven**.
 
 ## Final M6 production checkpoint
 
@@ -281,9 +282,9 @@ M6D production canaries found two real issues before closure:
 
 The final canary passed after both were corrected. Verification was not weakened to obtain green status.
 
-## M7 state — M7A through M7D5 production-proven
+## M7 state — M7A through M7D6 production-proven
 
-M7 remains the active milestone. Safety, scheduler, provider-neutral listing delta, private listing stage, additive schema fleet, candidate-state schema, controlled enrollment, live incremental dispatcher-to-private-stage, affected-detail candidate completion and affected-only CEI candidate processing are now production-proven through M7D5.
+M7 remains the active milestone. Safety, scheduler, provider-neutral listing delta, private listing stage, additive schema fleet, candidate-state schema, controlled enrollment, live incremental dispatcher-to-private-stage, affected-detail candidate completion, affected-only CEI candidate processing and complete private candidate verification are now production-proven through M7D6.
 
 Implemented and proven:
 
@@ -297,7 +298,8 @@ Implemented and proven:
 - M7D2 adds default-disabled controlled tenant/source enrollment, active-cohort gating, per-cycle cap and conflict-safe scheduler selection;
 - M7D3 connects an eligible incremental job through the real dispatcher and Queue to provider scan, safety, provider-neutral delta and private stage, stopping at `details_pending` while canonical LKG/storefront remain unchanged;
 - M7D4 reuses the existing detail Queue and Provider Engine to fetch exactly affected candidates, persist complete run-scoped detail/media/evidence privately and reach `details_complete` without changing canonical LKG/storefront authority;
-- M7D5 reprocesses CEI only for affected detail candidates, reuses the production Domain Runtime/Knowledge Pack path, reapplies durable merchant overrides and persists classification/intelligence only in private run-scoped candidate state while canonical authority remains unchanged.
+- M7D5 reprocesses CEI only for affected detail candidates, reuses the production Domain Runtime/Knowledge Pack path, reapplies durable merchant overrides and persists classification/intelligence only in private run-scoped candidate state while canonical authority remains unchanged;
+- M7D6 verifies the complete composed private candidate view with strict zero-blocking-findings gates, preserves merchant override provenance, reaches private `verified`/control `finalizing` state and leaves canonical LKG/catalog/intelligence/storefront authority unchanged.
 
 ### M7C4 schema v5 fleet activation — production-proven
 
@@ -580,16 +582,76 @@ catalog-engine/tenant-incremental-cei-candidate-canary
 
 This closes M7D5 only. The candidate is still private and unverified; no promotion, authority switch, cursor/schedule commit, removal or recurring-sync activation occurred. Full evidence is recorded in `M7D5-CLOSURE-2026-08-25.md`.
 
+### M7D6 complete candidate verification — production-proven
+
+Final production-proven SHA:
+
+`c757b779e3822a360b1fff4594d8387b4c6fd6e5`
+
+Implementation PR:
+
+`#144 — M7D6: verify complete private sync candidate`
+
+Production hotfix PR:
+
+`#145 — M7D6 hotfix: normalize foreign-key verification for tenant dispatch`
+
+The first trusted-main implementation deploy and Queue activation succeeded, but the first candidate-verification canary failed closed because the verifier used `PRAGMA foreign_key_check` while the tenant internal D1 command accepts only `SELECT`, `INSERT`, `UPDATE` and `DELETE`. The fix did not widen that allowlist or weaken verification: the common D1 transport normalizes only the exact read-only pragma to SQLite's equivalent `SELECT * FROM pragma_foreign_key_check`, with regression coverage proving tenant-command compatibility and equivalent finding rows.
+
+Trusted-main Queue consumer activation:
+
+- run `32866176282` = **SUCCESS** on the exact final SHA;
+- status `catalog-engine/queue-consumer-activation=success` was published.
+
+Trusted-main application deploy:
+
+- run `32866176706`, job `97862324052` = **SUCCESS** on the same SHA;
+- quality, build/verify, D1 migrations, Worker/assets, infrastructure bindings, tenant capability preparation, producer/automation boundaries and existing-catalog smoke all passed;
+- status `catalog-engine/application-deploy=success` was published.
+
+Scheduler/dispatcher-owned cumulative M7D4 + M7D5 + M7D6 canary:
+
+- run `32866423144`, job `97862709090` = **SUCCESS** on the exact deployed SHA;
+- `108` test files / `535` tests passed, with ESLint and dependency policy green;
+- `manualQueueMessagesProduced=false`;
+- `recurringSyncEnabled=false`;
+- `tenantImportAutomationEnabled=true`;
+- `dispatcherObserved=true`;
+- `jobStatus=finalizing` and `jobPhase=finalize`;
+- private `stageState=verified` with `verificationCode=sync_candidate_verified_v1` and `verifiedAtPresent=true`;
+- `safetyOutcome=proceed`;
+- expected detail, complete detail, classification and intelligence counts were all `1`;
+- candidate navigation and merchandising metadata counts were both `1`;
+- classifier v3 / `professional-v3`, Sports Knowledge Pack `sports-v1` v1 and domain `sports` were preserved;
+- merchant override version `7` was reapplied;
+- candidate media-source and product-media counts were both `2`;
+- `foreignKeyFindings=0`;
+- canonical LKG, catalog, merchant override truth and intelligence remained unchanged;
+- storefront catalog remained unchanged;
+- `promotionPerformed=false`, `cursorAdvanced=false`, `removalActivated=false`;
+- Queue/DLQ backlogs were clean.
+
+The exact final SHA published all five required contexts as success:
+
+```text
+catalog-engine/application-deploy
+catalog-engine/queue-consumer-activation
+catalog-engine/tenant-incremental-affected-detail-canary
+catalog-engine/tenant-incremental-cei-candidate-canary
+catalog-engine/tenant-incremental-candidate-verification-canary
+```
+
+This closes M7D6 only. The candidate is verified privately but canonical/storefront authority has not switched. No promotion, cursor/schedule commit, removal or recurring-sync activation occurred. Full evidence is recorded in `M7D6-CLOSURE-2026-08-25.md`.
+
 Still not active/proven in production:
 
-- complete candidate verification;
 - verified canonical promotion and cursor advancement;
 - repeated-miss removal activation;
 - recovery/replay closure for the complete sync path;
 - merchant-facing durable change/review feed;
 - recurring Intelligent Sync activation.
 
-The next approved slice is M7D6 Candidate Verification. Recurring Intelligent Sync remains disabled; M7D6 may verify the complete private candidate view but may not promote canonical/storefront authority, advance cursor/schedule authority or activate removal.
+The next approved roadmap item is M7D7 Promotion Authority Primitive, but implementation is blocked on its required architecture decision. Measured D1 evidence must first select and document one atomic serving-authority boundary; chunked canonical writes without an authority flip remain prohibited. Recurring Intelligent Sync remains disabled.
 
 ## Provider Engine state
 
@@ -675,7 +737,7 @@ M0 truth/governance
 → M4 Provider Engine ✅
 → M5 automatic tenant Queue import ✅ production-proven
 → M6 CEI Core + Sports Knowledge Pack v1 ✅ production-proven
-→ M7A–M7D5 safety, delta/staging, schema fleet, candidate-state, enrollment, live scan, affected-detail and affected-only CEI candidate processing ✅ production-proven
+→ M7A–M7D6 safety, delta/staging, schema fleet, candidate-state, enrollment, live scan, affected-detail, affected-only CEI and complete private candidate verification ✅ production-proven
 ```
 
 Current milestone:
@@ -684,13 +746,13 @@ Current milestone:
 
 M7's primary safety goal is that supplier outages, partial scans, malformed scans or implausible complete-scan volume drops cannot silently destroy a healthy published catalog.
 
-Immediate next slice:
+Immediate next execution boundary:
 
-**M7D6 — Candidate Verification**
+**M7D7 — Promotion Authority Primitive architecture decision**
 
-M7D6 must verify the complete private candidate view before any promotion authority exists. It must fail closed on inconsistent counts/relationships/media/CEI/privacy, preserve merchant override provenance, and keep canonical LKG/storefront authority untouched. It may mark the private run verified only after the candidate passes the complete verification contract. It must not promote canonical data, advance sync cursor/schedule authority, activate repeated-miss deletion or enable recurring Intelligent Sync.
+M7D7 implementation must not begin until measured D1 evidence and an explicit architecture decision select one atomic authority boundary: either a proven bounded set-based transaction or versioned/generation state with one atomic active-authority pointer switch. Chunked canonical writes without an authority flip are prohibited. The decision must cover verified-only entry, competing leases, crashes before/after the authority switch, concurrent-reader consistency, previous-LKG recovery, large-catalog limits and tenant/source isolation.
 
-The complete approved M7 slice ledger lives in `DEVELOPMENT-ROADMAP.md`, with detailed contracts in `TENANT-SYNC.md`. M7D5 is **PRODUCTION GREEN**; M7D6 is **PLANNED — NEXT**; M7D7–M7D11 remain planned in order; M7E remains an explicit activation decision.
+The complete approved M7 slice ledger lives in `DEVELOPMENT-ROADMAP.md`, with detailed contracts in `TENANT-SYNC.md`. M7D6 is **PRODUCTION GREEN**; M7D7 is **PLANNED — architecture decision required before implementation**; M7D8–M7D11 remain planned in order; M7E remains an explicit activation decision. Recurring Intelligent Sync stays disabled.
 
 Future macro milestones such as M8 and M9 do not yet have approved A/B subdivisions. Their sub-slices must be proposed and merged through the decomposition protocol immediately before execution; a future contributor may not invent those names or treat a conversational proposal as approved scope.
 
