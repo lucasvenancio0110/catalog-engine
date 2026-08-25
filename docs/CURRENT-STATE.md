@@ -1,7 +1,7 @@
 # Catalog Engine — Current State
 
 Status: **Living operational truth**  
-Snapshot: **2026-08-24 after M7D1 production closure**
+Snapshot: **2026-08-25 after M7D3 production closure**
 Purpose: record what is implemented/proven now, separate from durable product contracts and future roadmap work.
 
 ## How to use this document
@@ -14,6 +14,7 @@ This document owns mutable implementation/deployment truth.
 - Contributor startup, evidence labels, milestone decomposition and handoff updates are governed by `DEVELOPMENT-CONTINUITY.md`.
 - Root handoffs remain historical context and do not override this living state or focused normative contracts.
 - M6 historical production evidence lives in `docs/M6-CLOSURE-2026-08-21.md`.
+- M7D3 production closure evidence lives in `docs/M7D3-CLOSURE-2026-08-25.md`.
 
 ## Repository baseline
 
@@ -32,7 +33,7 @@ Milestone state:
 - M4 Provider Engine: **complete**;
 - M5 automatic tenant Queue import: **complete / production-proven**;
 - M6 CEI Core + Sports Knowledge Pack v1: **complete / production-proven**;
-- **M7 Intelligent Sync v2: current execution milestone; safety/scheduling/delta/staging/schema-fleet/candidate-state foundations through M7D1 are production-proven**.
+- **M7 Intelligent Sync v2: current execution milestone; safety/scheduling/delta/staging/schema-fleet/candidate-state foundations plus controlled enrollment and live incremental dispatch/scan-to-private-stage through M7D3 are production-proven**.
 
 ## Final M6 production checkpoint
 
@@ -146,7 +147,7 @@ Still open:
 - production migration parity verification;
 - backup/rollback/recovery runbooks.
 
-GitHub Actions currently emits a non-blocking warning that some `actions/checkout@v4` / `actions/setup-node@v4` internals target deprecated Node 20 and are being forced onto Node 24. This belongs to toolchain governance, not M6 correctness.
+GitHub Actions currently emits a non-blocking warning that some `actions/checkout@v4` / `actions/setup-node@v4` internals target deprecated Node 20 and are being forced onto Node 24. This belongs to toolchain governance, not current M7 correctness.
 
 ## Cloudflare baseline proven
 
@@ -278,19 +279,23 @@ M6D production canaries found two real issues before closure:
 
 The final canary passed after both were corrected. Verification was not weakened to obtain green status.
 
-## M7 foundation state — M7A through M7D1 production-proven
+## M7 state — M7A through M7D3 production-proven
 
-M7 remains the active milestone, but its safety and data-plane foundations through additive tenant schema v6 candidate-state activation are now proven in production.
+M7 remains the active milestone. Safety, scheduler, provider-neutral listing delta, private listing stage, additive schema fleet, candidate-state schema, controlled enrollment and the live incremental dispatcher-to-private-stage path are now production-proven through M7D3.
 
-Implemented foundation:
+Implemented and proven:
 
 - M7A catastrophic-diff safety decision preserves LKG on partial/disqualified scans and quarantines implausible complete drops;
-- M7B per-tenant recurring scheduler foundation reuses incremental `tenant_import_jobs`, has deterministic opaque slot identity and keeps unresolved failures durable;
+- M7B per-tenant recurring scheduler foundation reuses incremental `tenant_import_jobs`, has deterministic opaque slot identity and keeps unresolved failures durable while recurring sync remains off;
 - M7C1 shared provider-neutral listing delta semantics own NEW/CHANGED/MOVED/RESTORED/MISSING/REMOVED;
 - M7C2 native incremental scan planning reads paginated LKG and remains strictly read/plan-only;
 - M7C3 private schema-v5 staged sync state keeps canonical LKG untouched until verification/promotion and deliberately leaves detail-bearing runs in `details_pending`;
 - M7C4 activates schema v5 for fresh tenants and additive maintenance upgrades of already-ready v4 tenants;
-- M7D1 adds private relational candidate detail/media/CEI/merchandising storage in schema v6 without writing candidate rows, changing canonical authority or enabling recurring sync.
+- M7D1 adds private relational candidate detail/media/CEI/merchandising storage in schema v6 without changing canonical authority;
+- M7D2 adds default-disabled controlled tenant/source enrollment, active-cohort gating, per-cycle cap and conflict-safe scheduler selection;
+- M7D3 connects an eligible incremental job through the real dispatcher and Queue to provider scan, safety, provider-neutral delta and private stage, stopping at `details_pending` while canonical LKG/storefront remain unchanged.
+
+### M7C4 schema v5 fleet activation — production-proven
 
 M7C4's final production boundary is:
 
@@ -428,19 +433,63 @@ Automatic import/CEI regression canary:
 - default catalog preservation and clean Queue/DLQ backlogs passed;
 - the secret-free validation job was correctly skipped because the event was the trusted deploy's `workflow_run`.
 
-This proves the M7D2 control boundary in production while it is inert: no tenant/source is implicitly enrolled, both global activation and an exact active cohort remain required, selection is capped, and conflicting imports, sync/recovery failures and data-plane migrations are blocked by code and tests. It does **not** prove recurring Intelligent Sync end to end, create a real pilot cohort or authorize changing the recurring-sync flag.
+This proves the M7D2 control boundary in production while it is inert: no tenant/source is implicitly enrolled, both global activation and an exact active cohort remain required, selection is capped, and conflicting imports, sync/recovery failures and data-plane migrations are blocked by code and tests. It does **not** create a real pilot cohort or authorize changing the recurring-sync flag.
 
-Still not active in production:
+### M7D3 incremental dispatch and scan-to-stage — production-proven
 
-- recurring incremental scan execution;
-- affected-detail fan-out into private stage;
-- affected-only CEI reprocessing;
-- staged detail completion/verification;
+Final production-proven SHA:
+
+`75060957930a451c37dace8ad883bcfbe042485c`
+
+Final hotfix PR:
+
+`#136 — M7D3 hotfix: fix D1 stage count parameter affinity`
+
+The final root cause found by retained-fixture diagnosis was a production D1 parameter-affinity mismatch: the platform wrapper stringifies bound parameters, while the strict taxonomy seal compared integer `COUNT(*)` directly to the bound expected category count. The fix explicitly casts the expected parameter to INTEGER and adds a regression that reproduces production parameter normalization. The strict `sync_stage_count_mismatch` safety gate remains fail-closed.
+
+Trusted-main Queue consumer activation:
+
+- run `32817727889` = **SUCCESS** on the exact final SHA;
+- detail and scan consumers were deployed;
+- attachments and policies were verified;
+- no recurring-sync activation was introduced.
+
+Trusted-main application deploy:
+
+- run `32817727900` = **SUCCESS** on the same SHA;
+- quality, build, migrations, Worker/assets, bindings, capability preparation, producer/automation boundaries and existing-catalog smoke all passed.
+
+Scheduler-owned M7D3 canary:
+
+- run `32817891164`, job `97709775593` = **SUCCESS** on the exact deployed SHA;
+- `102` test files / `519` tests passed in the canary quality gate;
+- `manualQueueMessagesProduced=false`;
+- `recurringSyncEnabled=false`;
+- `tenantImportAutomationEnabled=true`;
+- dispatcher discovery was observed;
+- `safetyOutcome=proceed`;
+- `observedCount=1` and `stagedObservationCount=1`;
+- `stagedEventCount=1`;
+- `expectedDetailCount=1`;
+- final private state was `details_pending`;
+- canonical LKG remained unchanged;
+- storefront catalog remained unchanged;
+- Queue/DLQ backlogs were clean.
+
+This closes M7D3 without claiming affected detail, CEI candidate processing, candidate verification, promotion, cursor commit, removal activation or recurring Intelligent Sync. Full evidence is recorded in `M7D3-CLOSURE-2026-08-25.md`.
+
+Still not active/proven in production:
+
+- staged affected-detail/media completion for M7D4;
+- affected-only CEI candidate reprocessing;
+- complete candidate verification;
 - verified canonical promotion and cursor advancement;
 - repeated-miss removal activation;
-- merchant-facing durable change/review feed.
+- recovery/replay closure for the complete sync path;
+- merchant-facing durable change/review feed;
+- recurring Intelligent Sync activation.
 
-These are the next M7 slices, beginning with M7D3 incremental dispatch and scan-to-stage. The schema/scheduler foundation does not authorize enabling recurring sync early.
+The next approved slice is M7D4 staged affected detail. Recurring Intelligent Sync remains disabled; M7D4 must stay private and may not promote canonical/storefront state.
 
 ## Provider Engine state
 
@@ -509,6 +558,7 @@ Do not claim without new evidence:
 - a second production provider;
 - production Automotive/Fashion/Dental Knowledge Packs;
 - every real tenant currently running tenant data-plane schema v6;
+- recurring Intelligent Sync end to end;
 - full browser Core Web Vitals/accessibility quality;
 - production billing integration;
 - public-launch readiness.
@@ -525,7 +575,7 @@ M0 truth/governance
 → M4 Provider Engine ✅
 → M5 automatic tenant Queue import ✅ production-proven
 → M6 CEI Core + Sports Knowledge Pack v1 ✅ production-proven
-→ M7A–M7D1 sync safety, delta/staging, schema fleet and candidate-state foundations ✅ production-proven
+→ M7A–M7D3 safety, delta/staging, schema fleet, candidate-state, enrollment and live scan-to-private-stage ✅ production-proven
 ```
 
 Current milestone:
@@ -534,9 +584,13 @@ Current milestone:
 
 M7's primary safety goal is that supplier outages, partial scans, malformed scans or implausible complete-scan volume drops cannot silently destroy a healthy published catalog.
 
-Immediate next slice: M7D3 incremental dispatch and scan-to-stage, still without changing canonical LKG or enabling recurring sync. Then connect affected detail, affected-only CEI, staged verification and verified promotion in separate slices. Recurring sync remains disabled until that complete path and its scheduler-owned production canary exist.
+Immediate next slice:
 
-The complete approved M7 slice ledger now lives in `DEVELOPMENT-ROADMAP.md`, with detailed contracts in `TENANT-SYNC.md`. M7D2 is **PRODUCTION GREEN**; M7D3 is **PLANNED — NEXT**; M7D4–M7D11 are planned in order; M7E remains an explicit activation decision. This planning record does not change production behavior or prove any pending slice.
+**M7D4 — Staged Affected Detail**
+
+M7D4 must fetch and stage detail/media only for events that require it, with bounded/idempotent retry and private candidate writes. It must not run affected-only CEI, mark the whole candidate verified, promote canonical LKG/storefront data, advance cursor/schedule, activate repeated-miss deletion or enable recurring Intelligent Sync.
+
+The complete approved M7 slice ledger lives in `DEVELOPMENT-ROADMAP.md`, with detailed contracts in `TENANT-SYNC.md`. M7D3 is **PRODUCTION GREEN**; M7D4 is **PLANNED — NEXT**; M7D5–M7D11 remain planned in order; M7E remains an explicit activation decision.
 
 Future macro milestones such as M8 and M9 do not yet have approved A/B subdivisions. Their sub-slices must be proposed and merged through the decomposition protocol immediately before execution; a future contributor may not invent those names or treat a conversational proposal as approved scope.
 

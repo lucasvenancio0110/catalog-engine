@@ -355,7 +355,7 @@ A supplier outage, malformed scan or abnormal result cannot silently destroy a h
 
 ## M7 approved execution ledger
 
-The table below is the canonical M7 slice order. Detailed behavior and safety invariants remain owned by `TENANT-SYNC.md`; production evidence remains owned by `CURRENT-STATE.md`.
+The table below is the canonical M7 slice order. Detailed behavior and safety invariants remain owned by `TENANT-SYNC.md`; production evidence remains owned by `CURRENT-STATE.md` and focused closure records.
 
 | Slice                                                  | Status                                                             | Bounded outcome                                                                                       |
 | ------------------------------------------------------ | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
@@ -367,8 +367,8 @@ The table below is the canonical M7 slice order. Detailed behavior and safety in
 | M7C4 — Schema v5 fleet activation                      | **PRODUCTION GREEN**                                               | Additive ready-tenant fleet migration for listing-stage storage.                                      |
 | M7D1 — Candidate State Schema v6                       | **PRODUCTION GREEN**                                               | Private relational storage for candidate detail, media, CEI and merchandising, still inert.           |
 | M7D2 — Controlled Enrollment and Scheduling Guard      | **PRODUCTION GREEN**                                               | Default-disabled tenant/source enrollment, per-cycle limits, kill switch and conflict-safe selection. |
-| M7D3 — Incremental Dispatch and Scan-to-Stage          | **PLANNED — NEXT**                                                 | Connect live incremental jobs to provider scan, safety, delta and private stage without changing LKG. |
-| M7D4 — Staged Affected Detail                          | **PLANNED**                                                        | Fetch and stage detail/media only for events that require it, with bounded idempotent retry.          |
+| M7D3 — Incremental Dispatch and Scan-to-Stage          | **PRODUCTION GREEN**                                               | Live dispatcher/Queue incremental scan safely reaches private `details_pending` stage with LKG intact.|
+| M7D4 — Staged Affected Detail                          | **PLANNED — NEXT**                                                 | Fetch and stage detail/media only for events that require it, with bounded idempotent retry.          |
 | M7D5 — Affected-only CEI Candidate Processing          | **PLANNED**                                                        | Reprocess only affected candidates while preserving merchant overrides and generic CEI boundaries.    |
 | M7D6 — Candidate Verification                          | **PLANNED**                                                        | Verify the complete candidate view, counts, relationships, media, CEI and privacy before promotion.   |
 | M7D7 — Promotion Authority Primitive                   | **PLANNED — architecture decision required before implementation** | Prove one atomic authority boundary so readers never see a mixed old/new catalog.                     |
@@ -377,6 +377,8 @@ The table below is the canonical M7 slice order. Detailed behavior and safety in
 | M7D10 — Recovery, Replay and Operational Observability | **PLANNED**                                                        | Close crash, lease, duplicate delivery, DLQ/replay and safe diagnostic paths.                         |
 | M7D11 — Safe Change and Review Feed                    | **PLANNED — scope decision before customer UI**                    | Project promoted changes and exceptions through opaque, tenant-scoped, redacted events.               |
 | M7E — Deliberate Activation                            | **DECISION REQUIRED**                                              | Activation-only change for an explicitly approved canary cohort and scheduler-owned production proof. |
+
+M7D3 production closure is recorded in `M7D3-CLOSURE-2026-08-25.md`. The final scheduler-owned canary proved dispatcher discovery, zero manual Queue injection, private `details_pending` stage, clean queues and unchanged canonical/storefront state while `TENANT_SYNC_AUTOMATION_ENABLED` remained off.
 
 M7D2 through M7D11 must remain separate implementation claims unless a later documentation decision proves a safer decomposition. M7E may not contain feature code or migrations. `TENANT_SYNC_AUTOMATION_ENABLED` remains `0` until the M7E decision and complete production proof.
 
@@ -862,7 +864,7 @@ If that condition is not true, the product is still assisted service/infrastruct
 
 ## Immediate execution order from this document
 
-1. Execute M7D3 through M7D6: scan-to-stage, affected detail, affected-only CEI and candidate verification.
+1. Execute M7D4 through M7D6: staged affected detail, affected-only CEI and candidate verification. M7D3 is Production Green.
 2. Resolve the M7D7 promotion-authority architecture decision with measured D1 evidence, then execute M7D7 and M7D8.
 3. Execute M7D9 recovery-safe removal semantics and M7D10 recovery/replay/observability.
 4. Resolve the M7D11 backend/UI scope decision and deliver the approved safe change/review-feed boundary.
