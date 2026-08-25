@@ -370,7 +370,7 @@ The table below is the canonical M7 slice order. Detailed behavior and safety in
 | M7D3 — Incremental Dispatch and Scan-to-Stage          | **PRODUCTION GREEN**                                               | Live dispatcher/Queue incremental scan safely reaches private `details_pending` stage with LKG intact.|
 | M7D4 — Staged Affected Detail                          | **PRODUCTION GREEN**                                               | Fetch and stage detail/media only for events that require it, with bounded idempotent retry.          |
 | M7D5 — Affected-only CEI Candidate Processing          | **PRODUCTION GREEN**                                               | Reprocess only affected candidates while preserving merchant overrides and generic CEI boundaries.    |
-| M7D6 — Candidate Verification                          | **PLANNED — NEXT**                                                 | Verify the complete candidate view, counts, relationships, media, CEI and privacy before promotion.   |
+| M7D6 — Candidate Verification                          | **PRODUCTION GREEN**                                               | Verify the complete candidate view, counts, relationships, media, CEI and privacy before promotion.   |
 | M7D7 — Promotion Authority Primitive                   | **PLANNED — architecture decision required before implementation** | Prove one atomic authority boundary so readers never see a mixed old/new catalog.                     |
 | M7D8 — Verified Promotion and Cursor Commit            | **PLANNED**                                                        | Promote verified state idempotently and advance cursor/schedule only after the authority switch.      |
 | M7D9 — Repeated Miss and Safe Removal                  | **PLANNED**                                                        | Apply authoritative repeated-miss, multi-scope membership, removal and restoration semantics.         |
@@ -383,6 +383,8 @@ M7D3 production closure is recorded in `M7D3-CLOSURE-2026-08-25.md`. The final s
 M7D4 production closure is recorded in `M7D4-CLOSURE-2026-08-25.md`. Final trusted-main SHA `95d3f3ba76adf5638576b212ccd5c94113e0eaa5` passed exact-SHA Queue activation, application deploy and scheduler/dispatcher-owned affected-detail canary. The canary reached private `details_complete` with one complete affected candidate, two candidate media relationships, zero foreign-key findings, no manual Queue injection, clean Queue/DLQ backlogs and unchanged canonical LKG/storefront authority while recurring Intelligent Sync remained off.
 
 M7D5 production closure is recorded in `M7D5-CLOSURE-2026-08-25.md`. Final trusted-main SHA `acf09a32b6ae357132df9b871225305e653d50aa` passed exact-SHA application deploy, Queue consumer activation and scheduler/dispatcher-owned cumulative affected-detail + affected-only CEI canary. The canary produced one private candidate classification and one private candidate intelligence record through classifier v3 / Sports Knowledge Pack v1, reapplied merchant override version 7, reported zero foreign-key findings, preserved canonical LKG/catalog/override/intelligence and storefront authority, used no manual Queue injection, returned clean Queue/DLQ backlogs and kept recurring Intelligent Sync off.
+
+M7D6 production closure is recorded in `M7D6-CLOSURE-2026-08-25.md`. Final trusted-main SHA `c757b779e3822a360b1fff4594d8387b4c6fd6e5` passed exact-SHA Queue activation `32866176282`, application deploy `32866176706` and scheduler/dispatcher-owned cumulative candidate-verification canary `32866423144` / job `97862709090`. The canary reached private `stageState=verified` with `sync_candidate_verified_v1`, zero foreign-key findings, candidate navigation/merchandising verification metadata, merchant override version 7 preserved, no manual Queue injection, clean Queue/DLQ backlogs and unchanged canonical LKG/catalog/override/intelligence/storefront authority. Promotion, cursor advancement and removal activation remained false and recurring Intelligent Sync remained off.
 
 M7D2 through M7D11 must remain separate implementation claims unless a later documentation decision proves a safer decomposition. M7E may not contain feature code or migrations. `TENANT_SYNC_AUTOMATION_ENABLED` remains `0` until the M7E decision and complete production proof.
 
@@ -868,8 +870,8 @@ If that condition is not true, the product is still assisted service/infrastruct
 
 ## Immediate execution order from this document
 
-1. Execute M7D6 Candidate Verification. M7D5 is Production Green.
-2. Resolve the M7D7 promotion-authority architecture decision with measured D1 evidence, then execute M7D7 and M7D8.
+1. Resolve the M7D7 promotion-authority architecture decision with measured D1 evidence before implementation. M7D6 is Production Green.
+2. After the decision is recorded, execute M7D7 and then M7D8 without allowing chunked canonical writes to become serving authority before an atomic authority switch.
 3. Execute M7D9 recovery-safe removal semantics and M7D10 recovery/replay/observability.
 4. Resolve the M7D11 backend/UI scope decision and deliver the approved safe change/review-feed boundary.
 5. Execute M7E only after explicit cohort, operational-limit and activation approval; keep recurring sync off until then.
