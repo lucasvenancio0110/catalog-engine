@@ -6,7 +6,7 @@ import {
   buildIncrementalStageVerificationBatch,
   buildIncrementalStageWritePlan
 } from '../worker/ingestion/incremental-stage.js';
-import { TENANT_DATA_PLANE_CURRENT_STATEMENTS } from '../worker/tenant-data-plane-schema-v5.js';
+import { TENANT_DATA_PLANE_CURRENT_STATEMENTS } from '../worker/tenant-data-plane-schema-v7.js';
 
 const databases = [];
 const context = {

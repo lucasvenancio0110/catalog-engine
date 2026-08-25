@@ -6,8 +6,8 @@ import {
 import { planTenantIncrementalScanFromProvider } from './incremental-scan.js';
 import { buildIncrementalStageWritePlan } from './incremental-stage.js';
 
-const MIN_INCREMENTAL_STAGE_SCHEMA_VERSION = 5;
-const MIN_INCREMENTAL_DETAIL_SCHEMA_VERSION = 6;
+const MIN_INCREMENTAL_STAGE_SCHEMA_VERSION = 7;
+const MIN_INCREMENTAL_DETAIL_SCHEMA_VERSION = 7;
 const SCAN_LEASE_MINUTES = 14;
 const DETAIL_QUEUE_BATCH = 100;
 

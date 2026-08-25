@@ -96,7 +96,7 @@ describe('tenant data-plane fleet maintenance production canary', () => {
         .prepare(
           `SELECT GROUP_CONCAT(kind, ',') AS kinds
              FROM (
-               SELECT CASE WHEN migration_command_version=2 THEN 'prepared' ELSE 'pending' END AS kind
+               SELECT CASE WHEN migration_command_version=3 THEN 'prepared' ELSE 'pending' END AS kind
                  FROM tenant_data_plane_provider_state
                 ORDER BY tenant_id
              )`

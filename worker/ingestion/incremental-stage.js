@@ -225,6 +225,19 @@ function beginStageQuery(context, scan, plan) {
   };
 }
 
+function beginStageAuthorityQuery(context) {
+  return {
+    sql: `INSERT OR IGNORE INTO supplier_sync_stage_authority
+      (run_id, tenant_id, source_key, contract_version, base_authority_revision,
+       created_at, updated_at)
+      SELECT ?1, ?2, ?3, 1, a.revision, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        FROM supplier_sync_stage_runs s
+        JOIN catalog_serving_authority a ON a.tenant_id=?2
+       WHERE s.run_id=?1 AND s.tenant_id=?2 AND s.source_key=?3 AND s.state='staging'`,
+    params: [context.importId, context.tenantId, context.sourceKey]
+  };
+}
+
 function clearStageQuery(table, context) {
   return {
     sql: `DELETE FROM ${table}
@@ -431,6 +444,7 @@ export function buildIncrementalStageWritePlan({ context, scan, plan }) {
     beginBatch: Object.freeze([
       beginSyncRunQuery(context, scan, plan),
       beginStageQuery(context, scan, plan),
+      beginStageAuthorityQuery(context),
       clearStageQuery('supplier_sync_stage_observations', context),
       clearStageQuery('supplier_sync_stage_events', context),
       clearStageQuery('supplier_sync_stage_categories', context)

@@ -7,7 +7,7 @@ import {
   uploadTenantCatalogWorker
 } from '../worker/cloudflare-platform.js';
 import { TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION } from '../worker/tenant-data-plane-command.js';
-import { TENANT_DATA_PLANE_SCHEMA_VERSION } from '../worker/tenant-data-plane-schema-v6.js';
+import { TENANT_DATA_PLANE_SCHEMA_VERSION } from '../worker/tenant-data-plane-schema-v7.js';
 
 const DEFAULT_DISPATCH_NAMESPACE = 'catalog-engine-production';
 const DEFAULT_MAX_TENANTS = 100;

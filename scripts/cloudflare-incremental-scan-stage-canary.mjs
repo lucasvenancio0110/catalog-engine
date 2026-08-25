@@ -10,7 +10,7 @@ import { incrementalTenantImportId } from '../worker/tenant-import-queue.js';
 import {
   TENANT_DATA_PLANE_SCHEMA_VERSION,
   tenantDataPlaneCurrentBatch
-} from '../worker/tenant-data-plane-schema-v6.js';
+} from '../worker/tenant-data-plane-schema-v7.js';
 
 const API_ORIGIN = 'https://api.cloudflare.com';
 const ACCOUNT_ID = String(process.env.CLOUDFLARE_ACCOUNT_ID || '').trim();

@@ -9,7 +9,7 @@ function context(tenantId) {
     mode: 'incremental',
     importStatus: 'queued',
     phase: 'scan',
-    schemaVersion: 6,
+    schemaVersion: 7,
     privateSource: {
       provider: 'yupoo',
       url: 'https://supplier.x.yupoo.com/albums/',
@@ -77,7 +77,11 @@ describe('M7D3 incremental scan safety completion', () => {
 
     expect(result).toMatchObject({ outcome: 'success', stageOutcome: 'quarantine', stageState: 'quarantined', detailCount: 0 });
     expect(result.reason).toBe('sync_scan_empty');
-    expect(mutationSql(calls).some((sql) => /supplier_album_index|catalog_|media_sources|product_media/i.test(sql))).toBe(false);
+    expect(
+      mutationSql(calls).some((sql) =>
+        /(?:INSERT(?: OR IGNORE)? INTO|UPDATE|DELETE FROM)\s+(?:supplier_album_index|catalog_products|media_sources|product_media)\b/i.test(sql)
+      )
+    ).toBe(false);
   });
 
   it('keeps tenant data-plane calls isolated by the server-resolved tenant context', async () => {

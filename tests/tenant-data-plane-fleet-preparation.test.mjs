@@ -111,7 +111,7 @@ describe('trusted tenant migration-command preparation', () => {
     ).resolves.toEqual({
       tenantId: candidate.tenant_id,
       outcome: 'prepared',
-      migrationCommandVersion: 2
+      migrationCommandVersion: 3
     });
     expect(uploadWorker).toHaveBeenCalledTimes(1);
     expect(calls.map((entry) => entry.sql)).toEqual([
@@ -174,8 +174,8 @@ describe('trusted tenant migration-command preparation', () => {
       candidate.worker_script_name,
       candidate.d1_database_id,
       candidate.dispatch_namespace,
-      '6',
-      '2',
+      '7',
+      '3',
       '1'
     ];
 
@@ -189,7 +189,7 @@ describe('trusted tenant migration-command preparation', () => {
           'SELECT migration_command_version, worker_version FROM tenant_data_plane_provider_state'
         )
         .get()
-    ).toEqual({ migration_command_version: 2, worker_version: 'worker-command-v1' });
+    ).toEqual({ migration_command_version: 3, worker_version: 'worker-command-v1' });
     database.close();
   });
 

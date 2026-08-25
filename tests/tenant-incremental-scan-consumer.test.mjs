@@ -11,7 +11,7 @@ const baseContext = {
   mode: 'incremental',
   importStatus: 'queued',
   phase: 'scan',
-  schemaVersion: 6,
+  schemaVersion: 7,
   discoveredCount: 0,
   detailEnqueueCursor: 0,
   privateSource: {
