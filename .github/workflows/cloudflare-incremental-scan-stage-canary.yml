@@ -1,4 +1,4 @@
-name: Cloudflare incremental affected-detail + CEI candidate canary
+name: Cloudflare incremental candidate verification canary
 
 on:
   pull_request:
@@ -22,6 +22,7 @@ on:
       - 'worker/ingestion/detail-consumer.js'
       - 'worker/ingestion/providers/**'
       - 'tests/tenant-incremental-classification.test.mjs'
+      - 'tests/tenant-incremental-verification.test.mjs'
   workflow_run:
     workflows: ['Deploy Catalog Engine application']
     types: [completed]
@@ -32,7 +33,7 @@ permissions:
   statuses: write
 
 concurrency:
-  group: catalog-engine-m7d5-incremental-candidate-canary
+  group: catalog-engine-m7d6-incremental-candidate-canary
   cancel-in-progress: false
 
 jobs:
@@ -67,6 +68,7 @@ jobs:
       CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE: catalog-engine-production
       M7D4_STATUS_CONTEXT: catalog-engine/tenant-incremental-affected-detail-canary
       M7D5_STATUS_CONTEXT: catalog-engine/tenant-incremental-cei-candidate-canary
+      M7D6_STATUS_CONTEXT: catalog-engine/tenant-incremental-candidate-verification-canary
 
     steps:
       - name: Resolve exact trusted-main SHA
@@ -127,14 +129,14 @@ jobs:
           echo "Queue consumer activation evidence did not arrive for exact target SHA"
           exit 1
 
-      - name: Prove affected detail and affected-only CEI with canonical LKG unchanged
+      - name: Prove affected detail, affected-only CEI and candidate verification with canonical authority unchanged
         shell: bash
         run: |
           set -euo pipefail
-          node scripts/cloudflare-incremental-scan-stage-canary.mjs | tee /tmp/m7d5-canary.json
-          cat /tmp/m7d5-canary.json >> "$GITHUB_STEP_SUMMARY"
+          node scripts/cloudflare-incremental-scan-stage-canary.mjs | tee /tmp/m7d6-canary.json
+          cat /tmp/m7d6-canary.json >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Publish successful M7D4 and M7D5 canary evidence
+      - name: Publish successful M7D4, M7D5 and M7D6 canary evidence
         if: ${{ success() }}
         env:
           GH_TOKEN: ${{ github.token }}
@@ -157,11 +159,13 @@ jobs:
               "https://api.github.com/repos/$REPO/statuses/$SHA" -d @/tmp/status.json
           }
           publish_status "$M7D4_STATUS_CONTEXT" \
-            "Affected detail staged privately to details_complete; LKG unchanged; recurring sync off"
+            "Affected detail staged privately; canonical LKG unchanged; recurring sync off"
           publish_status "$M7D5_STATUS_CONTEXT" \
             "Affected-only CEI candidate + merchant override proven; LKG unchanged; recurring sync off"
+          publish_status "$M7D6_STATUS_CONTEXT" \
+            "Candidate verified privately with zero blocking findings; canonical authority unchanged"
 
-      - name: Publish failed M7D4 and M7D5 canary evidence
+      - name: Publish failed M7D4, M7D5 and M7D6 canary evidence
         if: ${{ failure() }}
         env:
           GH_TOKEN: ${{ github.token }}
@@ -186,4 +190,6 @@ jobs:
           publish_status "$M7D4_STATUS_CONTEXT" \
             "Incremental affected-detail regression failed on this SHA; preserve evidence before advancing"
           publish_status "$M7D5_STATUS_CONTEXT" \
-            "M7D5 affected-only CEI candidate canary failed; preserve retained evidence before advancing"
+            "M7D5 affected-only CEI candidate regression failed; preserve retained evidence"
+          publish_status "$M7D6_STATUS_CONTEXT" \
+            "M7D6 candidate verification canary failed; preserve retained evidence before advancing"
