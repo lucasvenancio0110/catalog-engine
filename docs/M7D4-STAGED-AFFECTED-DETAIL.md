@@ -31,6 +31,14 @@ The scan consumer reuses `TENANT_IMPORT_DETAIL_QUEUE` and the existing public-sa
 
 The detail entrypoint deterministically preserves the initial-import route and sends non-initial detail work through the incremental candidate consumer. The incremental consumer resolves the provider from tenant-private source state and calls the shared Provider Engine `fetchDetail` contract.
 
+## Tenant-dispatch identity boundary
+
+All incremental data-plane access remains server-resolved. The trusted control-plane context supplies the exact `tenant_id`; Queue payloads and browser input never select a D1 database or Workers for Platforms script.
+
+Some M7D4 queries are intentionally run-scoped and therefore may contain only opaque `run_id`/product identities in their SQL parameters. The shared data-plane query adapter may accept an explicit tenant identity only from the already resolved server context for these batches. If an explicit identity conflicts with any tenant identity present in the batch parameters, the request fails closed before dispatch.
+
+M7D4 must not fall back to direct D1 REST merely because a run-scoped batch does not contain a tenant-shaped parameter. Production tenant data-plane access continues through `TENANT_DISPATCH`.
+
 ## Resumable affected-detail fan-out
 
 The control-plane import job uses the existing:
@@ -42,7 +50,7 @@ The control-plane import job uses the existing:
 
 For incremental work, `discovered_count` is the number of staged events requiring detail, not the total listing size.
 
-Fan-out reads only `supplier_sync_stage_events` where `needs_detail=1`, ordered deterministically by private album identity. The cursor advances only after `sendBatch` succeeds.
+Fan-out reads only `supplier_sync_stage_events` where `needs_detail=1`, ordered deterministically by private album identity. The read is constrained by the exact run/tenant/source identity. The cursor advances only after `sendBatch` succeeds.
 
 If Queue send succeeds but the cursor update is interrupted, retry may produce a duplicate message. Duplicate delivery is safe because candidate detail claiming/writing is run-scoped and idempotent.
 

@@ -88,7 +88,7 @@ function stagedQueryBatch({ previousRows, stageState, safetyOutcome = 'proceed',
     if (/^\s*SELECT[\s\S]+FROM supplier_album_index/i.test(sql)) {
       return [{ results: previousRows }];
     }
-    if (/SELECT album_source_id\s+FROM supplier_sync_stage_events/i.test(sql)) {
+    if (/SELECT (?:e\.)?album_source_id[\s\S]+FROM supplier_sync_stage_events(?:\s+e)?/i.test(sql)) {
       return [{ results: detailIds.map((album_source_id) => ({ album_source_id })) }];
     }
     if (/SELECT state, safety_outcome/i.test(sql)) {

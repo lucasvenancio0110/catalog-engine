@@ -197,7 +197,7 @@ function normalizeD1Batch(batch) {
   });
 }
 
-function tenantIdFromBatch(batch) {
+function tenantIdFromBatch(batch, explicitTenantId = null) {
   const tenantIds = new Set();
   for (const query of batch) {
     for (const value of query.params || []) {
@@ -205,6 +205,16 @@ function tenantIdFromBatch(batch) {
       if (TENANT_ID_PATTERN.test(candidate)) tenantIds.add(candidate);
     }
   }
+
+  const requested = String(explicitTenantId || '').trim();
+  if (requested) {
+    const tenantId = safeTenantId(requested);
+    if (tenantIds.size > 0 && (tenantIds.size !== 1 || !tenantIds.has(tenantId))) {
+      throw new CloudflarePlatformError('tenant_data_plane_tenant_mismatch', 500);
+    }
+    return tenantId;
+  }
+
   if (tenantIds.size !== 1) {
     throw new CloudflarePlatformError('tenant_data_plane_tenant_unresolved', 500);
   }
@@ -212,13 +222,21 @@ function tenantIdFromBatch(batch) {
 }
 
 export async function queryD1Batch(
-  { accountId, apiToken, dispatchNamespace, databaseId, batch, tenantDispatch },
+  {
+    accountId,
+    apiToken,
+    dispatchNamespace,
+    databaseId,
+    batch,
+    tenantDispatch,
+    tenantId: explicitTenantId
+  },
   { fetchImpl = fetch } = {}
 ) {
   const normalizedBatch = normalizeD1Batch(batch);
 
   if (tenantDispatch && typeof tenantDispatch.get === 'function') {
-    const tenantId = tenantIdFromBatch(normalizedBatch);
+    const tenantId = tenantIdFromBatch(normalizedBatch, explicitTenantId);
     return queryTenantDataPlaneBatch(
       {
         tenantId,
