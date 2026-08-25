@@ -337,7 +337,13 @@ export async function handleTenantImportScanMessage(
 
     if (context.mode === 'incremental') {
       return await handleTenantIncrementalScan(
-        { db, context, provider, platform },
+        {
+          db,
+          context,
+          provider,
+          platform,
+          detailQueue: env.TENANT_IMPORT_DETAIL_QUEUE
+        },
         { fetchImpl }
       );
     }
