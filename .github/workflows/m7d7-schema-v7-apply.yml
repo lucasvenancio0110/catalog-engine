@@ -26,7 +26,17 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Apply schema v7 foundation
-        run: node scripts/m7d7-schema-v7-apply.mjs
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/m7d7-schema-v7-apply.mjs')
+          text = path.read_text()
+          redundant = '    ["?1,6,\'maintenance\',\'failed\',1,NULL", "?1,7,\'maintenance\',\'failed\',1,NULL"],\n'
+          if redundant not in text:
+              raise SystemExit('m7d7_redundant_patch_guard_missing')
+          path.write_text(text.replace(redundant, ''))
+          PY
+          node scripts/m7d7-schema-v7-apply.mjs
       - name: Quality gate
         run: npm run quality
       - name: Commit foundation and remove temporary updater
