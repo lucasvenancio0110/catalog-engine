@@ -13,6 +13,24 @@ function disqualifyingFailureCount(scan) {
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
 }
 
+function categoryIdentity(category) {
+  return String(category?.id ?? category?.categorySourceId ?? '').trim();
+}
+
+export function normalizeIncrementalScanTaxonomy(scan) {
+  if (!scan || !Array.isArray(scan.taxonomy)) return scan;
+  const byId = new Map();
+  for (const category of scan.taxonomy) {
+    const id = categoryIdentity(category);
+    if (!id || byId.has(id)) continue;
+    byId.set(id, { ...category, id });
+  }
+  return {
+    ...scan,
+    taxonomy: [...byId.values()]
+  };
+}
+
 async function sourceScope(context) {
   return {
     id: await stableOpaqueId(
@@ -28,7 +46,10 @@ export async function loadTenantIncrementalPreviousRows(
   platform,
   { fetchImpl = fetch, queryBatch = queryD1Batch, pageSize = TENANT_INCREMENTAL_PREVIOUS_PAGE_SIZE } = {}
 ) {
-  const boundedPageSize = Math.min(Math.max(Number.parseInt(pageSize, 10) || TENANT_INCREMENTAL_PREVIOUS_PAGE_SIZE, 1), 1000);
+  const boundedPageSize = Math.min(
+    Math.max(Number.parseInt(pageSize, 10) || TENANT_INCREMENTAL_PREVIOUS_PAGE_SIZE, 1),
+    1000
+  );
   const rows = [];
   let afterSourceId = '';
 
@@ -84,8 +105,10 @@ export async function planTenantIncrementalScanFromProvider(
     queryBatch,
     pageSize
   });
-  const scan = assertCatalogProviderScanObservation(
-    await provider.scanListingIndex(context.privateSource.url, { fetchImpl })
+  const scan = normalizeIncrementalScanTaxonomy(
+    assertCatalogProviderScanObservation(
+      await provider.scanListingIndex(context.privateSource.url, { fetchImpl })
+    )
   );
   const plan = planTenantIncrementalScan({
     previousRows,
