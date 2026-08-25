@@ -12,6 +12,8 @@ const baseContext = {
   importStatus: 'queued',
   phase: 'scan',
   schemaVersion: 6,
+  discoveredCount: 0,
+  detailEnqueueCursor: 0,
   privateSource: {
     provider: 'yupoo',
     url: 'https://supplier.x.yupoo.com/albums/',
@@ -78,13 +80,16 @@ function controlDb({ claimChanges = 1, transitionChanges = 1 } = {}) {
   return { db: { prepare }, prepare, statements };
 }
 
-function stagedQueryBatch({ previousRows, stageState, safetyOutcome = 'proceed' }) {
+function stagedQueryBatch({ previousRows, stageState, safetyOutcome = 'proceed', detailIds = ['100'] }) {
   const calls = [];
   const queryBatch = vi.fn(async (request) => {
     calls.push(request);
     const sql = String(request.batch?.[0]?.sql || '');
     if (/^\s*SELECT[\s\S]+FROM supplier_album_index/i.test(sql)) {
       return [{ results: previousRows }];
+    }
+    if (/SELECT album_source_id\s+FROM supplier_sync_stage_events/i.test(sql)) {
+      return [{ results: detailIds.map((album_source_id) => ({ album_source_id })) }];
     }
     if (/SELECT state, safety_outcome/i.test(sql)) {
       return [
@@ -97,9 +102,22 @@ function stagedQueryBatch({ previousRows, stageState, safetyOutcome = 'proceed' 
               staged_observation_count: safetyOutcome === 'proceed' ? 1 : 0,
               expected_event_count: safetyOutcome === 'proceed' ? 1 : 0,
               staged_event_count: safetyOutcome === 'proceed' ? 1 : 0,
-              expected_detail_count: safetyOutcome === 'proceed' ? 1 : 0,
+              expected_detail_count: safetyOutcome === 'proceed' ? detailIds.length : 0,
               staged_category_count: 0,
               last_error_code: null
+            }
+          ]
+        }
+      ];
+    }
+    if (/SELECT state, safety_outcome, expected_detail_count/i.test(sql)) {
+      return [
+        {
+          results: [
+            {
+              state: stageState,
+              safety_outcome: safetyOutcome,
+              expected_detail_count: detailIds.length
             }
           ]
         }
@@ -116,14 +134,19 @@ function providerScan(scan) {
   };
 }
 
-function mutatingTenantSql(calls) {
-  return calls.flatMap((request) => request.batch || []).map((entry) => String(entry.sql || '')).filter(
-    (sql) => /\b(?:INSERT|UPDATE|DELETE)\b/i.test(sql)
-  );
+function detailQueue() {
+  return { sendBatch: vi.fn(async () => undefined) };
 }
 
-describe('M7D3 incremental scan-to-stage consumer', () => {
-  it('stages a healthy changed observation and records only the affected detail count', async () => {
+function mutatingTenantSql(calls) {
+  return calls
+    .flatMap((request) => request.batch || [])
+    .map((entry) => String(entry.sql || ''))
+    .filter((sql) => /\b(?:INSERT|UPDATE|DELETE)\b/i.test(sql));
+}
+
+describe('M7D4 incremental scan-to-private-detail fanout', () => {
+  it('stages a healthy changed observation and queues only the affected detail', async () => {
     const { db, statements } = controlDb();
     const { queryBatch, calls } = stagedQueryBatch({
       previousRows: [previous('100')],
@@ -135,9 +158,10 @@ describe('M7D3 incremental scan-to-stage consumer', () => {
       items: [item('100', { listingFingerprint: 'fp-new' })],
       stats: {}
     });
+    const queue = detailQueue();
 
     const result = await handleTenantIncrementalScan(
-      { db, context: baseContext, provider, platform },
+      { db, context: baseContext, provider, platform, detailQueue: queue },
       { queryBatch, fetchImpl: vi.fn() }
     );
 
@@ -145,23 +169,65 @@ describe('M7D3 incremental scan-to-stage consumer', () => {
       outcome: 'success',
       stageOutcome: 'proceed',
       stageState: 'details_pending',
-      detailCount: 1
+      detailCount: 1,
+      queued: 1
     });
     expect(provider.scanListingIndex).toHaveBeenCalledTimes(1);
-    expect(statements.some((sql) => sql.includes('discovered_count=?2'))).toBe(true);
+    expect(queue.sendBatch).toHaveBeenCalledTimes(1);
+    expect(queue.sendBatch.mock.calls[0][0][0].body).toMatchObject({
+      type: 'detail',
+      importId: baseContext.importId,
+      tenantId: baseContext.tenantId,
+      sourceKey: baseContext.sourceKey,
+      albumSourceId: '100'
+    });
+    expect(statements.some((sql) => sql.includes('detail_enqueue_cursor=?2'))).toBe(true);
 
     const mutations = mutatingTenantSql(calls);
     expect(mutations.length).toBeGreaterThan(0);
     expect(mutations.every((sql) => /supplier_sync_(?:stage_)?/i.test(sql))).toBe(true);
-    expect(mutations.some((sql) => /supplier_album_index|catalog_|media_sources|product_media/i.test(sql))).toBe(false);
+    expect(mutations.some((sql) => /supplier_album_index|catalog_products|media_sources|product_media/i.test(sql))).toBe(false);
   });
 
-  it('persists an incomplete scan as preserved evidence without staging destructive observations or retrying it', async () => {
+  it('resumes an existing details_pending stage from the saved fanout cursor without scanning again', async () => {
+    const { db } = controlDb();
+    const { queryBatch } = stagedQueryBatch({
+      previousRows: [],
+      stageState: 'details_pending',
+      detailIds: ['101']
+    });
+    const provider = providerScan({ complete: true, taxonomy: [], items: [], stats: {} });
+    const queue = detailQueue();
+    const context = {
+      ...baseContext,
+      importStatus: 'queued',
+      phase: 'scan',
+      discoveredCount: 1,
+      detailEnqueueCursor: 0
+    };
+
+    const result = await handleTenantIncrementalScan(
+      { db, context, provider, platform, detailQueue: queue },
+      { queryBatch, fetchImpl: vi.fn() }
+    );
+
+    expect(result).toMatchObject({
+      outcome: 'success',
+      alreadyStaged: true,
+      detailCount: 1,
+      queued: 1
+    });
+    expect(provider.scanListingIndex).not.toHaveBeenCalled();
+    expect(queue.sendBatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('persists an incomplete scan as preserved evidence without staging destructive observations or detail work', async () => {
     const { db, statements } = controlDb();
     const { queryBatch, calls } = stagedQueryBatch({
       previousRows: [previous('100'), previous('101')],
       stageState: 'preserved',
-      safetyOutcome: 'preserve_last_known_good'
+      safetyOutcome: 'preserve_last_known_good',
+      detailIds: []
     });
     const provider = providerScan({
       complete: false,
@@ -171,7 +237,7 @@ describe('M7D3 incremental scan-to-stage consumer', () => {
     });
 
     const result = await handleTenantIncrementalScan(
-      { db, context: baseContext, provider, platform },
+      { db, context: baseContext, provider, platform, detailQueue: detailQueue() },
       { queryBatch, fetchImpl: vi.fn() }
     );
 
@@ -179,11 +245,15 @@ describe('M7D3 incremental scan-to-stage consumer', () => {
     expect(result.stageOutcome).toBe('preserve_last_known_good');
     expect(result.stageState).toBe('preserved');
     expect(result.detailCount).toBe(0);
-    expect(statements.some((sql) => sql.includes("next_attempt_at=NULL"))).toBe(true);
+    expect(statements.some((sql) => sql.includes('next_attempt_at=NULL'))).toBe(true);
 
     const mutations = mutatingTenantSql(calls);
-    expect(mutations.some((sql) => /supplier_sync_stage_observations/i.test(sql) && /^\s*INSERT/i.test(sql))).toBe(false);
-    expect(mutations.some((sql) => /supplier_album_index|catalog_|media_sources|product_media/i.test(sql))).toBe(false);
+    expect(
+      mutations.some(
+        (sql) => /supplier_sync_stage_observations/i.test(sql) && /^\s*INSERT/i.test(sql)
+      )
+    ).toBe(false);
+    expect(mutations.some((sql) => /supplier_album_index|catalog_products/i.test(sql))).toBe(false);
   });
 
   it('quarantines an implausible catastrophic drop while preserving canonical LKG', async () => {
@@ -193,7 +263,8 @@ describe('M7D3 incremental scan-to-stage consumer', () => {
     const { queryBatch, calls } = stagedQueryBatch({
       previousRows: prior,
       stageState: 'quarantined',
-      safetyOutcome: 'quarantine'
+      safetyOutcome: 'quarantine',
+      detailIds: []
     });
 
     const result = await handleTenantIncrementalScan(
@@ -201,7 +272,8 @@ describe('M7D3 incremental scan-to-stage consumer', () => {
         db,
         context: baseContext,
         provider: providerScan({ complete: true, taxonomy: [], items: observed, stats: {} }),
-        platform
+        platform,
+        detailQueue: detailQueue()
       },
       { queryBatch, fetchImpl: vi.fn() }
     );
@@ -213,7 +285,7 @@ describe('M7D3 incremental scan-to-stage consumer', () => {
       detailCount: 0
     });
     expect(result.reason).toBe('sync_catastrophic_volume_drop');
-    expect(mutatingTenantSql(calls).some((sql) => /supplier_album_index|catalog_/i.test(sql))).toBe(false);
+    expect(mutatingTenantSql(calls).some((sql) => /supplier_album_index|catalog_products/i.test(sql))).toBe(false);
   });
 
   it('acks a duplicate delivery for an unresolved failed safety run without re-reading tenant D1', async () => {
@@ -224,7 +296,8 @@ describe('M7D3 incremental scan-to-stage consumer', () => {
         db,
         context: { ...baseContext, importStatus: 'failed' },
         provider: providerScan({ complete: true, taxonomy: [], items: [], stats: {} }),
-        platform
+        platform,
+        detailQueue: detailQueue()
       },
       { queryBatch }
     );
@@ -234,15 +307,22 @@ describe('M7D3 incremental scan-to-stage consumer', () => {
     expect(queryBatch).not.toHaveBeenCalled();
   });
 
-  it('treats a completed scan-stage phase as idempotently complete', async () => {
+  it('treats a completed detail-fanout phase as idempotently complete', async () => {
     const { db, prepare } = controlDb();
     const queryBatch = vi.fn();
     const result = await handleTenantIncrementalScan(
       {
         db,
-        context: { ...baseContext, importStatus: 'details', phase: 'details' },
+        context: {
+          ...baseContext,
+          importStatus: 'details',
+          phase: 'details',
+          discoveredCount: 1,
+          detailEnqueueCursor: 1
+        },
         provider: providerScan({ complete: true, taxonomy: [], items: [], stats: {} }),
-        platform
+        platform,
+        detailQueue: detailQueue()
       },
       { queryBatch }
     );
@@ -260,7 +340,8 @@ describe('M7D3 incremental scan-to-stage consumer', () => {
         db,
         context: baseContext,
         provider: providerScan({ complete: true, taxonomy: [], items: [], stats: {} }),
-        platform
+        platform,
+        detailQueue: detailQueue()
       },
       { queryBatch }
     );
@@ -278,7 +359,8 @@ describe('M7D3 incremental scan-to-stage consumer', () => {
           db,
           context: { ...baseContext, schemaVersion: 4 },
           provider: providerScan({ complete: true, taxonomy: [], items: [], stats: {} }),
-          platform
+          platform,
+          detailQueue: detailQueue()
         },
         { queryBatch }
       )
@@ -305,7 +387,8 @@ describe('M7D3 incremental scan-to-stage consumer', () => {
             items: [item('100', { listingFingerprint: 'fp-new' })],
             stats: {}
           }),
-          platform
+          platform,
+          detailQueue: detailQueue()
         },
         { queryBatch, fetchImpl: vi.fn() }
       )
@@ -313,8 +396,8 @@ describe('M7D3 incremental scan-to-stage consumer', () => {
   });
 
   it('rejects the initial-import context instead of entering incremental staging', () => {
-    expect(() =>
-      assertIncrementalScanStageContext({ ...baseContext, mode: 'initial' })
-    ).toThrow('tenant_sync_incremental_context_required');
+    expect(() => assertIncrementalScanStageContext({ ...baseContext, mode: 'initial' })).toThrow(
+      'tenant_sync_incremental_context_required'
+    );
   });
 });
