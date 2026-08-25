@@ -25,7 +25,7 @@ function context(tenantId) {
 
 function controlDb() {
   return {
-    prepare: vi.fn((sql) => ({
+    prepare: vi.fn((_sql) => ({
       bind: vi.fn(() => ({
         run: vi.fn(async () => ({ meta: { changes: 1 } }))
       }))
