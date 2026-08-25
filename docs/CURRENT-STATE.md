@@ -1,7 +1,7 @@
 # Catalog Engine — Current State
 
 Status: **Living operational truth**  
-Snapshot: **2026-08-25 after M7D3 production closure**
+Snapshot: **2026-08-25 after M7D4 production closure**
 Purpose: record what is implemented/proven now, separate from durable product contracts and future roadmap work.
 
 ## How to use this document
@@ -15,6 +15,7 @@ This document owns mutable implementation/deployment truth.
 - Root handoffs remain historical context and do not override this living state or focused normative contracts.
 - M6 historical production evidence lives in `docs/M6-CLOSURE-2026-08-21.md`.
 - M7D3 production closure evidence lives in `docs/M7D3-CLOSURE-2026-08-25.md`.
+- M7D4 production closure evidence lives in `docs/M7D4-CLOSURE-2026-08-25.md`.
 
 ## Repository baseline
 
@@ -33,7 +34,7 @@ Milestone state:
 - M4 Provider Engine: **complete**;
 - M5 automatic tenant Queue import: **complete / production-proven**;
 - M6 CEI Core + Sports Knowledge Pack v1: **complete / production-proven**;
-- **M7 Intelligent Sync v2: current execution milestone; safety/scheduling/delta/staging/schema-fleet/candidate-state foundations plus controlled enrollment and live incremental dispatch/scan-to-private-stage through M7D3 are production-proven**.
+- **M7 Intelligent Sync v2: current execution milestone; safety/scheduling/delta/staging/schema-fleet/candidate-state foundations plus controlled enrollment, live incremental dispatch/scan and affected-detail candidate completion through M7D4 are production-proven**.
 
 ## Final M6 production checkpoint
 
@@ -279,9 +280,9 @@ M6D production canaries found two real issues before closure:
 
 The final canary passed after both were corrected. Verification was not weakened to obtain green status.
 
-## M7 state — M7A through M7D3 production-proven
+## M7 state — M7A through M7D4 production-proven
 
-M7 remains the active milestone. Safety, scheduler, provider-neutral listing delta, private listing stage, additive schema fleet, candidate-state schema, controlled enrollment and the live incremental dispatcher-to-private-stage path are now production-proven through M7D3.
+M7 remains the active milestone. Safety, scheduler, provider-neutral listing delta, private listing stage, additive schema fleet, candidate-state schema, controlled enrollment, live incremental dispatcher-to-private-stage and affected-detail candidate completion are now production-proven through M7D4.
 
 Implemented and proven:
 
@@ -293,7 +294,8 @@ Implemented and proven:
 - M7C4 activates schema v5 for fresh tenants and additive maintenance upgrades of already-ready v4 tenants;
 - M7D1 adds private relational candidate detail/media/CEI/merchandising storage in schema v6 without changing canonical authority;
 - M7D2 adds default-disabled controlled tenant/source enrollment, active-cohort gating, per-cycle cap and conflict-safe scheduler selection;
-- M7D3 connects an eligible incremental job through the real dispatcher and Queue to provider scan, safety, provider-neutral delta and private stage, stopping at `details_pending` while canonical LKG/storefront remain unchanged.
+- M7D3 connects an eligible incremental job through the real dispatcher and Queue to provider scan, safety, provider-neutral delta and private stage, stopping at `details_pending` while canonical LKG/storefront remain unchanged;
+- M7D4 reuses the existing detail Queue and Provider Engine to fetch exactly affected candidates, persist complete run-scoped detail/media/evidence privately and reach `details_complete` without changing canonical LKG/storefront authority.
 
 ### M7C4 schema v5 fleet activation — production-proven
 
@@ -478,9 +480,56 @@ Scheduler-owned M7D3 canary:
 
 This closes M7D3 without claiming affected detail, CEI candidate processing, candidate verification, promotion, cursor commit, removal activation or recurring Intelligent Sync. Full evidence is recorded in `M7D3-CLOSURE-2026-08-25.md`.
 
+### M7D4 staged affected detail — production-proven
+
+Final production-proven SHA:
+
+`95d3f3ba76adf5638576b212ccd5c94113e0eaa5`
+
+Final hotfix PR:
+
+`#140 — M7D4: fix tenant-dispatch routing for affected detail`
+
+The first production canary reached a healthy `details_pending` stage with one `CHANGED`/`needs_detail` event but failed before enqueuing affected detail. Read-only retained-fixture diagnosis proved `detail_enqueue_cursor=0`, `queued_detail_count=0` and zero candidate rows. The root cause was that run-scoped data-plane batches did not contain a tenant-shaped SQL parameter, while `TENANT_DISPATCH` previously inferred tenant identity only from batch parameters. The dispatch therefore failed closed with `tenant_data_plane_tenant_unresolved`, surfaced by the scan boundary as `tenant_import_scan_failed`.
+
+The fix allows the shared data-plane query path to receive an explicit tenant identity only from already server-resolved trusted context and rejects any mismatch with tenant identities found in batch parameters before dispatch. M7D4 fan-out and candidate writes carry that exact identity. No direct D1 REST fallback was introduced.
+
+Trusted-main Queue consumer activation:
+
+- run `32839467856` = **SUCCESS** on the exact final SHA;
+- commit status `catalog-engine/queue-consumer-activation` = **success**.
+
+Trusted-main application deploy:
+
+- run `32839467904`, job `97775551172` = **SUCCESS** on the same SHA;
+- quality, build/verify, D1 migrations, Worker/assets, infrastructure binding verification, tenant migration capability preparation, import producer/automation boundaries and existing-catalog smoke all passed.
+
+Scheduler/dispatcher-owned M7D4 canary:
+
+- run `32839544016`, job `97775777786` = **SUCCESS** on the exact deployed SHA;
+- `105` test files / `527` tests passed and ESLint passed in the canary quality gate;
+- `manualQueueMessagesProduced=false`;
+- `recurringSyncEnabled=false`;
+- `tenantImportAutomationEnabled=true`;
+- `dispatcherObserved=true`;
+- `jobStatus=details`;
+- `stageState=details_complete`;
+- `safetyOutcome=proceed`;
+- `observedCount=1`, `stagedObservationCount=1`, `stagedEventCount=1`;
+- `expectedDetailCount=1` and `needsDetailEventCount=1`;
+- `candidateDetailCount=1`, `candidateDetailCompleteCount=1`, `candidateEvidenceCount=1`;
+- `candidateMediaSourceCount=2`, `candidateProductMediaCount=2`;
+- `foreignKeyFindings=0`;
+- canonical LKG remained unchanged;
+- storefront catalog remained unchanged;
+- Queue/DLQ backlogs were clean.
+
+The same final SHA also published `catalog-engine/tenant-import-auto-canary=success` from run `32839544093`, preserving the already-proven automatic initial-import + CEI regression path.
+
+This closes M7D4 only. It does not claim affected-only CEI candidate processing, complete candidate verification, canonical promotion, cursor/schedule commit, repeated-miss removal, recovery/replay closure, change/review feed or recurring Intelligent Sync. Full evidence is recorded in `M7D4-CLOSURE-2026-08-25.md`.
+
 Still not active/proven in production:
 
-- staged affected-detail/media completion for M7D4;
 - affected-only CEI candidate reprocessing;
 - complete candidate verification;
 - verified canonical promotion and cursor advancement;
@@ -489,7 +538,7 @@ Still not active/proven in production:
 - merchant-facing durable change/review feed;
 - recurring Intelligent Sync activation.
 
-The next approved slice is M7D4 staged affected detail. Recurring Intelligent Sync remains disabled; M7D4 must stay private and may not promote canonical/storefront state.
+The next approved slice is M7D5 affected-only CEI candidate processing. Recurring Intelligent Sync remains disabled; M7D5 must remain private candidate work and may not mark the complete candidate verified or promote canonical/storefront authority.
 
 ## Provider Engine state
 
@@ -575,7 +624,7 @@ M0 truth/governance
 → M4 Provider Engine ✅
 → M5 automatic tenant Queue import ✅ production-proven
 → M6 CEI Core + Sports Knowledge Pack v1 ✅ production-proven
-→ M7A–M7D3 safety, delta/staging, schema fleet, candidate-state, enrollment and live scan-to-private-stage ✅ production-proven
+→ M7A–M7D4 safety, delta/staging, schema fleet, candidate-state, enrollment, live scan and affected-detail candidate completion ✅ production-proven
 ```
 
 Current milestone:
@@ -586,11 +635,11 @@ M7's primary safety goal is that supplier outages, partial scans, malformed scan
 
 Immediate next slice:
 
-**M7D4 — Staged Affected Detail**
+**M7D5 — Affected-only CEI Candidate Processing**
 
-M7D4 must fetch and stage detail/media only for events that require it, with bounded/idempotent retry and private candidate writes. It must not run affected-only CEI, mark the whole candidate verified, promote canonical LKG/storefront data, advance cursor/schedule, activate repeated-miss deletion or enable recurring Intelligent Sync.
+M7D5 must run CEI only for candidate products whose affected content requires reprocessing, reuse existing intelligence for MOVED-only/unchanged products, preserve the source-neutral Normalized Evidence + Domain Runtime/Knowledge Pack boundary and reapply durable merchant overrides to the candidate effective view. It must not mark the complete candidate verified, promote canonical LKG/storefront data, advance cursor/schedule, activate repeated-miss deletion or enable recurring Intelligent Sync.
 
-The complete approved M7 slice ledger lives in `DEVELOPMENT-ROADMAP.md`, with detailed contracts in `TENANT-SYNC.md`. M7D3 is **PRODUCTION GREEN**; M7D4 is **PLANNED — NEXT**; M7D5–M7D11 remain planned in order; M7E remains an explicit activation decision.
+The complete approved M7 slice ledger lives in `DEVELOPMENT-ROADMAP.md`, with detailed contracts in `TENANT-SYNC.md`. M7D4 is **PRODUCTION GREEN**; M7D5 is **PLANNED — NEXT**; M7D6–M7D11 remain planned in order; M7E remains an explicit activation decision.
 
 Future macro milestones such as M8 and M9 do not yet have approved A/B subdivisions. Their sub-slices must be proposed and merged through the decomposition protocol immediately before execution; a future contributor may not invent those names or treat a conversational proposal as approved scope.
 
