@@ -123,7 +123,6 @@ await patchAll('tests/tenant-data-plane-command.test.mjs', [
 await patchAll('tests/tenant-data-plane-fleet-preparation.test.mjs', [
   ['migrationCommandVersion: 2', 'migrationCommandVersion: 3'],
   ['migration_command_version: 2', 'migration_command_version: 3'],
-  ['migration_command_version=2', 'migration_command_version=3'],
   ["      '6',\n      '2',\n      '1'", "      '7',\n      '3',\n      '1'"]
 ]);
 
@@ -137,7 +136,6 @@ for (const path of [
   '.github/workflows/validate-tenant-ingestion.yml'
 ]) {
   await patchAll(path, [
-    ["schema_version FROM data_plane_identity", "schema_version FROM data_plane_identity"],
     ["= '6'", "= '7'"],
     ["= '1,2,3,4,5,6'", "= '1,2,3,4,5,6,7'"]
   ]);
