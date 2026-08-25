@@ -4,6 +4,8 @@ import {
   tenantDataPlaneMigrationBatches as tenantDataPlaneV6MigrationBatches
 } from './tenant-data-plane-schema-v6.js';
 
+export { TENANT_SYNC_CANDIDATE_TABLES } from './tenant-data-plane-schema-v6.js';
+
 export const TENANT_DATA_PLANE_SCHEMA_VERSION = 7;
 export const TENANT_SYNC_AUTHORITY_CONTRACT_VERSION = 1;
 
@@ -23,11 +25,19 @@ export const TENANT_DATA_PLANE_V7_STATEMENTS = Object.freeze([
      promoted_at, updated_at)
    SELECT tenant_id, 1, 0, NULL, NULL, NULL, CURRENT_TIMESTAMP
      FROM data_plane_identity`,
-  `ALTER TABLE supplier_sync_stage_runs
-     ADD COLUMN base_authority_revision INTEGER NOT NULL DEFAULT 0
-       CHECK(base_authority_revision >= 0)`,
-  `CREATE INDEX IF NOT EXISTS idx_supplier_sync_stage_runs_authority
-     ON supplier_sync_stage_runs (tenant_id, source_key, base_authority_revision, state)`
+  `CREATE TABLE IF NOT EXISTS supplier_sync_stage_authority (
+    run_id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    source_key TEXT NOT NULL,
+    contract_version INTEGER NOT NULL DEFAULT 1 CHECK(contract_version >= 1),
+    base_authority_revision INTEGER NOT NULL CHECK(base_authority_revision >= 0),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (run_id) REFERENCES supplier_sync_stage_runs(run_id) ON DELETE CASCADE
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_supplier_sync_stage_authority_scope
+     ON supplier_sync_stage_authority
+        (tenant_id, source_key, base_authority_revision)`
 ]);
 
 export const TENANT_DATA_PLANE_CURRENT_STATEMENTS = Object.freeze([
