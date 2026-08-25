@@ -10,6 +10,7 @@ import {
   ingestionPlatformConfig,
   loadTenantImportContext
 } from './context.js';
+import { handleTenantIncrementalScan } from './incremental-scan-consumer.js';
 import { resolveCatalogIngestionProvider } from './providers/index.js';
 
 const INDEX_WRITE_BATCH = 75;
@@ -27,7 +28,7 @@ function chunks(values, size) {
 function safeScanError(error) {
   if (error instanceof TenantImportContextError) return error.code;
   const message = String(error?.code || error?.message || error);
-  if (/^(supplier|tenant_import|catalog_provider)_[a-z0-9_]+$/i.test(message)) {
+  if (/^(supplier|tenant_import|tenant_sync|catalog_provider)_[a-z0-9_]+$/i.test(message)) {
     return message.slice(0, 120);
   }
   return 'tenant_import_scan_failed';
@@ -328,9 +329,19 @@ export async function handleTenantImportScanMessage(
   const db = env.CATALOG_DB;
   let leaseOwned = false;
   try {
-    let context = await loadTenantImportContext(db, message);
+    let context = await loadTenantImportContext(db, message, {
+      allowedModes: ['initial', 'incremental']
+    });
     const provider = resolveCatalogIngestionProvider(context.privateSource.provider);
     const platform = ingestionPlatformConfig(env, context.dataPlane.dispatchNamespace);
+
+    if (context.mode === 'incremental') {
+      return await handleTenantIncrementalScan(
+        { db, context, provider, platform },
+        { fetchImpl }
+      );
+    }
+
     const lease = await claimScanLease(db, context);
     if (lease.complete) return { outcome: 'success', alreadyComplete: true };
     if (!lease.claimed) return { outcome: 'busy' };
