@@ -222,17 +222,25 @@ function tenantIdFromBatch(batch, explicitTenantId = null) {
 }
 
 export async function queryD1Batch(
-  { accountId, apiToken, dispatchNamespace, databaseId, batch, tenantDispatch, tenantId },
+  {
+    accountId,
+    apiToken,
+    dispatchNamespace,
+    databaseId,
+    batch,
+    tenantDispatch,
+    tenantId: explicitTenantId
+  },
   { fetchImpl = fetch } = {}
 ) {
   const normalizedBatch = normalizeD1Batch(batch);
 
   if (tenantDispatch && typeof tenantDispatch.get === 'function') {
-    const resolvedTenantId = tenantIdFromBatch(normalizedBatch, tenantId);
+    const tenantId = tenantIdFromBatch(normalizedBatch, explicitTenantId);
     return queryTenantDataPlaneBatch(
       {
-        tenantId: resolvedTenantId,
-        dataPlane: { workerScriptName: `ce-${resolvedTenantId.slice(2)}` }
+        tenantId,
+        dataPlane: { workerScriptName: `ce-${tenantId.slice(2)}` }
       },
       { TENANT_DISPATCH: tenantDispatch },
       normalizedBatch
