@@ -360,7 +360,7 @@ function sealStageQuery(context, plan) {
                    WHEN ?4=0 THEN ?5
                    WHEN (SELECT COUNT(*) FROM supplier_sync_stage_observations o WHERE o.run_id=?1)=observed_count
                     AND (SELECT COUNT(*) FROM supplier_sync_stage_events e WHERE e.run_id=?1)=expected_event_count
-                    AND (SELECT COUNT(*) FROM supplier_sync_stage_categories c WHERE c.run_id=?1)=?6
+                    AND (SELECT COUNT(*) FROM supplier_sync_stage_categories c WHERE c.run_id=?1)=CAST(?6 AS INTEGER)
                    THEN ?5
                    ELSE 'failed'
                  END,
@@ -368,7 +368,7 @@ function sealStageQuery(context, plan) {
                    WHEN ?4=0 THEN ?7
                    WHEN (SELECT COUNT(*) FROM supplier_sync_stage_observations o WHERE o.run_id=?1)=observed_count
                     AND (SELECT COUNT(*) FROM supplier_sync_stage_events e WHERE e.run_id=?1)=expected_event_count
-                    AND (SELECT COUNT(*) FROM supplier_sync_stage_categories c WHERE c.run_id=?1)=?6
+                    AND (SELECT COUNT(*) FROM supplier_sync_stage_categories c WHERE c.run_id=?1)=CAST(?6 AS INTEGER)
                    THEN NULL
                    ELSE 'sync_stage_count_mismatch'
                  END,
