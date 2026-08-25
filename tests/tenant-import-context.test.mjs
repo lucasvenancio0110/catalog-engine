@@ -49,12 +49,13 @@ describe('tenant import context mode boundary', () => {
   });
 
   it('allows incremental mode only when the caller opts in and ignores onboarding checkpoint state', async () => {
-    const { db } = dbFor(row({ mode: 'incremental', provisioning_step: 'domain' }));
+    const { db } = dbFor(row({ mode: 'incremental', provisioning_step: 'domain', schema_version: 6 }));
     const context = await loadTenantImportContext(db, message, {
       allowedModes: ['initial', 'incremental']
     });
 
     expect(context.mode).toBe('incremental');
+    expect(context.schemaVersion).toBe(6);
     expect(context.provisioningId).toBeNull();
     expect(context.privateSource).toMatchObject({
       provider: 'yupoo',
@@ -79,6 +80,7 @@ describe('tenant import context mode boundary', () => {
     const { db } = dbFor(row());
     const context = await loadTenantImportContext(db, message);
     expect(context.mode).toBe('initial');
+    expect(context.schemaVersion).toBe(4);
     expect(context.provisioningId).toBe('p_example');
   });
 

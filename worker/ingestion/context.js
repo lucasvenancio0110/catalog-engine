@@ -72,7 +72,8 @@ export async function loadTenantImportContext(
   if (row.database_status !== 'active' || row.worker_status !== 'active') {
     throw new TenantImportContextError('tenant_data_plane_not_ready');
   }
-  if (Number(row.schema_version || 0) < 3) {
+  const schemaVersion = Number(row.schema_version || 0);
+  if (schemaVersion < 3) {
     throw new TenantImportContextError('tenant_schema_not_ready');
   }
   if (mode === 'initial' && row.provisioning_step && row.provisioning_step !== 'import') {
@@ -93,6 +94,7 @@ export async function loadTenantImportContext(
     mode,
     importStatus: row.import_status,
     phase: row.phase,
+    schemaVersion,
     detailEnqueueCursor: Number(row.detail_enqueue_cursor || 0),
     discoveredCount: Number(row.discovered_count || 0),
     privateSource: {
