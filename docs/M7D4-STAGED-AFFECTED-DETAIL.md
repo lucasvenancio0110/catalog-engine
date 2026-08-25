@@ -1,6 +1,7 @@
 # M7D4 — Staged Affected Detail
 
 Status: **Normative implementation detail under `TENANT-SYNC.md`**  
+Production state: **PRODUCTION GREEN — 2026-08-25**  
 Scope: affected-detail fan-out, private candidate detail/media persistence and bounded retry before CEI candidate processing.
 
 ## Bounded outcome
@@ -136,3 +137,25 @@ The trusted-main proof must demonstrate, on the exact deployed/activated SHA:
 8. recurring Intelligent Sync remains disabled.
 
 Only after that evidence may the roadmap/current state call M7D4 **PRODUCTION GREEN** and advance M7D5.
+
+## Production closure — 2026-08-25
+
+The required proof is complete on final trusted-main SHA:
+
+`95d3f3ba76adf5638576b212ccd5c94113e0eaa5`
+
+Evidence:
+
+- Queue consumer activation run `32839467856` = **SUCCESS**;
+- application deploy run `32839467904` = **SUCCESS**;
+- scheduler/dispatcher-owned affected-detail canary run `32839544016`, job `97775777786` = **SUCCESS**;
+- canary reached `details_complete` with one complete candidate detail/evidence record and two candidate media relationships;
+- foreign-key findings were `0`;
+- no manual Queue message was produced;
+- canonical LKG and storefront remained unchanged;
+- Queue/DLQ backlogs returned clean;
+- recurring Intelligent Sync remained disabled.
+
+The retained failure, root cause and exact closure evidence are recorded in `M7D4-CLOSURE-2026-08-25.md`.
+
+**M7D4 is PRODUCTION GREEN. M7D5 is the next approved slice.**
