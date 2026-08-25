@@ -14,6 +14,8 @@ const RESOURCE_NAME_PATTERN = /^[a-z0-9][a-z0-9_-]{1,62}$/i;
 const DATABASE_ID_PATTERN = /^[a-f0-9-]{32,40}$/i;
 const TENANT_ID_PATTERN = /^t_[a-f0-9]{20}$/;
 const REQUEST_TIMEOUT_MS = 20_000;
+const FOREIGN_KEY_CHECK_PRAGMA_PATTERN = /^PRAGMA\s+foreign_key_check$/i;
+const FOREIGN_KEY_CHECK_SELECT = 'SELECT * FROM pragma_foreign_key_check';
 
 export class CloudflarePlatformError extends Error {
   constructor(code, status = 502) {
@@ -185,7 +187,10 @@ function normalizeD1Batch(batch) {
     throw new CloudflarePlatformError('invalid_tenant_d1_batch', 500);
   }
   return batch.map((query) => {
-    const sql = String(query?.sql || '').trim();
+    const requestedSql = String(query?.sql || '').trim();
+    const sql = FOREIGN_KEY_CHECK_PRAGMA_PATTERN.test(requestedSql)
+      ? FOREIGN_KEY_CHECK_SELECT
+      : requestedSql;
     if (!sql || sql.length > 100_000) {
       throw new CloudflarePlatformError('invalid_tenant_d1_query', 500);
     }
