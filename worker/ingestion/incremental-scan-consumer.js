@@ -99,7 +99,8 @@ async function executeStageWritePlan(context, platform, writePlan, { queryBatch,
 }
 
 async function markIncrementalStageReady(db, context, result) {
-  await db
+  const detailCount = boundedCount(result.detailIds?.length);
+  const update = await db
     .prepare(
       `UPDATE tenant_import_jobs
           SET status='details', phase='details',
@@ -115,40 +116,37 @@ async function markIncrementalStageReady(db, context, result) {
               last_error_code=NULL,
               updated_at=CURRENT_TIMESTAMP
         WHERE import_id=?1 AND tenant_id=?3 AND source_key=?4
-          AND mode='incremental' AND phase='scan'`
+          AND mode='incremental' AND phase='scan' AND status='scanning'`
     )
-    .bind(
-      context.importId,
-      boundedCount(result.counts?.scannedAlbums),
-      context.tenantId,
-      context.sourceKey
-    )
+    .bind(context.importId, detailCount, context.tenantId, context.sourceKey)
     .run();
+  if (Number(update.meta?.changes || 0) !== 1) {
+    throw new Error('tenant_sync_job_state_conflict');
+  }
 }
 
 async function markIncrementalStageBlocked(db, context, result) {
   const safeCode = safeIncrementalReason(result.reason || result.decision?.reasons?.[0]);
-  await db
+  const update = await db
     .prepare(
       `UPDATE tenant_import_jobs
           SET status='failed', phase='scan',
-              discovered_count=?2,
+              discovered_count=0,
+              detail_enqueue_cursor=0,
+              queued_detail_count=0,
               scan_completed_at=CURRENT_TIMESTAMP,
               scan_lease_until=NULL,
               next_attempt_at=NULL,
-              last_error_code=?3,
+              last_error_code=?2,
               updated_at=CURRENT_TIMESTAMP
-        WHERE import_id=?1 AND tenant_id=?4 AND source_key=?5
-          AND mode='incremental' AND phase='scan'`
+        WHERE import_id=?1 AND tenant_id=?3 AND source_key=?4
+          AND mode='incremental' AND phase='scan' AND status='scanning'`
     )
-    .bind(
-      context.importId,
-      boundedCount(result.counts?.scannedAlbums),
-      safeCode,
-      context.tenantId,
-      context.sourceKey
-    )
+    .bind(context.importId, safeCode, context.tenantId, context.sourceKey)
     .run();
+  if (Number(update.meta?.changes || 0) !== 1) {
+    throw new Error('tenant_sync_job_state_conflict');
+  }
   return safeCode;
 }
 
