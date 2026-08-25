@@ -36,8 +36,7 @@ export function assertIncrementalScanStageContext(context) {
 async function claimIncrementalScanLease(db, context) {
   if (
     context.phase === 'details' &&
-    context.discoveredCount > 0 &&
-    context.detailEnqueueCursor >= context.discoveredCount
+    boundedCount(context.detailEnqueueCursor) >= boundedCount(context.discoveredCount)
   ) {
     return { claimed: false, complete: true };
   }
@@ -333,7 +332,7 @@ export async function handleTenantIncrementalScan(
       if (
         existing &&
         existing.safety_outcome === 'proceed' &&
-        existing.state === 'details_pending' &&
+        ['details_pending', 'details_complete'].includes(String(existing.state || '')) &&
         boundedCount(existing.expected_detail_count) === boundedCount(context.discoveredCount)
       ) {
         if (context.phase === 'scan') {
@@ -369,7 +368,7 @@ export async function handleTenantIncrementalScan(
           return {
             outcome: 'success',
             alreadyStaged: true,
-            stageState: 'details_pending',
+            stageState: String(existing.state || 'details_pending'),
             detailCount: boundedCount(context.discoveredCount),
             queued
           };
