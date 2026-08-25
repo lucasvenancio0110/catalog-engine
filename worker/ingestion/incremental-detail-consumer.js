@@ -470,7 +470,10 @@ export async function handleTenantIncrementalDetailMessage(
     if (context.schemaVersion < 6) return { outcome: 'failed', error: 'tenant_schema_not_ready' };
     if (context.phase !== 'details') return { outcome: 'busy', delaySeconds: 60 };
     const provider = resolveCatalogIngestionProvider(context.privateSource.provider);
-    const platform = ingestionPlatformConfig(env, context.dataPlane.dispatchNamespace);
+    const platform = {
+      ...ingestionPlatformConfig(env, context.dataPlane.dispatchNamespace),
+      tenantId: context.tenantId
+    };
     const evidence = await loadStagedEvidence(
       context,
       platform,
