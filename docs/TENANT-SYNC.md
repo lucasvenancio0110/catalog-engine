@@ -553,12 +553,60 @@ Only zero blocking findings may transition a stage to `verified`. Repeated verif
 
 Commercial outcome: shoppers see the old verified catalog or the new verified catalog, never a half-updated mixture.
 
-Before implementation, measured D1 evidence and an explicit architecture decision must select one authority boundary:
+Architecture decision: **ACCEPTED — bounded set-based D1 transaction**. Real Cloudflare D1 evidence and the complete decision record live in `M7D7-PROMOTION-AUTHORITY-DECISION-2026-08-25.md`. The generation/version + active-pointer alternative is rejected for V1 at the measured launch envelope.
 
-- a proven bounded set-based transaction; or
-- versioned/generation state with one atomic active-authority pointer switch.
+The serving-authority switch is the commit of one D1 batch transaction:
 
-Chunked canonical writes without an authority flip are prohibited. The chosen contract must cover verified-only entry, competing leases, crash before/after switch, concurrent-reader consistency, previous-LKG recovery, large-catalog limits and tenant/source isolation. A schema change, if required, must be additive and fleet-proven while inactive.
+```text
+verified private candidate
+→ promotion-envelope + stale-base admission
+→ one D1 transaction
+   verified -> promoting
+   + all canonical set-based mutations
+   + promoting -> promoted
+→ transaction commit = authority switch
+```
+
+Required contract:
+
+- only an exact candidate in `verified` with `sync_candidate_verified_v1`, `verified_at`, safety `proceed` and zero blocking findings may enter;
+- candidate verification must be immutable for the promotion attempt;
+- the canonical LKG/source authority must still match the base from which the candidate was planned; a stale verified candidate fails closed;
+- the first statement CASes that exact stage `verified -> promoting` and every canonical mutation is SQL-gated by the same exact tenant/source/run ownership;
+- **all** canonical product, taxonomy, membership, media, CEI/intelligence, merchandising, source-index and same-boundary run-ledger mutations required for serving consistency occur in that same D1 transaction;
+- the final in-transaction stage transition is `promoting -> promoted`;
+- no independent canonical chunk may become serving truth before commit;
+- any statement error rolls the whole transaction back so the prior LKG remains authoritative;
+- replay after a successful commit recognizes the same run as already `promoted` and does not repeat the switch;
+- competing verified candidates cannot both promote from the same base authority;
+- cross-tenant/source/run mismatch fails closed;
+- no browser/client-selected identity can choose promotion authority.
+
+Measured V1 admission envelope:
+
+```text
+composed products <= 20,000
+candidate/public media relationships <= 40,000
+batch statements <= 100
+SQL statement <= 100 KB
+bound params/query <= 100
+```
+
+This is an architecture safety envelope, not a commercial-plan limit. Above-envelope work fails closed before canonical mutation with a stable private operational code and remains on prior LKG until the envelope is deliberately re-measured/versioned. The implementation must use set-based joins rather than per-product bound parameters and must prove the real production-shaped relationship workload stays safely inside the measured D1 boundary.
+
+Trusted-main D1 evidence run `32873067956` / job `97884460496` on SHA `581d73f27aa457be0b71685a38500bc3ff70615f` modeled 20,000 products, 40,000 media relationships and about 140,000 canonical row changes. The single transaction completed in 1,374.0 ms wall / 436.537 ms internal SQL, rolled back completely under a forced middle-statement failure, and five concurrent readers observed only the complete post-commit revision after queueing behind the write. The ephemeral probe D1 was deleted and production catalog mutation remained false.
+
+The generation-pointer alternative measured a 0.235 ms internal pointer update, but requires full generation materialization, generation-scoped serving queries, storage/write amplification and a larger fleet/schema migration. It is therefore not selected for V1. Reconsideration requires a new versioned decision if the measured catalog envelope grows materially, the set-based transaction approaches D1 limits, reader queueing violates storefront SLOs or historical generations become an independent requirement.
+
+Crash contract:
+
+- before batch invocation: stage remains verified, old LKG serves;
+- during batch or statement failure: transaction rollback, old LKG serves, no partial promotion;
+- after commit but before caller acknowledgement: stage is durably promoted and new canonical state serves; replay recognizes the promoted run;
+- cursor/schedule/control-plane commit remains **M7D8**, strictly after durable promotion;
+- promoted/failed evidence is retained for recovery; automatic recovery/replay closure remains **M7D10**.
+
+M7D7 implementation remains a separate claim. The accepted architecture does not itself make M7D7 Production Green. The implementation must add production-shaped regression/canary proof for verified-only entry, stale-base/competing-run CAS, rollback, old-or-new reader consistency, over-envelope rejection, idempotent replay, tenant isolation, privacy and unchanged cursor/removal/activation state.
 
 ### M7D8 — Verified Promotion and Cursor Commit
 

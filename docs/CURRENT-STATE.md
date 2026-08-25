@@ -1,7 +1,7 @@
 # Catalog Engine — Current State
 
 Status: **Living operational truth**  
-Snapshot: **2026-08-25 after M7D6 production closure**
+Snapshot: **2026-08-25 after M7D7 promotion-authority architecture decision**
 Purpose: record what is implemented/proven now, separate from durable product contracts and future roadmap work.
 
 ## How to use this document
@@ -643,6 +643,39 @@ catalog-engine/tenant-incremental-candidate-verification-canary
 
 This closes M7D6 only. The candidate is verified privately but canonical/storefront authority has not switched. No promotion, cursor/schedule commit, removal or recurring-sync activation occurred. Full evidence is recorded in `M7D6-CLOSURE-2026-08-25.md`.
 
+### M7D7 promotion-authority architecture decision — accepted / implementation pending
+
+The mandatory pre-implementation M7D7 architecture gate is complete. Catalog Engine V1 selects **one bounded set-based D1 transaction** as the canonical serving-authority primitive and rejects generation/version + active-pointer storage for V1 at the measured launch envelope.
+
+Real Cloudflare D1 evidence was produced only on isolated ephemeral databases:
+
+- evidence PR `#147`, integrated SHA `49fb1550b0d922bc9ad4a60a22be235afb02c545`, trusted run `32872632343` / job `97883057258` = **SUCCESS**;
+- corrected evidence PR `#148`, integrated SHA `581d73f27aa457be0b71685a38500bc3ff70615f`, trusted run `32873067956` / job `97884460496` = **SUCCESS**;
+- 108 test files / 535 tests, ESLint and dependency policy passed;
+- probe target: 20,000 products + 40,000 media relationships;
+- modeled canonical row changes: approximately 140,000;
+- set-based authority transaction: `1,374.0 ms` wall / `436.537 ms` internal SQL;
+- forced middle-statement failure rolled the D1 batch back completely;
+- five concurrent readers observed only the complete new revision after queueing behind the write; no mixed state was observed;
+- generation pointer comparison: `0.235 ms` internal SQL for the pointer update after pre-materialization;
+- no real tenant/default catalog mutation, no Queue message, recurring sync remained disabled and ephemeral D1 cleanup succeeded.
+
+The selected authority flow is:
+
+```text
+verified candidate
+→ fail-closed envelope + stale-base admission
+→ ONE D1 batch transaction
+   verified -> promoting
+   + all canonical serving mutations
+   + promoting -> promoted
+→ commit is the authority switch
+```
+
+The measured V1 admission envelope is 20,000 composed products / 40,000 media relationships plus existing transport limits (100 batch statements, 100 KB SQL statement, 100 params/query). Above-envelope promotion must fail before canonical mutation; it may never fall back to chunked canonical writes.
+
+This decision does **not** mean M7D7 is implemented or Production Green. The next approved work is the bounded M7D7 primitive itself, with production-shaped proof of stale-base CAS, competing-run exclusion, transaction rollback, idempotent replay, old-or-new readers, over-envelope failure, privacy/isolation and no cursor/removal/activation changes. Full rationale and revisit conditions are in `M7D7-PROMOTION-AUTHORITY-DECISION-2026-08-25.md`.
+
 Still not active/proven in production:
 
 - verified canonical promotion and cursor advancement;
@@ -748,11 +781,11 @@ M7's primary safety goal is that supplier outages, partial scans, malformed scan
 
 Immediate next execution boundary:
 
-**M7D7 — Promotion Authority Primitive architecture decision**
+**M7D7 — Promotion Authority Primitive implementation**
 
-M7D7 implementation must not begin until measured D1 evidence and an explicit architecture decision select one atomic authority boundary: either a proven bounded set-based transaction or versioned/generation state with one atomic active-authority pointer switch. Chunked canonical writes without an authority flip are prohibited. The decision must cover verified-only entry, competing leases, crashes before/after the authority switch, concurrent-reader consistency, previous-LKG recovery, large-catalog limits and tenant/source isolation.
+The architecture decision is complete: V1 uses one bounded set-based D1 transaction whose commit is the serving-authority switch. M7D7 implementation must now encode verified-only/stale-base CAS, the complete production-shaped canonical mutation in one batch, idempotent promoted replay, over-envelope fail-closed admission and exact rollback/reader-isolation proof. It must not commit cursor/schedule authority, activate removal or enable recurring Intelligent Sync.
 
-The complete approved M7 slice ledger lives in `DEVELOPMENT-ROADMAP.md`, with detailed contracts in `TENANT-SYNC.md`. M7D6 is **PRODUCTION GREEN**; M7D7 is **PLANNED — architecture decision required before implementation**; M7D8–M7D11 remain planned in order; M7E remains an explicit activation decision. Recurring Intelligent Sync stays disabled.
+The complete approved M7 slice ledger lives in `DEVELOPMENT-ROADMAP.md`, with detailed contracts in `TENANT-SYNC.md`. M7D6 is **PRODUCTION GREEN**; M7D7 is **PLANNED — architecture decision complete / implementation next**; M7D8–M7D11 remain planned in order; M7E remains an explicit activation decision. Recurring Intelligent Sync stays disabled.
 
 Future macro milestones such as M8 and M9 do not yet have approved A/B subdivisions. Their sub-slices must be proposed and merged through the decomposition protocol immediately before execution; a future contributor may not invent those names or treat a conversational proposal as approved scope.
 
