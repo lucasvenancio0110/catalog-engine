@@ -21,6 +21,7 @@ const DISPATCH_NAMESPACE = String(
 const DEFAULT_TENANT_ID = 't_00000000000000000001';
 const DEFAULT_SOURCE_KEY = 'primary';
 const SOURCE_KEY = 'm7d4-canary';
+const MERCHANT_OVERRIDE_NAME = 'M7D5 Merchant Override';
 const POLL_MS = 5_000;
 const DISPATCH_TIMEOUT_MS = 12 * 60_000;
 const QUEUE_DRAIN_TIMEOUT_MS = 3 * 60_000;
@@ -32,27 +33,27 @@ const QUEUE_NAMES = [
   'catalog-engine-import-detail-dlq'
 ];
 
-if (!/^[a-f0-9]{32}$/i.test(ACCOUNT_ID)) throw new Error('m7d4_canary_account_unconfigured');
-if (API_TOKEN.length < 20) throw new Error('m7d4_canary_token_unconfigured');
+if (!/^[a-f0-9]{32}$/i.test(ACCOUNT_ID)) throw new Error('m7d5_canary_account_unconfigured');
+if (API_TOKEN.length < 20) throw new Error('m7d5_canary_token_unconfigured');
 
 const wrangler = JSON.parse(await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8'));
 const CONTROL_DB_ID = String(
   wrangler.d1_databases?.find((entry) => entry.binding === 'CATALOG_DB')?.database_id || ''
 ).trim();
 if (!/^[a-f0-9-]{32,40}$/i.test(CONTROL_DB_ID)) {
-  throw new Error('m7d4_canary_control_database_invalid');
+  throw new Error('m7d5_canary_control_database_invalid');
 }
 if (String(wrangler.vars?.TENANT_IMPORT_AUTOMATION_ENABLED || '') !== '1') {
-  throw new Error('m7d4_canary_import_automation_must_remain_on');
+  throw new Error('m7d5_canary_import_automation_must_remain_on');
 }
 if (String(wrangler.vars?.TENANT_SYNC_AUTOMATION_ENABLED || '') !== '0') {
-  throw new Error('m7d4_canary_recurring_sync_must_remain_off');
+  throw new Error('m7d5_canary_recurring_sync_must_remain_off');
 }
 if (String(wrangler.vars?.TENANT_SYNC_ACTIVE_COHORT || '') !== '') {
-  throw new Error('m7d4_canary_active_cohort_must_remain_empty');
+  throw new Error('m7d5_canary_active_cohort_must_remain_empty');
 }
 if (String(wrangler.vars?.TENANT_SYNC_MAX_JOBS_PER_TICK || '') !== '1') {
-  throw new Error('m7d4_canary_sync_cap_must_remain_one');
+  throw new Error('m7d5_canary_sync_cap_must_remain_one');
 }
 
 let activeFixture = null;
@@ -78,14 +79,14 @@ async function cloudflareRequest(path, { method = 'GET', allowNotFound = false }
       headers: { authorization: `Bearer ${API_TOKEN}`, accept: 'application/json' }
     });
   } catch {
-    throw new Error('m7d4_canary_cloudflare_unreachable');
+    throw new Error('m7d5_canary_cloudflare_unreachable');
   }
   if (allowNotFound && response.status === 404) return null;
   const payload = await response.json().catch(() => null);
   if (!response.ok || payload?.success !== true) {
     const providerCode = Number(payload?.errors?.[0]?.code);
     const code = Number.isFinite(providerCode) ? String(providerCode) : String(response.status || 'unknown');
-    throw new Error(`m7d4_canary_cloudflare_${code}`);
+    throw new Error(`m7d5_canary_cloudflare_${code}`);
   }
   return payload.result ?? null;
 }
@@ -100,12 +101,12 @@ async function tenantBatch(databaseId, batch) {
 
 function fixtureIdentity() {
   const seed = `${process.env.GITHUB_RUN_ID || Date.now()}:${process.env.GITHUB_RUN_ATTEMPT || '1'}`;
-  const suffix = createHash('sha256').update(`m7d4-canary:${seed}`).digest('hex').slice(0, 20);
+  const suffix = createHash('sha256').update(`m7d5-canary:${seed}`).digest('hex').slice(0, 20);
   return {
     tenantId: `t_${suffix}`,
     workerScriptName: `ce-${suffix}`,
-    databaseName: `cem7d4-${suffix}`,
-    dataPlaneKey: `m7d4-${suffix}`
+    databaseName: `cem7d5-${suffix}`,
+    dataPlaneKey: `m7d5-${suffix}`
   };
 }
 
@@ -118,7 +119,7 @@ async function loadQueues() {
     const id = String(row?.queue_id || row?.id || '').trim();
     if (name && id) queues.set(name, id);
   }
-  for (const name of QUEUE_NAMES) if (!queues.has(name)) throw new Error('m7d4_canary_queue_missing');
+  for (const name of QUEUE_NAMES) if (!queues.has(name)) throw new Error('m7d5_canary_queue_missing');
   return queues;
 }
 
@@ -147,7 +148,7 @@ async function waitQueuesClean(queues) {
     if (queuesClean(values)) return values;
     await sleep(POLL_MS);
   }
-  throw new Error('m7d4_canary_queue_did_not_drain');
+  throw new Error('m7d5_canary_queue_did_not_drain');
 }
 
 async function discoverSmallScope() {
@@ -173,10 +174,10 @@ async function discoverSmallScope() {
   try {
     root = new URL(String(result[0]?.results?.[0]?.source_url || '').trim());
   } catch {
-    throw new Error('m7d4_canary_private_source_unavailable');
+    throw new Error('m7d5_canary_private_source_unavailable');
   }
   if (root.protocol !== 'https:' || !/\.x\.yupoo\.com$/i.test(root.hostname)) {
-    throw new Error('m7d4_canary_private_source_invalid');
+    throw new Error('m7d5_canary_private_source_invalid');
   }
   for (const row of result[1]?.results || []) {
     const categoryId = String(row.source_category_id || '').trim();
@@ -208,7 +209,7 @@ async function discoverSmallScope() {
       // Try another bounded category scope.
     }
   }
-  throw new Error('m7d4_canary_small_source_scope_not_found');
+  throw new Error('m7d5_canary_small_source_scope_not_found');
 }
 
 function lkgInsert(item, tenantId, sourceKey, forceChanged) {
@@ -240,6 +241,26 @@ function lkgInsert(item, tenantId, sourceKey, forceChanged) {
   };
 }
 
+function canonicalSeedStatements(item) {
+  return [
+    {
+      sql: `INSERT INTO catalog_products
+              (product_id,name,search_text,category_id,category_name,description,
+               source_name,display_name,source_category_name,display_category_name,
+               classification_status,classification_confidence)
+            VALUES (?1,'M7D5 Last Known Good','m7d5 last known good','legacy','Legacy','healthy',
+                    'M7D5 Last Known Good','M7D5 Last Known Good','Legacy','Legacy','automatic',0.99)`,
+      params: [item.publicProductId]
+    },
+    {
+      sql: `INSERT INTO catalog_product_classification_overrides
+              (product_id,override_json,override_version,updated_at)
+            VALUES (?1,?2,7,'2026-08-25 10:00:00')`,
+      params: [item.publicProductId, JSON.stringify({ displayName: MERCHANT_OVERRIDE_NAME })]
+    }
+  ];
+}
+
 async function canonicalSnapshot(fixture) {
   const result = await tenantBatch(fixture.databaseId, [
     {
@@ -251,12 +272,28 @@ async function canonicalSnapshot(fixture) {
              ORDER BY album_source_id ASC`,
       params: [fixture.tenantId, SOURCE_KEY]
     },
-    { sql: 'SELECT COUNT(*) AS total FROM catalog_products', params: [] }
+    {
+      sql: `SELECT product_id,name,search_text,category_id,category_name,description,
+                   source_name,display_name,source_category_name,display_category_name,
+                   team_id,league_id,classification_status,classification_confidence
+              FROM catalog_products ORDER BY product_id ASC`,
+      params: []
+    },
+    {
+      sql: `SELECT product_id,override_json,override_version,updated_at
+              FROM catalog_product_classification_overrides ORDER BY product_id ASC`,
+      params: []
+    },
+    { sql: 'SELECT COUNT(*) AS total FROM catalog_product_intelligence_state', params: [] }
   ]);
   return {
     lkgHash: createHash('sha256').update(JSON.stringify(result[0]?.results || [])).digest('hex'),
     lkgCount: (result[0]?.results || []).length,
-    catalogCount: Number(result[1]?.results?.[0]?.total || 0)
+    catalogHash: createHash('sha256').update(JSON.stringify(result[1]?.results || [])).digest('hex'),
+    catalogCount: (result[1]?.results || []).length,
+    overrideHash: createHash('sha256').update(JSON.stringify(result[2]?.results || [])).digest('hex'),
+    overrideCount: (result[2]?.results || []).length,
+    canonicalIntelligenceCount: Number(result[3]?.results?.[0]?.total || 0)
   };
 }
 
@@ -289,6 +326,7 @@ async function setupFixture(scope) {
     fixture.databaseId,
     scope.scan.items.map((item, index) => lkgInsert(item, fixture.tenantId, SOURCE_KEY, index === 0))
   );
+  await tenantBatch(fixture.databaseId, canonicalSeedStatements(scope.scan.items[0]));
   const worker = await uploadTenantCatalogWorker({
     ...platformConfig(),
     scriptName: fixture.workerScriptName,
@@ -306,8 +344,8 @@ async function setupFixture(scope) {
     {
       sql: `INSERT INTO catalog_tenants
               (tenant_id, slug, display_name, status, created_at, updated_at)
-            VALUES (?1, ?2, 'M7D4 Canary', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-      params: [fixture.tenantId, `m7d4-${fixture.tenantId.slice(2)}`]
+            VALUES (?1, ?2, 'M7D5 Canary', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      params: [fixture.tenantId, `m7d5-${fixture.tenantId.slice(2)}`]
     },
     {
       sql: `INSERT INTO tenant_catalog_instances
@@ -337,7 +375,7 @@ async function setupFixture(scope) {
         fixture.workerScriptName,
         fixture.databaseName,
         fixture.databaseId,
-        worker.versionId || 'm7d4-canary'
+        worker.versionId || 'm7d5-canary'
       ]
     },
     {
@@ -382,7 +420,8 @@ async function stageState(fixture) {
                    SUM(CASE WHEN detail_state='complete' THEN 1 ELSE 0 END) AS complete_count,
                    SUM(CASE WHEN detail_state='failed' THEN 1 ELSE 0 END) AS failed_count,
                    SUM(CASE WHEN normalized_evidence_json IS NOT NULL THEN 1 ELSE 0 END) AS evidence_count,
-                   SUM(CASE WHEN primary_media_id IS NOT NULL THEN 1 ELSE 0 END) AS primary_media_count
+                   SUM(CASE WHEN primary_media_id IS NOT NULL THEN 1 ELSE 0 END) AS primary_media_count,
+                   MAX(display_name) AS effective_display_name
               FROM supplier_sync_stage_product_details
              WHERE run_id=?1`,
       params: [fixture.importId]
@@ -405,10 +444,34 @@ async function stageState(fixture) {
              WHERE run_id=?1 AND needs_detail=1`,
       params: [fixture.importId]
     },
+    {
+      sql: `SELECT COUNT(*) AS total,
+                   SUM(CASE WHEN override_applied=1 THEN 1 ELSE 0 END) AS override_count,
+                   MAX(merchant_override_version) AS override_version,
+                   MAX(classifier_version) AS classifier_version,
+                   MAX(classifier_key) AS classifier_key
+              FROM supplier_sync_stage_classification_state
+             WHERE run_id=?1`,
+      params: [fixture.importId]
+    },
+    {
+      sql: `SELECT COUNT(*) AS total,
+                   SUM(CASE WHEN override_applied=1 THEN 1 ELSE 0 END) AS override_count,
+                   MAX(classifier_version) AS classifier_version,
+                   MAX(classifier_key) AS classifier_key,
+                   MAX(knowledge_pack_key) AS knowledge_pack_key,
+                   MAX(knowledge_pack_version) AS knowledge_pack_version,
+                   MAX(domain_id) AS domain_id
+              FROM supplier_sync_stage_intelligence_state
+             WHERE run_id=?1`,
+      params: [fixture.importId]
+    },
     { sql: 'PRAGMA foreign_key_check', params: [] }
   ]);
   const run = result[0]?.results?.[0] || null;
   const details = result[1]?.results?.[0] || {};
+  const classification = result[5]?.results?.[0] || {};
+  const intelligence = result[6]?.results?.[0] || {};
   return {
     ...run,
     candidateDetailCount: Number(details.total || 0),
@@ -416,34 +479,48 @@ async function stageState(fixture) {
     candidateDetailFailedCount: Number(details.failed_count || 0),
     candidateEvidenceCount: Number(details.evidence_count || 0),
     candidatePrimaryMediaCount: Number(details.primary_media_count || 0),
+    effectiveDisplayName: String(details.effective_display_name || ''),
     candidateProductMediaCount: Number(result[2]?.results?.[0]?.total || 0),
     candidateMediaSourceCount: Number(result[3]?.results?.[0]?.total || 0),
     needsDetailEventCount: Number(result[4]?.results?.[0]?.total || 0),
-    foreignKeyFindings: (result[5]?.results || []).length
+    candidateClassificationCount: Number(classification.total || 0),
+    candidateClassificationOverrideCount: Number(classification.override_count || 0),
+    candidateOverrideVersion: Number(classification.override_version || 0),
+    candidateClassifierVersion: Number(classification.classifier_version || 0),
+    candidateClassifierKey: String(classification.classifier_key || ''),
+    candidateIntelligenceCount: Number(intelligence.total || 0),
+    candidateIntelligenceOverrideCount: Number(intelligence.override_count || 0),
+    candidateKnowledgePackKey: String(intelligence.knowledge_pack_key || ''),
+    candidateKnowledgePackVersion: Number(intelligence.knowledge_pack_version || 0),
+    candidateDomainId: String(intelligence.domain_id || ''),
+    foreignKeyFindings: (result[7]?.results || []).length
   };
 }
 
-async function waitForStage(fixture) {
+async function waitForStageAndCei(fixture) {
   const started = Date.now();
   while (Date.now() - started < DISPATCH_TIMEOUT_MS) {
     const job = await controlState(fixture);
-    if (!job) throw new Error('m7d4_canary_job_missing');
+    if (!job) throw new Error('m7d5_canary_job_missing');
     if (job.status === 'failed') {
-      const safe = String(job.last_error_code || 'm7d4_canary_job_failed');
-      throw new Error(/^[a-z0-9_]+$/i.test(safe) ? safe : 'm7d4_canary_job_failed');
+      const safe = String(job.last_error_code || 'm7d5_canary_job_failed');
+      throw new Error(/^[a-z0-9_]+$/i.test(safe) ? safe : 'm7d5_canary_job_failed');
     }
     const stage = await stageState(fixture);
+    const expected = Number(stage?.expected_detail_count || 0);
     if (
       job.status === 'details' &&
       job.phase === 'details' &&
       stage?.state === 'details_complete' &&
-      Number(job.completed_detail_count || 0) === Number(stage.expected_detail_count || 0)
+      Number(job.completed_detail_count || 0) === expected &&
+      stage.candidateClassificationCount === expected &&
+      stage.candidateIntelligenceCount === expected
     ) {
       return { job, stage };
     }
     await sleep(POLL_MS);
   }
-  throw new Error('m7d4_canary_dispatch_timeout');
+  throw new Error('m7d5_canary_dispatch_timeout');
 }
 
 async function deleteWorker(scriptName) {
@@ -484,39 +561,73 @@ async function cleanupFixture(fixture) {
 }
 
 const queues = await loadQueues();
-if (!queuesClean(await queueBacklogs(queues))) throw new Error('m7d4_canary_queue_not_empty_at_start');
+if (!queuesClean(await queueBacklogs(queues))) throw new Error('m7d5_canary_queue_not_empty_at_start');
 const scope = await discoverSmallScope();
 const fixture = await setupFixture(scope);
 const before = await canonicalSnapshot(fixture);
 
 try {
-  const state = await waitForStage(fixture);
+  const state = await waitForStageAndCei(fixture);
   const after = await canonicalSnapshot(fixture);
   const finalBacklogs = await waitQueuesClean(queues);
   if (before.lkgHash !== after.lkgHash || before.lkgCount !== after.lkgCount) {
-    throw new Error('m7d4_canary_canonical_lkg_changed');
+    throw new Error('m7d5_canary_canonical_lkg_changed');
   }
-  if (before.catalogCount !== after.catalogCount) throw new Error('m7d4_canary_catalog_changed');
+  if (before.catalogHash !== after.catalogHash || before.catalogCount !== after.catalogCount) {
+    throw new Error('m7d5_canary_catalog_changed');
+  }
+  if (before.overrideHash !== after.overrideHash || before.overrideCount !== after.overrideCount) {
+    throw new Error('m7d5_canary_override_truth_changed');
+  }
+  if (
+    before.canonicalIntelligenceCount !== after.canonicalIntelligenceCount ||
+    after.canonicalIntelligenceCount !== 0
+  ) {
+    throw new Error('m7d5_canary_canonical_intelligence_changed');
+  }
   if (Number(state.stage.expected_detail_count || 0) !== 1) {
-    throw new Error('m7d4_canary_affected_detail_count_invalid');
+    throw new Error('m7d5_canary_affected_detail_count_invalid');
   }
-  if (state.stage.needsDetailEventCount !== 1) throw new Error('m7d4_canary_detail_event_count_invalid');
+  if (state.stage.needsDetailEventCount !== 1) throw new Error('m7d5_canary_detail_event_count_invalid');
   if (state.stage.candidateDetailCount !== 1 || state.stage.candidateDetailCompleteCount !== 1) {
-    throw new Error('m7d4_canary_candidate_detail_invalid');
+    throw new Error('m7d5_canary_candidate_detail_invalid');
   }
   if (state.stage.candidateDetailFailedCount !== 0 || state.stage.candidateEvidenceCount !== 1) {
-    throw new Error('m7d4_canary_candidate_evidence_invalid');
+    throw new Error('m7d5_canary_candidate_evidence_invalid');
   }
   if (
     state.stage.candidatePrimaryMediaCount !== 1 ||
     state.stage.candidateMediaSourceCount < 1 ||
     state.stage.candidateProductMediaCount < 1
   ) {
-    throw new Error('m7d4_canary_candidate_media_invalid');
+    throw new Error('m7d5_canary_candidate_media_invalid');
   }
-  if (state.stage.foreignKeyFindings !== 0) throw new Error('m7d4_canary_foreign_key_findings');
-  if (state.stage.safety_outcome !== 'proceed') throw new Error('m7d4_canary_safety_not_proceed');
-  if (Number(state.job.discovered_count || 0) !== 1) throw new Error('m7d4_canary_discovered_count_invalid');
+  if (
+    state.stage.candidateClassificationCount !== 1 ||
+    state.stage.candidateIntelligenceCount !== 1 ||
+    state.stage.candidateClassifierVersion !== 3 ||
+    state.stage.candidateClassifierKey !== 'professional-v3'
+  ) {
+    throw new Error('m7d5_canary_candidate_cei_invalid');
+  }
+  if (
+    state.stage.candidateClassificationOverrideCount !== 1 ||
+    state.stage.candidateIntelligenceOverrideCount !== 1 ||
+    state.stage.candidateOverrideVersion !== 7 ||
+    state.stage.effectiveDisplayName !== MERCHANT_OVERRIDE_NAME
+  ) {
+    throw new Error('m7d5_canary_merchant_override_not_reapplied');
+  }
+  if (
+    state.stage.candidateKnowledgePackKey !== 'sports-v1' ||
+    state.stage.candidateKnowledgePackVersion !== 1 ||
+    state.stage.candidateDomainId !== 'sports'
+  ) {
+    throw new Error('m7d5_canary_sports_runtime_not_used');
+  }
+  if (state.stage.foreignKeyFindings !== 0) throw new Error('m7d5_canary_foreign_key_findings');
+  if (state.stage.safety_outcome !== 'proceed') throw new Error('m7d5_canary_safety_not_proceed');
+  if (Number(state.job.discovered_count || 0) !== 1) throw new Error('m7d5_canary_discovered_count_invalid');
   if (
     Number(state.job.detail_enqueue_cursor || 0) !== 1 ||
     Number(state.job.queued_detail_count || 0) !== 1 ||
@@ -524,10 +635,11 @@ try {
     Number(state.job.failed_detail_count || 0) !== 0 ||
     Number(state.job.deferred_detail_count || 0) !== 0
   ) {
-    throw new Error('m7d4_canary_control_progress_invalid');
+    throw new Error('m7d5_canary_control_progress_invalid');
   }
   const summary = {
     incrementalAffectedDetailCanaryPassed: true,
+    incrementalCeiCandidateCanaryPassed: true,
     manualQueueMessagesProduced: false,
     recurringSyncEnabled: false,
     tenantImportAutomationEnabled: true,
@@ -535,18 +647,24 @@ try {
     jobStatus: state.job.status,
     stageState: state.stage.state,
     safetyOutcome: state.stage.safety_outcome,
-    observedCount: Number(state.stage.observed_count || 0),
-    stagedObservationCount: Number(state.stage.staged_observation_count || 0),
-    stagedEventCount: Number(state.stage.staged_event_count || 0),
     expectedDetailCount: Number(state.stage.expected_detail_count || 0),
-    needsDetailEventCount: state.stage.needsDetailEventCount,
-    candidateDetailCount: state.stage.candidateDetailCount,
     candidateDetailCompleteCount: state.stage.candidateDetailCompleteCount,
-    candidateEvidenceCount: state.stage.candidateEvidenceCount,
+    candidateClassificationCount: state.stage.candidateClassificationCount,
+    candidateIntelligenceCount: state.stage.candidateIntelligenceCount,
+    classifierVersion: state.stage.candidateClassifierVersion,
+    classifierKey: state.stage.candidateClassifierKey,
+    knowledgePackKey: state.stage.candidateKnowledgePackKey,
+    knowledgePackVersion: state.stage.candidateKnowledgePackVersion,
+    domainId: state.stage.candidateDomainId,
+    merchantOverrideReapplied: true,
+    merchantOverrideVersion: state.stage.candidateOverrideVersion,
     candidateMediaSourceCount: state.stage.candidateMediaSourceCount,
     candidateProductMediaCount: state.stage.candidateProductMediaCount,
     foreignKeyFindings: state.stage.foreignKeyFindings,
     canonicalLkgUnchanged: true,
+    canonicalCatalogUnchanged: true,
+    canonicalMerchantOverrideUnchanged: true,
+    canonicalIntelligenceUnchanged: true,
     storefrontCatalogUnchanged: true,
     queueBacklogsClean: queuesClean(finalBacklogs)
   };
@@ -557,12 +675,13 @@ try {
   console.error(
     JSON.stringify({
       incrementalAffectedDetailCanaryPassed: false,
+      incrementalCeiCandidateCanaryPassed: false,
       retainedEvidence: true,
       retainedTenantId: activeFixture?.tenantId || null,
       retainedDatabaseName: activeFixture?.databaseName || null,
       error: /^[a-z0-9_]+$/i.test(String(error?.message || ''))
         ? String(error.message)
-        : 'm7d4_canary_failed'
+        : 'm7d5_canary_failed'
     })
   );
   throw error;
