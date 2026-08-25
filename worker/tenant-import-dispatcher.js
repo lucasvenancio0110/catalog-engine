@@ -2,6 +2,7 @@ import {
   assertPublicSafeImportMessage,
   buildTenantImportFinalizeMessage,
   buildTenantImportScanMessage,
+  buildTenantImportScanMessageForJob,
   initialTenantImportId
 } from './tenant-import-queue.js';
 
@@ -102,9 +103,11 @@ async function reclaimStaleScans(db) {
           SET status='failed', next_attempt_at=CURRENT_TIMESTAMP,
               scan_lease_until=NULL, last_error_code='tenant_import_scan_lease_reclaimed',
               updated_at=CURRENT_TIMESTAMP
-        WHERE mode='initial'
-          AND status='scanning'
-          AND phase IN ('scan','details')
+        WHERE status='scanning'
+          AND (
+            (mode='initial' AND phase IN ('scan','details')) OR
+            (mode='incremental' AND phase='scan')
+          )
           AND scan_lease_until IS NOT NULL
           AND scan_lease_until <= CURRENT_TIMESTAMP`
     )
@@ -114,8 +117,8 @@ async function reclaimStaleScans(db) {
 async function dueImportJobs(db, limit) {
   const result = await db
     .prepare(
-      `SELECT j.import_id, j.tenant_id, j.source_key, j.attempt_count, j.phase,
-              r.provisioning_id
+      `SELECT j.import_id, j.tenant_id, j.source_key, j.mode, j.attempt_count, j.phase,
+              CASE WHEN j.mode='initial' THEN r.provisioning_id ELSE NULL END AS provisioning_id
          FROM tenant_import_jobs j
          LEFT JOIN tenant_provisioning_runs r ON r.provisioning_id=(
            SELECT r2.provisioning_id
@@ -124,13 +127,18 @@ async function dueImportJobs(db, limit) {
             ORDER BY r2.created_at DESC
             LIMIT 1
          )
-        WHERE j.mode='initial'
-          AND j.attempt_count < ?1
+        WHERE j.attempt_count < ?1
           AND (j.next_attempt_at IS NULL OR j.next_attempt_at <= CURRENT_TIMESTAMP)
           AND (
-            (j.phase='scan' AND j.status IN ('pending','failed')) OR
-            (j.phase='details' AND j.status='failed'
-              AND j.detail_enqueue_cursor < j.discovered_count)
+            (j.mode='initial' AND (
+              (j.phase='scan' AND j.status IN ('pending','failed')) OR
+              (j.phase='details' AND j.status='failed'
+                AND j.detail_enqueue_cursor < j.discovered_count)
+            )) OR
+            (j.mode='incremental' AND j.phase='scan' AND (
+              j.status='pending' OR
+              (j.status='failed' AND j.next_attempt_at IS NOT NULL)
+            ))
           )
         ORDER BY j.created_at ASC
         LIMIT ?2`
@@ -232,6 +240,22 @@ async function dispatchFinalizeMessages(env, jobs) {
   return outcomes;
 }
 
+async function scanMessageForJob(job) {
+  if (job.mode === 'incremental') {
+    return buildTenantImportScanMessageForJob({
+      importId: job.import_id,
+      tenantId: job.tenant_id,
+      sourceKey: job.source_key
+    });
+  }
+  const message = await buildTenantImportScanMessage({
+    tenantId: job.tenant_id,
+    sourceKey: job.source_key
+  });
+  if (message.importId !== job.import_id) throw new Error('tenant_import_identity_mismatch');
+  return message;
+}
+
 export async function runDueTenantImportDispatches(
   env,
   { limit = DEFAULT_LIMIT } = {}
@@ -253,13 +277,7 @@ export async function runDueTenantImportDispatches(
 
   for (const job of due) {
     try {
-      const message = assertPublicSafeImportMessage(
-        await buildTenantImportScanMessage({
-          tenantId: job.tenant_id,
-          sourceKey: job.source_key
-        })
-      );
-      if (message.importId !== job.import_id) throw new Error('tenant_import_identity_mismatch');
+      const message = assertPublicSafeImportMessage(await scanMessageForJob(job));
       await env.TENANT_IMPORT_QUEUE.send(message, {
         contentType: 'json',
         delaySeconds: 0
