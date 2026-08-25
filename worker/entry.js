@@ -4,6 +4,7 @@ import { runDueDataPlaneJobs } from './data-plane-provider-runner.js';
 import { dispatchTenantRequest } from './tenant-dispatch.js';
 import { runDueDomainJobs } from './domain-job-scheduler.js';
 import { runDueTenantClassifications } from './tenant-classification-runner.js';
+import { runDueTenantIncrementalClassifications } from './ingestion/incremental-classification-runner.js';
 import { runDueTenantImportDispatches } from './tenant-import-dispatcher.js';
 import { runDueTenantSyncScheduling } from './tenant-sync-scheduler.js';
 import { runDueTenantVerifications } from './tenant-verification-runner.js';
@@ -122,6 +123,7 @@ export default {
         runDueDataPlaneMigrations(env),
         runDueTenantImportDispatches(env),
         runDueTenantSyncScheduling(env),
+        runDueTenantIncrementalClassifications(env),
         runDueTenantClassifications(env),
         runDueTenantVerifications(env),
         runDueDomainJobs(env)
@@ -131,6 +133,7 @@ export default {
           'data_plane_migration_schedule',
           'tenant_import_dispatch_schedule',
           'tenant_sync_schedule',
+          'tenant_incremental_classification_schedule',
           'tenant_classification_schedule',
           'tenant_verification_schedule',
           'domain_job_schedule'
