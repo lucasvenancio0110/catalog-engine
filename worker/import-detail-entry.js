@@ -1,10 +1,22 @@
 import { handleTenantImportDetailMessage } from './ingestion/detail-consumer.js';
 import { handleTenantImportFinalizeMessage } from './ingestion/finalize-consumer.js';
-import { parseTenantImportMessage } from './tenant-import-queue.js';
+import { handleTenantIncrementalDetailMessage } from './ingestion/incremental-detail-consumer.js';
+import { initialTenantImportId, parseTenantImportMessage } from './tenant-import-queue.js';
 
 function retryDelay(result, fallback) {
   const value = Number(result?.delaySeconds || fallback);
   return Math.max(30, Math.min(900, Number.isFinite(value) ? value : fallback));
+}
+
+async function handleDetail(parsed, env) {
+  const initialId = await initialTenantImportId({
+    tenantId: parsed.tenantId,
+    sourceKey: parsed.sourceKey
+  });
+  if (parsed.importId === initialId) {
+    return handleTenantImportDetailMessage(parsed, env);
+  }
+  return handleTenantIncrementalDetailMessage(parsed, env);
 }
 
 export default {
@@ -20,7 +32,7 @@ export default {
 
       let result;
       if (parsed.type === 'detail') {
-        result = await handleTenantImportDetailMessage(parsed, env);
+        result = await handleDetail(parsed, env);
       } else if (parsed.type === 'finalize') {
         result = await handleTenantImportFinalizeMessage(parsed, env);
       } else {
@@ -31,9 +43,9 @@ export default {
       if (['success', 'skipped', 'deferred'].includes(result.outcome)) {
         message.ack();
       } else {
-        // All valid detail/finalize failures are retry-safe: per-album claims are
-        // idempotent and finalization writes absolute aggregates. Queue policy can
-        // eventually dead-letter a persistently invalid message without losing work.
+        // Initial and incremental detail claims are idempotent. Queue delivery
+        // may retry transient failures, while exhausted incremental candidates
+        // remain durable private evidence and are acked as deferred.
         message.retry({
           delaySeconds: retryDelay(
             result,
