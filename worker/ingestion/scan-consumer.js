@@ -28,7 +28,7 @@ function chunks(values, size) {
 function safeScanError(error) {
   if (error instanceof TenantImportContextError) return error.code;
   const message = String(error?.code || error?.message || error);
-  if (/^(supplier|tenant_import|tenant_sync|catalog_provider)_[a-z0-9_]+$/i.test(message)) {
+  if (/^(supplier|tenant_import|tenant_sync|sync|catalog_provider)_[a-z0-9_]+$/i.test(message)) {
     return message.slice(0, 120);
   }
   return 'tenant_import_scan_failed';
