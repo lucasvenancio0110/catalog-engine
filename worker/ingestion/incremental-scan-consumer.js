@@ -157,6 +157,9 @@ export async function handleTenantIncrementalScan(
   { queryBatch = queryD1Batch, fetchImpl = fetch } = {}
 ) {
   assertIncrementalScanStageContext(context);
+  if (context.phase === 'scan' && context.importStatus === 'failed') {
+    return { outcome: 'success', alreadyFailed: true };
+  }
   const lease = await claimIncrementalScanLease(db, context);
   if (lease.complete) return { outcome: 'success', alreadyStaged: true };
   if (!lease.claimed) return { outcome: 'busy' };
