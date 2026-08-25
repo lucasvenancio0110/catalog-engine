@@ -23,6 +23,125 @@ async function patchAll(path, replacements) {
   await writeFile(path, text, 'utf8');
 }
 
+async function patchFleetMigrationCurrentPath() {
+  const path = 'tests/tenant-data-plane-fleet-migration.test.mjs';
+  const marker = "  it('upgrades a real v5 tenant through only the idempotent v6 delta while preserving LKG'";
+  const text = await readFile(path, 'utf8');
+  const markerIndex = text.indexOf(marker);
+  if (markerIndex < 0 || text.indexOf(marker, markerIndex + 1) >= 0) {
+    throw new Error('m7d7_fleet_migration_historical_boundary_invalid');
+  }
+  let current = text.slice(0, markerIndex);
+  const historical = text.slice(markerIndex);
+
+  const replacements = [
+    ['prepared ? 2 : 0', 'prepared ? 3 : 0'],
+    ['migration_command_version: 2,', 'migration_command_version: 3,'],
+    ['target_schema_version: 6,', 'target_schema_version: 7,'],
+    [
+      "it('targets schema v6 and only discovers maintenance work for ready idle tenants'",
+      "it('targets schema v7 and only discovers maintenance work for ready idle tenants'"
+    ],
+    [
+      `expect(migrationRunnerSource).toContain("from './tenant-data-plane-schema-v6.js'");`,
+      `expect(migrationRunnerSource).toContain("from './tenant-data-plane-schema-v7.js'");`
+    ],
+    [
+      "it('keeps tenant schema CI aligned with the v6 fleet target and migration ownership'",
+      "it('keeps tenant schema CI aligned with the v7 fleet target and migration ownership'"
+    ],
+    [`expect(workflow).toContain("= '6'");`, `expect(workflow).toContain("= '7'");`],
+    [
+      `expect(workflow).toContain("= '1,2,3,4,5,6'");`,
+      `expect(workflow).toContain("= '1,2,3,4,5,6,7'");`
+    ],
+    ["?1,6,'maintenance','failed'", "?1,7,'maintenance','failed'"],
+    ["?1,6,'maintenance','failed',1,NULL", "?1,7,'maintenance','failed',1,NULL"],
+    ["?2,6,'maintenance',?3", "?2,7,'maintenance',?3"],
+    ['MAINTENANCE_MIGRATION_DISCOVERY_SQL).all(6, 2, 2)', 'MAINTENANCE_MIGRATION_DISCOVERY_SQL).all(7, 3, 2)'],
+    ['MAINTENANCE_MIGRATION_DISCOVERY_SQL).all(6, 2, 5)', 'MAINTENANCE_MIGRATION_DISCOVERY_SQL).all(7, 3, 5)'],
+    ['DATA_PLANE_MIGRATION_DUE_SQL).all(6, 6, 2, 5)', 'DATA_PLANE_MIGRATION_DUE_SQL).all(6, 7, 3, 5)'],
+    ['DATA_PLANE_MIGRATION_DUE_SQL).all(6, 6, 2, 2)', 'DATA_PLANE_MIGRATION_DUE_SQL).all(6, 7, 3, 2)'],
+    [
+      "it('finishes maintenance on v6 without resuming historical onboarding or changing serving status'",
+      "it('finishes maintenance on v7 without resuming historical onboarding or changing serving status'"
+    ],
+    [
+      "it('reconciles control state after D1 already completed v6 without replaying schema DDL'",
+      "it('reconciles control state after D1 already completed v7 without replaying schema DDL'"
+    ],
+    [
+      "it('persists a bounded verify-phase code after the v6 delta was accepted'",
+      "it('persists a bounded verify-phase code after the v7 migration was accepted'"
+    ],
+    [
+`          expect(payload).toEqual({
+            version: 2,
+            tenantId: TENANT_ID,
+            targetSchemaVersion: 6
+          });`,
+`          expect(payload).toEqual({
+            version: 3,
+            tenantId: TENANT_ID,
+            targetSchemaVersion: 7
+          });`
+    ],
+    [
+      `expect(payload).toEqual({ version: 2, tenantId: TENANT_ID, targetSchemaVersion: 6 });`,
+      `expect(payload).toEqual({ version: 3, tenantId: TENANT_ID, targetSchemaVersion: 7 });`
+    ],
+    [
+      'Response.json({ ok: true, version: 2, schemaVersion: 6, applied: true })',
+      'Response.json({ ok: true, version: 3, schemaVersion: 7, applied: true })'
+    ],
+    ['schemaVersion: 6,', 'schemaVersion: 7,'],
+    ['schemaVersion: 6 });', 'schemaVersion: 7 });'],
+    [
+      `{ success: true, results: [{ tenant_id: TENANT_ID, schema_version: 6 }] },`,
+      `{ success: true, results: [{ tenant_id: TENANT_ID, schema_version: 7 }] },`
+    ],
+    [
+`                { success: true, results: [{ tenant_id: TENANT_ID, schema_version: '6' }] },
+                {
+                  success: true,
+                  results: [
+                    { version: 1 },
+                    { version: 2 },
+                    { version: 3 },
+                    { version: 4 },
+                    { version: 5 },
+                    { version: 6 }
+                  ]
+                }`,
+`                { success: true, results: [{ tenant_id: TENANT_ID, schema_version: '7' }] },
+                {
+                  success: true,
+                  results: [
+                    { version: 1 },
+                    { version: 2 },
+                    { version: 3 },
+                    { version: 4 },
+                    { version: 5 },
+                    { version: 6 },
+                    { version: 7 }
+                  ]
+                }`
+    ],
+    [
+      `{ success: true, results: [{ tenant_id: TENANT_ID, schema_version: '6' }] },`,
+      `{ success: true, results: [{ tenant_id: TENANT_ID, schema_version: '7' }] },`
+    ]
+  ];
+
+  for (const [before, after] of replacements) {
+    if (!current.includes(before)) {
+      throw new Error(`m7d7_fleet_migration_patch_missing:${before.slice(0, 90)}`);
+    }
+    current = current.split(before).join(after);
+  }
+  await writeFile(path, current + historical, 'utf8');
+}
+
 await patch('worker/data-plane-migration-runner.js', [
   ["from './tenant-data-plane-schema-v6.js';", "from './tenant-data-plane-schema-v7.js';"]
 ]);
@@ -101,6 +220,11 @@ for (const path of [
   await patchAll(path, [['schemaVersion: 6,', 'schemaVersion: 7,']]);
 }
 
+await patch('tests/tenant-incremental-scan-safety.test.mjs', [[
+  `    expect(mutationSql(calls).some((sql) => /supplier_album_index|catalog_|media_sources|product_media/i.test(sql))).toBe(false);`,
+  `    expect(\n      mutationSql(calls).some((sql) =>\n        /(?:INSERT(?: OR IGNORE)? INTO|UPDATE|DELETE FROM)\\s+(?:supplier_album_index|catalog_products|media_sources|product_media)\\b/i.test(sql)\n      )\n    ).toBe(false);`
+]]);
+
 for (const path of [
   'tests/tenant-incremental-stage.test.mjs',
   'tests/tenant-incremental-stage-ledger.test.mjs'
@@ -130,6 +254,12 @@ await patch('tests/tenant-import-auto-canary.test.mjs', [[
   "tenant-data-plane-schema-v6.js",
   "tenant-data-plane-schema-v7.js"
 ]]);
+
+await patchFleetMigrationCurrentPath();
+
+await patchAll('tests/tenant-data-plane-fleet-canary.test.mjs', [
+  ["migration_command_version=2", "migration_command_version=3"]
+]);
 
 for (const path of [
   '.github/workflows/validate-saas-control-plane.yml',
