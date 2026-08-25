@@ -176,12 +176,20 @@ async function nextAffectedDetailIds(context, platform, cursor, queryBatch, fetc
       databaseId: context.dataPlane.databaseId,
       batch: [
         {
-          sql: `SELECT album_source_id
-                  FROM supplier_sync_stage_events
-                 WHERE run_id=?1 AND needs_detail=1
-                 ORDER BY album_source_id ASC
-                 LIMIT ?2 OFFSET ?3`,
-          params: [context.importId, DETAIL_QUEUE_BATCH, cursor]
+          sql: `SELECT e.album_source_id
+                  FROM supplier_sync_stage_events e
+                  JOIN supplier_sync_stage_runs r ON r.run_id=e.run_id
+                 WHERE e.run_id=?1 AND r.tenant_id=?2 AND r.source_key=?3
+                   AND e.needs_detail=1
+                 ORDER BY e.album_source_id ASC
+                 LIMIT ?4 OFFSET ?5`,
+          params: [
+            context.importId,
+            context.tenantId,
+            context.sourceKey,
+            DETAIL_QUEUE_BATCH,
+            cursor
+          ]
         }
       ]
     },
@@ -319,6 +327,7 @@ export async function handleTenantIncrementalScan(
   { queryBatch = queryD1Batch, fetchImpl = fetch } = {}
 ) {
   assertIncrementalScanStageContext(context);
+  const tenantPlatform = { ...platform, tenantId: context.tenantId };
   if (context.phase === 'scan' && context.importStatus === 'failed' && context.discoveredCount <= 0) {
     return { outcome: 'success', alreadyFailed: true };
   }
@@ -328,7 +337,12 @@ export async function handleTenantIncrementalScan(
 
   try {
     if (context.discoveredCount > 0) {
-      const existing = await loadExistingStageForFanout(context, platform, queryBatch, fetchImpl);
+      const existing = await loadExistingStageForFanout(
+        context,
+        tenantPlatform,
+        queryBatch,
+        fetchImpl
+      );
       if (
         existing &&
         existing.safety_outcome === 'proceed' &&
@@ -361,7 +375,7 @@ export async function handleTenantIncrementalScan(
           const queued = await fanOutAffectedDetails(
             db,
             resumeContext,
-            platform,
+            tenantPlatform,
             detailQueue,
             { queryBatch, fetchImpl }
           );
@@ -380,7 +394,7 @@ export async function handleTenantIncrementalScan(
     }
 
     const result = await planTenantIncrementalScanFromProvider(
-      { context, provider, platform },
+      { context, provider, platform: tenantPlatform },
       { queryBatch, fetchImpl }
     );
     const writePlan = buildIncrementalStageWritePlan({
@@ -388,7 +402,7 @@ export async function handleTenantIncrementalScan(
       scan: result.scan,
       plan: result.plan
     });
-    const stage = await executeStageWritePlan(context, platform, writePlan, {
+    const stage = await executeStageWritePlan(context, tenantPlatform, writePlan, {
       queryBatch,
       fetchImpl
     });
@@ -423,7 +437,7 @@ export async function handleTenantIncrementalScan(
         queued = await fanOutAffectedDetails(
           db,
           detailContext,
-          platform,
+          tenantPlatform,
           detailQueue,
           { queryBatch, fetchImpl }
         );
