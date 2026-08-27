@@ -78,7 +78,7 @@ At minimum:
 11. distinguish default-catalog automation from tenant Intelligent Sync;
 12. verify production activation flags/configuration when relevant without printing secret values.
 
-Do not assume the SHA recorded later in this file is still current.
+Do not assume any repository HEAD recorded later in this file is still current. In particular, updating this file itself creates a newer documentation-only commit, so the continuity snapshot records **production implementation checkpoints separately from repository documentation capture points**.
 
 Immediately before creating a branch, revalidate `main` again because automation may advance it during the audit.
 
@@ -112,7 +112,7 @@ Required procedure:
 6. classify each document as normative/current/historical/closure/diagnostic/overview according to its own metadata and governance;
 7. do not let a historical handoff/closure override current normative documents or live production truth.
 
-Baseline note only: on `725854afc408bb6177aa071e2797051369c4040c`, the `docs/` folder contained 40 Markdown files. **Do not trust the number 40 in a future session; recount live.**
+Baseline note only: on production implementation SHA `725854afc408bb6177aa071e2797051369c4040c`, the `docs/` folder contained 40 Markdown files. **Do not trust the number 40 in a future session; recount live.**
 
 ## 2.4 Inspect implementation for the intended slice
 
@@ -305,7 +305,7 @@ Important sequencing:
 - do not fabricate future canary IDs in a pre-production PR;
 - first obtain the trusted-main production proof;
 - then close the documentary state to the exact proven level using the repository's established closure pattern;
-- record separately the production implementation SHA and the later documentation-only HEAD when those differ;
+- record separately the production implementation SHA and the later documentation-only capture point when those differ;
 - revalidate `main` after closure;
 - then stop.
 
@@ -329,31 +329,47 @@ Do not turn this file into a duplicate of all 40+ docs. Keep it as:
 
 If the next milestone has not yet been decomposed/approved, record **DECISION REQUIRED / decomposition required** instead of inventing sub-slices.
 
+Do **not** attempt to make this file contain its own final repository HEAD as an eternal truth. Updating the file creates a new commit. Record the last production implementation SHA and, when useful, a documentation capture point separately. Live HEAD is always discovered at startup.
+
 ---
 
 # 10. LAST KNOWN CHECKPOINT — MUST BE REVALIDATED LIVE
 
 Captured against live GitHub on **2026-08-27 (America/Sao_Paulo)**.
 
-## Repository
+## Repository / capture semantics
 
 ```text
 repository = lucasvenancio0110/catalog-engine
 branch = main
-last known HEAD = 725854afc408bb6177aa071e2797051369c4040c
-message = m7d7: add atomic promotion authority primitive (#150)
+production implementation checkpoint = 725854afc408bb6177aa071e2797051369c4040c
+documentation protocol capture point after PR #151 = cf026808ff8809c2cd9458ae51fb229635398ec9
 ```
 
-Latest known merge:
+The two SHAs intentionally mean different things:
+
+- `725854af...` is the last known **feature implementation SHA with exact M7D7 trusted-main production proof**;
+- `cf026808...` is a later **documentation-only repository capture point** that added this continuity protocol.
+
+Neither value is permission to skip live GitHub revalidation.
+
+Last known production-feature merge:
 
 ```text
 PR #150 — m7d7: add atomic promotion authority primitive
-merge SHA = 725854afc408bb6177aa071e2797051369c4040c
+production implementation SHA = 725854afc408bb6177aa071e2797051369c4040c
 ```
 
-## Exact known trusted-main status on that SHA
+Continuity protocol merge:
 
-The exact SHA published success for:
+```text
+PR #151 — docs: add universal AI continuity entrypoint
+documentation-only SHA = cf026808ff8809c2cd9458ae51fb229635398ec9
+```
+
+## Exact known trusted-main status on the M7D7 production implementation SHA
+
+The exact SHA `725854afc408bb6177aa071e2797051369c4040c` published success for:
 
 ```text
 catalog-engine/queue-consumer-activation
