@@ -607,7 +607,7 @@ Crash contract:
 - cursor/schedule/control-plane commit remains **M7D8**, strictly after durable promotion;
 - promoted/failed evidence is retained for recovery; automatic recovery/replay closure remains **M7D10**.
 
-M7D7 implementation remains a separate claim. The accepted architecture does not itself make M7D7 Production Green. The implementation has one dedicated promotion primitive and the legacy stage promotion path fails closed; Production Green still requires trusted-main production-shaped regression/canary proof for verified-only entry, stale-base/competing-run CAS, rollback/atomic authority switch, over-envelope rejection, idempotent replay, tenant isolation, privacy, merchant-override preservation and unchanged cursor/removal/activation state.
+M7D7 is **PRODUCTION GREEN** at trusted-main implementation SHA `725854afc408bb6177aa071e2797051369c4040c`. The dedicated promotion primitive and legacy fail-closed boundary passed exact-SHA trusted-main production proof for verified-only entry, stale-base/competing-run CAS, atomic authority switch, bounded admission, idempotent replay, tenant isolation, privacy, merchant-override preservation and unchanged cursor/removal/activation state. Full closure evidence lives in `M7D7-CLOSURE-2026-08-27.md`. M7D8 is the next approved slice and owns control-plane cursor/schedule finalization strictly after durable `promoted` authority.
 
 ### M7D8 — Verified Promotion and Cursor Commit
 
