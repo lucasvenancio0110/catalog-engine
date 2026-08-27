@@ -13,6 +13,11 @@ describe('M7B recurring sync activation boundary', () => {
     expect(entry).toContain(
       "import { runDueTenantSyncScheduling } from './tenant-sync-scheduler.js';"
     );
+    expect(entry).toContain(
+      "import { runDueTenantIncrementalFinalizations } from './ingestion/incremental-finalization-runner.js';"
+    );
+    expect(entry).toContain('runDueTenantIncrementalFinalizations(env)');
+    expect(entry).toContain("'tenant_incremental_finalization_schedule'");
     expect(entry).toContain('runDueTenantSyncScheduling(env)');
     expect(entry).toContain("'tenant_sync_schedule'");
     expect(config.triggers?.crons).toEqual(['*/5 * * * *']);

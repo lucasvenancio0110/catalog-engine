@@ -262,135 +262,77 @@ async function dueSchedules(db, cohort, limit) {
 }
 
 async function createIncrementalJob(db, cohort, schedule) {
-  const intervalMinutes = boundedIntervalMinutes(schedule.incremental_interval_minutes);
   const scheduledFor = String(schedule.next_sync_at || '').trim();
   const importId = await incrementalTenantImportId({
     tenantId: schedule.tenant_id,
     sourceKey: schedule.source_key,
     scheduledFor
   });
-  const intervalModifier = `+${intervalMinutes} minutes`;
 
-  const batchResults = await db.batch([
-    db
-      .prepare(
-        `INSERT OR IGNORE INTO tenant_import_jobs
-          (import_id, tenant_id, source_key, mode, status, phase, attempt_count,
-           next_attempt_at, created_at, updated_at)
-         SELECT ?1, ?2, ?3, 'incremental', 'pending', 'scan', 0,
-                CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-           FROM tenant_sync_schedules schedule
-           JOIN tenant_sync_enrollments enrollment
-             ON enrollment.tenant_id=schedule.tenant_id
-            AND enrollment.source_key=schedule.source_key
-           JOIN supplier_sources source
-             ON source.tenant_id=schedule.tenant_id
-            AND source.source_key=schedule.source_key
-           JOIN catalog_tenants tenant ON tenant.tenant_id=schedule.tenant_id
-           JOIN tenant_catalog_instances instance ON instance.tenant_id=schedule.tenant_id
-           JOIN tenant_store_profiles profile ON profile.tenant_id=schedule.tenant_id
-          WHERE schedule.tenant_id=?2
-            AND schedule.source_key=?3
-            AND schedule.status='active'
-            AND schedule.next_sync_at=?5
-            AND schedule.next_sync_at<=CURRENT_TIMESTAMP
-            AND enrollment.status='enrolled'
-            AND enrollment.cohort_key=?4
-            AND source.status='active'
-            AND source.sync_strategy='incremental'
-            AND tenant.status='active'
-            AND instance.status='ready'
-            AND profile.setup_status IN ('ready','published')
-            AND EXISTS (
-              SELECT 1 FROM tenant_import_jobs initial_job
-               WHERE initial_job.tenant_id=?2
-                 AND initial_job.source_key=?3
-                 AND initial_job.mode='initial'
-                 AND initial_job.status='success'
-            )
-            AND NOT EXISTS (
-              SELECT 1 FROM tenant_data_plane_migration_jobs migration_job
-               WHERE migration_job.tenant_id=?2
-                 AND migration_job.status IN ('pending','running','failed')
-            )
-            AND NOT EXISTS (
-              SELECT 1 FROM tenant_import_jobs conflicting_job
-               WHERE conflicting_job.tenant_id=?2
-                 AND conflicting_job.source_key=?3
-                 AND (
-                   conflicting_job.status IN ('pending','queued','scanning','details','finalizing')
-                   OR (
-                     conflicting_job.mode IN ('incremental','recovery')
-                     AND conflicting_job.status='failed'
-                   )
+  const inserted = await db
+    .prepare(
+      `INSERT OR IGNORE INTO tenant_import_jobs
+        (import_id, tenant_id, source_key, mode, status, phase, attempt_count,
+         next_attempt_at, sync_scheduled_for, created_at, updated_at)
+       SELECT ?1, ?2, ?3, 'incremental', 'pending', 'scan', 0,
+              CURRENT_TIMESTAMP, ?5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+         FROM tenant_sync_schedules schedule
+         JOIN tenant_sync_enrollments enrollment
+           ON enrollment.tenant_id=schedule.tenant_id
+          AND enrollment.source_key=schedule.source_key
+         JOIN supplier_sources source
+           ON source.tenant_id=schedule.tenant_id
+          AND source.source_key=schedule.source_key
+         JOIN catalog_tenants tenant ON tenant.tenant_id=schedule.tenant_id
+         JOIN tenant_catalog_instances instance ON instance.tenant_id=schedule.tenant_id
+         JOIN tenant_store_profiles profile ON profile.tenant_id=schedule.tenant_id
+        WHERE schedule.tenant_id=?2
+          AND schedule.source_key=?3
+          AND schedule.status='active'
+          AND schedule.next_sync_at=?5
+          AND schedule.next_sync_at<=CURRENT_TIMESTAMP
+          AND enrollment.status='enrolled'
+          AND enrollment.cohort_key=?4
+          AND source.status='active'
+          AND source.sync_strategy='incremental'
+          AND tenant.status='active'
+          AND instance.status='ready'
+          AND profile.setup_status IN ('ready','published')
+          AND EXISTS (
+            SELECT 1 FROM tenant_import_jobs initial_job
+             WHERE initial_job.tenant_id=?2
+               AND initial_job.source_key=?3
+               AND initial_job.mode='initial'
+               AND initial_job.status='success'
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM tenant_data_plane_migration_jobs migration_job
+             WHERE migration_job.tenant_id=?2
+               AND migration_job.status IN ('pending','running','failed')
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM tenant_import_jobs conflicting_job
+             WHERE conflicting_job.tenant_id=?2
+               AND conflicting_job.source_key=?3
+               AND (
+                 conflicting_job.status IN ('pending','queued','scanning','details','finalizing')
+                 OR (
+                   conflicting_job.mode IN ('incremental','recovery')
+                   AND conflicting_job.status='failed'
                  )
-            )`
-      )
-      .bind(importId, schedule.tenant_id, schedule.source_key, cohort, scheduledFor),
-    db
-      .prepare(
-        `UPDATE tenant_sync_schedules
-            SET last_scheduled_at=CURRENT_TIMESTAMP,
-                last_import_id=?4,
-                next_sync_at=datetime(CURRENT_TIMESTAMP, ?5),
-                updated_at=CURRENT_TIMESTAMP
-          WHERE tenant_id=?1
-            AND source_key=?2
-            AND status='active'
-            AND next_sync_at=?3
-            AND EXISTS (
-              SELECT 1
-                FROM tenant_sync_enrollments enrollment
-               WHERE enrollment.tenant_id=?1
-                 AND enrollment.source_key=?2
-                 AND enrollment.status='enrolled'
-                 AND enrollment.cohort_key=?6
-            )
-            AND EXISTS (
-              SELECT 1
-                FROM tenant_import_jobs scheduled_job
-               WHERE scheduled_job.import_id=?4
-                 AND scheduled_job.tenant_id=?1
-                 AND scheduled_job.source_key=?2
-                 AND scheduled_job.mode='incremental'
-            )
-            AND NOT EXISTS (
-              SELECT 1
-                FROM tenant_data_plane_migration_jobs migration_job
-               WHERE migration_job.tenant_id=?1
-                 AND migration_job.status IN ('pending','running','failed')
-            )
-            AND NOT EXISTS (
-              SELECT 1
-                FROM tenant_import_jobs conflicting_job
-               WHERE conflicting_job.tenant_id=?1
-                 AND conflicting_job.source_key=?2
-                 AND conflicting_job.import_id<>?4
-                 AND (
-                   conflicting_job.status IN ('pending','queued','scanning','details','finalizing')
-                   OR (
-                     conflicting_job.mode IN ('incremental','recovery')
-                     AND conflicting_job.status='failed'
-                   )
-                 )
-            )`
-      )
-      .bind(
-        schedule.tenant_id,
-        schedule.source_key,
-        scheduledFor,
-        importId,
-        intervalModifier,
-        cohort
-      )
-  ]);
+               )
+          )`
+    )
+    .bind(importId, schedule.tenant_id, schedule.source_key, cohort, scheduledFor)
+    .run();
 
-  const claimed = Number(batchResults?.[1]?.meta?.changes || 0) > 0;
-  if (!claimed) return { scheduled: false, importId: null };
+  if (Number(inserted?.meta?.changes || 0) !== 1) {
+    return { scheduled: false, importId: null };
+  }
 
   const verification = await db
     .prepare(
-      `SELECT import_id, status, phase
+      `SELECT import_id, status, phase, sync_scheduled_for
          FROM tenant_import_jobs
         WHERE import_id=?1
           AND tenant_id=?2
@@ -401,7 +343,7 @@ async function createIncrementalJob(db, cohort, schedule) {
     .bind(importId, schedule.tenant_id, schedule.source_key)
     .first();
 
-  return verification?.import_id === importId
+  return verification?.import_id === importId && verification?.sync_scheduled_for === scheduledFor
     ? { scheduled: true, importId }
     : { scheduled: false, importId: null };
 }
