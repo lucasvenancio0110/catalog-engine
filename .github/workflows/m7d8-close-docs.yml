@@ -1,0 +1,261 @@
+name: Reconcile M7D8 production closure
+
+on:
+  push:
+    branches: ['docs/m7d8-production-closure']
+    paths:
+      - '.github/workflows/m7d8-close-docs.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/m7d8-production-closure
+          fetch-depth: 0
+      - name: Patch M7D8 owner and continuity documents
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one literal match, found {count}: {old[:100]}')
+              p.write_text(text.replace(old, new, 1))
+
+          def regex_once(path, pattern, replacement):
+              p = Path(path)
+              text = p.read_text()
+              updated, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one regex match, found {count}: {pattern[:100]}')
+              p.write_text(updated)
+
+          current = 'docs/CURRENT-STATE.md'
+          replace_once(current,
+              'Snapshot: **2026-08-27 after live M7D7 production reconciliation**',
+              'Snapshot: **2026-08-27 after M7D8 trusted-main production proof**')
+          replace_once(current,
+              '- M7D7 production closure evidence lives in `docs/M7D7-CLOSURE-2026-08-27.md`.',
+              '- M7D7 production closure evidence lives in `docs/M7D7-CLOSURE-2026-08-27.md`.\n- M7D8 production closure evidence lives in `docs/M7D8-CLOSURE-2026-08-27.md`.')
+          replace_once(current,
+              'atomic promotion authority through M7D7 are production-proven',
+              'atomic promotion authority plus post-promotion cursor/schedule/control finalization through M7D8 are production-proven')
+          replace_once(current,
+              '## M7 state — M7A through M7D7 production-proven',
+              '## M7 state — M7A through M7D8 production-proven')
+          replace_once(current,
+              'are now production-proven through M7D7.',
+              'are now production-proven through M7D8.')
+          d8_section = '\n'.join([
+              '### M7D8 verified promotion and cursor commit — production-proven',
+              '',
+              'M7D8 entered `main` through PR `#155` and is **PRODUCTION GREEN** at trusted-main implementation SHA:',
+              '',
+              '`cb09e35b753a37726d74b18eab12761885e38faa`',
+              '',
+              'Control-plane migration `0021_tenant_sync_finalization.sql` adds the exact scheduled-slot identity (`sync_scheduled_for`) and bounded finalization lease (`finalize_lease_until`). The recurring scheduler now creates the deterministic due job without advancing `next_sync_at`; the finalizer claims only exact `incremental/finalizing/finalize` work, invokes the M7D7 authority primitive, and commits schedule plus terminal job metadata only after durable `promoted` authority.',
+              '',
+              'Trusted-main application deploy `33100902771`, Queue activation `33100902745`, fleet regression `33101085125`, cumulative M7D4→M7D7 authority canary `33101085323` / job `98618651668`, and dedicated M7D8 finalization canary `33101085492` / job `98618652912` all passed on the exact implementation SHA. The D8 canary proved normal finalization, the crash gap after canonical promotion but before control commit, already-promoted replay without a second authority increment, single control commit, duplicate no-op, production migration presence, no manual Queue injection and no commercial production control mutation.',
+              '',
+              'Recurring Intelligent Sync remains disabled (`TENANT_SYNC_AUTOMATION_ENABLED=0`), the active cohort remains empty and the per-tick cap remains `1`. M7D8 does not implement repeated-miss/removal, broad recovery/DLQ, the review feed or activation. Full evidence is recorded in `M7D8-CLOSURE-2026-08-27.md`.',
+              ''
+          ])
+          replace_once(current,
+              '### M7D7 architecture evidence — historical prerequisite',
+              d8_section + '\n### M7D7 architecture evidence — historical prerequisite')
+          next_block = '\n'.join([
+              'Immediate next execution boundary:',
+              '',
+              '**M7D9 — Repeated Miss and Safe Removal**',
+              '',
+              'M7D9 must add authoritative repeated-miss/removal/restoration semantics only from independent complete, healthy, plausible and safety-authorized promoted runs. Duplicate delivery must not increment miss state twice; incomplete scopes, outages and implausible scans must not reduce healthy membership; scope identity and thresholds must remain explicit; RESTORED must recover deterministically.',
+              '',
+              'The complete approved M7 slice ledger lives in `DEVELOPMENT-ROADMAP.md`, with detailed contracts in `TENANT-SYNC.md`. M7D8 is **PRODUCTION GREEN**; M7D9 is the **next approved** slice; M7D10–M7D11 remain planned in order; M7E remains an explicit activation decision. Recurring Intelligent Sync stays disabled.',
+              '',
+              'Future macro milestones'
+          ])
+          regex_once(current,
+              r'Immediate next execution boundary:\n\n\*\*M7D8 — Verified Promotion and Cursor Commit\*\*.*?Future macro milestones',
+              next_block)
+
+          roadmap = 'docs/DEVELOPMENT-ROADMAP.md'
+          replace_once(roadmap,
+              '| M7D8 — Verified Promotion and Cursor Commit            | **PLANNED — NEXT APPROVED**',
+              '| M7D8 — Verified Promotion and Cursor Commit            | **PRODUCTION GREEN**')
+          replace_once(roadmap,
+              '| M7D9 — Repeated Miss and Safe Removal                  | **PLANNED**',
+              '| M7D9 — Repeated Miss and Safe Removal                  | **PLANNED — NEXT APPROVED**')
+          d8_roadmap = ' '.join([
+              'M7D8 production closure is recorded in `M7D8-CLOSURE-2026-08-27.md`.',
+              'Trusted-main implementation SHA `cb09e35b753a37726d74b18eab12761885e38faa` passed Queue activation `33100902745`, application deploy `33100902771`, fleet regression `33101085125`, cumulative M7D4→M7D7 authority canary `33101085323` / job `98618651668` and dedicated post-promotion finalization canary `33101085492` / job `98618652912`.',
+              'The scheduler now preserves the exact due slot without advancing schedule authority at job creation; a phase-aware lease/CAS finalizer advances schedule/control metadata only after durable `promoted` authority; crash replay of an already-promoted run commits only the remaining control metadata without a second promotion; duplicate finalization is a no-op.',
+              'Recurring Intelligent Sync remains disabled with an empty active cohort and cap `1`.'
+          ])
+          regex_once(roadmap,
+              r'M7D8 is therefore the next approved slice\..*?Recurring Intelligent Sync remains disabled and the production cohort remains empty\.',
+              d8_roadmap + '\n\nM7D9 is therefore the next approved slice. Its repeated-miss/removal/restoration contract must remain separate from M7D10 recovery/replay and from M7E activation.')
+          old_order = '\n'.join([
+              '1. Execute M7D8 so cursor/schedule/control metadata commits only after durable promoted authority, including crash replay after promotion without double-promotion.',
+              '2. Execute M7D9 recovery-safe repeated-miss/removal semantics.',
+              '3. Execute M7D10 recovery/replay/operational observability.',
+              '4. Resolve the M7D11 backend/UI scope decision and deliver the approved safe change/review-feed boundary.',
+              '5. Execute M7E only after explicit cohort, operational-limit and activation approval; keep recurring sync off until then.',
+              '6. Decompose M8 in a planning PR immediately before M8 execution. Any names such as M8A/M8B remain **PROPOSED** until that PR merges.',
+              '7. Decompose M9 the same way immediately before Storefront UX 2.0 execution. Any names such as M9A/M9B remain **PROPOSED** until that PR merges.',
+              '8. Continue M10 -> M17 as the productization path, decomposing each macro milestone before implementation where more than one bounded PR is required.',
+              '9. Finish remaining M1 governance debt through focused safety PRs without displacing the active milestone unless it becomes a blocker.',
+              '10. Do not enter closed beta before M18-M20 launch gates are materially complete.'
+          ])
+          new_order = '\n'.join([
+              '1. Execute M7D9 recovery-safe repeated-miss/removal semantics.',
+              '2. Execute M7D10 recovery/replay/operational observability.',
+              '3. Resolve the M7D11 backend/UI scope decision and deliver the approved safe change/review-feed boundary.',
+              '4. Execute M7E only after explicit cohort, operational-limit and activation approval; keep recurring sync off until then.',
+              '5. Decompose M8 in a planning PR immediately before M8 execution. Any names such as M8A/M8B remain **PROPOSED** until that PR merges.',
+              '6. Decompose M9 the same way immediately before Storefront UX 2.0 execution. Any names such as M9A/M9B remain **PROPOSED** until that PR merges.',
+              '7. Continue M10 -> M17 as the productization path, decomposing each macro milestone before implementation where more than one bounded PR is required.',
+              '8. Finish remaining M1 governance debt through focused safety PRs without displacing the active milestone unless it becomes a blocker.',
+              '9. Do not enter closed beta before M18-M20 launch gates are materially complete.'
+          ])
+          replace_once(roadmap, old_order, new_order)
+
+          sync = 'docs/TENANT-SYNC.md'
+          sync_status = '\n'.join([
+              'M7D8 is **PRODUCTION GREEN** at trusted-main implementation SHA `cb09e35b753a37726d74b18eab12761885e38faa`. Migration `0021_tenant_sync_finalization.sql` persists the exact due slot and finalization lease; scheduler job creation no longer advances schedule authority; post-promotion finalization uses exact tenant/source/run/slot ownership plus a phase-aware lease/CAS; an exact already-promoted replay commits only the remaining control metadata without promoting twice; duplicate terminal finalization is a no-op. Trusted-main deploy `33100902771`, M7D7 regression canary `33101085323` and dedicated M7D8 crash/replay canary `33101085492` passed on the exact implementation SHA. Full closure evidence lives in `M7D8-CLOSURE-2026-08-27.md`.',
+              '',
+              'Recurring Intelligent Sync remains disabled, the active cohort remains empty and M7D9 is the next approved slice. M7D8 does not activate repeated-miss/removal semantics or broad recovery/DLQ behavior.',
+              ''
+          ])
+          replace_once(sync,
+              '### M7D9 — Repeated Miss and Safe Removal',
+              sync_status + '\n### M7D9 — Repeated Miss and Safe Removal')
+
+          start = 'START-HERE-AI.md'
+          replace_once(start,
+              'production implementation checkpoint = 725854afc408bb6177aa071e2797051369c4040c',
+              'production implementation checkpoint = cb09e35b753a37726d74b18eab12761885e38faa')
+          replace_once(start,
+              'documentation reconciliation capture point after PR #153 = f01253dd4b7c5855de0cbfb222a128cab9c48f1b',
+              'prior documentation reconciliation capture point after PR #154 = 8c1f40012355d6d29f1add4d2990d3b24f101eb8')
+          replace_once(start,
+              '- `725854af...` is the last known **feature implementation SHA with exact M7D7 trusted-main production proof**;\n- `f01253dd...` is the later **documentation-only repository capture point** that reconciled M7D7 closure/current-state/roadmap after the continuity protocol was introduced.',
+              '- `cb09e35b...` is the last known **feature implementation SHA with exact M7D8 trusted-main production proof**;\n- `8c1f4001...` is the prior **documentation-only repository capture point** that completed M7D7 continuity reconciliation before M7D8 implementation. The M7D8 closure commit is intentionally not self-recorded as an eternal HEAD; discover live `main`.')
+          regex_once(start,
+              r'Last known production-feature merge:\n\n```text\nPR #150 — m7d7: add atomic promotion authority primitive\nproduction implementation SHA = 725854afc408bb6177aa071e2797051369c4040c\n```',
+              'Last known production-feature merge:\n\n```text\nPR #155 — m7d8: finalize promoted sync control state exactly once\nproduction implementation SHA = cb09e35b753a37726d74b18eab12761885e38faa\n```')
+          regex_once(start,
+              r'## Exact known trusted-main status on the M7D7 production implementation SHA\n\nThe exact SHA `725854afc408bb6177aa071e2797051369c4040c` published success for:\n\n```text\n.*?```\n\nThis is a last-known checkpoint only\.',
+              '\n'.join([
+                  '## Exact known trusted-main status on the M7D8 production implementation SHA',
+                  '',
+                  'The exact SHA `cb09e35b753a37726d74b18eab12761885e38faa` published success for:',
+                  '',
+                  '```text',
+                  'catalog-engine/queue-consumer-activation',
+                  '  run 33100902745',
+                  '',
+                  'catalog-engine/application-deploy',
+                  '  run 33100902771',
+                  '',
+                  'catalog-engine/tenant-data-plane-fleet-canary',
+                  '  run 33101085125',
+                  '',
+                  'catalog-engine/tenant-incremental-affected-detail-canary',
+                  '  run 33101085323',
+                  '',
+                  'catalog-engine/tenant-incremental-cei-candidate-canary',
+                  '  run 33101085323',
+                  '',
+                  'catalog-engine/tenant-incremental-candidate-verification-canary',
+                  '  run 33101085323',
+                  '',
+                  'catalog-engine/tenant-incremental-promotion-authority-canary',
+                  '  run 33101085323',
+                  '',
+                  'catalog-engine/tenant-incremental-finalization-canary',
+                  '  run 33101085492',
+                  '```',
+                  '',
+                  'This is a last-known checkpoint only.'
+              ]))
+          replace_once(start,
+              'M7D8 = PLANNED — NEXT APPROVED\nM7D9 = PLANNED',
+              'M7D8 = PRODUCTION GREEN\nM7D9 = PLANNED — NEXT APPROVED')
+          section11 = '\n'.join([
+              '# 11. NEXT APPROVED SUBMILESTONE',
+              '',
+              'Subject to live revalidation, the next roadmap slice is:',
+              '',
+              '## M7D9 — Repeated Miss and Safe Removal',
+              '',
+              'Commercial outcome:',
+              '',
+              '> Remove products truly gone from the supplier without deleting healthy products because of a failed scan.',
+              '',
+              'Normative owner:',
+              '',
+              '- `docs/TENANT-SYNC.md`',
+              '',
+              'Required contract:',
+              '',
+              '- only independent complete, healthy, plausible and safety-authorized promoted runs may progress miss state;',
+              '- duplicate delivery/run must not increment miss state twice;',
+              '- incomplete scope, category exit, provider outage, 429/5xx, malformed HTML, pagination failure, zero result or catastrophic drop must not reduce unrelated/global healthy membership;',
+              '- miss threshold and scope identity must be explicit and versioned;',
+              '- REMOVED is a candidate event that must still verify and promote safely;',
+              '- RESTORED must reset/progress the ledger deterministically and safely return a removed product;',
+              '- recurring Intelligent Sync remains disabled and no real activation cohort is created in M7D9.',
+              '',
+              'M7D9 must not absorb M7D10 recovery/DLQ/observability, M7D11 change-feed scope or M7E activation.',
+              '',
+              '---',
+              '',
+              '# 12. M7 REMAINING ORDER — DO NOT SKIP'
+          ])
+          regex_once(start,
+              r'# 11\. NEXT APPROVED SUBMILESTONE.*?# 12\. M7 REMAINING ORDER — DO NOT SKIP',
+              section11)
+          replace_once(start,
+              'M7D8 — Verified Promotion and Cursor Commit\n↓\nM7D9 — Repeated Miss and Safe Removal',
+              'M7D9 — Repeated Miss and Safe Removal')
+
+          for path in [current, roadmap, sync, start]:
+              if '\r\n' in Path(path).read_text():
+                  raise SystemExit(f'{path}: unexpected CRLF introduced')
+          PY
+      - name: Verify intended documentation-only diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          ACTUAL="$(git diff --name-only | sort | tr '\n' ' ')"
+          EXPECTED="START-HERE-AI.md docs/CURRENT-STATE.md docs/DEVELOPMENT-ROADMAP.md docs/TENANT-SYNC.md "
+          test "$ACTUAL" = "$EXPECTED"
+          grep -F 'M7D8 = PRODUCTION GREEN' START-HERE-AI.md
+          grep -F 'M7D9 = PLANNED — NEXT APPROVED' START-HERE-AI.md
+          grep -F 'M7D8 — Verified Promotion and Cursor Commit            | **PRODUCTION GREEN**' docs/DEVELOPMENT-ROADMAP.md
+          grep -F 'M7D9 — Repeated Miss and Safe Removal                  | **PLANNED — NEXT APPROVED**' docs/DEVELOPMENT-ROADMAP.md
+          grep -F '## M7 state — M7A through M7D8 production-proven' docs/CURRENT-STATE.md
+          grep -F 'M7D8 is **PRODUCTION GREEN** at trusted-main implementation SHA' docs/TENANT-SYNC.md
+          ! grep -F 'M7D8 = PLANNED — NEXT APPROVED' START-HERE-AI.md
+          ! grep -F '1. Execute M7D8 so cursor/schedule/control metadata commits' docs/DEVELOPMENT-ROADMAP.md
+      - name: Commit surgical M7D8 save-game
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'catalog-engine-docs-bot'
+          git config user.email 'catalog-engine-docs-bot@users.noreply.github.com'
+          git add START-HERE-AI.md docs/CURRENT-STATE.md docs/DEVELOPMENT-ROADMAP.md docs/TENANT-SYNC.md
+          git commit -m 'docs: reconcile M7D8 production state'
+          git push origin HEAD:docs/m7d8-production-closure
