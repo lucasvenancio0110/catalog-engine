@@ -22,6 +22,7 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
           sync_path = Path('docs/TENANT-SYNC.md')
           sync = sync_path.read_text()
@@ -44,11 +45,11 @@ jobs:
                   raise SystemExit(f'START-HERE expected text not found: {old_text[:70]}')
               start = start.replace(old_text, new_text, 1)
 
-          conflict = """Known documentation conflict at this checkpoint:\n\n- `docs/CURRENT-STATE.md` still describes M7D7 implementation as pending;\n- `docs/DEVELOPMENT-ROADMAP.md` still lists M7D7 as planned/implementation next;\n- `docs/TENANT-SYNC.md` still contains stale wording that M7D7 implementation/Production Green remains pending;\n- no M7D7 closure document equivalent to the D3-D6 closures exists yet.\n\nThe next AI must revalidate whether this conflict still exists. If it does, reconcile it before treating M7D8 as active implementation work.\n"""
-          resolved = """M7D7 closure reconciliation was completed by PR `#153` at documentation-only SHA `f01253dd4b7c5855de0cbfb222a128cab9c48f1b`, and this follow-up reconciles the remaining normative/bootloader wording. Live revalidation still outranks this snapshot.\n"""
-          if conflict not in start:
-              raise SystemExit('START-HERE stale conflict block not found')
-          start = start.replace(conflict, resolved, 1)
+          resolved = "M7D7 closure reconciliation was completed by PR `#153` at documentation-only SHA `f01253dd4b7c5855de0cbfb222a128cab9c48f1b`, and this follow-up reconciles the remaining normative/bootloader wording. Live revalidation still outranks this snapshot.\n\n"
+          pattern = r'Known documentation conflict at this checkpoint:\s*.*?The next AI must revalidate whether this conflict still exists\. If it does, reconcile it before treating M7D8 as active implementation work\.\s*'
+          start, count = re.subn(pattern, resolved, start, count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit(f'START-HERE stale conflict replacements={count}')
           start_path.write_text(start)
           PY
       - name: Verify intended changes only
