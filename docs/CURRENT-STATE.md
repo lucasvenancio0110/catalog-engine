@@ -1,7 +1,7 @@
 # Catalog Engine — Current State
 
 Status: **Living operational truth**  
-Snapshot: **2026-08-25 after M7D7 promotion-authority architecture decision**
+Snapshot: **2026-08-27 after live M7D7 production reconciliation**
 Purpose: record what is implemented/proven now, separate from durable product contracts and future roadmap work.
 
 ## How to use this document
@@ -18,6 +18,7 @@ This document owns mutable implementation/deployment truth.
 - M7D4 production closure evidence lives in `docs/M7D4-CLOSURE-2026-08-25.md`.
 - M7D5 production closure evidence lives in `docs/M7D5-CLOSURE-2026-08-25.md`.
 - M7D6 production closure evidence lives in `docs/M7D6-CLOSURE-2026-08-25.md`.
+- M7D7 production closure evidence lives in `docs/M7D7-CLOSURE-2026-08-27.md`.
 
 ## Repository baseline
 
@@ -36,7 +37,7 @@ Milestone state:
 - M4 Provider Engine: **complete**;
 - M5 automatic tenant Queue import: **complete / production-proven**;
 - M6 CEI Core + Sports Knowledge Pack v1: **complete / production-proven**;
-- **M7 Intelligent Sync v2: current execution milestone; safety/scheduling/delta/staging/schema-fleet/candidate-state foundations plus controlled enrollment, live incremental dispatch/scan, affected-detail completion, affected-only CEI candidate processing and complete private candidate verification through M7D6 are production-proven**.
+- **M7 Intelligent Sync v2: current execution milestone; safety/scheduling/delta/staging/schema-fleet/candidate-state foundations plus controlled enrollment, live incremental dispatch/scan, affected-detail completion, affected-only CEI candidate processing, complete private candidate verification and atomic promotion authority through M7D7 are production-proven**.
 
 ## Final M6 production checkpoint
 
@@ -282,9 +283,9 @@ M6D production canaries found two real issues before closure:
 
 The final canary passed after both were corrected. Verification was not weakened to obtain green status.
 
-## M7 state — M7A through M7D6 production-proven
+## M7 state — M7A through M7D7 production-proven
 
-M7 remains the active milestone. Safety, scheduler, provider-neutral listing delta, private listing stage, additive schema fleet, candidate-state schema, controlled enrollment, live incremental dispatcher-to-private-stage, affected-detail candidate completion, affected-only CEI candidate processing and complete private candidate verification are now production-proven through M7D6.
+M7 remains the active milestone. Safety, scheduler, provider-neutral listing delta, private listing stage, additive schema fleet, candidate-state schema, controlled enrollment, live incremental dispatcher-to-private-stage, affected-detail candidate completion, affected-only CEI candidate processing, complete private candidate verification and atomic canonical promotion authority are now production-proven through M7D7.
 
 Implemented and proven:
 
@@ -643,48 +644,29 @@ catalog-engine/tenant-incremental-candidate-verification-canary
 
 This closes M7D6 only. The candidate is verified privately but canonical/storefront authority has not switched. No promotion, cursor/schedule commit, removal or recurring-sync activation occurred. Full evidence is recorded in `M7D6-CLOSURE-2026-08-25.md`.
 
-### M7D7 promotion-authority architecture decision — accepted / implementation pending
+### M7D7 atomic promotion authority — production-proven
 
-The mandatory pre-implementation M7D7 architecture gate is complete. Catalog Engine V1 selects **one bounded set-based D1 transaction** as the canonical serving-authority primitive and rejects generation/version + active-pointer storage for V1 at the measured launch envelope.
+M7D7 entered `main` through PR `#150` and is **PRODUCTION GREEN** at trusted-main implementation SHA:
 
-Real Cloudflare D1 evidence was produced only on isolated ephemeral databases:
+`725854afc408bb6177aa071e2797051369c4040c`
 
-- evidence PR `#147`, integrated SHA `49fb1550b0d922bc9ad4a60a22be235afb02c545`, trusted run `32872632343` / job `97883057258` = **SUCCESS**;
-- corrected evidence PR `#148`, integrated SHA `581d73f27aa457be0b71685a38500bc3ff70615f`, trusted run `32873067956` / job `97884460496` = **SUCCESS**;
-- 108 test files / 535 tests, ESLint and dependency policy passed;
-- probe target: 20,000 products + 40,000 media relationships;
-- modeled canonical row changes: approximately 140,000;
-- set-based authority transaction: `1,374.0 ms` wall / `436.537 ms` internal SQL;
-- forced middle-statement failure rolled the D1 batch back completely;
-- five concurrent readers observed only the complete new revision after queueing behind the write; no mixed state was observed;
-- generation pointer comparison: `0.235 ms` internal SQL for the pointer update after pre-materialization;
-- no real tenant/default catalog mutation, no Queue message, recurring sync remained disabled and ephemeral D1 cleanup succeeded.
+Revalidated exact-SHA evidence:
 
-The selected authority flow is:
+- Queue consumer activation `33034446742` = **SUCCESS**;
+- application deploy `33034446810` = **SUCCESS**;
+- tenant data-plane fleet canary `33034549918` = **SUCCESS**;
+- cumulative M7D4→M7D7 canary `33034549923`, job `98394306811` = **SUCCESS**;
+- automatic tenant import canary `33034549968` = **SUCCESS**;
+- provider-engine quality `33034446727` = **SUCCESS**;
+- frontend quality `33034446702` = **SUCCESS**.
 
-```text
-verified candidate
-→ fail-closed envelope + stale-base admission
-→ ONE D1 batch transaction
-   verified -> promoting
-   + all canonical serving mutations
-   + promoting -> promoted
-→ commit is the authority switch
-```
+Schema v7 now provides tenant-scoped `catalog_serving_authority` plus run-scoped `supplier_sync_stage_authority`. A verified candidate is admitted only against its exact base authority revision; the bounded set-based D1 transaction writes the canonical serving state, advances authority exactly once and finishes the stage as `promoted`. Replaying the exact already-promoted run is idempotent, while a stale competing base fails closed.
 
-The measured V1 admission envelope is 20,000 composed products / 40,000 media relationships plus existing transport limits (100 batch statements, 100 KB SQL statement, 100 params/query). Above-envelope promotion must fail before canonical mutation; it may never fall back to chunked canonical writes.
+The production canary also proved the M7D7 boundary deliberately stops before control-plane cursor/schedule finalization: after promotion the control job remained `finalizing/finalize` and no schedule/cursor authority advanced. Full evidence is recorded in `M7D7-CLOSURE-2026-08-27.md`.
 
-This decision does **not** mean M7D7 is implemented or Production Green. The next approved work is the bounded M7D7 primitive itself, with production-shaped proof of stale-base CAS, competing-run exclusion, transaction rollback, idempotent replay, old-or-new readers, over-envelope failure, privacy/isolation and no cursor/removal/activation changes. Full rationale and revisit conditions are in `M7D7-PROMOTION-AUTHORITY-DECISION-2026-08-25.md`.
+### M7D7 architecture evidence — historical prerequisite
 
-Still not active/proven in production:
-
-- verified canonical promotion and cursor advancement;
-- repeated-miss removal activation;
-- recovery/replay closure for the complete sync path;
-- merchant-facing durable change/review feed;
-- recurring Intelligent Sync activation.
-
-The next approved roadmap item is M7D7 Promotion Authority Primitive, but implementation is blocked on its required architecture decision. Measured D1 evidence must first select and document one atomic serving-authority boundary; chunked canonical writes without an authority flip remain prohibited. Recurring Intelligent Sync remains disabled.
+The architecture decision and isolated D1 stress evidence that selected the bounded set-based transaction remain recorded in `M7D7-PROMOTION-AUTHORITY-DECISION-2026-08-25.md`. They are prerequisite/history, not the current M7D7 implementation status.
 
 ## Provider Engine state
 
@@ -781,11 +763,11 @@ M7's primary safety goal is that supplier outages, partial scans, malformed scan
 
 Immediate next execution boundary:
 
-**M7D7 — Promotion Authority Primitive implementation**
+**M7D8 — Verified Promotion and Cursor Commit**
 
-The architecture decision is complete: V1 uses one bounded set-based D1 transaction whose commit is the serving-authority switch. M7D7 implementation must now encode verified-only/stale-base CAS, the complete production-shaped canonical mutation in one batch, idempotent promoted replay, over-envelope fail-closed admission and exact rollback/reader-isolation proof. It must not commit cursor/schedule authority, activate removal or enable recurring Intelligent Sync.
+M7D8 must connect the private `verified` state to the M7D7 promotion primitive and commit cursor/schedule/control metadata only after the exact tenant serving authority is durably `promoted`. The scheduler must stop advancing `next_sync_at` merely when a due job is created. A crash after promotion but before control-plane commit must replay by observing the same run already `promoted`, without promoting again, and commit only the remaining control metadata exactly once.
 
-The complete approved M7 slice ledger lives in `DEVELOPMENT-ROADMAP.md`, with detailed contracts in `TENANT-SYNC.md`. M7D6 is **PRODUCTION GREEN**; M7D7 is **PLANNED — architecture decision complete / implementation next**; M7D8–M7D11 remain planned in order; M7E remains an explicit activation decision. Recurring Intelligent Sync stays disabled.
+The complete approved M7 slice ledger lives in `DEVELOPMENT-ROADMAP.md`, with detailed contracts in `TENANT-SYNC.md`. M7D7 is **PRODUCTION GREEN**; M7D8 is the **next approved** slice; M7D9–M7D11 remain planned in order; M7E remains an explicit activation decision. Recurring Intelligent Sync stays disabled.
 
 Future macro milestones such as M8 and M9 do not yet have approved A/B subdivisions. Their sub-slices must be proposed and merged through the decomposition protocol immediately before execution; a future contributor may not invent those names or treat a conversational proposal as approved scope.
 
