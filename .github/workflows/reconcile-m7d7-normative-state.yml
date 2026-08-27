@@ -45,8 +45,8 @@ jobs:
                   raise SystemExit(f'START-HERE expected text not found: {old_text[:70]}')
               start = start.replace(old_text, new_text, 1)
 
-          resolved = "M7D7 closure reconciliation was completed by PR `#153` at documentation-only SHA `f01253dd4b7c5855de0cbfb222a128cab9c48f1b`, and this follow-up reconciles the remaining normative/bootloader wording. Live revalidation still outranks this snapshot.\n\n"
-          pattern = r'Known documentation conflict at this checkpoint:\s*.*?The next AI must revalidate whether this conflict still exists\. If it does, reconcile it before treating M7D8 as active implementation work\.\s*'
+          resolved = "## M7D7 documentation reconciliation\n\nM7D7 closure reconciliation was completed by PR `#153` at documentation-only SHA `f01253dd4b7c5855de0cbfb222a128cab9c48f1b`, and this follow-up reconciles the remaining normative/bootloader wording. Live revalidation still outranks this snapshot.\n\n"
+          pattern = r'## Known documentation conflict that MUST be reconciled\s+At this checkpoint, production/code are ahead of several canonical documents:.*?The next AI must revalidate whether this conflict still exists\. If it does, reconcile it before treating M7D8 as active implementation work\.\s*'
           start, count = re.subn(pattern, resolved, start, count=1, flags=re.S)
           if count != 1:
               raise SystemExit(f'START-HERE stale conflict replacements={count}')
@@ -60,6 +60,7 @@ jobs:
           test "$(git diff --name-only | sort | tr '\n' ' ')" = "START-HERE-AI.md docs/TENANT-SYNC.md "
           grep -F 'M7D7 is **PRODUCTION GREEN**' docs/TENANT-SYNC.md
           grep -F 'M7D8 = PLANNED — NEXT APPROVED' START-HERE-AI.md
+          grep -F '## M7D7 documentation reconciliation' START-HERE-AI.md
           ! grep -F 'M7D7 implementation remains a separate claim' docs/TENANT-SYNC.md
           ! grep -F 'canonical closure documentation is stale/incomplete' START-HERE-AI.md
       - name: Commit reconciliation
