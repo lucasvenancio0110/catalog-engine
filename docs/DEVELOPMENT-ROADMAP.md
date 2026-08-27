@@ -372,8 +372,8 @@ The table below is the canonical M7 slice order. Detailed behavior and safety in
 | M7D5 — Affected-only CEI Candidate Processing          | **PRODUCTION GREEN**                                               | Reprocess only affected candidates while preserving merchant overrides and generic CEI boundaries.    |
 | M7D6 — Candidate Verification                          | **PRODUCTION GREEN**                                               | Verify the complete candidate view, counts, relationships, media, CEI and privacy before promotion.   |
 | M7D7 — Promotion Authority Primitive                   | **PRODUCTION GREEN**                                               | Verified candidates promote through one bounded atomic D1 authority transaction with stale-base CAS and idempotent replay. |
-| M7D8 — Verified Promotion and Cursor Commit            | **PLANNED — NEXT APPROVED**                                        | Advance cursor/schedule/control metadata only after exact durable promoted authority, with crash-safe replay. |
-| M7D9 — Repeated Miss and Safe Removal                  | **PLANNED**                                                        | Apply authoritative repeated-miss, multi-scope membership, removal and restoration semantics.         |
+| M7D8 — Verified Promotion and Cursor Commit            | **PRODUCTION GREEN**                                        | Advance cursor/schedule/control metadata only after exact durable promoted authority, with crash-safe replay. |
+| M7D9 — Repeated Miss and Safe Removal                  | **PLANNED — NEXT APPROVED**                                                        | Apply authoritative repeated-miss, multi-scope membership, removal and restoration semantics.         |
 | M7D10 — Recovery, Replay and Operational Observability | **PLANNED**                                                        | Close crash, lease, duplicate delivery, DLQ/replay and safe diagnostic paths.                         |
 | M7D11 — Safe Change and Review Feed                    | **PLANNED — scope decision before customer UI**                    | Project promoted changes and exceptions through opaque, tenant-scoped, redacted events.               |
 | M7E — Deliberate Activation                            | **DECISION REQUIRED**                                              | Activation-only change for an explicitly approved canary cohort and scheduler-owned production proof. |
@@ -388,7 +388,9 @@ M7D6 production closure is recorded in `M7D6-CLOSURE-2026-08-25.md`. Final trust
 
 M7D7 production closure is recorded in `M7D7-CLOSURE-2026-08-27.md`. Trusted-main implementation SHA `725854afc408bb6177aa071e2797051369c4040c` passed Queue activation `33034446742`, application deploy `33034446810`, fleet canary `33034549918`, cumulative M7D4→M7D7 promotion-authority canary `33034549923` / job `98394306811`, automatic import canary `33034549968` and the quality workflows. Schema v7 now promotes a verified candidate through one bounded set-based D1 transaction whose commit is the canonical authority switch; replay of the exact already-promoted run is idempotent and stale competing authority fails closed. The production canary also proved that M7D7 intentionally leaves the control job `finalizing/finalize` and does not advance cursor/schedule authority.
 
-M7D8 is therefore the next approved slice. Its required order is `verified -> atomic promotion -> promoted -> cursor/schedule/control commit`. It must stop the scheduler from advancing `next_sync_at` when merely creating a due job, use exact tenant/source/run ownership plus phase-aware lease/CAS finalization, and prove crash replay after promotion without a second promotion. Recurring Intelligent Sync remains disabled and the production cohort remains empty.
+M7D8 production closure is recorded in `M7D8-CLOSURE-2026-08-27.md`. Trusted-main implementation SHA `cb09e35b753a37726d74b18eab12761885e38faa` passed Queue activation `33100902745`, application deploy `33100902771`, fleet regression `33101085125`, cumulative M7D4→M7D7 authority canary `33101085323` / job `98618651668` and dedicated post-promotion finalization canary `33101085492` / job `98618652912`. The scheduler now preserves the exact due slot without advancing schedule authority at job creation; a phase-aware lease/CAS finalizer advances schedule/control metadata only after durable `promoted` authority; crash replay of an already-promoted run commits only the remaining control metadata without a second promotion; duplicate finalization is a no-op. Recurring Intelligent Sync remains disabled with an empty active cohort and cap `1`.
+
+M7D9 is therefore the next approved slice. Its repeated-miss/removal/restoration contract must remain separate from M7D10 recovery/replay and from M7E activation.
 
 M7D2 through M7D11 must remain separate implementation claims unless a later documentation decision proves a safer decomposition. M7E may not contain feature code or migrations. `TENANT_SYNC_AUTOMATION_ENABLED` remains `0` until the M7E decision and complete production proof.
 
@@ -874,13 +876,12 @@ If that condition is not true, the product is still assisted service/infrastruct
 
 ## Immediate execution order from this document
 
-1. Execute M7D8 so cursor/schedule/control metadata commits only after durable promoted authority, including crash replay after promotion without double-promotion.
-2. Execute M7D9 recovery-safe repeated-miss/removal semantics.
-3. Execute M7D10 recovery/replay/operational observability.
-4. Resolve the M7D11 backend/UI scope decision and deliver the approved safe change/review-feed boundary.
-5. Execute M7E only after explicit cohort, operational-limit and activation approval; keep recurring sync off until then.
-6. Decompose M8 in a planning PR immediately before M8 execution. Any names such as M8A/M8B remain **PROPOSED** until that PR merges.
-7. Decompose M9 the same way immediately before Storefront UX 2.0 execution. Any names such as M9A/M9B remain **PROPOSED** until that PR merges.
-8. Continue M10 -> M17 as the productization path, decomposing each macro milestone before implementation where more than one bounded PR is required.
-9. Finish remaining M1 governance debt through focused safety PRs without displacing the active milestone unless it becomes a blocker.
-10. Do not enter closed beta before M18-M20 launch gates are materially complete.
+1. Execute M7D9 recovery-safe repeated-miss/removal semantics.
+2. Execute M7D10 recovery/replay/operational observability.
+3. Resolve the M7D11 backend/UI scope decision and deliver the approved safe change/review-feed boundary.
+4. Execute M7E only after explicit cohort, operational-limit and activation approval; keep recurring sync off until then.
+5. Decompose M8 in a planning PR immediately before M8 execution. Any names such as M8A/M8B remain **PROPOSED** until that PR merges.
+6. Decompose M9 the same way immediately before Storefront UX 2.0 execution. Any names such as M9A/M9B remain **PROPOSED** until that PR merges.
+7. Continue M10 -> M17 as the productization path, decomposing each macro milestone before implementation where more than one bounded PR is required.
+8. Finish remaining M1 governance debt through focused safety PRs without displacing the active milestone unless it becomes a blocker.
+9. Do not enter closed beta before M18-M20 launch gates are materially complete.

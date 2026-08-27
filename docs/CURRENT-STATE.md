@@ -1,7 +1,7 @@
 # Catalog Engine — Current State
 
 Status: **Living operational truth**  
-Snapshot: **2026-08-27 after live M7D7 production reconciliation**
+Snapshot: **2026-08-27 after M7D8 trusted-main production proof**
 Purpose: record what is implemented/proven now, separate from durable product contracts and future roadmap work.
 
 ## How to use this document
@@ -19,6 +19,7 @@ This document owns mutable implementation/deployment truth.
 - M7D5 production closure evidence lives in `docs/M7D5-CLOSURE-2026-08-25.md`.
 - M7D6 production closure evidence lives in `docs/M7D6-CLOSURE-2026-08-25.md`.
 - M7D7 production closure evidence lives in `docs/M7D7-CLOSURE-2026-08-27.md`.
+- M7D8 production closure evidence lives in `docs/M7D8-CLOSURE-2026-08-27.md`.
 
 ## Repository baseline
 
@@ -37,7 +38,7 @@ Milestone state:
 - M4 Provider Engine: **complete**;
 - M5 automatic tenant Queue import: **complete / production-proven**;
 - M6 CEI Core + Sports Knowledge Pack v1: **complete / production-proven**;
-- **M7 Intelligent Sync v2: current execution milestone; safety/scheduling/delta/staging/schema-fleet/candidate-state foundations plus controlled enrollment, live incremental dispatch/scan, affected-detail completion, affected-only CEI candidate processing, complete private candidate verification and atomic promotion authority through M7D7 are production-proven**.
+- **M7 Intelligent Sync v2: current execution milestone; safety/scheduling/delta/staging/schema-fleet/candidate-state foundations plus controlled enrollment, live incremental dispatch/scan, affected-detail completion, affected-only CEI candidate processing, complete private candidate verification and atomic promotion authority plus post-promotion cursor/schedule/control finalization through M7D8 are production-proven**.
 
 ## Final M6 production checkpoint
 
@@ -283,9 +284,9 @@ M6D production canaries found two real issues before closure:
 
 The final canary passed after both were corrected. Verification was not weakened to obtain green status.
 
-## M7 state — M7A through M7D7 production-proven
+## M7 state — M7A through M7D8 production-proven
 
-M7 remains the active milestone. Safety, scheduler, provider-neutral listing delta, private listing stage, additive schema fleet, candidate-state schema, controlled enrollment, live incremental dispatcher-to-private-stage, affected-detail candidate completion, affected-only CEI candidate processing, complete private candidate verification and atomic canonical promotion authority are now production-proven through M7D7.
+M7 remains the active milestone. Safety, scheduler, provider-neutral listing delta, private listing stage, additive schema fleet, candidate-state schema, controlled enrollment, live incremental dispatcher-to-private-stage, affected-detail candidate completion, affected-only CEI candidate processing, complete private candidate verification and atomic canonical promotion authority are now production-proven through M7D8.
 
 Implemented and proven:
 
@@ -664,6 +665,18 @@ Schema v7 now provides tenant-scoped `catalog_serving_authority` plus run-scoped
 
 The production canary also proved the M7D7 boundary deliberately stops before control-plane cursor/schedule finalization: after promotion the control job remained `finalizing/finalize` and no schedule/cursor authority advanced. Full evidence is recorded in `M7D7-CLOSURE-2026-08-27.md`.
 
+### M7D8 verified promotion and cursor commit — production-proven
+
+M7D8 entered `main` through PR `#155` and is **PRODUCTION GREEN** at trusted-main implementation SHA:
+
+`cb09e35b753a37726d74b18eab12761885e38faa`
+
+Control-plane migration `0021_tenant_sync_finalization.sql` adds the exact scheduled-slot identity (`sync_scheduled_for`) and bounded finalization lease (`finalize_lease_until`). The recurring scheduler now creates the deterministic due job without advancing `next_sync_at`; the finalizer claims only exact `incremental/finalizing/finalize` work, invokes the M7D7 authority primitive, and commits schedule plus terminal job metadata only after durable `promoted` authority.
+
+Trusted-main application deploy `33100902771`, Queue activation `33100902745`, fleet regression `33101085125`, cumulative M7D4→M7D7 authority canary `33101085323` / job `98618651668`, and dedicated M7D8 finalization canary `33101085492` / job `98618652912` all passed on the exact implementation SHA. The D8 canary proved normal finalization, the crash gap after canonical promotion but before control commit, already-promoted replay without a second authority increment, single control commit, duplicate no-op, production migration presence, no manual Queue injection and no commercial production control mutation.
+
+Recurring Intelligent Sync remains disabled (`TENANT_SYNC_AUTOMATION_ENABLED=0`), the active cohort remains empty and the per-tick cap remains `1`. M7D8 does not implement repeated-miss/removal, broad recovery/DLQ, the review feed or activation. Full evidence is recorded in `M7D8-CLOSURE-2026-08-27.md`.
+
 ### M7D7 architecture evidence — historical prerequisite
 
 The architecture decision and isolated D1 stress evidence that selected the bounded set-based transaction remain recorded in `M7D7-PROMOTION-AUTHORITY-DECISION-2026-08-25.md`. They are prerequisite/history, not the current M7D7 implementation status.
@@ -763,11 +776,11 @@ M7's primary safety goal is that supplier outages, partial scans, malformed scan
 
 Immediate next execution boundary:
 
-**M7D8 — Verified Promotion and Cursor Commit**
+**M7D9 — Repeated Miss and Safe Removal**
 
-M7D8 must connect the private `verified` state to the M7D7 promotion primitive and commit cursor/schedule/control metadata only after the exact tenant serving authority is durably `promoted`. The scheduler must stop advancing `next_sync_at` merely when a due job is created. A crash after promotion but before control-plane commit must replay by observing the same run already `promoted`, without promoting again, and commit only the remaining control metadata exactly once.
+M7D9 must add authoritative repeated-miss/removal/restoration semantics only from independent complete, healthy, plausible and safety-authorized promoted runs. Duplicate delivery must not increment miss state twice; incomplete scopes, outages and implausible scans must not reduce healthy membership; scope identity and thresholds must remain explicit; RESTORED must recover deterministically.
 
-The complete approved M7 slice ledger lives in `DEVELOPMENT-ROADMAP.md`, with detailed contracts in `TENANT-SYNC.md`. M7D7 is **PRODUCTION GREEN**; M7D8 is the **next approved** slice; M7D9–M7D11 remain planned in order; M7E remains an explicit activation decision. Recurring Intelligent Sync stays disabled.
+The complete approved M7 slice ledger lives in `DEVELOPMENT-ROADMAP.md`, with detailed contracts in `TENANT-SYNC.md`. M7D8 is **PRODUCTION GREEN**; M7D9 is the **next approved** slice; M7D10–M7D11 remain planned in order; M7E remains an explicit activation decision. Recurring Intelligent Sync stays disabled.
 
 Future macro milestones such as M8 and M9 do not yet have approved A/B subdivisions. Their sub-slices must be proposed and merged through the decomposition protocol immediately before execution; a future contributor may not invent those names or treat a conversational proposal as approved scope.
 

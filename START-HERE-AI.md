@@ -342,22 +342,22 @@ Captured against live GitHub on **2026-08-27 (America/Sao_Paulo)**.
 ```text
 repository = lucasvenancio0110/catalog-engine
 branch = main
-production implementation checkpoint = 725854afc408bb6177aa071e2797051369c4040c
-documentation reconciliation capture point after PR #153 = f01253dd4b7c5855de0cbfb222a128cab9c48f1b
+production implementation checkpoint = cb09e35b753a37726d74b18eab12761885e38faa
+prior documentation reconciliation capture point after PR #154 = 8c1f40012355d6d29f1add4d2990d3b24f101eb8
 ```
 
 The two SHAs intentionally mean different things:
 
-- `725854af...` is the last known **feature implementation SHA with exact M7D7 trusted-main production proof**;
-- `f01253dd...` is the later **documentation-only repository capture point** that reconciled M7D7 closure/current-state/roadmap after the continuity protocol was introduced.
+- `cb09e35b...` is the last known **feature implementation SHA with exact M7D8 trusted-main production proof**;
+- `8c1f4001...` is the prior **documentation-only repository capture point** that completed M7D7 continuity reconciliation before M7D8 implementation. The M7D8 closure commit is intentionally not self-recorded as an eternal HEAD; discover live `main`.
 
 Neither value is permission to skip live GitHub revalidation.
 
 Last known production-feature merge:
 
 ```text
-PR #150 — m7d7: add atomic promotion authority primitive
-production implementation SHA = 725854afc408bb6177aa071e2797051369c4040c
+PR #155 — m7d8: finalize promoted sync control state exactly once
+production implementation SHA = cb09e35b753a37726d74b18eab12761885e38faa
 ```
 
 Continuity protocol merge:
@@ -367,34 +367,34 @@ PR #151 — docs: add universal AI continuity entrypoint
 documentation-only SHA = cf026808ff8809c2cd9458ae51fb229635398ec9
 ```
 
-## Exact known trusted-main status on the M7D7 production implementation SHA
+## Exact known trusted-main status on the M7D8 production implementation SHA
 
-The exact SHA `725854afc408bb6177aa071e2797051369c4040c` published success for:
+The exact SHA `cb09e35b753a37726d74b18eab12761885e38faa` published success for:
 
 ```text
 catalog-engine/queue-consumer-activation
-  run 33034446742
+  run 33100902745
 
 catalog-engine/application-deploy
-  run 33034446810
+  run 33100902771
 
 catalog-engine/tenant-data-plane-fleet-canary
-  run 33034549918
+  run 33101085125
 
 catalog-engine/tenant-incremental-affected-detail-canary
-  run 33034549923
+  run 33101085323
 
 catalog-engine/tenant-incremental-cei-candidate-canary
-  run 33034549923
+  run 33101085323
 
 catalog-engine/tenant-incremental-candidate-verification-canary
-  run 33034549923
+  run 33101085323
 
 catalog-engine/tenant-incremental-promotion-authority-canary
-  run 33034549923
+  run 33101085323
 
-catalog-engine/tenant-import-auto-canary
-  run 33034549968
+catalog-engine/tenant-incremental-finalization-canary
+  run 33101085492
 ```
 
 This is a last-known checkpoint only. Requery statuses/runs before using it as current truth.
@@ -417,8 +417,8 @@ M7D4 = PRODUCTION GREEN
 M7D5 = PRODUCTION GREEN
 M7D6 = PRODUCTION GREEN
 M7D7 = PRODUCTION GREEN
-M7D8 = PLANNED — NEXT APPROVED
-M7D9 = PLANNED
+M7D8 = PRODUCTION GREEN
+M7D9 = PLANNED — NEXT APPROVED
 M7D10 = PLANNED
 M7D11 = PLANNED / scope decision before customer UI
 M7E = DECISION REQUIRED / activation-only
@@ -467,71 +467,27 @@ Do not create a real cohort merely to make a canary easier.
 
 Subject to live revalidation, the next roadmap slice is:
 
-## M7D8 — Verified Promotion and Cursor Commit
+## M7D9 — Repeated Miss and Safe Removal
 
 Commercial outcome:
 
-> Publish an approved update once and resume safely after interruption.
+> Remove products truly gone from the supplier without deleting healthy products because of a failed scan.
 
 Normative owner:
 
 - `docs/TENANT-SYNC.md`
 
-Required adjacent documents include at minimum:
+Required contract:
 
-- `AGENTS.md`;
-- all `docs/*.md` by this protocol;
-- `docs/TENANT-DATA-PLANES.md`;
-- `docs/TENANT-IMPORT-PIPELINE.md`;
-- `docs/TENANT-IMPORT-QUEUES.md`;
-- `docs/PROVIDER-ENGINE.md`;
-- `docs/CEI.md`;
-- `docs/DEPLOYMENT-PIPELINES.md`;
-- `docs/CURRENT-STATE.md`;
-- `docs/DEVELOPMENT-ROADMAP.md`;
-- `docs/M7D7-PROMOTION-AUTHORITY-DECISION-2026-08-25.md`;
-- the M7D7 closure once it exists.
+- only independent complete, healthy, plausible and safety-authorized promoted runs may progress miss state;
+- duplicate delivery/run must not increment miss state twice;
+- incomplete scope, category exit, provider outage, 429/5xx, malformed HTML, pagination failure, zero result or catastrophic drop must not reduce unrelated/global healthy membership;
+- miss threshold and scope identity must be explicit and versioned;
+- REMOVED is a candidate event that must still verify and promote safely;
+- RESTORED must reset/progress the ledger deterministically and safely return a removed product;
+- recurring Intelligent Sync remains disabled and no real activation cohort is created in M7D9.
 
-Required ordering:
-
-```text
-verified candidate
-→ M7D7 atomic canonical authority transaction
-→ promoted
-→ M7D8 cursor/schedule/control metadata commit
-```
-
-Critical invariant:
-
-> Cursor/schedule/control authority must never advance before the D1 serving-authority transaction has durably committed.
-
-Critical crash/replay case:
-
-```text
-D7 promotion commits
-→ new canonical authority is durable
-→ process dies before control-plane metadata commit
-→ retry observes exact stage already promoted
-→ retry MUST NOT promote again
-→ retry commits only the remaining cursor/schedule/control metadata exactly once
-```
-
-M7D8 must prove idempotency, phase-aware lease/CAS, exact tenant/source/run ownership, duplicate delivery/replay behavior, stale/competing execution exclusion and finalization ordering.
-
-### M7D8 explicit non-goals
-
-M7D8 must not:
-
-- activate MISSING/REMOVED semantics;
-- implement M7D9 removal;
-- claim complete DLQ/recovery/replay closure;
-- implement M7D10;
-- implement the M7D11 change/review feed;
-- create the M7E production cohort;
-- enable recurring Intelligent Sync;
-- begin M8.
-
-`TENANT_SYNC_AUTOMATION_ENABLED=0` remains mandatory throughout D8.
+M7D9 must not absorb M7D10 recovery/DLQ/observability, M7D11 change-feed scope or M7E activation.
 
 ---
 
@@ -540,8 +496,6 @@ M7D8 must not:
 Subject to live roadmap revalidation:
 
 ```text
-M7D8 — Verified Promotion and Cursor Commit
-↓
 M7D9 — Repeated Miss and Safe Removal
 ↓
 M7D10 — Recovery, Replay and Operational Observability
