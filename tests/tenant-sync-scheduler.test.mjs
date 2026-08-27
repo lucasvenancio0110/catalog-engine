@@ -15,6 +15,10 @@ const enrollmentMigrationPath = new URL(
   '../migrations/0020_tenant_sync_controlled_enrollment.sql',
   import.meta.url
 );
+const finalizationMigrationPath = new URL(
+  '../migrations/0021_tenant_sync_finalization.sql',
+  import.meta.url
+);
 const databases = [];
 
 class BoundStatement {
@@ -126,6 +130,7 @@ async function createDatabase() {
   `);
   database.exec(await readFile(scheduleMigrationPath, 'utf8'));
   database.exec(await readFile(enrollmentMigrationPath, 'utf8'));
+  database.exec(await readFile(finalizationMigrationPath, 'utf8'));
   return { database, d1: new D1SqliteAdapter(database) };
 }
 
@@ -336,7 +341,7 @@ describe('tenant recurring sync scheduler', () => {
 
     const job = database
       .prepare(
-        "SELECT import_id, mode, status, phase FROM tenant_import_jobs WHERE mode='incremental'"
+        "SELECT import_id, mode, status, phase, sync_scheduled_for FROM tenant_import_jobs WHERE mode='incremental'"
       )
       .get();
     expect(job).toMatchObject({ mode: 'incremental', status: 'pending', phase: 'scan' });
@@ -351,13 +356,10 @@ describe('tenant recurring sync scheduler', () => {
     const schedule = database
       .prepare('SELECT last_import_id, last_scheduled_at, next_sync_at FROM tenant_sync_schedules')
       .get();
-    expect(schedule.last_import_id).toBe(job.import_id);
-    expect(schedule.last_scheduled_at).toBeTruthy();
-    expect(
-      database
-        .prepare('SELECT next_sync_at > CURRENT_TIMESTAMP AS in_future FROM tenant_sync_schedules')
-        .get().in_future
-    ).toBe(1);
+    expect(job.sync_scheduled_for).toBe(dueSlot);
+    expect(schedule.last_import_id).toBeNull();
+    expect(schedule.last_scheduled_at).toBeNull();
+    expect(schedule.next_sync_at).toBe(dueSlot);
   });
 
   it('does not create a duplicate while any import job for the source is active', async () => {
