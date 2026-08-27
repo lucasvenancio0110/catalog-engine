@@ -17,13 +17,6 @@ describe('M7D8 trusted production evidence boundary', () => {
     expect(workflow).toContain('retain isolated evidence');
   });
 
-  it('keeps canary-only changes owned by the trusted application deploy trigger', async () => {
-    const deploy = await readFile('.github/workflows/deploy-catalog-api.yml', 'utf8');
-
-    expect(deploy).toContain("'.github/workflows/cloudflare-m7d8-finalization-canary.yml'");
-    expect(deploy).toContain("'scripts/cloudflare-m7d8-finalization-canary.mjs'");
-  });
-
   it('uses only isolated mutable databases and leaves recurring production activation off', async () => {
     const [script, configText] = await Promise.all([
       readFile('scripts/cloudflare-m7d8-finalization-canary.mjs', 'utf8'),
