@@ -1,0 +1,27 @@
+name: M7D7 promotion primitive quality
+
+on:
+  push:
+    branches:
+      - m7d7/promotion-authority-primitive-v1
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: m7d7/promotion-authority-primitive-v1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: M7D7 focused promotion tests
+        run: npx vitest run tests/tenant-incremental-promotion.test.mjs
+      - name: Full quality gate
+        run: npm run quality
