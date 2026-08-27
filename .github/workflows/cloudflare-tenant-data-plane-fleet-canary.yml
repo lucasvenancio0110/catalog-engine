@@ -17,6 +17,7 @@ on:
       - 'worker/tenant-data-plane-schema-v4.js'
       - 'worker/tenant-data-plane-schema-v5.js'
       - 'worker/tenant-data-plane-schema-v6.js'
+      - 'worker/tenant-data-plane-schema-v7.js'
       - 'migrations/0018_tenant_data_plane_fleet_migrations.sql'
       - 'migrations/0019_tenant_data_plane_migration_capability.sql'
       - 'wrangler.jsonc'
@@ -92,7 +93,7 @@ jobs:
         run: |
           set -euo pipefail
           SYNC_AUTOMATION_VALUE="$(node --input-type=module -e "import fs from 'node:fs'; const c=JSON.parse(fs.readFileSync('wrangler.jsonc','utf8')); process.stdout.write(String(c.vars?.TENANT_SYNC_AUTOMATION_ENABLED || ''));" )"
-          test "$SYNC_AUTOMATION_VALUE" = "0" || { echo "TENANT_SYNC_AUTOMATION_ENABLED must remain 0 for M7D1"; exit 1; }
+          test "$SYNC_AUTOMATION_VALUE" = "0" || { echo "TENANT_SYNC_AUTOMATION_ENABLED must remain 0 for M7D7"; exit 1; }
           echo "TENANT_SYNC_AUTOMATION_ENABLED=$SYNC_AUTOMATION_VALUE"
 
       - name: Validate trusted Cloudflare credentials
@@ -102,7 +103,7 @@ jobs:
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
 
-      - name: Prove scheduler-owned v5 to v6 fleet maintenance and LKG preservation
+      - name: Prove scheduler-owned v6 to v7 fleet maintenance and LKG preservation
         shell: bash
         run: |
           set -euo pipefail
@@ -120,7 +121,7 @@ jobs:
         run: |
           set -euo pipefail
           jq -n --arg state success --arg context "$STATUS_CONTEXT" \
-            --arg description "Cron upgraded isolated v5 tenant to v6; failure/import boundaries preserved LKG" \
+            --arg description "Cron upgraded isolated v6 tenant to v7; authority tables added; LKG preserved" \
             --arg target_url "$RUN_URL" \
             '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
           curl --fail --silent --show-error -X POST \
@@ -140,7 +141,7 @@ jobs:
         run: |
           set -euo pipefail
           jq -n --arg state failure --arg context "$STATUS_CONTEXT" \
-            --arg description "Fleet maintenance canary failed; inspect retained isolated evidence before promotion" \
+            --arg description "Schema-v7 fleet maintenance canary failed; inspect retained LKG/authority evidence" \
             --arg target_url "$RUN_URL" \
             '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
           curl --fail --silent --show-error -X POST \
