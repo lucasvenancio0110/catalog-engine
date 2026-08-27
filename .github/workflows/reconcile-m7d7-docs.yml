@@ -17,9 +17,6 @@ jobs:
         with:
           ref: docs/reconcile-m7d7-production-state
           fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
       - name: Patch only stale M7D7/M7D8 state
         shell: bash
         run: |
@@ -29,74 +26,61 @@ jobs:
 
           current_path = Path('docs/CURRENT-STATE.md')
           current = current_path.read_text()
-          current = current.replace(
-              'Snapshot: **2026-08-25 after M7D7 promotion-authority architecture decision**',
-              'Snapshot: **2026-08-27 after live M7D7 production reconciliation**'
-          )
-          current = current.replace(
-              '- M7D6 production closure evidence lives in `docs/M7D6-CLOSURE-2026-08-25.md`.',
-              '- M7D6 production closure evidence lives in `docs/M7D6-CLOSURE-2026-08-25.md`.\n- M7D7 production closure evidence lives in `docs/M7D7-CLOSURE-2026-08-27.md`.'
-          )
-          current = current.replace(
-              '**M7 Intelligent Sync v2: current execution milestone; safety/scheduling/delta/staging/schema-fleet/candidate-state foundations plus controlled enrollment, live incremental dispatch/scan, affected-detail completion, affected-only CEI candidate processing and complete private candidate verification through M7D6 are production-proven**.',
-              '**M7 Intelligent Sync v2: current execution milestone; safety/scheduling/delta/staging/schema-fleet/candidate-state foundations plus controlled enrollment, live incremental dispatch/scan, affected-detail completion, affected-only CEI candidate processing, complete private candidate verification and atomic promotion authority through M7D7 are production-proven**.'
-          )
-          current = current.replace(
-              '## M7 state — M7A through M7D6 production-proven',
-              '## M7 state — M7A through M7D7 production-proven'
-          )
-          current = current.replace(
-              'M7 remains the active milestone. Safety, scheduler, provider-neutral listing delta, private listing stage, additive schema fleet, candidate-state schema, controlled enrollment, live incremental dispatcher-to-private-stage, affected-detail candidate completion, affected-only CEI candidate processing and complete private candidate verification are now production-proven through M7D6.',
-              'M7 remains the active milestone. Safety, scheduler, provider-neutral listing delta, private listing stage, additive schema fleet, candidate-state schema, controlled enrollment, live incremental dispatcher-to-private-stage, affected-detail candidate completion, affected-only CEI candidate processing, complete private candidate verification and atomic canonical promotion authority are now production-proven through M7D7.'
-          )
-          m7d7_section = '''### M7D7 atomic promotion authority — production-proven
+          pairs = [
+              ('Snapshot: **2026-08-25 after M7D7 promotion-authority architecture decision**', 'Snapshot: **2026-08-27 after live M7D7 production reconciliation**'),
+              ('- M7D6 production closure evidence lives in `docs/M7D6-CLOSURE-2026-08-25.md`.', '- M7D6 production closure evidence lives in `docs/M7D6-CLOSURE-2026-08-25.md`.\n- M7D7 production closure evidence lives in `docs/M7D7-CLOSURE-2026-08-27.md`.'),
+              ('**M7 Intelligent Sync v2: current execution milestone; safety/scheduling/delta/staging/schema-fleet/candidate-state foundations plus controlled enrollment, live incremental dispatch/scan, affected-detail completion, affected-only CEI candidate processing and complete private candidate verification through M7D6 are production-proven**.', '**M7 Intelligent Sync v2: current execution milestone; safety/scheduling/delta/staging/schema-fleet/candidate-state foundations plus controlled enrollment, live incremental dispatch/scan, affected-detail completion, affected-only CEI candidate processing, complete private candidate verification and atomic promotion authority through M7D7 are production-proven**.'),
+              ('## M7 state — M7A through M7D6 production-proven', '## M7 state — M7A through M7D7 production-proven'),
+              ('M7 remains the active milestone. Safety, scheduler, provider-neutral listing delta, private listing stage, additive schema fleet, candidate-state schema, controlled enrollment, live incremental dispatcher-to-private-stage, affected-detail candidate completion, affected-only CEI candidate processing and complete private candidate verification are now production-proven through M7D6.', 'M7 remains the active milestone. Safety, scheduler, provider-neutral listing delta, private listing stage, additive schema fleet, candidate-state schema, controlled enrollment, live incremental dispatcher-to-private-stage, affected-detail candidate completion, affected-only CEI candidate processing, complete private candidate verification and atomic canonical promotion authority are now production-proven through M7D7.')
+          ]
+          for old, new in pairs:
+              if old not in current:
+                  raise SystemExit(f'CURRENT-STATE expected text missing: {old[:60]}')
+              current = current.replace(old, new, 1)
 
-M7D7 entered `main` through PR `#150` and is **PRODUCTION GREEN** at trusted-main implementation SHA:
-
-`725854afc408bb6177aa071e2797051369c4040c`
-
-Revalidated exact-SHA evidence:
-
-- Queue consumer activation `33034446742` = **SUCCESS**;
-- application deploy `33034446810` = **SUCCESS**;
-- tenant data-plane fleet canary `33034549918` = **SUCCESS**;
-- cumulative M7D4→M7D7 canary `33034549923`, job `98394306811` = **SUCCESS**;
-- automatic tenant import canary `33034549968` = **SUCCESS**;
-- provider-engine quality `33034446727` = **SUCCESS**;
-- frontend quality `33034446702` = **SUCCESS**.
-
-Schema v7 now provides tenant-scoped `catalog_serving_authority` plus run-scoped `supplier_sync_stage_authority`. A verified candidate is admitted only against its exact base authority revision; the bounded set-based D1 transaction writes the canonical serving state, advances authority exactly once and finishes the stage as `promoted`. Replaying the exact already-promoted run is idempotent, while a stale competing base fails closed.
-
-The production canary also proved the M7D7 boundary deliberately stops before control-plane cursor/schedule finalization: after promotion the control job remained `finalizing/finalize` and no schedule/cursor authority advanced. Full evidence is recorded in `M7D7-CLOSURE-2026-08-27.md`.
-
-### M7D7 architecture evidence — historical prerequisite
-
-The architecture decision and isolated D1 stress evidence that selected the bounded set-based transaction remain recorded in `M7D7-PROMOTION-AUTHORITY-DECISION-2026-08-25.md`. They are prerequisite/history, not the current M7D7 implementation status.
-
-'''
-          current, count = re.subn(
-              r'### M7D7 promotion-authority architecture decision — accepted / implementation pending\n.*?(?=## Provider Engine state)',
-              m7d7_section,
-              current,
-              flags=re.S
-          )
+          m7d7_lines = [
+              '### M7D7 atomic promotion authority — production-proven',
+              '',
+              'M7D7 entered `main` through PR `#150` and is **PRODUCTION GREEN** at trusted-main implementation SHA:',
+              '',
+              '`725854afc408bb6177aa071e2797051369c4040c`',
+              '',
+              'Revalidated exact-SHA evidence:',
+              '',
+              '- Queue consumer activation `33034446742` = **SUCCESS**;',
+              '- application deploy `33034446810` = **SUCCESS**;',
+              '- tenant data-plane fleet canary `33034549918` = **SUCCESS**;',
+              '- cumulative M7D4→M7D7 canary `33034549923`, job `98394306811` = **SUCCESS**;',
+              '- automatic tenant import canary `33034549968` = **SUCCESS**;',
+              '- provider-engine quality `33034446727` = **SUCCESS**;',
+              '- frontend quality `33034446702` = **SUCCESS**.',
+              '',
+              'Schema v7 now provides tenant-scoped `catalog_serving_authority` plus run-scoped `supplier_sync_stage_authority`. A verified candidate is admitted only against its exact base authority revision; the bounded set-based D1 transaction writes the canonical serving state, advances authority exactly once and finishes the stage as `promoted`. Replaying the exact already-promoted run is idempotent, while a stale competing base fails closed.',
+              '',
+              'The production canary also proved the M7D7 boundary deliberately stops before control-plane cursor/schedule finalization: after promotion the control job remained `finalizing/finalize` and no schedule/cursor authority advanced. Full evidence is recorded in `M7D7-CLOSURE-2026-08-27.md`.',
+              '',
+              '### M7D7 architecture evidence — historical prerequisite',
+              '',
+              'The architecture decision and isolated D1 stress evidence that selected the bounded set-based transaction remain recorded in `M7D7-PROMOTION-AUTHORITY-DECISION-2026-08-25.md`. They are prerequisite/history, not the current M7D7 implementation status.',
+              '',
+              ''
+          ]
+          current, count = re.subn(r'### M7D7 promotion-authority architecture decision — accepted / implementation pending\n.*?(?=## Provider Engine state)', '\n'.join(m7d7_lines), current, flags=re.S)
           if count != 1:
               raise SystemExit(f'CURRENT-STATE M7D7 section replacements={count}')
-          next_block = '''Immediate next execution boundary:
 
-**M7D8 — Verified Promotion and Cursor Commit**
-
-M7D8 must connect the private `verified` state to the M7D7 promotion primitive and commit cursor/schedule/control metadata only after the exact tenant serving authority is durably `promoted`. The scheduler must stop advancing `next_sync_at` merely when a due job is created. A crash after promotion but before control-plane commit must replay by observing the same run already `promoted`, without promoting again, and commit only the remaining control metadata exactly once.
-
-The complete approved M7 slice ledger lives in `DEVELOPMENT-ROADMAP.md`, with detailed contracts in `TENANT-SYNC.md`. M7D7 is **PRODUCTION GREEN**; M7D8 is the **next approved** slice; M7D9–M7D11 remain planned in order; M7E remains an explicit activation decision. Recurring Intelligent Sync stays disabled.
-
-'''
-          current, count = re.subn(
-              r'Immediate next execution boundary:\n\n\*\*M7D7 — Promotion Authority Primitive implementation\*\*\n.*?(?=Future macro milestones)',
-              next_block,
-              current,
-              flags=re.S
-          )
+          next_lines = [
+              'Immediate next execution boundary:',
+              '',
+              '**M7D8 — Verified Promotion and Cursor Commit**',
+              '',
+              'M7D8 must connect the private `verified` state to the M7D7 promotion primitive and commit cursor/schedule/control metadata only after the exact tenant serving authority is durably `promoted`. The scheduler must stop advancing `next_sync_at` merely when a due job is created. A crash after promotion but before control-plane commit must replay by observing the same run already `promoted`, without promoting again, and commit only the remaining control metadata exactly once.',
+              '',
+              'The complete approved M7 slice ledger lives in `DEVELOPMENT-ROADMAP.md`, with detailed contracts in `TENANT-SYNC.md`. M7D7 is **PRODUCTION GREEN**; M7D8 is the **next approved** slice; M7D9–M7D11 remain planned in order; M7E remains an explicit activation decision. Recurring Intelligent Sync stays disabled.',
+              '',
+              ''
+          ]
+          current, count = re.subn(r'Immediate next execution boundary:\n\n\*\*M7D7 — Promotion Authority Primitive implementation\*\*\n.*?(?=Future macro milestones)', '\n'.join(next_lines), current, flags=re.S)
           if count != 1:
               raise SystemExit(f'CURRENT-STATE next-boundary replacements={count}')
           current_path.write_text(current)
@@ -105,32 +89,32 @@ The complete approved M7 slice ledger lives in `DEVELOPMENT-ROADMAP.md`, with de
           roadmap = roadmap_path.read_text()
           old_d7 = '| M7D7 — Promotion Authority Primitive                   | **PLANNED — architecture decision complete / implementation next** | Implement the measured bounded set-based D1 transaction so readers see only old or new complete state. |'
           new_d7 = '| M7D7 — Promotion Authority Primitive                   | **PRODUCTION GREEN**                                               | Verified candidates promote through one bounded atomic D1 authority transaction with stale-base CAS and idempotent replay. |'
-          if old_d7 not in roadmap:
-              raise SystemExit('roadmap M7D7 ledger row missing')
-          roadmap = roadmap.replace(old_d7, new_d7)
-          roadmap = roadmap.replace(
-              '| M7D8 — Verified Promotion and Cursor Commit            | **PLANNED**                                                        | Promote verified state idempotently and advance cursor/schedule only after the authority switch.      |',
-              '| M7D8 — Verified Promotion and Cursor Commit            | **PLANNED — NEXT APPROVED**                                        | Advance cursor/schedule/control metadata only after exact durable promoted authority, with crash-safe replay. |'
-          )
-          d7_roadmap = '''M7D7 production closure is recorded in `M7D7-CLOSURE-2026-08-27.md`. Trusted-main implementation SHA `725854afc408bb6177aa071e2797051369c4040c` passed Queue activation `33034446742`, application deploy `33034446810`, fleet canary `33034549918`, cumulative M7D4→M7D7 promotion-authority canary `33034549923` / job `98394306811`, automatic import canary `33034549968` and the quality workflows. Schema v7 now promotes a verified candidate through one bounded set-based D1 transaction whose commit is the canonical authority switch; replay of the exact already-promoted run is idempotent and stale competing authority fails closed. The production canary also proved that M7D7 intentionally leaves the control job `finalizing/finalize` and does not advance cursor/schedule authority.
+          old_d8 = '| M7D8 — Verified Promotion and Cursor Commit            | **PLANNED**                                                        | Promote verified state idempotently and advance cursor/schedule only after the authority switch.      |'
+          new_d8 = '| M7D8 — Verified Promotion and Cursor Commit            | **PLANNED — NEXT APPROVED**                                        | Advance cursor/schedule/control metadata only after exact durable promoted authority, with crash-safe replay. |'
+          for old, new in [(old_d7, new_d7), (old_d8, new_d8)]:
+              if old not in roadmap:
+                  raise SystemExit(f'roadmap ledger text missing: {old[:60]}')
+              roadmap = roadmap.replace(old, new, 1)
 
-M7D8 is therefore the next approved slice. Its required order is `verified -> atomic promotion -> promoted -> cursor/schedule/control commit`. It must stop the scheduler from advancing `next_sync_at` when merely creating a due job, use exact tenant/source/run ownership plus phase-aware lease/CAS finalization, and prove crash replay after promotion without a second promotion. Recurring Intelligent Sync remains disabled and the production cohort remains empty.
-
-'''
-          roadmap, count = re.subn(
-              r'M7D7 architecture decision is recorded in `M7D7-PROMOTION-AUTHORITY-DECISION-2026-08-25\.md`\..*?(?=M7D2 through M7D11 must remain separate implementation claims)',
-              d7_roadmap,
-              roadmap,
-              flags=re.S
-          )
+          d7_lines = [
+              'M7D7 production closure is recorded in `M7D7-CLOSURE-2026-08-27.md`. Trusted-main implementation SHA `725854afc408bb6177aa071e2797051369c4040c` passed Queue activation `33034446742`, application deploy `33034446810`, fleet canary `33034549918`, cumulative M7D4→M7D7 promotion-authority canary `33034549923` / job `98394306811`, automatic import canary `33034549968` and the quality workflows. Schema v7 now promotes a verified candidate through one bounded set-based D1 transaction whose commit is the canonical authority switch; replay of the exact already-promoted run is idempotent and stale competing authority fails closed. The production canary also proved that M7D7 intentionally leaves the control job `finalizing/finalize` and does not advance cursor/schedule authority.',
+              '',
+              'M7D8 is therefore the next approved slice. Its required order is `verified -> atomic promotion -> promoted -> cursor/schedule/control commit`. It must stop the scheduler from advancing `next_sync_at` when merely creating a due job, use exact tenant/source/run ownership plus phase-aware lease/CAS finalization, and prove crash replay after promotion without a second promotion. Recurring Intelligent Sync remains disabled and the production cohort remains empty.',
+              '',
+              ''
+          ]
+          roadmap, count = re.subn(r'M7D7 architecture decision is recorded in `M7D7-PROMOTION-AUTHORITY-DECISION-2026-08-25\.md`\..*?(?=M7D2 through M7D11 must remain separate implementation claims)', '\n'.join(d7_lines), roadmap, flags=re.S)
           if count != 1:
               raise SystemExit(f'roadmap M7D7 narrative replacements={count}')
-          roadmap, count = re.subn(
-              r'1\. Execute M7D7 using the accepted bounded set-based D1 transaction architecture\..*?5\. Execute M7E only after explicit cohort, operational-limit and activation approval; keep recurring sync off until then\.',
-              '1. Execute M7D8 so cursor/schedule/control metadata commits only after durable promoted authority, including crash replay after promotion without double-promotion.\n2. Execute M7D9 recovery-safe repeated-miss/removal semantics.\n3. Execute M7D10 recovery/replay/operational observability.\n4. Resolve the M7D11 backend/UI scope decision and deliver the approved safe change/review-feed boundary.\n5. Execute M7E only after explicit cohort, operational-limit and activation approval; keep recurring sync off until then.',
-              roadmap,
-              flags=re.S
-          )
+
+          new_order = '\n'.join([
+              '1. Execute M7D8 so cursor/schedule/control metadata commits only after durable promoted authority, including crash replay after promotion without double-promotion.',
+              '2. Execute M7D9 recovery-safe repeated-miss/removal semantics.',
+              '3. Execute M7D10 recovery/replay/operational observability.',
+              '4. Resolve the M7D11 backend/UI scope decision and deliver the approved safe change/review-feed boundary.',
+              '5. Execute M7E only after explicit cohort, operational-limit and activation approval; keep recurring sync off until then.'
+          ])
+          roadmap, count = re.subn(r'1\. Execute M7D7 using the accepted bounded set-based D1 transaction architecture\..*?5\. Execute M7E only after explicit cohort, operational-limit and activation approval; keep recurring sync off until then\.', new_order, roadmap, flags=re.S)
           if count != 1:
               raise SystemExit(f'roadmap immediate-order replacements={count}')
           roadmap_path.write_text(roadmap)
@@ -140,7 +124,6 @@ M7D8 is therefore the next approved slice. Its required order is `verified -> at
         run: |
           set -euo pipefail
           git diff --check
-          git diff --name-only
           test "$(git diff --name-only | sort | tr '\n' ' ')" = "docs/CURRENT-STATE.md docs/DEVELOPMENT-ROADMAP.md "
           grep -F 'M7D7 is **PRODUCTION GREEN**' docs/CURRENT-STATE.md
           grep -F 'M7D8 — Verified Promotion and Cursor Commit' docs/CURRENT-STATE.md
