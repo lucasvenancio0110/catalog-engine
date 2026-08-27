@@ -2,11 +2,10 @@ import { DatabaseSync } from 'node:sqlite';
 import { afterEach, describe, expect, it } from 'vitest';
 import { planTenantIncrementalScan } from '../worker/ingestion/incremental-plan.js';
 import {
-  buildIncrementalStagePromotionBatch,
   buildIncrementalStageVerificationBatch,
   buildIncrementalStageWritePlan
 } from '../worker/ingestion/incremental-stage.js';
-import { TENANT_DATA_PLANE_CURRENT_STATEMENTS } from '../worker/tenant-data-plane-schema-v5.js';
+import { TENANT_DATA_PLANE_CURRENT_STATEMENTS } from '../worker/tenant-data-plane-schema-v7.js';
 
 const databases = [];
 const context = {
@@ -95,7 +94,7 @@ afterEach(() => {
 });
 
 describe('staged incremental run ledger', () => {
-  it('persists opaque scope and closes the canonical run only after verified promotion', () => {
+  it('persists opaque scope and leaves canonical run open after stage-only verification', () => {
     const database = createDatabase();
     const prior = previous('100');
     database
@@ -135,14 +134,13 @@ describe('staged incremental run ledger', () => {
     ).toMatchObject({ status: 'running', error_text: null });
 
     executeBatch(database, buildIncrementalStageVerificationBatch({ context }));
-    executeBatch(database, buildIncrementalStagePromotionBatch({ context }));
 
     expect(
       database.prepare('SELECT status, error_text FROM supplier_sync_runs WHERE run_id=?1').get(context.importId)
-    ).toMatchObject({ status: 'success', error_text: null });
+    ).toMatchObject({ status: 'running', error_text: null });
     expect(
       database.prepare('SELECT state FROM supplier_sync_stage_runs WHERE run_id=?1').get(context.importId).state
-    ).toBe('promoted');
+    ).toBe('verified');
   });
 
   it('closes a quarantined canonical run as failed with only a safe reason code', () => {

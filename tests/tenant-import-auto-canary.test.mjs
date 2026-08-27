@@ -73,7 +73,7 @@ describe('automatic tenant import production canary', () => {
   });
 
   it('creates the isolated fixture on the current tenant schema and proves CEI persistence', () => {
-    expectScript("from '../worker/tenant-data-plane-schema-v6.js'");
+    expectScript("from '../worker/tenant-data-plane-schema-v7.js'");
     expectScript('TENANT_DATA_PLANE_SCHEMA_VERSION');
     expectScript('CATALOG_CLASSIFIER_VERSION');
     expectScript('CATALOG_CLASSIFIER_KEY');

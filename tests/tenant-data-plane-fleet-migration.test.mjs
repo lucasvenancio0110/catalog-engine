@@ -110,7 +110,7 @@ function insertReadyMaintenanceTenant(database, tenantId, createdAt, prepared = 
         (tenant_id,database_status,worker_status,d1_database_id,migration_command_version)
        VALUES (?1,'active','active','11111111-1111-4111-8111-111111111111',?2)`
     )
-    .run(tenantId, prepared ? 2 : 0);
+    .run(tenantId, prepared ? 3 : 0);
   database
     .prepare("INSERT INTO supplier_sources (tenant_id,status) VALUES (?1,'active')")
     .run(tenantId);
@@ -121,7 +121,7 @@ function maintenanceContext(dispatchNamespace = 'catalog-engine-production') {
     d1_database_id: DATABASE_ID,
     dispatch_namespace: dispatchNamespace,
     worker_script_name: `ce-${TENANT_ID.slice(2)}`,
-    migration_command_version: 2,
+    migration_command_version: 3,
     catalog_status: 'ready',
     current_schema_version: 5,
     source_key: 'primary',
@@ -182,7 +182,7 @@ function maintenanceJob() {
   return {
     job_id: 'dpmig_maintenance',
     tenant_id: TENANT_ID,
-    target_schema_version: 6,
+    target_schema_version: 7,
     migration_kind: 'maintenance'
   };
 }
@@ -252,8 +252,8 @@ describe('tenant data-plane fleet migration activation', () => {
     ).toThrow();
   });
 
-  it('targets schema v6 and only discovers maintenance work for ready idle tenants', () => {
-    expect(migrationRunnerSource).toContain("from './tenant-data-plane-schema-v6.js'");
+  it('targets schema v7 and only discovers maintenance work for ready idle tenants', () => {
+    expect(migrationRunnerSource).toContain("from './tenant-data-plane-schema-v7.js'");
     expect(migrationRunnerSource).toContain("i.status='ready'");
     expect(migrationRunnerSource).toContain("migrationKind: 'maintenance'");
     expect(migrationRunnerSource).toContain('p.migration_command_version >= ?2');
@@ -265,11 +265,11 @@ describe('tenant data-plane fleet migration activation', () => {
     expect(migrationRunnerSource).toContain('j.target_schema_version=?2');
   });
 
-  it('keeps tenant schema CI aligned with the v6 fleet target and migration ownership', () => {
+  it('keeps tenant schema CI aligned with the v7 fleet target and migration ownership', () => {
     for (const workflow of [saasWorkflow, ingestionWorkflow]) {
       expect(workflow).toContain('schema_version FROM data_plane_identity');
-      expect(workflow).toContain("= '6'");
-      expect(workflow).toContain("= '1,2,3,4,5,6'");
+      expect(workflow).toContain("= '7'");
+      expect(workflow).toContain("= '1,2,3,4,5,6,7'");
       expect(workflow).toContain('catalog_product_intelligence_state');
       expect(workflow).toContain('supplier_sync_stage_runs');
       expect(workflow).toContain('supplier_sync_stage_observations');
@@ -305,7 +305,7 @@ describe('tenant data-plane fleet migration activation', () => {
       .prepare(
         `INSERT INTO tenant_data_plane_migration_jobs
           (job_id,tenant_id,target_schema_version,migration_kind,status,attempt_count,created_at,updated_at)
-         VALUES ('dpmig_failed',?1,6,'maintenance','failed',1,
+         VALUES ('dpmig_failed',?1,7,'maintenance','failed',1,
                  '2000-01-01T00:00:00Z','2000-01-01T00:00:00Z')`
       )
       .run(failedTenant);
@@ -313,7 +313,7 @@ describe('tenant data-plane fleet migration activation', () => {
       .prepare("INSERT INTO tenant_import_jobs (tenant_id,status) VALUES (?1,'scanning')")
       .run(activeImportTenant);
 
-    const candidates = database.prepare(MAINTENANCE_MIGRATION_DISCOVERY_SQL).all(6, 2, 2);
+    const candidates = database.prepare(MAINTENANCE_MIGRATION_DISCOVERY_SQL).all(7, 3, 2);
 
     expect(candidates).toEqual([{ tenant_id: eligibleTenant }]);
   });
@@ -329,15 +329,15 @@ describe('tenant data-plane fleet migration activation', () => {
         `INSERT INTO tenant_data_plane_migration_jobs
           (job_id,tenant_id,target_schema_version,migration_kind,status,attempt_count,
            next_attempt_at,created_at,updated_at)
-         VALUES ('dpmig_unprepared',?1,6,'maintenance','failed',1,NULL,
+         VALUES ('dpmig_unprepared',?1,7,'maintenance','failed',1,NULL,
                  CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`
       )
       .run(unpreparedTenant);
 
-    expect(database.prepare(MAINTENANCE_MIGRATION_DISCOVERY_SQL).all(6, 2, 5)).toEqual([
+    expect(database.prepare(MAINTENANCE_MIGRATION_DISCOVERY_SQL).all(7, 3, 5)).toEqual([
       { tenant_id: preparedTenant }
     ]);
-    expect(database.prepare(DATA_PLANE_MIGRATION_DUE_SQL).all(6, 6, 2, 5)).toEqual([]);
+    expect(database.prepare(DATA_PLANE_MIGRATION_DUE_SQL).all(6, 7, 3, 5)).toEqual([]);
   });
 
   it('gives newly pending maintenance work capacity ahead of older failed retries', () => {
@@ -356,13 +356,13 @@ describe('tenant data-plane fleet migration activation', () => {
       `INSERT INTO tenant_data_plane_migration_jobs
         (job_id,tenant_id,target_schema_version,migration_kind,status,attempt_count,
          next_attempt_at,created_at,updated_at)
-       VALUES (?1,?2,6,'maintenance',?3,1,NULL,?4,?4)`
+       VALUES (?1,?2,7,'maintenance',?3,1,NULL,?4,?4)`
     );
     insertJob.run('dpmig_failed_a', failedTenantA, 'failed', '2000-01-01T00:00:00Z');
     insertJob.run('dpmig_failed_b', failedTenantB, 'failed', '2001-01-01T00:00:00Z');
     insertJob.run('dpmig_pending', pendingTenant, 'pending', '2002-01-01T00:00:00Z');
 
-    const due = database.prepare(DATA_PLANE_MIGRATION_DUE_SQL).all(6, 6, 2, 2);
+    const due = database.prepare(DATA_PLANE_MIGRATION_DUE_SQL).all(6, 7, 3, 2);
 
     expect(due.map((job) => job.job_id)).toEqual(['dpmig_pending', 'dpmig_failed_a']);
   });
@@ -397,7 +397,7 @@ describe('tenant data-plane fleet migration activation', () => {
     expect(failureSql).not.toContain('tenant_provisioning_steps');
   });
 
-  it('finishes maintenance on v6 without resuming historical onboarding or changing serving status', async () => {
+  it('finishes maintenance on v7 without resuming historical onboarding or changing serving status', async () => {
     const { db, batches } = fakeControlDb(maintenanceContext());
     let queryCall = 0;
     let migrationCall = 0;
@@ -407,12 +407,12 @@ describe('tenant data-plane fleet migration activation', () => {
           migrationCall += 1;
           const payload = await request.json();
           expect(payload).toEqual({
-            version: 2,
+            version: 3,
             tenantId: TENANT_ID,
-            targetSchemaVersion: 6
+            targetSchemaVersion: 7
           });
           expect(JSON.stringify(payload)).not.toContain('CREATE TABLE');
-          return Response.json({ ok: true, version: 2, schemaVersion: 6, applied: true });
+          return Response.json({ ok: true, version: 3, schemaVersion: 7, applied: true });
         }
         queryCall += 1;
         const results =
@@ -431,7 +431,7 @@ describe('tenant data-plane fleet migration activation', () => {
                 }
               ]
             : [
-                { success: true, results: [{ tenant_id: TENANT_ID, schema_version: 6 }] },
+                { success: true, results: [{ tenant_id: TENANT_ID, schema_version: 7 }] },
                 { success: true, results: [{ total: 1 }] }
               ];
         return Response.json({ ok: true, version: 1, results });
@@ -445,7 +445,7 @@ describe('tenant data-plane fleet migration activation', () => {
     expect(result).toMatchObject({
       outcome: 'success',
       migrationKind: 'maintenance',
-      schemaVersion: 6,
+      schemaVersion: 7,
       resumedAt: null
     });
     expect(queryCall).toBe(2);
@@ -468,8 +468,8 @@ describe('tenant data-plane fleet migration activation', () => {
         dispatchCall += 1;
         const payload = await request.json();
         if (new URL(request.url).pathname.endsWith('/schema-migrate')) {
-          expect(payload).toEqual({ version: 2, tenantId: TENANT_ID, targetSchemaVersion: 6 });
-          return Response.json({ ok: true, version: 2, schemaVersion: 6, applied: true });
+          expect(payload).toEqual({ version: 3, tenantId: TENANT_ID, targetSchemaVersion: 7 });
+          return Response.json({ ok: true, version: 3, schemaVersion: 7, applied: true });
         }
         expect(payload.batch).toHaveLength(2);
         if (dispatchCall < 3) {
@@ -494,7 +494,7 @@ describe('tenant data-plane fleet migration activation', () => {
                 }
               ]
             : [
-                { success: true, results: [{ tenant_id: TENANT_ID, schema_version: 6 }] },
+                { success: true, results: [{ tenant_id: TENANT_ID, schema_version: 7 }] },
                 { success: true, results: [{ total: 1 }] }
               ];
         return Response.json({ ok: true, version: 1, results });
@@ -512,7 +512,7 @@ describe('tenant data-plane fleet migration activation', () => {
       }
     );
 
-    expect(result).toMatchObject({ outcome: 'success', schemaVersion: 6 });
+    expect(result).toMatchObject({ outcome: 'success', schemaVersion: 7 });
     expect(get).toHaveBeenCalledTimes(5);
     expect(get).toHaveBeenCalledWith(`ce-${TENANT_ID.slice(2)}`);
     expect(dispatchCall).toBe(5);
@@ -520,7 +520,7 @@ describe('tenant data-plane fleet migration activation', () => {
     expect(batches).toHaveLength(1);
   });
 
-  it('reconciles control state after D1 already completed v6 without replaying schema DDL', async () => {
+  it('reconciles control state after D1 already completed v7 without replaying schema DDL', async () => {
     const { db, batches } = fakeControlDb(maintenanceContext());
     let d1Call = 0;
     const get = vi.fn(() => ({
@@ -533,7 +533,7 @@ describe('tenant data-plane fleet migration activation', () => {
         const result =
           d1Call === 1
             ? [
-                { success: true, results: [{ tenant_id: TENANT_ID, schema_version: '6' }] },
+                { success: true, results: [{ tenant_id: TENANT_ID, schema_version: '7' }] },
                 {
                   success: true,
                   results: [
@@ -542,12 +542,13 @@ describe('tenant data-plane fleet migration activation', () => {
                     { version: 3 },
                     { version: 4 },
                     { version: 5 },
-                    { version: 6 }
+                    { version: 6 },
+                    { version: 7 }
                   ]
                 }
               ]
             : [
-                { success: true, results: [{ tenant_id: TENANT_ID, schema_version: '6' }] },
+                { success: true, results: [{ tenant_id: TENANT_ID, schema_version: '7' }] },
                 { success: true, results: [{ total: '1' }] }
               ];
         return Response.json({ ok: true, version: 1, results: result });
@@ -560,7 +561,7 @@ describe('tenant data-plane fleet migration activation', () => {
       { sleepImpl: async () => {}, randomImpl: () => 0 }
     );
 
-    expect(result).toMatchObject({ outcome: 'success', schemaVersion: 6 });
+    expect(result).toMatchObject({ outcome: 'success', schemaVersion: 7 });
     expect(d1Call).toBe(2);
     expect(batches).toHaveLength(1);
   });
@@ -681,13 +682,13 @@ describe('tenant data-plane fleet migration activation', () => {
     expect(batches).toHaveLength(1);
   });
 
-  it('persists a bounded verify-phase code after the v6 delta was accepted', async () => {
+  it('persists a bounded verify-phase code after the v7 migration was accepted', async () => {
     const { db, batches } = fakeControlDb(maintenanceContext());
     let queryCalls = 0;
     const get = vi.fn(() => ({
       async fetch(request) {
         if (new URL(request.url).pathname.endsWith('/schema-migrate')) {
-          return Response.json({ ok: true, version: 2, schemaVersion: 6, applied: true });
+          return Response.json({ ok: true, version: 3, schemaVersion: 7, applied: true });
         }
         queryCalls += 1;
         if (queryCalls > 1) {

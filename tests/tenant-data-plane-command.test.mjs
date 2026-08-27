@@ -196,32 +196,32 @@ describe('native tenant data-plane command', () => {
             'content-type': 'application/json',
             'x-catalog-tenant-id': tenantId
           },
-          body: JSON.stringify({ version: 2, tenantId, targetSchemaVersion: 6 })
+          body: JSON.stringify({ version: 3, tenantId, targetSchemaVersion: 7 })
         });
 
       const first = await handleTenantDataPlaneSchemaMigrationCommand(request(), env);
       expect(first.status).toBe(200);
       expect(await first.json()).toMatchObject({
         ok: true,
-        version: 2,
-        schemaVersion: 6,
+        version: 3,
+        schemaVersion: 7,
         applied: true
       });
       expect(
         database
           .prepare('SELECT group_concat(version) AS versions FROM data_plane_schema_migrations')
           .get().versions
-      ).toBe('1,2,3,4,5,6');
+      ).toBe('1,2,3,4,5,6,7');
       expect(
         database
           .prepare(
             "SELECT COUNT(*) AS total FROM sqlite_master WHERE type='table' AND name LIKE 'supplier_sync_stage_%'"
           )
           .get().total
-      ).toBe(16);
+      ).toBe(17);
 
       const replay = await handleTenantDataPlaneSchemaMigrationCommand(request(), env);
-      expect(await replay.json()).toMatchObject({ schemaVersion: 6, applied: false });
+      expect(await replay.json()).toMatchObject({ schemaVersion: 7, applied: false });
     } finally {
       database.close();
     }
@@ -275,14 +275,14 @@ describe('native tenant data-plane command', () => {
             'content-type': 'application/json',
             'x-catalog-tenant-id': tenantId
           },
-          body: JSON.stringify({ version: 2, tenantId, targetSchemaVersion: 6 })
+          body: JSON.stringify({ version: 3, tenantId, targetSchemaVersion: 7 })
         }),
         { TENANT_ID: tenantId, CATALOG_DB: sqliteD1(database) },
         {}
       );
 
       expect(response.status).toBe(200);
-      expect(await response.json()).toMatchObject({ schemaVersion: 6, applied: true });
+      expect(await response.json()).toMatchObject({ schemaVersion: 7, applied: true });
     } finally {
       database.close();
     }

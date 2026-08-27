@@ -7,7 +7,7 @@ import {
   initialDataPlaneSeed,
   retainedMigrationFailureEvidence
 } from '../scripts/cloudflare-tenant-data-plane-fleet-canary.mjs';
-import { tenantDataPlaneCurrentBatch as tenantDataPlaneV5Batch } from '../worker/tenant-data-plane-schema-v5.js';
+import { tenantDataPlaneCurrentBatch as tenantDataPlaneV6Batch } from '../worker/tenant-data-plane-schema-v6.js';
 
 const workflow = fs.readFileSync(
   '.github/workflows/cloudflare-tenant-data-plane-fleet-canary.yml',
@@ -17,7 +17,7 @@ const script = fs.readFileSync('scripts/cloudflare-tenant-data-plane-fleet-canar
 const deployWorkflow = fs.readFileSync('.github/workflows/deploy-catalog-api.yml', 'utf8');
 
 describe('tenant data-plane fleet maintenance production canary', () => {
-  it('builds a valid v5 fixture with LKG, staged listing evidence and merchant override before polling', () => {
+  it('builds a valid v6 fixture with LKG, staged candidate evidence and merchant override before polling', () => {
     const database = new DatabaseSync(':memory:');
     database.exec('PRAGMA foreign_keys = ON');
     const fixture = fixtureIdentity('success', 'fleet-canary-unit-fixture');
@@ -30,7 +30,7 @@ describe('tenant data-plane fleet maintenance production canary', () => {
       removalMissThreshold: 3
     };
     for (const statement of [
-      ...tenantDataPlaneV5Batch({ tenantId: fixture.tenantId, source }),
+      ...tenantDataPlaneV6Batch({ tenantId: fixture.tenantId, source }),
       ...initialDataPlaneSeed(fixture)
     ]) {
       database.prepare(statement.sql).run(...statement.params);
@@ -38,7 +38,7 @@ describe('tenant data-plane fleet maintenance production canary', () => {
 
     expect(
       database.prepare('SELECT tenant_id, schema_version FROM data_plane_identity').get()
-    ).toEqual({ tenant_id: fixture.tenantId, schema_version: 5 });
+    ).toEqual({ tenant_id: fixture.tenantId, schema_version: 6 });
     expect(
       database
         .prepare(
@@ -46,7 +46,7 @@ describe('tenant data-plane fleet maintenance production canary', () => {
              FROM (SELECT version FROM data_plane_schema_migrations ORDER BY version)`
         )
         .get().versions
-    ).toBe('1,2,3,4,5');
+    ).toBe('1,2,3,4,5,6');
     expect(database.prepare('SELECT COUNT(*) AS total FROM catalog_products').get().total).toBe(1);
     expect(database.prepare('SELECT COUNT(*) AS total FROM media_sources').get().total).toBe(1);
     expect(
@@ -84,7 +84,7 @@ describe('tenant data-plane fleet maintenance production canary', () => {
         .prepare(
           `SELECT COUNT(*) AS total
              FROM tenant_catalog_instances
-            WHERE status='ready' AND schema_version=5`
+            WHERE status='ready' AND schema_version=6`
         )
         .get().total
     ).toBe(3);
@@ -96,7 +96,7 @@ describe('tenant data-plane fleet maintenance production canary', () => {
         .prepare(
           `SELECT GROUP_CONCAT(kind, ',') AS kinds
              FROM (
-               SELECT CASE WHEN migration_command_version=2 THEN 'prepared' ELSE 'pending' END AS kind
+               SELECT CASE WHEN migration_command_version=3 THEN 'prepared' ELSE 'pending' END AS kind
                  FROM tenant_data_plane_provider_state
                 ORDER BY tenant_id
              )`
@@ -174,11 +174,11 @@ describe('tenant data-plane fleet maintenance production canary', () => {
     expect(script).not.toContain('.sendBatch(');
   });
 
-  it('starts from a real v5 data plane and verifies the v6 candidate model remains private and inert', () => {
-    expect(script).toContain("from '../worker/tenant-data-plane-schema-v5.js'");
+  it('starts from a real v6 data plane and verifies the v7 authority model is additive and inert', () => {
     expect(script).toContain("from '../worker/tenant-data-plane-schema-v6.js'");
+    expect(script).toContain("from '../worker/tenant-data-plane-schema-v7.js'");
+    expect(script).toContain("'1,2,3,4,5,6,7'");
     expect(script).toContain("'1,2,3,4,5,6'");
-    expect(script).toContain("'1,2,3,4,5'");
     for (const table of [
       'supplier_sync_stage_runs',
       'supplier_sync_stage_observations',
@@ -195,7 +195,10 @@ describe('tenant data-plane fleet maintenance production canary', () => {
     expect(script).toContain('trustedCiOwnedWorkerPreparation: true');
     expect(script).toContain("runtimeCapabilityRefreshed: fixture.kind === 'success'");
     expect(script).toContain('TENANT_SYNC_CANDIDATE_TABLES');
-    expect(script).toContain('candidateRowsCreated: dataPlane.candidateRowCount');
+    expect(script).toContain('candidateRowsPreserved: dataPlane.candidateRowCount');
+    expect(script).toContain('fleet_canary_authority_model_invalid');
+    expect(script).toContain('authorityRevision: dataPlane.servingAuthority?.revision ?? null');
+    expect(script).toContain('historicalRunAuthorityBackfilled: dataPlane.stageAuthorityRows > 0');
     expect(script).toContain('TENANT_SYNC_CANDIDATE_TABLES.map((table) => ({');
     expect(script).toContain('candidateRows.reduce(');
     expect(script).not.toContain("join(' UNION ALL ')");
@@ -254,7 +257,7 @@ describe('tenant data-plane fleet maintenance production canary', () => {
   });
 
   it('keeps recurring tenant sync explicitly off in deploy and canary gates', () => {
-    expect(workflow).toContain('TENANT_SYNC_AUTOMATION_ENABLED must remain 0 for M7D1');
+    expect(workflow).toContain('TENANT_SYNC_AUTOMATION_ENABLED must remain 0');
     expect(script).toContain('fleet_canary_requires_recurring_sync_off');
     expect(deployWorkflow).toContain('TENANT_SYNC_AUTOMATION_ENABLED');
   });

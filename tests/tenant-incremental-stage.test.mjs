@@ -8,7 +8,7 @@ import {
   buildIncrementalStageVerificationBatch,
   buildIncrementalStageWritePlan
 } from '../worker/ingestion/incremental-stage.js';
-import { TENANT_DATA_PLANE_CURRENT_STATEMENTS } from '../worker/tenant-data-plane-schema-v5.js';
+import { TENANT_DATA_PLANE_CURRENT_STATEMENTS } from '../worker/tenant-data-plane-schema-v7.js';
 
 const databases = [];
 const context = {
@@ -145,7 +145,9 @@ describe('tenant incremental staged sync', () => {
       database.prepare('SELECT state FROM supplier_sync_stage_runs WHERE run_id=?1').get(context.importId).state
     ).toBe('planned');
 
-    executeBatch(database, buildIncrementalStagePromotionBatch({ context }));
+    expect(() => buildIncrementalStagePromotionBatch({ context })).toThrow(
+      'tenant_sync_promotion_primitive_moved'
+    );
     expect(
       database.prepare('SELECT source_category_id FROM supplier_album_index WHERE album_source_id=?1').get('100')
         .source_category_id
@@ -160,19 +162,14 @@ describe('tenant incremental staged sync', () => {
     );
     expect(verification.at(-1).results[0].state).toBe('verified');
 
-    const promotion = executeBatch(database, buildIncrementalStagePromotionBatch({ context }));
-    expect(promotion.at(-1).results[0].state).toBe('promoted');
+    expect(verification.at(-1).results[0].state).toBe('verified');
     expect(
       database.prepare('SELECT source_category_id FROM supplier_album_index WHERE album_source_id=?1').get('100')
         .source_category_id
-    ).toBe('20');
+    ).toBe('10');
     expect(
-      database.prepare('SELECT event_type FROM supplier_sync_events WHERE run_id=?1').get(context.importId)
-        .event_type
-    ).toBe('MOVED');
-    expect(
-      database.prepare('SELECT COUNT(*) AS total FROM catalog_products').get().total
-    ).toBe(0);
+      database.prepare('SELECT status FROM supplier_sync_runs WHERE run_id=?1').get(context.importId).status
+    ).toBe('running');
   });
 
   it('records quarantine metadata without staging raw supplier observations or touching LKG', () => {
@@ -260,7 +257,9 @@ describe('tenant incremental staged sync', () => {
 
     const verification = executeBatch(database, buildIncrementalStageVerificationBatch({ context }));
     expect(verification.at(-1).results[0].state).toBe('details_pending');
-    executeBatch(database, buildIncrementalStagePromotionBatch({ context }));
+    expect(() => buildIncrementalStagePromotionBatch({ context })).toThrow(
+      'tenant_sync_promotion_primitive_moved'
+    );
     expect(
       database.prepare('SELECT COUNT(*) AS total FROM supplier_album_index').get().total
     ).toBe(0);

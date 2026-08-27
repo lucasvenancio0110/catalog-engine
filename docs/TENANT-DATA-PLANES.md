@@ -75,7 +75,7 @@ Provisioning is idempotent. Retrying the same intended tenant must not create du
 
 Tenant schema migration is version-ledgered and idempotent.
 
-The migration runner installs the current tenant data-plane schema through bounded D1 batch queries and verifies the tenant identity/source boundary before advancing onboarding or closing a maintenance upgrade. It plans from the recorded current version: fresh provisioning applies one transactional batch per schema version, while an existing v5 tenant receives only the idempotent v6 delta instead of replaying the cumulative v1-v6 schema in one remote request. Maintenance inspection, additive schema application and final verification use the tenant's existing `TENANT_DISPATCH`/D1 binding path.
+The migration runner installs the current tenant data-plane schema through bounded D1 batch queries and verifies the tenant identity/source boundary before advancing onboarding or closing a maintenance upgrade. It plans from the recorded current version: fresh provisioning applies one transactional batch per schema version, while an existing tenant receives only the missing idempotent version deltas instead of replaying the cumulative schema in one remote request. Maintenance inspection, additive schema application and final verification use the tenant's existing `TENANT_DISPATCH`/D1 binding path.
 
 The ordinary v1 internal batch command continues to reject DDL and caller-supplied multi-statement SQL. Maintenance DDL uses a separate versioned internal command whose request contains only opaque tenant identity and the current target schema version. The User Worker owns the immutable per-version statement map, validates its bound tenant and contiguous schema ledger, applies one transactional D1 binding batch per version, and verifies the final ledger before returning. A caller cannot provide SQL or select an unrecognized target. Before an existing maintenance tenant becomes scheduler-eligible, the trusted-main deployment idempotently republishes the same catalog runtime from CI and promotes the durable `migration_command_version` marker only after that Workers for Platforms upload succeeds. Public storefront/runtime verification state and the old LKG remain unchanged.
 
@@ -88,17 +88,18 @@ v3 -> versioned classification state + durable merchant overrides
 v4 -> detailed domain-neutral CEI intelligence state
 v5 -> private staged incremental-sync state
 v6 -> private relational candidate detail/media/CEI/merchandising state
+v7 -> serving-authority revision + run-scoped stale-base snapshot for atomic promotion CAS
 ```
 
 ### Active code target and production boundary
 
-The active code migration target is schema v6:
+The active code migration target is schema v7:
 
-`TENANT_DATA_PLANE_SCHEMA_VERSION = 6`
+`TENANT_DATA_PLANE_SCHEMA_VERSION = 7`
 
-New/in-flight tenants are migrated to v6 through the normal provisioning migration path. Already-ready tenants below v6 are discovered as bounded maintenance work instead of being sent back through onboarding.
+New/in-flight tenants are migrated to v7 through the normal provisioning migration path. Already-ready tenants below v7 are discovered as bounded maintenance work instead of being sent back through onboarding.
 
-Schema v6 activation does **not** itself enable recurring incremental sync or populate candidate rows. The candidate tables become available fleet-wide first; the recurring scheduler remains independently gated until the later M7 consumer/detail/verification/promotion slices are proven.
+Schema v7 activation does **not** itself enable recurring incremental sync, promote a candidate or advance cursor/schedule authority. It adds only the minimum serving-authority CAS state required by M7D7. The recurring scheduler remains independently gated until all remaining M7 safety slices and deliberate M7E activation are proven.
 
 Each version extends previous versions rather than destructively replacing them.
 
@@ -114,7 +115,8 @@ The tenant D1 contains high-volume/private catalog structures such as:
 - durable merchant classification overrides;
 - detailed CEI product intelligence state;
 - private staged sync runs/observations/events/categories used before LKG promotion.
-- run-owned candidate products, media, taxonomy/entities/facets, CEI state and catalog metadata used only before verified promotion.
+- run-owned candidate products, media, taxonomy/entities/facets, CEI state and catalog metadata used only before verified promotion;
+- the tenant serving-authority revision plus each staged run's immutable base-authority revision used for stale-base compare-and-set.
 
 It deliberately does **not** contain SaaS control-plane tables such as memberships, subscriptions, customer domains, account billing state, platform audit history or provisioning runs.
 
@@ -212,7 +214,23 @@ Ownership and cleanup are explicit:
 
 Migration v6 is storage-only and creates no candidate rows. It advances identity/ledger in the same transactional version batch as its additive tables/indexes. Failure rolls the version batch back to complete v5 authority. Runtime readers continue serving the canonical LKG and do not query `supplier_sync_stage_*`.
 
-The migration-command capability marker advances to v2 because a v5-capable User Worker does not contain the immutable v6 statement map. Trusted CI must upload the v6-capable Worker before promoting marker v2; maintenance discovery requires that marker and therefore cannot hand target 6 to stale runtime code.
+The migration-command capability marker is v3 for the schema-v7 runtime. A v6-capable User Worker does not contain the immutable v7 statement map, so trusted CI must upload the v7-capable Worker before promoting marker v3; maintenance discovery requires that marker and therefore cannot hand target 7 to stale runtime code.
+
+## M7D7 serving-authority CAS state in v7
+
+Schema v7 is additive and introduces only the minimum durable authority state required for one atomic promotion transaction:
+
+- `catalog_serving_authority` stores one tenant-scoped monotonic revision and the exact last promoted run/source;
+- `supplier_sync_stage_authority` stores the immutable authority revision from which each staged run was planned;
+- staging snapshots that base revision with insert-or-ignore semantics, so a retry cannot silently rebase an older candidate;
+- a promotion may win only when the staged base revision still equals the current tenant authority revision;
+- successful promotion increments authority exactly once in the same D1 transaction that moves the exact stage `verified -> promoting -> promoted` and applies the canonical set-based mutations;
+- replay of the already-promoted run is a read-back/no-op success; a competing candidate from the old base fails stale-base CAS;
+- schema migration itself creates no candidate, changes no catalog row and performs no authority switch.
+
+M7D7 deliberately does not activate repeated-miss removal. A verified run containing `MISSING` or `REMOVED` remains fail-closed at promotion with `sync_promotion_removal_not_ready` until M7D9 owns the retention/removal contract. This prevents schema/promotion work from deleting durable merchant override truth before safe removal semantics exist.
+
+The migration-command capability marker for v7 is v3. Fleet activation must prove v6 -> v7 on ready isolated tenants while preserving LKG, merchant overrides and existing private candidate/stage evidence.
 
 ## Private source handling
 
@@ -261,7 +279,7 @@ Already-ready tenants are eligible for additive maintenance upgrade only when:
 
 Maintenance upgrades preserve availability. They do not set a ready catalog back to `provisioning`, do not replay historical onboarding steps and do not replace commercial catalog data. A maintenance failure records a safe migration error/retry state while the previous last-known-good storefront continues serving.
 
-Production activation of a new fleet schema target requires a dedicated trusted-main maintenance canary, not only a fresh-tenant provisioning canary. The current fleet canary starts from isolated ready v5 fixtures, prepares only the eligible success fixture through the same trusted-CI helper, and then lets the deployed cron discover the work without inserting migration jobs or Queue messages. The controlled namespace-mismatch fixture already carries command capability v2 so it reaches the intended safe failure, while the active-import fixture remains unprepared and undiscovered. The proof covers trusted capability promotion, successful binding-native v5→v6 upgrade, controlled failure with LKG preservation, active-import exclusion, unchanged historical onboarding and v5 stage evidence, exact schema ledger/candidate tables, zero candidate rows created by migration, merchant override preservation and unrelated-tenant isolation. Unexpected failure retains opaque fixture evidence plus the bounded migration job code/attempt count for diagnosis; cleanup happens only after the complete proof passes. Runtime or preparation changes require the normal successful-deploy trigger.
+Production activation of a new fleet schema target requires a dedicated trusted-main maintenance canary, not only a fresh-tenant provisioning canary. For v7 the fleet canary starts from isolated ready v6 fixtures, prepares only the eligible success fixture through the same trusted-CI helper, and then lets the deployed cron discover the work without inserting migration jobs or Queue messages. The controlled failure fixture carries command capability v3 so it reaches the intended safe failure, while active-import work remains excluded. The proof must cover trusted capability promotion, successful binding-native v6→v7 upgrade, controlled failure with LKG preservation, active-import exclusion, unchanged historical onboarding/stage/candidate evidence, exact schema ledger/authority tables, zero catalog/candidate mutation caused by migration, merchant override preservation and unrelated-tenant isolation. Unexpected failure retains opaque fixture evidence plus the bounded migration job code/attempt count for diagnosis; cleanup happens only after the complete proof passes. Runtime or preparation changes require the normal successful-deploy trigger.
 
 This distinction is part of the M7 safety model: internal schema readiness may advance independently from catalog publication authority.
 

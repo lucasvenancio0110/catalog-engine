@@ -580,7 +580,8 @@ Required contract:
 - replay after a successful commit recognizes the same run as already `promoted` and does not repeat the switch;
 - competing verified candidates cannot both promote from the same base authority;
 - cross-tenant/source/run mismatch fails closed;
-- no browser/client-selected identity can choose promotion authority.
+- no browser/client-selected identity can choose promotion authority;
+- M7D7 does not activate repeated-miss removal: any candidate containing MISSING/REMOVED fails promotion closed with `sync_promotion_removal_not_ready` until M7D9 owns the removal/retention contract, so durable merchant overrides cannot be erased as a side effect of this slice.
 
 Measured V1 admission envelope:
 
@@ -606,7 +607,7 @@ Crash contract:
 - cursor/schedule/control-plane commit remains **M7D8**, strictly after durable promotion;
 - promoted/failed evidence is retained for recovery; automatic recovery/replay closure remains **M7D10**.
 
-M7D7 implementation remains a separate claim. The accepted architecture does not itself make M7D7 Production Green. The implementation must add production-shaped regression/canary proof for verified-only entry, stale-base/competing-run CAS, rollback, old-or-new reader consistency, over-envelope rejection, idempotent replay, tenant isolation, privacy and unchanged cursor/removal/activation state.
+M7D7 implementation remains a separate claim. The accepted architecture does not itself make M7D7 Production Green. The implementation has one dedicated promotion primitive and the legacy stage promotion path fails closed; Production Green still requires trusted-main production-shaped regression/canary proof for verified-only entry, stale-base/competing-run CAS, rollback/atomic authority switch, over-envelope rejection, idempotent replay, tenant isolation, privacy, merchant-override preservation and unchanged cursor/removal/activation state.
 
 ### M7D8 — Verified Promotion and Cursor Commit
 
