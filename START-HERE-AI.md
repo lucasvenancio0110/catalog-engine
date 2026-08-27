@@ -343,13 +343,13 @@ Captured against live GitHub on **2026-08-27 (America/Sao_Paulo)**.
 repository = lucasvenancio0110/catalog-engine
 branch = main
 production implementation checkpoint = 725854afc408bb6177aa071e2797051369c4040c
-documentation protocol capture point after PR #151 = cf026808ff8809c2cd9458ae51fb229635398ec9
+documentation reconciliation capture point after PR #153 = f01253dd4b7c5855de0cbfb222a128cab9c48f1b
 ```
 
 The two SHAs intentionally mean different things:
 
 - `725854af...` is the last known **feature implementation SHA with exact M7D7 trusted-main production proof**;
-- `cf026808...` is a later **documentation-only repository capture point** that added this continuity protocol.
+- `f01253dd...` is the later **documentation-only repository capture point** that reconciled M7D7 closure/current-state/roadmap after the continuity protocol was introduced.
 
 Neither value is permission to skip live GitHub revalidation.
 
@@ -416,24 +416,17 @@ M7D3 = PRODUCTION GREEN
 M7D4 = PRODUCTION GREEN
 M7D5 = PRODUCTION GREEN
 M7D6 = PRODUCTION GREEN
-M7D7 = implementation merged + exact-SHA production evidence green, but canonical closure documentation is stale/incomplete at this checkpoint
-M7D8 = PLANNED
+M7D7 = PRODUCTION GREEN
+M7D8 = PLANNED — NEXT APPROVED
 M7D9 = PLANNED
 M7D10 = PLANNED
 M7D11 = PLANNED / scope decision before customer UI
 M7E = DECISION REQUIRED / activation-only
 ```
 
-## Known documentation conflict that MUST be reconciled
+## M7D7 documentation reconciliation
 
-At this checkpoint, production/code are ahead of several canonical documents:
-
-- `docs/CURRENT-STATE.md` still describes M7D7 implementation as pending;
-- `docs/DEVELOPMENT-ROADMAP.md` still lists M7D7 as planned/implementation next;
-- `docs/TENANT-SYNC.md` still contains stale wording that M7D7 implementation/Production Green remains pending;
-- no M7D7 closure document equivalent to the D3-D6 closures exists yet.
-
-The next AI must revalidate whether this conflict still exists. If it does, reconcile it before treating M7D8 as active implementation work.
+M7D7 closure reconciliation was completed by PR `#153` at documentation-only SHA `f01253dd4b7c5855de0cbfb222a128cab9c48f1b`, and this follow-up reconciles the remaining normative/bootloader wording. Live revalidation still outranks this snapshot.
 
 Additional known documentation debt discovered in the full-doc audit:
 
@@ -470,7 +463,7 @@ Do not create a real cohort merely to make a canary easier.
 
 ---
 
-# 11. NEXT APPROVED SUBMILESTONE AFTER M7D7 CLOSURE RECONCILIATION
+# 11. NEXT APPROVED SUBMILESTONE
 
 Subject to live revalidation, the next roadmap slice is:
 
