@@ -1,0 +1,37 @@
+name: M7D7 contract documentation apply
+
+on:
+  push:
+    branches:
+      - m7d7/promotion-authority-primitive-v1
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, '[m7d7-docs-applied]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: m7d7/promotion-authority-primitive-v1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Apply M7D7 owner contract alignment
+        run: node scripts/m7d7-doc-contract-apply.mjs
+      - name: Quality gate
+        run: npm run quality
+      - name: Commit tested documentation
+        run: |
+          set -euo pipefail
+          rm -f scripts/m7d7-doc-contract-apply.mjs
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/TENANT-DATA-PLANES.md docs/TENANT-SYNC.md scripts/m7d7-doc-contract-apply.mjs
+          git commit -m 'docs: align M7D7 authority and removal boundary [m7d7-docs-applied]'
+          git push origin HEAD:m7d7/promotion-authority-primitive-v1
