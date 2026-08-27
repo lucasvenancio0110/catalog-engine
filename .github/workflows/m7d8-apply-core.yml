@@ -1,0 +1,218 @@
+name: Apply and validate M7D8 core wiring
+
+on:
+  push:
+    branches: ['m7d8/verified-promotion-cursor-commit-v1']
+    paths:
+      - '.github/workflows/m7d8-apply-core.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: m7d8/verified-promotion-cursor-commit-v1
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply M7D8 scheduler and cron wiring
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          scheduler_path = Path('worker/tenant-sync-scheduler.js')
+          scheduler = scheduler_path.read_text()
+          replacement = r'''async function createIncrementalJob(db, cohort, schedule) {
+            const scheduledFor = String(schedule.next_sync_at || '').trim();
+            const importId = await incrementalTenantImportId({
+              tenantId: schedule.tenant_id,
+              sourceKey: schedule.source_key,
+              scheduledFor
+            });
+
+            const inserted = await db
+              .prepare(
+                `INSERT OR IGNORE INTO tenant_import_jobs
+                  (import_id, tenant_id, source_key, mode, status, phase, attempt_count,
+                   next_attempt_at, sync_scheduled_for, created_at, updated_at)
+                 SELECT ?1, ?2, ?3, 'incremental', 'pending', 'scan', 0,
+                        CURRENT_TIMESTAMP, ?5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                   FROM tenant_sync_schedules schedule
+                   JOIN tenant_sync_enrollments enrollment
+                     ON enrollment.tenant_id=schedule.tenant_id
+                    AND enrollment.source_key=schedule.source_key
+                   JOIN supplier_sources source
+                     ON source.tenant_id=schedule.tenant_id
+                    AND source.source_key=schedule.source_key
+                   JOIN catalog_tenants tenant ON tenant.tenant_id=schedule.tenant_id
+                   JOIN tenant_catalog_instances instance ON instance.tenant_id=schedule.tenant_id
+                   JOIN tenant_store_profiles profile ON profile.tenant_id=schedule.tenant_id
+                  WHERE schedule.tenant_id=?2
+                    AND schedule.source_key=?3
+                    AND schedule.status='active'
+                    AND schedule.next_sync_at=?5
+                    AND schedule.next_sync_at<=CURRENT_TIMESTAMP
+                    AND enrollment.status='enrolled'
+                    AND enrollment.cohort_key=?4
+                    AND source.status='active'
+                    AND source.sync_strategy='incremental'
+                    AND tenant.status='active'
+                    AND instance.status='ready'
+                    AND profile.setup_status IN ('ready','published')
+                    AND EXISTS (
+                      SELECT 1 FROM tenant_import_jobs initial_job
+                       WHERE initial_job.tenant_id=?2
+                         AND initial_job.source_key=?3
+                         AND initial_job.mode='initial'
+                         AND initial_job.status='success'
+                    )
+                    AND NOT EXISTS (
+                      SELECT 1 FROM tenant_data_plane_migration_jobs migration_job
+                       WHERE migration_job.tenant_id=?2
+                         AND migration_job.status IN ('pending','running','failed')
+                    )
+                    AND NOT EXISTS (
+                      SELECT 1 FROM tenant_import_jobs conflicting_job
+                       WHERE conflicting_job.tenant_id=?2
+                         AND conflicting_job.source_key=?3
+                         AND (
+                           conflicting_job.status IN ('pending','queued','scanning','details','finalizing')
+                           OR (
+                             conflicting_job.mode IN ('incremental','recovery')
+                             AND conflicting_job.status='failed'
+                           )
+                         )
+                    )`
+              )
+              .bind(importId, schedule.tenant_id, schedule.source_key, cohort, scheduledFor)
+              .run();
+
+            if (Number(inserted?.meta?.changes || 0) !== 1) {
+              return { scheduled: false, importId: null };
+            }
+
+            const verification = await db
+              .prepare(
+                `SELECT import_id, status, phase, sync_scheduled_for
+                   FROM tenant_import_jobs
+                  WHERE import_id=?1
+                    AND tenant_id=?2
+                    AND source_key=?3
+                    AND mode='incremental'
+                  LIMIT 1`
+              )
+              .bind(importId, schedule.tenant_id, schedule.source_key)
+              .first();
+
+            return verification?.import_id === importId && verification?.sync_scheduled_for === scheduledFor
+              ? { scheduled: true, importId }
+              : { scheduled: false, importId: null };
+          }
+
+          export async function runDueTenantSyncScheduling'''
+          scheduler, count = re.subn(
+              r'async function createIncrementalJob\(db, cohort, schedule\) \{.*?\n\}\n\nexport async function runDueTenantSyncScheduling',
+              replacement,
+              scheduler,
+              count=1,
+              flags=re.S
+          )
+          if count != 1:
+              raise SystemExit(f'scheduler createIncrementalJob replacements={count}')
+          scheduler_path.write_text(scheduler)
+
+          entry_path = Path('worker/entry.js')
+          entry = entry_path.read_text()
+          anchor = "import { runDueTenantIncrementalVerifications } from './ingestion/incremental-verification-runner.js';"
+          insert = anchor + "\nimport { runDueTenantIncrementalFinalizations } from './ingestion/incremental-finalization-runner.js';"
+          if anchor not in entry or 'runDueTenantIncrementalFinalizations' in entry:
+              raise SystemExit('entry import anchor invalid')
+          entry = entry.replace(anchor, insert, 1)
+          anchor = '        runDueTenantIncrementalVerifications(env),'
+          if anchor not in entry:
+              raise SystemExit('entry scheduled anchor missing')
+          entry = entry.replace(anchor, anchor + '\n        runDueTenantIncrementalFinalizations(env),', 1)
+          anchor = "          'tenant_incremental_verification_schedule',"
+          if anchor not in entry:
+              raise SystemExit('entry label anchor missing')
+          entry = entry.replace(anchor, anchor + "\n          'tenant_incremental_finalization_schedule',", 1)
+          entry_path.write_text(entry)
+
+          test_path = Path('tests/tenant-sync-scheduler.test.mjs')
+          test = test_path.read_text()
+          anchor = "const enrollmentMigrationPath = new URL(\n  '../migrations/0020_tenant_sync_controlled_enrollment.sql',\n  import.meta.url\n);"
+          if anchor not in test:
+              raise SystemExit('scheduler test migration anchor missing')
+          test = test.replace(
+              anchor,
+              anchor + "\nconst finalizationMigrationPath = new URL(\n  '../migrations/0021_tenant_sync_finalization.sql',\n  import.meta.url\n);",
+              1
+          )
+          anchor = "  database.exec(await readFile(enrollmentMigrationPath, 'utf8'));"
+          if anchor not in test:
+              raise SystemExit('scheduler test migration apply anchor missing')
+          test = test.replace(anchor, anchor + "\n  database.exec(await readFile(finalizationMigrationPath, 'utf8'));", 1)
+          old_select = '"SELECT import_id, mode, status, phase FROM tenant_import_jobs WHERE mode=\'incremental\'"'
+          new_select = '"SELECT import_id, mode, status, phase, sync_scheduled_for FROM tenant_import_jobs WHERE mode=\'incremental\'"'
+          if old_select not in test:
+              raise SystemExit('scheduler job select anchor missing')
+          test = test.replace(old_select, new_select, 1)
+          old_expect = """    expect(schedule.last_import_id).toBe(job.import_id);
+              expect(schedule.last_scheduled_at).toBeTruthy();
+              expect(
+                database
+                  .prepare('SELECT next_sync_at > CURRENT_TIMESTAMP AS in_future FROM tenant_sync_schedules')
+                  .get().in_future
+              ).toBe(1);"""
+          new_expect = """    expect(job.sync_scheduled_for).toBe(dueSlot);
+              expect(schedule.last_import_id).toBeNull();
+              expect(schedule.last_scheduled_at).toBeNull();
+              expect(schedule.next_sync_at).toBe(dueSlot);"""
+          if old_expect not in test:
+              raise SystemExit('scheduler timing expectation anchor missing')
+          test = test.replace(old_expect, new_expect, 1)
+          test_path.write_text(test)
+
+          boundary_path = Path('tests/tenant-sync-activation-boundary.test.mjs')
+          boundary = boundary_path.read_text()
+          anchor = "    expect(entry).toContain(\n      \"import { runDueTenantSyncScheduling } from './tenant-sync-scheduler.js';\"\n    );"
+          if anchor not in boundary:
+              raise SystemExit('activation boundary entry anchor missing')
+          boundary = boundary.replace(
+              anchor,
+              anchor + "\n    expect(entry).toContain(\n      \"import { runDueTenantIncrementalFinalizations } from './ingestion/incremental-finalization-runner.js';\"\n    );\n    expect(entry).toContain('runDueTenantIncrementalFinalizations(env)');\n    expect(entry).toContain(\"'tenant_incremental_finalization_schedule'\");",
+              1
+          )
+          boundary_path.write_text(boundary)
+          PY
+      - name: Verify patch shape
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          test "$(git diff --name-only | sort | tr '\n' ' ')" = "tests/tenant-sync-activation-boundary.test.mjs tests/tenant-sync-scheduler.test.mjs worker/entry.js worker/tenant-sync-scheduler.js "
+          grep -F 'sync_scheduled_for' worker/tenant-sync-scheduler.js
+          ! grep -F 'last_scheduled_at=CURRENT_TIMESTAMP' worker/tenant-sync-scheduler.js
+          grep -F 'runDueTenantIncrementalFinalizations(env)' worker/entry.js
+      - name: Install dependencies
+        run: npm ci
+      - name: Full secret-free quality gate
+        run: npm run quality
+      - name: Commit validated core wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'catalog-engine-m7d8-bot'
+          git config user.email 'catalog-engine-m7d8-bot@users.noreply.github.com'
+          git add worker/tenant-sync-scheduler.js worker/entry.js tests/tenant-sync-scheduler.test.mjs tests/tenant-sync-activation-boundary.test.mjs
+          git commit -m 'm7d8: defer schedule commit until promoted authority'
+          git push origin HEAD:m7d8/verified-promotion-cursor-commit-v1
