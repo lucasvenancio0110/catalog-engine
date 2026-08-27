@@ -1,0 +1,72 @@
+name: Reconcile M7D7 normative continuity state
+
+on:
+  push:
+    branches: ['docs/reconcile-m7d7-normative-state']
+    paths:
+      - '.github/workflows/reconcile-m7d7-normative-state.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/reconcile-m7d7-normative-state
+          fetch-depth: 0
+      - name: Patch stale M7D7 normative and continuity wording
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          sync_path = Path('docs/TENANT-SYNC.md')
+          sync = sync_path.read_text()
+          old = "M7D7 implementation remains a separate claim. The accepted architecture does not itself make M7D7 Production Green. The implementation has one dedicated promotion primitive and the legacy stage promotion path fails closed; Production Green still requires trusted-main production-shaped regression/canary proof for verified-only entry, stale-base/competing-run CAS, rollback/atomic authority switch, over-envelope rejection, idempotent replay, tenant isolation, privacy, merchant-override preservation and unchanged cursor/removal/activation state."
+          new = "M7D7 is **PRODUCTION GREEN** at trusted-main implementation SHA `725854afc408bb6177aa071e2797051369c4040c`. The dedicated promotion primitive and legacy fail-closed boundary passed exact-SHA trusted-main production proof for verified-only entry, stale-base/competing-run CAS, atomic authority switch, bounded admission, idempotent replay, tenant isolation, privacy, merchant-override preservation and unchanged cursor/removal/activation state. Full closure evidence lives in `M7D7-CLOSURE-2026-08-27.md`. M7D8 is the next approved slice and owns control-plane cursor/schedule finalization strictly after durable `promoted` authority."
+          if old not in sync:
+              raise SystemExit('TENANT-SYNC stale M7D7 paragraph not found')
+          sync_path.write_text(sync.replace(old, new, 1))
+
+          start_path = Path('START-HERE-AI.md')
+          start = start_path.read_text()
+          replacements = [
+              ("documentation protocol capture point after PR #151 = cf026808ff8809c2cd9458ae51fb229635398ec9", "documentation reconciliation capture point after PR #153 = f01253dd4b7c5855de0cbfb222a128cab9c48f1b"),
+              ("- `cf026808...` is a later **documentation-only repository capture point** that added this continuity protocol.", "- `f01253dd...` is the later **documentation-only repository capture point** that reconciled M7D7 closure/current-state/roadmap after the continuity protocol was introduced."),
+              ("M7D7 = implementation merged + exact-SHA production evidence green, but canonical closure documentation is stale/incomplete at this checkpoint\nM7D8 = PLANNED", "M7D7 = PRODUCTION GREEN\nM7D8 = PLANNED — NEXT APPROVED"),
+              ("# 11. NEXT APPROVED SUBMILESTONE AFTER M7D7 CLOSURE RECONCILIATION", "# 11. NEXT APPROVED SUBMILESTONE")
+          ]
+          for old_text, new_text in replacements:
+              if old_text not in start:
+                  raise SystemExit(f'START-HERE expected text not found: {old_text[:70]}')
+              start = start.replace(old_text, new_text, 1)
+
+          conflict = """Known documentation conflict at this checkpoint:\n\n- `docs/CURRENT-STATE.md` still describes M7D7 implementation as pending;\n- `docs/DEVELOPMENT-ROADMAP.md` still lists M7D7 as planned/implementation next;\n- `docs/TENANT-SYNC.md` still contains stale wording that M7D7 implementation/Production Green remains pending;\n- no M7D7 closure document equivalent to the D3-D6 closures exists yet.\n\nThe next AI must revalidate whether this conflict still exists. If it does, reconcile it before treating M7D8 as active implementation work.\n"""
+          resolved = """M7D7 closure reconciliation was completed by PR `#153` at documentation-only SHA `f01253dd4b7c5855de0cbfb222a128cab9c48f1b`, and this follow-up reconciles the remaining normative/bootloader wording. Live revalidation still outranks this snapshot.\n"""
+          if conflict not in start:
+              raise SystemExit('START-HERE stale conflict block not found')
+          start = start.replace(conflict, resolved, 1)
+          start_path.write_text(start)
+          PY
+      - name: Verify intended changes only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          test "$(git diff --name-only | sort | tr '\n' ' ')" = "START-HERE-AI.md docs/TENANT-SYNC.md "
+          grep -F 'M7D7 is **PRODUCTION GREEN**' docs/TENANT-SYNC.md
+          grep -F 'M7D8 = PLANNED — NEXT APPROVED' START-HERE-AI.md
+          ! grep -F 'M7D7 implementation remains a separate claim' docs/TENANT-SYNC.md
+          ! grep -F 'canonical closure documentation is stale/incomplete' START-HERE-AI.md
+      - name: Commit reconciliation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'catalog-engine-docs-bot'
+          git config user.email 'catalog-engine-docs-bot@users.noreply.github.com'
+          git add START-HERE-AI.md docs/TENANT-SYNC.md
+          git commit -m 'docs: reconcile M7D7 normative continuity state'
+          git push origin HEAD:docs/reconcile-m7d7-normative-state
