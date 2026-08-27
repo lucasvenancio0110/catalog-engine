@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { createD1Database, queryD1Batch } from '../worker/cloudflare-platform.js';
-import { processTenantIncrementalFinalizationJob, runDueTenantIncrementalFinalizations } from '../worker/ingestion/incremental-finalization-runner.js';
+import { runDueTenantIncrementalFinalizations } from '../worker/ingestion/incremental-finalization-runner.js';
 import { processTenantIncrementalPromotion } from '../worker/ingestion/incremental-promotion.js';
 import { incrementalTenantImportId } from '../worker/tenant-import-queue.js';
 import {
