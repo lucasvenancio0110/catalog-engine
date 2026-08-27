@@ -1,0 +1,39 @@
+name: M7D7 production canary extension apply
+
+on:
+  push:
+    branches:
+      - m7d7/promotion-authority-primitive-v1
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, '[m7d7-canary-applied]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: m7d7/promotion-authority-primitive-v1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Apply M7D7 production canary extension
+        run: node scripts/m7d7-canary-apply.mjs
+      - name: Syntax-check evolved canary
+        run: node --check scripts/cloudflare-incremental-scan-stage-canary.mjs
+      - name: Full quality gate
+        run: npm run quality
+      - name: Commit tested canary script
+        run: |
+          set -euo pipefail
+          rm -f scripts/m7d7-canary-apply.mjs
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/cloudflare-incremental-scan-stage-canary.mjs scripts/m7d7-canary-apply.mjs
+          git commit -m 'm7d7: extend production canary through authority switch [m7d7-canary-applied]'
+          git push origin HEAD:m7d7/promotion-authority-primitive-v1
