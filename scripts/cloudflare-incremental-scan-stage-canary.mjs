@@ -7,6 +7,7 @@ import {
 } from '../worker/cloudflare-platform.js';
 import { yupooIngestionProvider } from '../worker/ingestion/providers/yupoo.js';
 import { incrementalTenantImportId } from '../worker/tenant-import-queue.js';
+import { processTenantIncrementalPromotion } from '../worker/ingestion/incremental-promotion.js';
 import {
   TENANT_DATA_PLANE_SCHEMA_VERSION,
   tenantDataPlaneCurrentBatch
@@ -20,8 +21,8 @@ const DISPATCH_NAMESPACE = String(
 ).trim();
 const DEFAULT_TENANT_ID = 't_00000000000000000001';
 const DEFAULT_SOURCE_KEY = 'primary';
-const SOURCE_KEY = 'm7d6-canary';
-const MERCHANT_OVERRIDE_NAME = 'M7D6 Merchant Override';
+const SOURCE_KEY = 'm7d7-canary';
+const MERCHANT_OVERRIDE_NAME = 'M7D7 Merchant Override';
 const POLL_MS = 5_000;
 const DISPATCH_TIMEOUT_MS = 15 * 60_000;
 const QUEUE_DRAIN_TIMEOUT_MS = 3 * 60_000;
@@ -102,12 +103,12 @@ async function tenantBatch(databaseId, batch) {
 
 function fixtureIdentity() {
   const seed = `${process.env.GITHUB_RUN_ID || Date.now()}:${process.env.GITHUB_RUN_ATTEMPT || '1'}`;
-  const suffix = createHash('sha256').update(`m7d6-canary:${seed}`).digest('hex').slice(0, 20);
+  const suffix = createHash('sha256').update(`m7d7-canary:${seed}`).digest('hex').slice(0, 20);
   return {
     tenantId: `t_${suffix}`,
     workerScriptName: `ce-${suffix}`,
-    databaseName: `cem7d6-${suffix}`,
-    dataPlaneKey: `m7d6-${suffix}`
+    databaseName: `cem7d7-${suffix}`,
+    dataPlaneKey: `m7d7-${suffix}`
   };
 }
 
@@ -285,16 +286,20 @@ async function canonicalSnapshot(fixture) {
               FROM catalog_product_classification_overrides ORDER BY product_id ASC`,
       params: []
     },
-    { sql: 'SELECT COUNT(*) AS total FROM catalog_product_intelligence_state', params: [] }
+    { sql: 'SELECT COUNT(*) AS total FROM catalog_product_intelligence_state', params: [] },
+    { sql: 'SELECT COUNT(*) AS total FROM product_media', params: [] }
   ]);
+  const catalogRows = result[1]?.results || [];
   return {
     lkgHash: createHash('sha256').update(JSON.stringify(result[0]?.results || [])).digest('hex'),
     lkgCount: (result[0]?.results || []).length,
-    catalogHash: createHash('sha256').update(JSON.stringify(result[1]?.results || [])).digest('hex'),
-    catalogCount: (result[1]?.results || []).length,
+    catalogHash: createHash('sha256').update(JSON.stringify(catalogRows)).digest('hex'),
+    catalogCount: catalogRows.length,
+    catalogDisplayName: String(catalogRows[0]?.display_name || ''),
     overrideHash: createHash('sha256').update(JSON.stringify(result[2]?.results || [])).digest('hex'),
     overrideCount: (result[2]?.results || []).length,
-    canonicalIntelligenceCount: Number(result[3]?.results?.[0]?.total || 0)
+    canonicalIntelligenceCount: Number(result[3]?.results?.[0]?.total || 0),
+    canonicalProductMediaCount: Number(result[4]?.results?.[0]?.total || 0)
   };
 }
 
@@ -345,8 +350,8 @@ async function setupFixture(scope) {
     {
       sql: `INSERT INTO catalog_tenants
               (tenant_id, slug, display_name, status, created_at, updated_at)
-            VALUES (?1, ?2, 'M7D6 Canary', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-      params: [fixture.tenantId, `m7d6-${fixture.tenantId.slice(2)}`]
+            VALUES (?1, ?2, 'M7D7 Canary', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      params: [fixture.tenantId, `m7d7-${fixture.tenantId.slice(2)}`]
     },
     {
       sql: `INSERT INTO tenant_catalog_instances
@@ -376,7 +381,7 @@ async function setupFixture(scope) {
         fixture.workerScriptName,
         fixture.databaseName,
         fixture.databaseId,
-        worker.versionId || 'm7d6-canary'
+        worker.versionId || 'm7d7-canary'
       ]
     },
     {
@@ -401,6 +406,18 @@ async function controlState(fixture) {
               FROM tenant_import_jobs
              WHERE import_id=?1 AND tenant_id=?2 AND source_key=?3 LIMIT 1`,
       params: [fixture.importId, fixture.tenantId, SOURCE_KEY]
+    }
+  ]);
+  return result[0]?.results?.[0] || null;
+}
+
+async function scheduleState(fixture) {
+  const result = await controlBatch([
+    {
+      sql: `SELECT status,next_sync_at,last_scheduled_at,last_import_id
+              FROM tenant_sync_schedules
+             WHERE tenant_id=?1 AND source_key=?2 LIMIT 1`,
+      params: [fixture.tenantId, SOURCE_KEY]
     }
   ]);
   return result[0]?.results?.[0] || null;
@@ -481,6 +498,18 @@ async function stageState(fixture) {
                AND json_extract(value_json,'$.projection')='candidate-composed-v1'`,
       params: [fixture.importId]
     },
+    {
+      sql: `SELECT base_authority_revision
+              FROM supplier_sync_stage_authority
+             WHERE run_id=?1 AND tenant_id=?2 AND source_key=?3 LIMIT 1`,
+      params: [fixture.importId, fixture.tenantId, SOURCE_KEY]
+    },
+    {
+      sql: `SELECT revision,last_promoted_run_id,last_promoted_source_key,promoted_at
+              FROM catalog_serving_authority
+             WHERE tenant_id=?1 LIMIT 1`,
+      params: [fixture.tenantId]
+    },
     { sql: 'PRAGMA foreign_key_check', params: [] }
   ]);
   const run = result[0]?.results?.[0] || null;
@@ -510,7 +539,12 @@ async function stageState(fixture) {
     candidateDomainId: String(intelligence.domain_id || ''),
     candidateNavigationMetaCount: Number(result[7]?.results?.[0]?.total || 0),
     candidateMerchandisingMetaCount: Number(result[8]?.results?.[0]?.total || 0),
-    foreignKeyFindings: (result[9]?.results || []).length
+    baseAuthorityRevision: Number(result[9]?.results?.[0]?.base_authority_revision ?? -1),
+    authorityRevision: Number(result[10]?.results?.[0]?.revision ?? -1),
+    authorityRunId: String(result[10]?.results?.[0]?.last_promoted_run_id || ''),
+    authoritySourceKey: String(result[10]?.results?.[0]?.last_promoted_source_key || ''),
+    authorityPromotedAt: String(result[10]?.results?.[0]?.promoted_at || ''),
+    foreignKeyFindings: (result[11]?.results || []).length
   };
 }
 
@@ -589,20 +623,21 @@ const before = await canonicalSnapshot(fixture);
 
 try {
   const state = await waitForVerifiedCandidate(fixture);
-  const after = await canonicalSnapshot(fixture);
+  const verifiedSnapshot = await canonicalSnapshot(fixture);
+  const scheduleBeforePromotion = await scheduleState(fixture);
   const finalBacklogs = await waitQueuesClean(queues);
-  if (before.lkgHash !== after.lkgHash || before.lkgCount !== after.lkgCount) {
+  if (before.lkgHash !== verifiedSnapshot.lkgHash || before.lkgCount !== verifiedSnapshot.lkgCount) {
     throw new Error('m7d6_canary_canonical_lkg_changed');
   }
-  if (before.catalogHash !== after.catalogHash || before.catalogCount !== after.catalogCount) {
+  if (before.catalogHash !== verifiedSnapshot.catalogHash || before.catalogCount !== verifiedSnapshot.catalogCount) {
     throw new Error('m7d6_canary_catalog_changed');
   }
-  if (before.overrideHash !== after.overrideHash || before.overrideCount !== after.overrideCount) {
+  if (before.overrideHash !== verifiedSnapshot.overrideHash || before.overrideCount !== verifiedSnapshot.overrideCount) {
     throw new Error('m7d6_canary_override_truth_changed');
   }
   if (
-    before.canonicalIntelligenceCount !== after.canonicalIntelligenceCount ||
-    after.canonicalIntelligenceCount !== 0
+    before.canonicalIntelligenceCount !== verifiedSnapshot.canonicalIntelligenceCount ||
+    verifiedSnapshot.canonicalIntelligenceCount !== 0
   ) {
     throw new Error('m7d6_canary_canonical_intelligence_changed');
   }
@@ -669,10 +704,79 @@ try {
   ) {
     throw new Error('m7d6_canary_control_progress_invalid');
   }
+  if (state.stage.baseAuthorityRevision !== 0 || state.stage.authorityRevision !== 0) {
+    throw new Error('m7d7_canary_authority_base_invalid');
+  }
+  if (scheduleBeforePromotion !== null) throw new Error('m7d7_canary_schedule_unexpected_before_promotion');
+
+  const promotion = await processTenantIncrementalPromotion(
+    {
+      CLOUDFLARE_PLATFORM_ACCOUNT_ID: ACCOUNT_ID,
+      CLOUDFLARE_PLATFORM_API_TOKEN: API_TOKEN,
+      CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE: DISPATCH_NAMESPACE
+    },
+    {
+      importId: fixture.importId,
+      tenantId: fixture.tenantId,
+      sourceKey: SOURCE_KEY,
+      mode: 'incremental',
+      schemaVersion: TENANT_DATA_PLANE_SCHEMA_VERSION,
+      dataPlane: { databaseId: fixture.databaseId, dispatchNamespace: DISPATCH_NAMESPACE }
+    },
+    { queryBatch: queryD1Batch }
+  );
+  if (
+    promotion.outcome !== 'success' || promotion.alreadyComplete !== false ||
+    promotion.stageState !== 'promoted' || Number(promotion.authorityRevision || 0) !== 1
+  ) {
+    throw new Error('m7d7_canary_promotion_failed');
+  }
+
+  const promotedStage = await stageState(fixture);
+  const promotedSnapshot = await canonicalSnapshot(fixture);
+  const controlAfterPromotion = await controlState(fixture);
+  const scheduleAfterPromotion = await scheduleState(fixture);
+
+  if (before.lkgHash === promotedSnapshot.lkgHash) throw new Error('m7d7_canary_lkg_not_promoted');
+  if (before.catalogHash === promotedSnapshot.catalogHash) throw new Error('m7d7_canary_catalog_not_promoted');
+  if (
+    before.overrideHash !== promotedSnapshot.overrideHash ||
+    before.overrideCount !== promotedSnapshot.overrideCount ||
+    promotedSnapshot.catalogDisplayName !== MERCHANT_OVERRIDE_NAME
+  ) {
+    throw new Error('m7d7_canary_override_truth_changed');
+  }
+  if (promotedSnapshot.canonicalIntelligenceCount !== 1) {
+    throw new Error('m7d7_canary_intelligence_not_promoted');
+  }
+  if (promotedSnapshot.canonicalProductMediaCount < 1) {
+    throw new Error('m7d7_canary_media_not_promoted');
+  }
+  if (
+    promotedStage.state !== 'promoted' ||
+    promotedStage.baseAuthorityRevision !== 0 ||
+    promotedStage.authorityRevision !== 1 ||
+    promotedStage.authorityRunId !== fixture.importId ||
+    promotedStage.authoritySourceKey !== SOURCE_KEY ||
+    !promotedStage.authorityPromotedAt
+  ) {
+    throw new Error('m7d7_canary_authority_not_committed');
+  }
+  if (promotedStage.foreignKeyFindings !== 0) throw new Error('m7d7_canary_foreign_key_findings');
+  if (
+    controlAfterPromotion?.status !== state.job.status ||
+    controlAfterPromotion?.phase !== state.job.phase ||
+    Number(controlAfterPromotion?.completed_detail_count || 0) !== Number(state.job.completed_detail_count || 0)
+  ) {
+    throw new Error('m7d7_canary_control_plane_advanced');
+  }
+  if (scheduleAfterPromotion !== null) throw new Error('m7d7_canary_schedule_advanced');
+
   const summary = {
     incrementalAffectedDetailCanaryPassed: true,
     incrementalCeiCandidateCanaryPassed: true,
     incrementalCandidateVerificationCanaryPassed: true,
+    incrementalPromotionAuthorityCanaryPassed: true,
     manualQueueMessagesProduced: false,
     recurringSyncEnabled: false,
     tenantImportAutomationEnabled: true,
@@ -699,12 +803,22 @@ try {
     candidateMediaSourceCount: state.stage.candidateMediaSourceCount,
     candidateProductMediaCount: state.stage.candidateProductMediaCount,
     foreignKeyFindings: state.stage.foreignKeyFindings,
-    canonicalLkgUnchanged: true,
-    canonicalCatalogUnchanged: true,
+    canonicalLkgUnchangedThroughVerification: true,
+    canonicalCatalogUnchangedThroughVerification: true,
+    canonicalIntelligenceUnchangedThroughVerification: true,
+    canonicalLkgPromotedAtomically: true,
+    canonicalCatalogPromotedAtomically: true,
     canonicalMerchantOverrideUnchanged: true,
-    canonicalIntelligenceUnchanged: true,
-    storefrontCatalogUnchanged: true,
-    promotionPerformed: false,
+    canonicalIntelligencePromoted: true,
+    canonicalProductMediaPromoted: promotedSnapshot.canonicalProductMediaCount,
+    promotionPerformed: true,
+    promotionAlreadyComplete: promotion.alreadyComplete,
+    promotedStageState: promotedStage.state,
+    baseAuthorityRevision: promotedStage.baseAuthorityRevision,
+    authorityRevision: promotedStage.authorityRevision,
+    authorityAdvancedExactlyOnce: promotedStage.authorityRevision === promotedStage.baseAuthorityRevision + 1,
+    authorityRunMatch: promotedStage.authorityRunId === fixture.importId,
+    controlPlaneStillFinalizing: controlAfterPromotion?.status === 'finalizing' && controlAfterPromotion?.phase === 'finalize',
     cursorAdvanced: false,
     removalActivated: false,
     queueBacklogsClean: queuesClean(finalBacklogs)
@@ -718,6 +832,7 @@ try {
       incrementalAffectedDetailCanaryPassed: false,
       incrementalCeiCandidateCanaryPassed: false,
       incrementalCandidateVerificationCanaryPassed: false,
+      incrementalPromotionAuthorityCanaryPassed: false,
       retainedEvidence: true,
       retainedTenantId: activeFixture?.tenantId || null,
       retainedDatabaseName: activeFixture?.databaseName || null,
