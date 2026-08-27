@@ -257,7 +257,7 @@ describe('tenant data-plane fleet maintenance production canary', () => {
   });
 
   it('keeps recurring tenant sync explicitly off in deploy and canary gates', () => {
-    expect(workflow).toContain('TENANT_SYNC_AUTOMATION_ENABLED must remain 0 for M7D1');
+    expect(workflow).toContain('TENANT_SYNC_AUTOMATION_ENABLED must remain 0');
     expect(script).toContain('fleet_canary_requires_recurring_sync_off');
     expect(deployWorkflow).toContain('TENANT_SYNC_AUTOMATION_ENABLED');
   });
