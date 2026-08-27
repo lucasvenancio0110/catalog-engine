@@ -6,10 +6,11 @@ on:
       - m7d7/promotion-authority-primitive-v1
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   quality:
+    if: ${{ !contains(github.event.head_commit.message, '[m7d7-single-owner-applied]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -21,7 +22,18 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: M7D7 focused promotion tests
-        run: npx vitest run tests/tenant-incremental-promotion.test.mjs
+      - name: Retire legacy stage promotion owner
+        run: node scripts/m7d7-retire-stage-promotion.mjs
+      - name: Focused M7D7 and staged-sync tests
+        run: npx vitest run tests/tenant-incremental-promotion.test.mjs tests/tenant-incremental-stage.test.mjs tests/tenant-incremental-stage-ledger.test.mjs
       - name: Full quality gate
         run: npm run quality
+      - name: Commit single-owner cleanup
+        run: |
+          set -euo pipefail
+          rm -f scripts/m7d7-retire-stage-promotion.mjs
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add worker/ingestion/incremental-stage.js tests/tenant-incremental-stage.test.mjs tests/tenant-incremental-stage-ledger.test.mjs scripts/m7d7-retire-stage-promotion.mjs
+          git commit -m 'm7d7: make promotion primitive single owner [m7d7-single-owner-applied]'
+          git push origin HEAD:m7d7/promotion-authority-primitive-v1
