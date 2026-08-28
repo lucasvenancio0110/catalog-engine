@@ -41,18 +41,41 @@ jobs:
         run: npm run deps:check
       - name: Tests
         run: npm run test -- --reporter=json --outputFile=/tmp/m7d9-vitest.json
-      - name: Persist failing test report
+      - name: Persist compact failing test summary
         if: failure()
         shell: bash
         run: |
           set -euo pipefail
           test -f /tmp/m7d9-vitest.json || exit 0
-          cp /tmp/m7d9-vitest.json m7d9-vitest-report.json
+          node --input-type=module <<'NODE'
+          import { readFile, writeFile } from 'node:fs/promises';
+          const report = JSON.parse(await readFile('/tmp/m7d9-vitest.json', 'utf8'));
+          const failed = [];
+          for (const suite of report.testResults || []) {
+            const assertions = (suite.assertionResults || [])
+              .filter((entry) => entry.status === 'failed')
+              .map((entry) => ({
+                name: entry.fullName,
+                failures: entry.failureMessages
+              }));
+            if (assertions.length) failed.push({ file: suite.name, assertions });
+          }
+          await writeFile(
+            'm7d9-vitest-summary.json',
+            JSON.stringify({
+              totalSuites: report.numTotalTestSuites,
+              failedSuites: report.numFailedTestSuites,
+              totalTests: report.numTotalTests,
+              failedTests: report.numFailedTests,
+              failed
+            }, null, 2) + '\n'
+          );
+          NODE
           git config user.name "catalog-engine-m7d9-bot"
           git config user.email "catalog-engine-m7d9-bot@users.noreply.github.com"
-          git add m7d9-vitest-report.json
+          git add m7d9-vitest-summary.json
           git diff --cached --quiet && exit 0
-          git commit -m "ci: capture M7D9 failing test report"
+          git commit -m "ci: capture compact M7D9 test diagnostics"
           git push origin HEAD:m7d9/repeated-miss-safe-removal-v1
       - name: ESLint
         if: success()
