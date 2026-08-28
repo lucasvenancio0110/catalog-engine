@@ -31,7 +31,7 @@ export function normalizeIncrementalScanTaxonomy(scan) {
   };
 }
 
-async function sourceScope(context) {
+export async function sourceScope(context) {
   return {
     id: await stableOpaqueId(
       's',
@@ -41,15 +41,68 @@ async function sourceScope(context) {
   };
 }
 
+function previousSnapshotQuery(context, scope, afterSourceId, pageSize) {
+  if (Number(context?.schemaVersion || 0) < 8) {
+    return {
+      sql: `SELECT album_source_id, public_product_id, source_category_id,
+                   source_category_path_json, listing_fingerprint, detail_fingerprint,
+                   status, miss_count
+              FROM supplier_album_index
+             WHERE tenant_id=?1 AND source_key=?2 AND album_source_id>?3
+             ORDER BY album_source_id ASC
+             LIMIT ?4`,
+      params: [context.tenantId, context.sourceKey, afterSourceId, pageSize]
+    };
+  }
+
+  return {
+    sql: `SELECT i.album_source_id, i.public_product_id, i.source_category_id,
+                 i.source_category_path_json, i.listing_fingerprint, i.detail_fingerprint,
+                 i.status, i.miss_count,
+                 m.state AS scope_membership_state,
+                 m.miss_count AS scope_miss_count
+            FROM supplier_album_index i
+            LEFT JOIN supplier_scope_memberships m
+              ON m.tenant_id=i.tenant_id
+             AND m.source_key=i.source_key
+             AND m.album_source_id=i.album_source_id
+             AND m.scope_id=?3
+           WHERE i.tenant_id=?1 AND i.source_key=?2 AND i.album_source_id>?4
+             AND (
+               m.album_source_id IS NOT NULL
+               OR (?6=1 AND NOT EXISTS (
+                 SELECT 1 FROM supplier_scope_memberships seeded
+                  WHERE seeded.tenant_id=?1 AND seeded.source_key=?2 AND seeded.scope_id=?3
+               ))
+             )
+           ORDER BY i.album_source_id ASC
+           LIMIT ?5`,
+    params: [
+      context.tenantId,
+      context.sourceKey,
+      scope.id,
+      afterSourceId,
+      pageSize,
+      scope.kind === 'source' ? 1 : 0
+    ]
+  };
+}
+
 export async function loadTenantIncrementalPreviousRows(
   context,
   platform,
-  { fetchImpl = fetch, queryBatch = queryD1Batch, pageSize = TENANT_INCREMENTAL_PREVIOUS_PAGE_SIZE } = {}
+  {
+    fetchImpl = fetch,
+    queryBatch = queryD1Batch,
+    pageSize = TENANT_INCREMENTAL_PREVIOUS_PAGE_SIZE,
+    scope = null
+  } = {}
 ) {
   const boundedPageSize = Math.min(
     Math.max(Number.parseInt(pageSize, 10) || TENANT_INCREMENTAL_PREVIOUS_PAGE_SIZE, 1),
     1000
   );
+  const resolvedScope = scope || (await sourceScope(context));
   const rows = [];
   let afterSourceId = '';
 
@@ -58,18 +111,7 @@ export async function loadTenantIncrementalPreviousRows(
       {
         ...platform,
         databaseId: context.dataPlane.databaseId,
-        batch: [
-          {
-            sql: `SELECT album_source_id, public_product_id, source_category_id,
-                         source_category_path_json, listing_fingerprint, detail_fingerprint,
-                         status, miss_count
-                    FROM supplier_album_index
-                   WHERE tenant_id=?1 AND source_key=?2 AND album_source_id>?3
-                   ORDER BY album_source_id ASC
-                   LIMIT ?4`,
-            params: [context.tenantId, context.sourceKey, afterSourceId, boundedPageSize]
-          }
-        ]
+        batch: [previousSnapshotQuery(context, resolvedScope, afterSourceId, boundedPageSize)]
       },
       { fetchImpl }
     );
@@ -100,10 +142,12 @@ export async function planTenantIncrementalScanFromProvider(
     throw new Error('tenant_sync_provider_scan_unavailable');
   }
 
+  const scope = await sourceScope(context);
   const previousRows = await loadTenantIncrementalPreviousRows(context, platform, {
     fetchImpl,
     queryBatch,
-    pageSize
+    pageSize,
+    scope
   });
   const scan = normalizeIncrementalScanTaxonomy(
     assertCatalogProviderScanObservation(
@@ -113,7 +157,7 @@ export async function planTenantIncrementalScanFromProvider(
   const plan = planTenantIncrementalScan({
     previousRows,
     scan,
-    scope: await sourceScope(context),
+    scope,
     removalMissThreshold: context.privateSource.removalMissThreshold,
     disqualifyingFailureCount: disqualifyingFailureCount(scan)
   });
