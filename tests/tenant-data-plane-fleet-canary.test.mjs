@@ -155,9 +155,16 @@ describe('tenant data-plane fleet maintenance production canary', () => {
     expect(workflow).not.toMatch(/^  push:/m);
     expect(workflow).toContain("github.event_name == 'workflow_dispatch'");
     expect(workflow).toContain("github.ref == 'refs/heads/main'");
-    expect(workflow).toContain("format('catalog-engine-tenant-fleet-pr-{0}'");
-    expect(workflow).toContain("|| 'catalog-engine-production-d1'");
-    expect(workflow).toContain("cancel-in-progress: ${{ github.event_name == 'pull_request' }}");
+    const prerequisiteStart = workflow.indexOf('  prerequisites:');
+    expect(prerequisiteStart).toBeGreaterThan(-1);
+    expect(canaryStart).toBeGreaterThan(prerequisiteStart);
+    expect(workflow.slice(prerequisiteStart, canaryStart)).not.toContain(
+      'group: catalog-engine-production-d1'
+    );
+    expect(workflow.slice(canaryStart)).toContain('group: catalog-engine-production-d1');
+    expect(workflow).toContain('application and Queue evidence outside mutation lock');
+    expect(workflow).toContain("needs.prerequisites.result == 'success'");
+    expect(workflow).toContain('ref: ${{ needs.prerequisites.outputs.sha }}');
     expect(deployWorkflow).toContain(
       "'.github/workflows/cloudflare-tenant-data-plane-fleet-canary.yml'"
     );

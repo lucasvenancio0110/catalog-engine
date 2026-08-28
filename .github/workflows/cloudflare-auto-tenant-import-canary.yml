@@ -5,6 +5,8 @@ on:
     branches: ['main']
     paths:
       - '.github/workflows/cloudflare-auto-tenant-import-canary.yml'
+      - '.github/workflows/cloudflare-tenant-data-plane-fleet-canary.yml'
+      - '.github/workflows/activate-tenant-import-queues.yml'
       - 'scripts/cloudflare-auto-tenant-import-canary.mjs'
       - 'tests/tenant-import-auto-canary.test.mjs'
       - 'src/catalog-intelligence/**'
@@ -19,6 +21,8 @@ on:
       - 'worker/tenant-data-plane-schema-v4.js'
       - 'worker/tenant-data-plane-schema-v5.js'
       - 'worker/tenant-data-plane-schema-v6.js'
+      - 'worker/tenant-data-plane-schema-v7.js'
+      - 'worker/tenant-data-plane-schema-v8.js'
       - 'migrations/0018_tenant_data_plane_fleet_migrations.sql'
       - 'migrations/0019_tenant_data_plane_migration_capability.sql'
   workflow_run:
@@ -29,10 +33,6 @@ on:
 permissions:
   contents: read
   statuses: write
-
-concurrency:
-  group: catalog-engine-production-d1
-  cancel-in-progress: false
 
 jobs:
   validate:
@@ -52,14 +52,66 @@ jobs:
       - name: Secret-free quality gate
         run: npm run quality
 
-  canary:
+  prerequisites:
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
+    timeout-minutes: 55
+    outputs:
+      sha: ${{ steps.target.outputs.sha }}
+    steps:
+      - name: Resolve exact deployed trusted-main SHA
+        id: target
+        env:
+          EVENT_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$EVENT_SHA" || { echo "Missing target SHA"; exit 1; }
+          echo "sha=$EVENT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for exact-SHA application, Queue and fleet evidence outside mutation lock
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ steps.target.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 300); do
+            STATUS_JSON="$(curl --fail --silent --show-error \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/$REPO/commits/$SHA/status")"
+            APP_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context=="catalog-engine/application-deploy")][0].state // "missing"')"
+            QUEUE_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context=="catalog-engine/queue-consumer-activation")][0].state // "missing"')"
+            FLEET_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context=="catalog-engine/tenant-data-plane-fleet-canary")][0].state // "missing"')"
+            if [ "$APP_STATE" = success ] && [ "$QUEUE_STATE" = success ] && [ "$FLEET_STATE" = success ]; then
+              exit 0
+            fi
+            case "$APP_STATE:$QUEUE_STATE:$FLEET_STATE" in
+              *failure*|*error*)
+                echo "Exact-SHA prerequisite failed: app=$APP_STATE queue=$QUEUE_STATE fleet=$FLEET_STATE"
+                exit 1
+                ;;
+            esac
+            sleep 10
+          done
+          echo "Exact-SHA application/Queue/fleet evidence did not arrive"
+          exit 1
+
+  canary:
+    needs: prerequisites
+    if: needs.prerequisites.result == 'success'
+    runs-on: ubuntu-latest
     timeout-minutes: 45
+    concurrency:
+      group: catalog-engine-production-d1
+      cancel-in-progress: false
     env:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -71,7 +123,7 @@ jobs:
       - name: Checkout exactly the deployed trusted-main SHA
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ needs.prerequisites.outputs.sha }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -132,7 +184,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          SHA: ${{ needs.prerequisites.outputs.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         shell: bash
         run: |
@@ -152,7 +204,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          SHA: ${{ needs.prerequisites.outputs.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         shell: bash
         run: |
