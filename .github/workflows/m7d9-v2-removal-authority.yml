@@ -1,0 +1,57 @@
+name: M7D9 v2 removal authority gate
+
+on:
+  push:
+    branches: ['m7d9/repeated-miss-safe-removal-v2']
+    paths:
+      - '.github/workflows/m7d9-v2-removal-authority.yml'
+      - 'scripts/m7d9-v2-removal-authority.mjs'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: catalog-engine-m7d9-v2-removal-authority
+  cancel-in-progress: false
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: m7d9/repeated-miss-safe-removal-v2
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Apply M7D9 removal authority
+        run: node scripts/m7d9-v2-removal-authority.mjs
+      - name: Diff sanity
+        run: git diff --check
+      - name: Legacy D5-D8 regression gate
+        run: >-
+          npx vitest run
+          tests/tenant-incremental-classification.test.mjs
+          tests/tenant-incremental-verification.test.mjs
+          tests/tenant-incremental-promotion.test.mjs
+          tests/tenant-incremental-finalization.test.mjs
+      - name: Dependency policy
+        run: npm run deps:check
+      - name: ESLint
+        run: npm run lint
+      - name: Commit removal authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "catalog-engine-m7d9-bot"
+          git config user.email "catalog-engine-m7d9-bot@users.noreply.github.com"
+          git add worker/ingestion/incremental-verification-runner.js worker/ingestion/incremental-promotion.js
+          git diff --cached --quiet && { echo 'No authority changes'; exit 1; }
+          git commit -m "m7d9: integrate scoped removal promotion authority"
+          git push origin HEAD:m7d9/repeated-miss-safe-removal-v2
