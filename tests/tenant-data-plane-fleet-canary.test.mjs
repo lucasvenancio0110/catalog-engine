@@ -7,7 +7,7 @@ import {
   initialDataPlaneSeed,
   retainedMigrationFailureEvidence
 } from '../scripts/cloudflare-tenant-data-plane-fleet-canary.mjs';
-import { tenantDataPlaneCurrentBatch as tenantDataPlaneV6Batch } from '../worker/tenant-data-plane-schema-v6.js';
+import { tenantDataPlaneCurrentBatch as tenantDataPlaneV7Batch } from '../worker/tenant-data-plane-schema-v7.js';
 
 const workflow = fs.readFileSync(
   '.github/workflows/cloudflare-tenant-data-plane-fleet-canary.yml',
@@ -17,7 +17,7 @@ const script = fs.readFileSync('scripts/cloudflare-tenant-data-plane-fleet-canar
 const deployWorkflow = fs.readFileSync('.github/workflows/deploy-catalog-api.yml', 'utf8');
 
 describe('tenant data-plane fleet maintenance production canary', () => {
-  it('builds a valid v6 fixture with LKG, staged candidate evidence and merchant override before polling', () => {
+  it('builds a valid v7 fixture with LKG, staged candidate evidence and merchant override before polling', () => {
     const database = new DatabaseSync(':memory:');
     database.exec('PRAGMA foreign_keys = ON');
     const fixture = fixtureIdentity('success', 'fleet-canary-unit-fixture');
@@ -30,7 +30,7 @@ describe('tenant data-plane fleet maintenance production canary', () => {
       removalMissThreshold: 3
     };
     for (const statement of [
-      ...tenantDataPlaneV6Batch({ tenantId: fixture.tenantId, source }),
+      ...tenantDataPlaneV7Batch({ tenantId: fixture.tenantId, source }),
       ...initialDataPlaneSeed(fixture)
     ]) {
       database.prepare(statement.sql).run(...statement.params);
@@ -38,7 +38,7 @@ describe('tenant data-plane fleet maintenance production canary', () => {
 
     expect(
       database.prepare('SELECT tenant_id, schema_version FROM data_plane_identity').get()
-    ).toEqual({ tenant_id: fixture.tenantId, schema_version: 6 });
+    ).toEqual({ tenant_id: fixture.tenantId, schema_version: 7 });
     expect(
       database
         .prepare(
@@ -46,7 +46,7 @@ describe('tenant data-plane fleet maintenance production canary', () => {
              FROM (SELECT version FROM data_plane_schema_migrations ORDER BY version)`
         )
         .get().versions
-    ).toBe('1,2,3,4,5,6');
+    ).toBe('1,2,3,4,5,6,7');
     expect(database.prepare('SELECT COUNT(*) AS total FROM catalog_products').get().total).toBe(1);
     expect(database.prepare('SELECT COUNT(*) AS total FROM media_sources').get().total).toBe(1);
     expect(
@@ -83,8 +83,10 @@ describe('tenant data-plane fleet maintenance production canary', () => {
       database
         .prepare(
           `SELECT COUNT(*) AS total
-             FROM tenant_catalog_instances
-            WHERE status='ready' AND schema_version=6`
+             FROM tenant_catalog_instances i
+             JOIN supplier_sources s ON s.tenant_id=i.tenant_id
+            WHERE i.status='ready' AND i.schema_version=7
+              AND s.source_key='fleet-canary'`
         )
         .get().total
     ).toBe(3);
@@ -96,7 +98,7 @@ describe('tenant data-plane fleet maintenance production canary', () => {
         .prepare(
           `SELECT GROUP_CONCAT(kind, ',') AS kinds
              FROM (
-               SELECT CASE WHEN migration_command_version=3 THEN 'prepared' ELSE 'pending' END AS kind
+               SELECT CASE WHEN migration_command_version=4 THEN 'prepared' ELSE 'pending' END AS kind
                  FROM tenant_data_plane_provider_state
                 ORDER BY tenant_id
              )`
@@ -174,11 +176,13 @@ describe('tenant data-plane fleet maintenance production canary', () => {
     expect(script).not.toContain('.sendBatch(');
   });
 
-  it('starts from a real v6 data plane and verifies the v7 authority model is additive and inert', () => {
-    expect(script).toContain("from '../worker/tenant-data-plane-schema-v6.js'");
+  it('starts from a real v7 data plane and verifies the v8 removal schema is additive and inert', () => {
     expect(script).toContain("from '../worker/tenant-data-plane-schema-v7.js'");
+    expect(script).toContain("from '../worker/tenant-data-plane-schema-v8.js'");
+    expect(script).toContain("'1,2,3,4,5,6,7,8'");
     expect(script).toContain("'1,2,3,4,5,6,7'");
-    expect(script).toContain("'1,2,3,4,5,6'");
+    expect(script).toContain('supplier_scope_memberships');
+    expect(script).toContain('supplier_sync_stage_removal_policy');
     for (const table of [
       'supplier_sync_stage_runs',
       'supplier_sync_stage_observations',

@@ -111,7 +111,7 @@ describe('trusted tenant migration-command preparation', () => {
     ).resolves.toEqual({
       tenantId: candidate.tenant_id,
       outcome: 'prepared',
-      migrationCommandVersion: 3
+      migrationCommandVersion: 4
     });
     expect(uploadWorker).toHaveBeenCalledTimes(1);
     expect(calls.map((entry) => entry.sql)).toEqual([
