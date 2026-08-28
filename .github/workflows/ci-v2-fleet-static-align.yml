@@ -1,0 +1,42 @@
+name: CI v2 fleet static align
+
+on:
+  push:
+    branches: ['ci/serialize-exact-sha-production-proof-v2']
+    paths:
+      - '.github/workflows/ci-v2-fleet-static-align.yml'
+      - 'scripts/ci-v2-fleet-static-align.mjs'
+
+permissions:
+  contents: write
+
+jobs:
+  align:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ci/serialize-exact-sha-production-proof-v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Apply bounded static-test alignment
+        run: node scripts/ci-v2-fleet-static-align.mjs
+      - run: git diff --check
+      - name: Focused proof
+        run: npx vitest run tests/tenant-data-plane-fleet-canary.test.mjs tests/tenant-import-auto-canary.test.mjs tests/exact-sha-production-proof-trigger-alignment.test.mjs tests/tenant-import-queue-activation-workflow.test.mjs
+      - name: Full quality
+        run: npm run quality
+      - name: Commit validated permanent test alignment
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "catalog-engine-ci-v2-bot"
+          git config user.email "catalog-engine-ci-v2-bot@users.noreply.github.com"
+          git add tests/tenant-data-plane-fleet-canary.test.mjs
+          git diff --cached --quiet && { echo 'No permanent test alignment change'; exit 1; }
+          git commit -m "test: align fleet canary with non-blocking prerequisites"
+          git push origin HEAD:ci/serialize-exact-sha-production-proof-v2
