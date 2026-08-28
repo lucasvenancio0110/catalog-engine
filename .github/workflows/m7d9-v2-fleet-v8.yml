@@ -1,5 +1,6 @@
 name: M7D9 v2 fleet v8 gate
 
+# Branch-only migration contract proof; no production deployment occurs here.
 on:
   push:
     branches: ['m7d9/repeated-miss-safe-removal-v2']
