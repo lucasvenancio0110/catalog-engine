@@ -1,5 +1,6 @@
 name: M7D9 v2 migration backcompat gate
 
+# Runs only on the isolated D9 branch and never deploys production.
 on:
   push:
     branches: ['m7d9/repeated-miss-safe-removal-v2']
