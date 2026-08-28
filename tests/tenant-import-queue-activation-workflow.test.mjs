@@ -8,11 +8,17 @@ function expectPresent(value) {
 }
 
 describe('trusted tenant Queue activation workflow', () => {
-  it('never exposes the production activation job to pull_request', () => {
+  it('never exposes the production activation job to pull_request and follows a completed application deploy', () => {
     expect(workflow).not.toMatch(/^\s*pull_request\s*:/m);
-    expectPresent('push:');
-    expectPresent('branches: ["main"]');
+    expectPresent('workflow_run:');
+    expectPresent("workflows: ['Deploy Catalog Engine application']");
+    expectPresent('types: [completed]');
     expectPresent('workflow_dispatch:');
+    expectPresent("github.event.workflow_run.head_branch == 'main'");
+    expectPresent('github.event.workflow_run.head_sha');
+    expectPresent('Upstream application deploy did not succeed');
+    expectPresent('Checkout exact deployed trusted-main SHA');
+    expectPresent('ref: ${{ steps.target.outputs.sha }}');
     expectPresent('secrets.CLOUDFLARE_API_TOKEN');
     expectPresent('secrets.CLOUDFLARE_ACCOUNT_ID');
   });
@@ -21,6 +27,11 @@ describe('trusted tenant Queue activation workflow', () => {
     expectPresent('group: catalog-engine-production-d1');
     expectPresent('cancel-in-progress: false');
     expect(workflow).not.toContain('group: catalog-engine-tenant-import-queue-infra');
+  });
+
+  it('publishes Queue evidence against the exact deployed SHA instead of the workflow runner SHA', () => {
+    expectPresent('SHA: ${{ steps.target.outputs.sha }}');
+    expectPresent('4 Queues + 2 consumers verified after exact-SHA deploy');
   });
 
   it('preserves the configured automation state instead of forcing OFF during consumer deployment', () => {
