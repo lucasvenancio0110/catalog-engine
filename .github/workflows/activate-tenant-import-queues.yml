@@ -7,6 +7,7 @@ on:
       - ".github/workflows/activate-tenant-import-queues.yml"
       - "wrangler.import-scan.jsonc"
       - "wrangler.import-detail.jsonc"
+      - "scripts/cloudflare-tenant-data-plane-fleet-prepare.mjs"
       - "worker/import-scan-entry.js"
       - "worker/import-detail-entry.js"
       - "worker/ingestion/**"
