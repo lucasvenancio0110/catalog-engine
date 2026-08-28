@@ -1,11 +1,12 @@
 {
   "totalSuites": 229,
-  "failedSuites": 12,
+  "failedSuites": 30,
   "totalTests": 557,
-  "failedTests": 23,
+  "failedTests": 49,
   "failed": [
     {
       "file": "/home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-command.test.mjs",
+      "message": "",
       "assertions": [
         {
           "name": "native tenant data-plane command applies only the embedded versioned schema plan through the tenant D1 binding",
@@ -23,6 +24,7 @@
     },
     {
       "file": "/home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-fleet-canary.test.mjs",
+      "message": "",
       "assertions": [
         {
           "name": "tenant data-plane fleet maintenance production canary builds valid ready control-plane fixtures without pre-creating scheduler-owned migration jobs",
@@ -34,6 +36,7 @@
     },
     {
       "file": "/home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-fleet-migration.test.mjs",
+      "message": "",
       "assertions": [
         {
           "name": "tenant data-plane fleet migration activation targets schema v7 and only discovers maintenance work for ready idle tenants",
@@ -93,6 +96,7 @@
     },
     {
       "file": "/home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-fleet-preparation.test.mjs",
+      "message": "",
       "assertions": [
         {
           "name": "trusted tenant migration-command preparation promotes the marker only after a successful current User Worker upload",
@@ -103,71 +107,283 @@
       ]
     },
     {
+      "file": "/home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-schema-v7.test.mjs",
+      "message": "",
+      "assertions": [
+        {
+          "name": "tenant data-plane schema v7 serving authority snapshots authority once when staging starts and preserves that stale-base token on retry",
+          "failures": [
+            "Error: tenant_sync_stage_plan_invalid\n    at assertIncrementalStageInput (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-stage.js:60:11)\n    at buildIncrementalStageWritePlan (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-stage.js:476:3)\n    at stagePlan (/home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-schema-v7.test.mjs:90:10)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-schema-v7.test.mjs:163:23\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-classification.test.mjs",
+      "message": "",
+      "assertions": [
+        {
+          "name": "M7D5 affected-only CEI candidate processing classifies only the affected candidate, reapplies merchant truth and preserves canonical LKG",
+          "failures": [
+            "Error: tenant_schema_not_ready\n    at processTenantIncrementalClassification (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-classification-runner.js:480:40)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-classification.test.mjs:180:25\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)"
+          ]
+        },
+        {
+          "name": "M7D5 affected-only CEI candidate processing does not classify MOVED-only work that has no affected detail candidate",
+          "failures": [
+            "Error: tenant_schema_not_ready\n    at processTenantIncrementalClassification (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-classification-runner.js:480:40)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-classification.test.mjs:281:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-dispatch-routing.test.mjs",
+      "message": "",
+      "assertions": [
+        {
+          "name": "M7D4 TENANT_DISPATCH routing keeps exact server-resolved tenant identity on the opaque affected-detail read",
+          "failures": [
+            "Error: tenant_schema_not_ready\n    at assertIncrementalScanStageContext (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-scan-consumer.js:29:11)\n    at handleTenantIncrementalScan (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-scan-consumer.js:329:3)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-dispatch-routing.test.mjs:130:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-finalization.test.mjs",
+      "message": "",
+      "assertions": [
+        {
+          "name": "M7D8 incremental promotion finalization promotes first and only then commits schedule and control state",
+          "failures": [
+            "AssertionError: expected { enabled: true, reason: null, …(8) } to match object { enabled: true, selected: 1, …(5) }\n(3 matching properties omitted from actual)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1283:10)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1700:25)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-finalization.test.mjs:203:20\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+          ]
+        },
+        {
+          "name": "M7D8 incremental promotion finalization finishes an already-promoted run without promoting authority a second time",
+          "failures": [
+            "AssertionError: expected { enabled: true, reason: null, …(8) } to match object { succeeded: 1, promoted: +0, …(1) }\n(7 matching properties omitted from actual)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1283:10)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1700:25)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-finalization.test.mjs:238:19\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+          ]
+        },
+        {
+          "name": "M7D8 incremental promotion finalization fails closed when the schedule no longer matches the job scheduled slot",
+          "failures": [
+            "AssertionError: expected { enabled: true, reason: null, …(8) } to match object { succeeded: +0, failed: 1 }\n(8 matching properties omitted from actual)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1283:10)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1700:25)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-finalization.test.mjs:265:20\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+          ]
+        },
+        {
+          "name": "M7D8 incremental promotion finalization keeps schedule authority unchanged when promotion fails",
+          "failures": [
+            "AssertionError: expected { enabled: true, reason: null, …(8) } to match object { succeeded: +0, failed: 1 }\n(8 matching properties omitted from actual)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1283:10)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1700:25)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-finalization.test.mjs:279:20\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+          ]
+        }
+      ]
+    },
+    {
       "file": "/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-promotion.test.mjs",
+      "message": "",
       "assertions": [
         {
           "name": "M7D7 incremental promotion authority primitive promotes an exact verified affected candidate in one transaction and preserves merchant override truth",
           "failures": [
-            "ReferenceError: overrideRelation is not defined\n    at buildIncrementalPromotionPreflightBatch (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:194:27)\n    at processTenantIncrementalPromotion (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:794:5)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-promotion.test.mjs:281:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+            "Error: tenant_schema_not_ready\n    at assertContext (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:21:53)\n    at processTenantIncrementalPromotion (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:752:3)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-promotion.test.mjs:281:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
           ]
         },
         {
           "name": "M7D7 incremental promotion authority primitive treats replay after a committed authority switch as idempotent success",
           "failures": [
-            "ReferenceError: overrideRelation is not defined\n    at buildIncrementalPromotionPreflightBatch (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:194:27)\n    at processTenantIncrementalPromotion (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:794:5)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-promotion.test.mjs:311:25\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+            "Error: tenant_schema_not_ready\n    at assertContext (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:21:53)\n    at processTenantIncrementalPromotion (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:752:3)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-promotion.test.mjs:311:25\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
           ]
         },
         {
           "name": "M7D7 incremental promotion authority primitive rejects stale and competing verified candidates so exactly one old-base candidate can win",
           "failures": [
-            "ReferenceError: overrideRelation is not defined\n    at buildIncrementalPromotionPreflightBatch (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:194:27)\n    at processTenantIncrementalPromotion (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:794:5)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-promotion.test.mjs:325:19\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+            "Error: tenant_schema_not_ready\n    at assertContext (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:21:53)\n    at processTenantIncrementalPromotion (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:752:3)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-promotion.test.mjs:325:19\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
           ]
         },
         {
           "name": "M7D7 incremental promotion authority primitive rejects unverified work, removal activation, stale merchant overrides and public projection leaks before canonical mutation",
           "failures": [
-            "ReferenceError: overrideRelation is not defined\n    at buildIncrementalPromotionPreflightBatch (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:194:27)\n    at processTenantIncrementalPromotion (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:794:5)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-promotion.test.mjs:344:20\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+            "Error: tenant_schema_not_ready\n    at assertContext (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:21:53)\n    at processTenantIncrementalPromotion (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:752:3)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-promotion.test.mjs:344:20\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+          ]
+        },
+        {
+          "name": "M7D7 incremental promotion authority primitive rolls back every canonical and authority mutation when a middle statement fails",
+          "failures": [
+            "Error: tenant_schema_not_ready\n    at assertContext (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:21:53)\n    at buildIncrementalPromotionTransaction (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:254:3)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-promotion.test.mjs:358:19\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
           ]
         },
         {
           "name": "M7D7 incremental promotion authority primitive keeps MOVED-only inside the authority switch without refetching or rewriting canonical product detail",
           "failures": [
-            "ReferenceError: overrideRelation is not defined\n    at buildIncrementalPromotionPreflightBatch (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:194:27)\n    at processTenantIncrementalPromotion (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:794:5)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-promotion.test.mjs:370:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+            "Error: tenant_schema_not_ready\n    at assertContext (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:21:53)\n    at processTenantIncrementalPromotion (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:752:3)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-promotion.test.mjs:370:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+          ]
+        },
+        {
+          "name": "M7D7 incremental promotion authority primitive enforces the measured v1 envelope and repository D1 statement limits",
+          "failures": [
+            "AssertionError: expected 'sync_promotion_removal_policy_invalid' to be 'sync_promotion_envelope_exceeded' // Object.is equality\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-promotion.test.mjs:390:237\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2955:64"
           ]
         },
         {
           "name": "M7D7 incremental promotion authority primitive keeps preflight read-only and tenant/source/run scoped",
           "failures": [
-            "ReferenceError: overrideRelation is not defined\n    at buildIncrementalPromotionPreflightBatch (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:194:27)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-promotion.test.mjs:406:19\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)"
+            "Error: tenant_schema_not_ready\n    at assertContext (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:21:53)\n    at buildIncrementalPromotionPreflightBatch (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:150:3)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-promotion.test.mjs:406:19\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-scan-consumer.test.mjs",
+      "message": "",
+      "assertions": [
+        {
+          "name": "M7D4 incremental scan-to-private-detail fanout stages a healthy changed observation and queues only the affected detail",
+          "failures": [
+            "Error: tenant_schema_not_ready\n    at assertIncrementalScanStageContext (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-scan-consumer.js:29:11)\n    at handleTenantIncrementalScan (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-scan-consumer.js:329:3)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-scan-consumer.test.mjs:163:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+          ]
+        },
+        {
+          "name": "M7D4 incremental scan-to-private-detail fanout resumes an existing details_pending stage from the saved fanout cursor without scanning again",
+          "failures": [
+            "Error: tenant_schema_not_ready\n    at assertIncrementalScanStageContext (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-scan-consumer.js:29:11)\n    at handleTenantIncrementalScan (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-scan-consumer.js:329:3)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-scan-consumer.test.mjs:209:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+          ]
+        },
+        {
+          "name": "M7D4 incremental scan-to-private-detail fanout persists an incomplete scan as preserved evidence without staging destructive observations or detail work",
+          "failures": [
+            "Error: tenant_schema_not_ready\n    at assertIncrementalScanStageContext (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-scan-consumer.js:29:11)\n    at handleTenantIncrementalScan (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-scan-consumer.js:329:3)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-scan-consumer.test.mjs:239:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+          ]
+        },
+        {
+          "name": "M7D4 incremental scan-to-private-detail fanout quarantines an implausible catastrophic drop while preserving canonical LKG",
+          "failures": [
+            "Error: tenant_schema_not_ready\n    at assertIncrementalScanStageContext (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-scan-consumer.js:29:11)\n    at handleTenantIncrementalScan (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-scan-consumer.js:329:3)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-scan-consumer.test.mjs:270:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+          ]
+        },
+        {
+          "name": "M7D4 incremental scan-to-private-detail fanout acks a duplicate delivery for an unresolved failed safety run without re-reading tenant D1",
+          "failures": [
+            "Error: tenant_schema_not_ready\n    at assertIncrementalScanStageContext (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-scan-consumer.js:29:11)\n    at handleTenantIncrementalScan (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-scan-consumer.js:329:3)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-scan-consumer.test.mjs:294:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+          ]
+        },
+        {
+          "name": "M7D4 incremental scan-to-private-detail fanout treats a completed detail-fanout phase as idempotently complete",
+          "failures": [
+            "Error: tenant_schema_not_ready\n    at assertIncrementalScanStageContext (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-scan-consumer.js:29:11)\n    at handleTenantIncrementalScan (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-scan-consumer.js:329:3)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-scan-consumer.test.mjs:313:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+          ]
+        },
+        {
+          "name": "M7D4 incremental scan-to-private-detail fanout returns busy when another valid lease owns the scan",
+          "failures": [
+            "Error: tenant_schema_not_ready\n    at assertIncrementalScanStageContext (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-scan-consumer.js:29:11)\n    at handleTenantIncrementalScan (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-scan-consumer.js:329:3)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-scan-consumer.test.mjs:338:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+          ]
+        },
+        {
+          "name": "M7D4 incremental scan-to-private-detail fanout fails closed if the control-plane job no longer matches the state being sealed",
+          "failures": [
+            "Error: expected [Function] to throw error including 'tenant_sync_job_state_conflict' but got 'tenant_schema_not_ready'\n    at _Assertion.__VITEST_REJECTS__ (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1747:17)\n    at _Assertion.propertyGetter (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1570:27)\n    at Reflect.get (<anonymous>)\n    at Object.proxyGetter [as get] (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1659:22)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-scan-consumer.test.mjs:395:6\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-scan-safety.test.mjs",
+      "message": "",
+      "assertions": [
+        {
+          "name": "M7D3 incremental scan safety completion quarantines a complete empty scan and never mutates canonical LKG",
+          "failures": [
+            "Error: tenant_schema_not_ready\n    at assertIncrementalScanStageContext (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-scan-consumer.js:29:11)\n    at handleTenantIncrementalScan (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-scan-consumer.js:329:3)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-scan-safety.test.mjs:73:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+          ]
+        },
+        {
+          "name": "M7D3 incremental scan safety completion keeps tenant data-plane calls isolated by the server-resolved tenant context",
+          "failures": [
+            "Error: tenant_schema_not_ready\n    at assertIncrementalScanStageContext (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-scan-consumer.js:29:11)\n    at handleTenantIncrementalScan (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-scan-consumer.js:329:3)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-scan-safety.test.mjs:101:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage-d1-affinity.test.mjs",
+      "message": "",
+      "assertions": [
+        {
+          "name": "M7D3 D1 parameter affinity seals category counts when production D1 parameters arrive as strings",
+          "failures": [
+            "Error: tenant_sync_stage_plan_invalid\n    at assertIncrementalStageInput (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-stage.js:60:11)\n    at buildIncrementalStageWritePlan (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-stage.js:476:3)\n    at stagePlan (/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage-d1-affinity.test.mjs:63:10)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage-d1-affinity.test.mjs:101:18\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage-ledger.test.mjs",
+      "message": "",
+      "assertions": [
+        {
+          "name": "staged incremental run ledger persists opaque scope and leaves canonical run open after stage-only verification",
+          "failures": [
+            "Error: no such table: supplier_sync_stage_removal_policy\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage-ledger.test.mjs:67:34\n    at Array.map (<anonymous>)\n    at executeBatch (/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage-ledger.test.mjs:66:27)\n    at executeWritePlan (/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage-ledger.test.mjs:81:3)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage-ledger.test.mjs:125:5\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)"
+          ]
+        },
+        {
+          "name": "staged incremental run ledger closes a quarantined canonical run as failed with only a safe reason code",
+          "failures": [
+            "Error: no such table: supplier_sync_stage_removal_policy\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage-ledger.test.mjs:67:34\n    at Array.map (<anonymous>)\n    at executeBatch (/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage-ledger.test.mjs:66:27)\n    at executeWritePlan (/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage-ledger.test.mjs:81:3)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage-ledger.test.mjs:157:5\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage.test.mjs",
+      "message": "",
+      "assertions": [
+        {
+          "name": "tenant incremental staged sync keeps the canonical LKG unchanged until a no-detail run is explicitly verified",
+          "failures": [
+            "Error: no such table: supplier_sync_stage_removal_policy\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage.test.mjs:72:34\n    at Array.map (<anonymous>)\n    at executeBatch (/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage.test.mjs:71:27)\n    at executeWritePlan (/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage.test.mjs:86:3)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage.test.mjs:138:5\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)"
+          ]
+        },
+        {
+          "name": "tenant incremental staged sync records quarantine metadata without staging raw supplier observations or touching LKG",
+          "failures": [
+            "Error: no such table: supplier_sync_stage_removal_policy\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage.test.mjs:72:34\n    at Array.map (<anonymous>)\n    at executeBatch (/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage.test.mjs:71:27)\n    at executeWritePlan (/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage.test.mjs:86:3)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage.test.mjs:209:5\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)"
+          ]
+        },
+        {
+          "name": "tenant incremental staged sync does not verify a run that still requires detail processing",
+          "failures": [
+            "Error: no such table: supplier_sync_stage_removal_policy\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage.test.mjs:72:34\n    at Array.map (<anonymous>)\n    at executeBatch (/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage.test.mjs:71:27)\n    at executeWritePlan (/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage.test.mjs:86:3)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-stage.test.mjs:253:5\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)"
           ]
         }
       ]
     },
     {
       "file": "/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-verification.test.mjs",
+      "message": "",
       "assertions": [
         {
           "name": "M7D6 complete private candidate verification verifies the composed LKG + affected candidate view without changing canonical authority",
           "failures": [
-            "AssertionError: expected { outcome: 'failed', …(1) } to match object { outcome: 'success', …(4) }\n(1 matching property omitted from actual)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1283:10)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1700:25)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-verification.test.mjs:286:19\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+            "Error: tenant_schema_not_ready\n    at processTenantIncrementalClassification (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-classification-runner.js:480:40)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-verification.test.mjs:282:30\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)"
           ]
         },
         {
           "name": "M7D6 complete private candidate verification fails closed when merchant override provenance changes after candidate classification",
           "failures": [
-            "AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1319:15)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1700:25)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-verification.test.mjs:348:29\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+            "Error: tenant_schema_not_ready\n    at processTenantIncrementalClassification (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-classification-runner.js:480:40)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-verification.test.mjs:335:19\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)"
           ]
         },
         {
           "name": "M7D6 complete private candidate verification blocks supplier/private text that would leak through the candidate public projection",
           "failures": [
-            "AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1319:15)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1700:25)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-verification.test.mjs:370:29\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+            "Error: tenant_schema_not_ready\n    at processTenantIncrementalClassification (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-classification-runner.js:480:40)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-verification.test.mjs:359:19\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)"
           ]
         },
         {
           "name": "M7D6 complete private candidate verification uses the same complete gate for a MOVED-only run with no detail/CEI work",
           "failures": [
-            "AssertionError: expected { outcome: 'failed', …(1) } to match object { outcome: 'success', …(4) }\n(1 matching property omitted from actual)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1283:10)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1700:25)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-verification.test.mjs:386:20\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+            "Error: tenant_schema_not_ready\n    at processTenantIncrementalVerification (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-verification-runner.js:854:40)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-verification.test.mjs:383:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)"
           ]
         }
       ]
