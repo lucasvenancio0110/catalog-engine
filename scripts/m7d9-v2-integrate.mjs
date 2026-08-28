@@ -101,4 +101,5 @@ function replaceOnce(source, from, to, label) {
   await write(path, source);
 }
 
+// Second push intentionally activates the branch-local gate after workflow creation.
 console.log(JSON.stringify({ m7d9V2Integrated: true }));
