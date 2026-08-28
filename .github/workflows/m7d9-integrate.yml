@@ -32,8 +32,14 @@ jobs:
         run: npm ci
       - name: Apply M7D9 integration
         run: node scripts/m7d9-integrate.mjs
-      - name: Quality gate
-        run: npm run quality
+      - name: Diff sanity
+        run: git diff --check
+      - name: Dependency policy
+        run: npm run deps:check
+      - name: Tests
+        run: npm run test
+      - name: ESLint
+        run: npm run lint
       - name: Commit integration
         shell: bash
         run: |
