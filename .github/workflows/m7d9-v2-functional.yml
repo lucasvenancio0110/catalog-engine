@@ -1,0 +1,36 @@
+name: M7D9 v2 functional gate
+
+on:
+  push:
+    branches: ['m7d9/repeated-miss-safe-removal-v2']
+    paths:
+      - '.github/workflows/m7d9-v2-functional.yml'
+      - 'tests/tenant-incremental-removal.test.mjs'
+      - 'worker/ingestion/incremental-removal.js'
+      - 'worker/ingestion/incremental-plan.js'
+      - 'worker/ingestion/incremental-scan.js'
+      - 'worker/ingestion/incremental-stage.js'
+      - 'worker/ingestion/incremental-verification-runner.js'
+      - 'worker/ingestion/incremental-promotion.js'
+      - 'worker/tenant-data-plane-schema-v8.js'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: m7d9/repeated-miss-safe-removal-v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: M7D9 focused functional proof
+        run: npx vitest run tests/tenant-incremental-removal.test.mjs
+      - name: Full quality
+        run: npm run quality
