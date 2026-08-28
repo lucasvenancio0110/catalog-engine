@@ -1,0 +1,53 @@
+name: M7D9 v2 fleet v8 gate
+
+on:
+  push:
+    branches: ['m7d9/repeated-miss-safe-removal-v2']
+    paths:
+      - '.github/workflows/m7d9-v2-fleet-v8.yml'
+      - 'scripts/m7d9-v2-fleet-v8.mjs'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: catalog-engine-m7d9-v2-fleet-v8
+  cancel-in-progress: false
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: m7d9/repeated-miss-safe-removal-v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Align fleet canary to v7 -> v8
+        run: node scripts/m7d9-v2-fleet-v8.mjs
+      - run: git diff --check
+      - name: Fleet contract proof
+        run: >-
+          npx vitest run
+          tests/tenant-data-plane-fleet-canary.test.mjs
+          tests/tenant-data-plane-fleet-preparation.test.mjs
+          tests/tenant-data-plane-fleet-migration.test.mjs
+          tests/tenant-data-plane-command.test.mjs
+      - name: D9 core proof
+        run: npx vitest run tests/tenant-incremental-removal.test.mjs
+      - name: Full quality
+        run: npm run quality
+      - name: Commit fleet v8 alignment
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "catalog-engine-m7d9-bot"
+          git config user.email "catalog-engine-m7d9-bot@users.noreply.github.com"
+          git add scripts/cloudflare-tenant-data-plane-fleet-canary.mjs tests/tenant-data-plane-fleet-canary.test.mjs tests/tenant-data-plane-fleet-preparation.test.mjs
+          git diff --cached --quiet && { echo 'No fleet changes'; exit 1; }
+          git commit -m "m7d9: migrate fleet canary contract to schema v8"
+          git push origin HEAD:m7d9/repeated-miss-safe-removal-v2
