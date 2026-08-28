@@ -1,0 +1,46 @@
+name: M7D9 CI contract align
+
+on:
+  push:
+    branches: ['m7d9/repeated-miss-safe-removal-v2']
+    paths:
+      - '.github/workflows/m7d9-ci-contract-align.yml'
+      - 'scripts/m7d9-ci-contract-align.mjs'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: catalog-engine-m7d9-ci-contract-align
+  cancel-in-progress: false
+
+jobs:
+  align:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: m7d9/repeated-miss-safe-removal-v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Apply bounded schema-v8 CI alignment
+        run: node scripts/m7d9-ci-contract-align.mjs
+      - run: git diff --check
+      - name: Focused fleet CI contract proof
+        run: npx vitest run tests/tenant-data-plane-fleet-migration.test.mjs
+      - name: Full quality
+        run: npm run quality
+      - name: Commit validated permanent alignment
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "catalog-engine-m7d9-bot"
+          git config user.email "catalog-engine-m7d9-bot@users.noreply.github.com"
+          git add .github/workflows/validate-tenant-ingestion.yml tests/tenant-data-plane-fleet-migration.test.mjs
+          git diff --cached --quiet && { echo 'No permanent CI alignment changes'; exit 1; }
+          git commit -m "ci: align tenant schema gates with v8"
+          git push origin HEAD:m7d9/repeated-miss-safe-removal-v2
