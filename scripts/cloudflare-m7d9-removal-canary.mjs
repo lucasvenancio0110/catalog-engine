@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { createD1Database, queryD1Batch } from '../worker/cloudflare-platform.js';
+import { splitD1Batch } from './d1-batch-chunks.mjs';
 import { planTenantIncrementalScan } from '../worker/ingestion/incremental-plan.js';
 import { processTenantIncrementalPromotion } from '../worker/ingestion/incremental-promotion.js';
 import {
@@ -232,19 +233,19 @@ function provePlannerSafety() {
 }
 
 async function initializeFixture(fixture, { secondScope = false } = {}) {
-  await d1Batch(
-    fixture.databaseId,
-    tenantDataPlaneCurrentBatch({
-      tenantId: fixture.tenantId,
-      source: {
-        provider: 'yupoo',
-        sourceKey: SOURCE_KEY,
-        sourceUrl: fixture.sourceUrl,
-        syncStrategy: 'incremental',
-        removalMissThreshold: 3
-      }
-    })
-  );
+  const schemaBootstrap = tenantDataPlaneCurrentBatch({
+    tenantId: fixture.tenantId,
+    source: {
+      provider: 'yupoo',
+      sourceKey: SOURCE_KEY,
+      sourceUrl: fixture.sourceUrl,
+      syncStrategy: 'incremental',
+      removalMissThreshold: 3
+    }
+  });
+  for (const chunk of splitD1Batch(schemaBootstrap)) {
+    await d1Batch(fixture.databaseId, chunk);
+  }
   const batch = [
     {
       sql: `INSERT INTO catalog_categories
