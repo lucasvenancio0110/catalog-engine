@@ -1,0 +1,176 @@
+{
+  "totalSuites": 229,
+  "failedSuites": 12,
+  "totalTests": 557,
+  "failedTests": 23,
+  "failed": [
+    {
+      "file": "/home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-command.test.mjs",
+      "assertions": [
+        {
+          "name": "native tenant data-plane command applies only the embedded versioned schema plan through the tenant D1 binding",
+          "failures": [
+            "AssertionError: expected 400 to be 200 // Object.is equality\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-command.test.mjs:203:28\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+          ]
+        },
+        {
+          "name": "native tenant data-plane command executes the embedded migration command from the generated User Worker module",
+          "failures": [
+            "AssertionError: expected 400 to be 200 // Object.is equality\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-command.test.mjs:284:31\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "/home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-fleet-canary.test.mjs",
+      "assertions": [
+        {
+          "name": "tenant data-plane fleet maintenance production canary builds valid ready control-plane fixtures without pre-creating scheduler-owned migration jobs",
+          "failures": [
+            "AssertionError: expected 'pending,pending,pending' to contain 'prepared'\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-fleet-canary.test.mjs:105:7\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2955:64"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "/home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-fleet-migration.test.mjs",
+      "assertions": [
+        {
+          "name": "tenant data-plane fleet migration activation targets schema v7 and only discovers maintenance work for ready idle tenants",
+          "failures": [
+            "AssertionError: expected 'import { CloudflarePlatformError, que…' to contain 'from \\'./tenant-data-plane-schema-v7.…'\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-fleet-migration.test.mjs:256:35\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2955:64"
+          ]
+        },
+        {
+          "name": "tenant data-plane fleet migration activation finishes maintenance on v7 without resuming historical onboarding or changing serving status",
+          "failures": [
+            "AssertionError: expected { outcome: 'failed', …(3) } to match object { outcome: 'success', …(3) }\n(2 matching properties omitted from actual)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1283:10)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1700:25)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-fleet-migration.test.mjs:445:20\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+          ]
+        },
+        {
+          "name": "tenant data-plane fleet migration activation retries binding reads and keeps DDL on the tenant binding path",
+          "failures": [
+            "AssertionError: expected { outcome: 'failed', …(3) } to match object { Object (outcome, schemaVersion) }\n(3 matching properties omitted from actual)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1283:10)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1700:25)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-fleet-migration.test.mjs:515:20\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+          ]
+        },
+        {
+          "name": "tenant data-plane fleet migration activation reconciles control state after D1 already completed v7 without replaying schema DDL",
+          "failures": [
+            "AssertionError: expected { outcome: 'failed', …(3) } to match object { Object (outcome, schemaVersion) }\n(3 matching properties omitted from actual)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1283:10)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1700:25)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-fleet-migration.test.mjs:564:20\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+          ]
+        },
+        {
+          "name": "tenant data-plane fleet migration activation fails closed when the tenant D1 schema ledger is not contiguous",
+          "failures": [
+            "AssertionError: expected { outcome: 'failed', …(3) } to match object { outcome: 'failed', …(1) }\n(2 matching properties omitted from actual)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1283:10)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1700:25)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-fleet-migration.test.mjs:592:20\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+          ]
+        },
+        {
+          "name": "tenant data-plane fleet migration activation persists a bounded inspect-phase code when tenant dispatch is unreachable",
+          "failures": [
+            "AssertionError: expected { outcome: 'failed', …(3) } to match object { outcome: 'failed', …(1) }\n(2 matching properties omitted from actual)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1283:10)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1700:25)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-fleet-migration.test.mjs:615:20\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+          ]
+        },
+        {
+          "name": "tenant data-plane fleet migration activation never falls back to administrative D1 REST for maintenance without dispatch",
+          "failures": [
+            "AssertionError: expected { outcome: 'failed', …(3) } to match object { outcome: 'failed', …(1) }\n(2 matching properties omitted from actual)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1283:10)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1700:25)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-fleet-migration.test.mjs:632:20\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+          ]
+        },
+        {
+          "name": "tenant data-plane fleet migration activation persists a bounded apply-phase code after the prepared runtime rejects migration",
+          "failures": [
+            "AssertionError: expected { outcome: 'failed', …(3) } to match object { outcome: 'failed', …(1) }\n(2 matching properties omitted from actual)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1283:10)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1700:25)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-fleet-migration.test.mjs:677:20\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+          ]
+        },
+        {
+          "name": "tenant data-plane fleet migration activation persists a bounded verify-phase code after the v7 migration was accepted",
+          "failures": [
+            "AssertionError: expected { outcome: 'failed', …(3) } to match object { outcome: 'failed', …(1) }\n(2 matching properties omitted from actual)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1283:10)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1700:25)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-fleet-migration.test.mjs:725:20\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "/home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-fleet-preparation.test.mjs",
+      "assertions": [
+        {
+          "name": "trusted tenant migration-command preparation promotes the marker only after a successful current User Worker upload",
+          "failures": [
+            "Error: expected { …(3) } to deeply equal { …(3) }\n    at _Assertion.__VITEST_RESOLVES__ (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1710:17)\n    at _Assertion.propertyGetter (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1570:27)\n    at Reflect.get (<anonymous>)\n    at Object.proxyGetter [as get] (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1659:22)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-data-plane-fleet-preparation.test.mjs:111:6\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-promotion.test.mjs",
+      "assertions": [
+        {
+          "name": "M7D7 incremental promotion authority primitive promotes an exact verified affected candidate in one transaction and preserves merchant override truth",
+          "failures": [
+            "ReferenceError: overrideRelation is not defined\n    at buildIncrementalPromotionPreflightBatch (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:194:27)\n    at processTenantIncrementalPromotion (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:794:5)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-promotion.test.mjs:281:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+          ]
+        },
+        {
+          "name": "M7D7 incremental promotion authority primitive treats replay after a committed authority switch as idempotent success",
+          "failures": [
+            "ReferenceError: overrideRelation is not defined\n    at buildIncrementalPromotionPreflightBatch (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:194:27)\n    at processTenantIncrementalPromotion (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:794:5)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-promotion.test.mjs:311:25\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+          ]
+        },
+        {
+          "name": "M7D7 incremental promotion authority primitive rejects stale and competing verified candidates so exactly one old-base candidate can win",
+          "failures": [
+            "ReferenceError: overrideRelation is not defined\n    at buildIncrementalPromotionPreflightBatch (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:194:27)\n    at processTenantIncrementalPromotion (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:794:5)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-promotion.test.mjs:325:19\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+          ]
+        },
+        {
+          "name": "M7D7 incremental promotion authority primitive rejects unverified work, removal activation, stale merchant overrides and public projection leaks before canonical mutation",
+          "failures": [
+            "ReferenceError: overrideRelation is not defined\n    at buildIncrementalPromotionPreflightBatch (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:194:27)\n    at processTenantIncrementalPromotion (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:794:5)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-promotion.test.mjs:344:20\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+          ]
+        },
+        {
+          "name": "M7D7 incremental promotion authority primitive keeps MOVED-only inside the authority switch without refetching or rewriting canonical product detail",
+          "failures": [
+            "ReferenceError: overrideRelation is not defined\n    at buildIncrementalPromotionPreflightBatch (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:194:27)\n    at processTenantIncrementalPromotion (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:794:5)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-promotion.test.mjs:370:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+          ]
+        },
+        {
+          "name": "M7D7 incremental promotion authority primitive keeps preflight read-only and tenant/source/run scoped",
+          "failures": [
+            "ReferenceError: overrideRelation is not defined\n    at buildIncrementalPromotionPreflightBatch (/home/runner/work/catalog-engine/catalog-engine/worker/ingestion/incremental-promotion.js:194:27)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-promotion.test.mjs:406:19\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "/home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-verification.test.mjs",
+      "assertions": [
+        {
+          "name": "M7D6 complete private candidate verification verifies the composed LKG + affected candidate view without changing canonical authority",
+          "failures": [
+            "AssertionError: expected { outcome: 'failed', …(1) } to match object { outcome: 'success', …(4) }\n(1 matching property omitted from actual)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1283:10)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1700:25)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-verification.test.mjs:286:19\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+          ]
+        },
+        {
+          "name": "M7D6 complete private candidate verification fails closed when merchant override provenance changes after candidate classification",
+          "failures": [
+            "AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1319:15)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1700:25)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-verification.test.mjs:348:29\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+          ]
+        },
+        {
+          "name": "M7D6 complete private candidate verification blocks supplier/private text that would leak through the candidate public projection",
+          "failures": [
+            "AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1319:15)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1700:25)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-verification.test.mjs:370:29\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+          ]
+        },
+        {
+          "name": "M7D6 complete private candidate verification uses the same complete gate for a MOVED-only run with no detail/CEI work",
+          "failures": [
+            "AssertionError: expected { outcome: 'failed', …(1) } to match object { outcome: 'success', …(4) }\n(1 matching property omitted from actual)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1283:10)\n    at Proxy.<anonymous> (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///home/runner/work/catalog-engine/catalog-engine/node_modules/chai/index.js:1700:25)\n    at /home/runner/work/catalog-engine/catalog-engine/tests/tenant-incremental-verification.test.mjs:386:20\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///home/runner/work/catalog-engine/catalog-engine/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+          ]
+        }
+      ]
+    }
+  ]
+}
