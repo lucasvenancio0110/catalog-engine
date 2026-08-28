@@ -6,7 +6,7 @@ on:
     paths:
       - '.github/workflows/m7d9-integrate.yml'
       - 'scripts/m7d9-integrate.mjs'
-      - 'scripts/m7d9-correct.mjs'
+      - 'scripts/m7d9-test-upgrade.mjs'
 
 permissions:
   contents: write
@@ -34,7 +34,7 @@ jobs:
       - name: Apply M7D9 integration
         run: |
           node scripts/m7d9-integrate.mjs
-          node scripts/m7d9-correct.mjs
+          if test -f scripts/m7d9-test-upgrade.mjs; then node scripts/m7d9-test-upgrade.mjs; fi
       - name: Diff sanity
         run: git diff --check
       - name: Dependency policy
@@ -54,28 +54,24 @@ jobs:
           for (const suite of report.testResults || []) {
             const assertions = (suite.assertionResults || [])
               .filter((entry) => entry.status === 'failed')
-              .map((entry) => ({
-                name: entry.fullName,
-                failures: entry.failureMessages
-              }));
-            if (assertions.length) failed.push({ file: suite.name, assertions });
+              .map((entry) => ({ name: entry.fullName, failures: entry.failureMessages }));
+            if (suite.status === 'failed' || assertions.length) {
+              failed.push({ file: suite.name, message: suite.message || '', assertions });
+            }
           }
-          await writeFile(
-            'm7d9-vitest-summary.json',
-            JSON.stringify({
-              totalSuites: report.numTotalTestSuites,
-              failedSuites: report.numFailedTestSuites,
-              totalTests: report.numTotalTests,
-              failedTests: report.numFailedTests,
-              failed
-            }, null, 2) + '\n'
-          );
+          await writeFile('m7d9-vitest-summary.json', JSON.stringify({
+            totalSuites: report.numTotalTestSuites,
+            failedSuites: report.numFailedTestSuites,
+            totalTests: report.numTotalTests,
+            failedTests: report.numFailedTests,
+            failed
+          }, null, 2) + '\n');
           NODE
           git config user.name "catalog-engine-m7d9-bot"
           git config user.email "catalog-engine-m7d9-bot@users.noreply.github.com"
           git add m7d9-vitest-summary.json
           git diff --cached --quiet && exit 0
-          git commit -m "ci: capture compact M7D9 test diagnostics"
+          git commit -m "ci: refresh compact M7D9 test diagnostics"
           git push origin HEAD:m7d9/repeated-miss-safe-removal-v1
       - name: ESLint
         if: success()
@@ -87,7 +83,10 @@ jobs:
           set -euo pipefail
           git config user.name "catalog-engine-m7d9-bot"
           git config user.email "catalog-engine-m7d9-bot@users.noreply.github.com"
-          git add worker scripts/emit-tenant-data-plane-schema.mjs scripts/cloudflare-tenant-data-plane-fleet-prepare.mjs
+          git add worker tests scripts .github/workflows/validate-tenant-ingestion.yml .github/workflows/validate-saas-control-plane.yml
+          git reset scripts/m7d9-integrate.mjs scripts/m7d9-test-upgrade.mjs || true
+          git reset .github/workflows/m7d9-integrate.yml .github/workflows/m7d9-diagnose.yml || true
+          git reset m7d9-vitest-report.json m7d9-vitest-summary.json || true
           git diff --cached --quiet && { echo "No integration changes"; exit 1; }
-          git commit -m "m7d9: integrate scoped removal into promotion authority"
+          git commit -m "m7d9: integrate scoped repeated-miss removal"
           git push origin HEAD:m7d9/repeated-miss-safe-removal-v1
