@@ -79,6 +79,15 @@ export function migrationResumeStep(currentStep = 'migrations') {
   throw new Error('tenant_data_plane_migration_resume_step_invalid');
 }
 
+function migrationCommandVersionForTarget(targetVersion) {
+  const version = Number(targetVersion);
+  if (version === 7) return 3;
+  if (version === TENANT_DATA_PLANE_SCHEMA_VERSION) {
+    return TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION;
+  }
+  throw new CloudflarePlatformError('tenant_data_plane_schema_state_invalid', 500);
+}
+
 export function normalizeMigrationKind(value = 'provisioning') {
   const kind = String(value || 'provisioning').trim();
   if (kind === 'provisioning' || kind === 'maintenance') return kind;
@@ -184,6 +193,7 @@ async function migrationContext(db, tenantId) {
 
 async function claimMigration(db, job) {
   const kind = normalizeMigrationKind(job.migration_kind);
+  const requiredCommandVersion = migrationCommandVersionForTarget(job.target_schema_version);
   const result = await db
     .prepare(
       `UPDATE tenant_data_plane_migration_jobs
@@ -216,7 +226,7 @@ async function claimMigration(db, job) {
       MAX_AUTOMATIC_ATTEMPTS,
       kind,
       job.tenant_id,
-      TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION
+      requiredCommandVersion
     )
     .run();
   if (Number(result.meta?.changes || 0) < 1) return false;
@@ -499,9 +509,10 @@ export async function processTenantDataPlaneMigration(
     if (context.dispatch_namespace !== config.dispatchNamespace) {
       throw new CloudflarePlatformError('tenant_dispatch_namespace_mismatch', 500);
     }
+    const requiredCommandVersion = migrationCommandVersionForTarget(job.target_schema_version);
     if (
       migrationKind === 'maintenance' &&
-      Number(context.migration_command_version || 0) < TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION
+      Number(context.migration_command_version || 0) < requiredCommandVersion
     ) {
       throw new CloudflarePlatformError('tenant_migration_command_not_prepared', 409);
     }
@@ -518,7 +529,8 @@ export async function processTenantDataPlaneMigration(
       !Number.isInteger(controlVersion) ||
       !Number.isInteger(targetVersion) ||
       controlVersion < 0 ||
-      targetVersion !== TENANT_DATA_PLANE_SCHEMA_VERSION ||
+      targetVersion < 1 ||
+      targetVersion > TENANT_DATA_PLANE_SCHEMA_VERSION ||
       controlVersion > targetVersion
     ) {
       throw new CloudflarePlatformError('tenant_data_plane_schema_state_invalid', 500);

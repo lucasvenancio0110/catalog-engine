@@ -253,7 +253,7 @@ describe('tenant data-plane fleet migration activation', () => {
   });
 
   it('targets schema v7 and only discovers maintenance work for ready idle tenants', () => {
-    expect(migrationRunnerSource).toContain("from './tenant-data-plane-schema-v7.js'");
+    expect(migrationRunnerSource).toContain("from './tenant-data-plane-schema-v8.js'");
     expect(migrationRunnerSource).toContain("i.status='ready'");
     expect(migrationRunnerSource).toContain("migrationKind: 'maintenance'");
     expect(migrationRunnerSource).toContain('p.migration_command_version >= ?2');
