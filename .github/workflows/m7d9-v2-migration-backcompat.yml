@@ -1,0 +1,51 @@
+name: M7D9 v2 migration backcompat gate
+
+on:
+  push:
+    branches: ['m7d9/repeated-miss-safe-removal-v2']
+    paths:
+      - '.github/workflows/m7d9-v2-migration-backcompat.yml'
+      - 'scripts/m7d9-v2-migration-backcompat.mjs'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: catalog-engine-m7d9-v2-migration-backcompat
+  cancel-in-progress: false
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: m7d9/repeated-miss-safe-removal-v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Apply migration backcompat
+        run: node scripts/m7d9-v2-migration-backcompat.mjs
+      - run: git diff --check
+      - name: Historical migration regression proof
+        run: >-
+          npx vitest run
+          tests/tenant-data-plane-command.test.mjs
+          tests/tenant-data-plane-fleet-migration.test.mjs
+      - name: D9 functional proof
+        run: npx vitest run tests/tenant-incremental-removal.test.mjs
+      - name: Lint
+        run: npm run lint
+      - name: Commit runtime compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "catalog-engine-m7d9-bot"
+          git config user.email "catalog-engine-m7d9-bot@users.noreply.github.com"
+          git add worker/tenant-data-plane-command.js worker/ingestion/tenant-data-plane.js worker/data-plane-migration-runner.js
+          git diff --cached --quiet && { echo 'No backcompat changes'; exit 1; }
+          git commit -m "m7d9: preserve v7 migration protocol compatibility"
+          git push origin HEAD:m7d9/repeated-miss-safe-removal-v2
