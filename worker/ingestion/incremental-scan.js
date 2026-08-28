@@ -41,6 +41,45 @@ async function sourceScope(context) {
   };
 }
 
+function previousSnapshotStatement(context, scopeId, afterSourceId, boundedPageSize) {
+  if (Number(context.schemaVersion || 0) >= 8 && scopeId) {
+    return {
+      sql: `SELECT i.album_source_id, i.public_product_id, i.source_category_id,
+                   i.source_category_path_json, i.listing_fingerprint, i.detail_fingerprint,
+                   i.status, i.miss_count,
+                   m.state AS scope_membership_state,
+                   m.miss_count AS scope_miss_count,
+                   CASE WHEN p.product_id IS NULL THEN 0 ELSE 1 END AS canonical_product_present
+              FROM supplier_album_index i
+              LEFT JOIN supplier_scope_memberships m
+                ON m.tenant_id=i.tenant_id AND m.source_key=i.source_key
+               AND m.album_source_id=i.album_source_id AND m.scope_id=?3
+              LEFT JOIN catalog_products p ON p.product_id=i.public_product_id
+             WHERE i.tenant_id=?1 AND i.source_key=?2 AND i.album_source_id>?4
+             ORDER BY i.album_source_id ASC
+             LIMIT ?5`,
+      params: [
+        context.tenantId,
+        context.sourceKey,
+        scopeId,
+        afterSourceId,
+        boundedPageSize
+      ]
+    };
+  }
+
+  return {
+    sql: `SELECT album_source_id, public_product_id, source_category_id,
+                 source_category_path_json, listing_fingerprint, detail_fingerprint,
+                 status, miss_count
+            FROM supplier_album_index
+           WHERE tenant_id=?1 AND source_key=?2 AND album_source_id>?3
+           ORDER BY album_source_id ASC
+           LIMIT ?4`,
+    params: [context.tenantId, context.sourceKey, afterSourceId, boundedPageSize]
+  };
+}
+
 export async function loadTenantIncrementalPreviousRows(
   context,
   platform,
@@ -52,7 +91,6 @@ export async function loadTenantIncrementalPreviousRows(
   } = {}
 ) {
   const scopeId = String(scope?.id || '').trim();
-  if (!scopeId) throw new Error('tenant_sync_removal_scope_invalid');
   const boundedPageSize = Math.min(
     Math.max(Number.parseInt(pageSize, 10) || TENANT_INCREMENTAL_PREVIOUS_PAGE_SIZE, 1),
     1000
@@ -65,31 +103,7 @@ export async function loadTenantIncrementalPreviousRows(
       {
         ...platform,
         databaseId: context.dataPlane.databaseId,
-        batch: [
-          {
-            sql: `SELECT i.album_source_id, i.public_product_id, i.source_category_id,
-                         i.source_category_path_json, i.listing_fingerprint, i.detail_fingerprint,
-                         i.status, i.miss_count,
-                         m.state AS scope_membership_state,
-                         m.miss_count AS scope_miss_count,
-                         CASE WHEN p.product_id IS NULL THEN 0 ELSE 1 END AS canonical_product_present
-                    FROM supplier_album_index i
-                    LEFT JOIN supplier_scope_memberships m
-                      ON m.tenant_id=i.tenant_id AND m.source_key=i.source_key
-                     AND m.album_source_id=i.album_source_id AND m.scope_id=?3
-                    LEFT JOIN catalog_products p ON p.product_id=i.public_product_id
-                   WHERE i.tenant_id=?1 AND i.source_key=?2 AND i.album_source_id>?4
-                   ORDER BY i.album_source_id ASC
-                   LIMIT ?5`,
-            params: [
-              context.tenantId,
-              context.sourceKey,
-              scopeId,
-              afterSourceId,
-              boundedPageSize
-            ]
-          }
-        ]
+        batch: [previousSnapshotStatement(context, scopeId, afterSourceId, boundedPageSize)]
       },
       { fetchImpl }
     );
