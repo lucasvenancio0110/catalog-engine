@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/m7d9-v2-fleet-v8.yml'
       - 'scripts/m7d9-v2-fleet-v8.mjs'
+      - 'scripts/m7d9-v2-fleet-v8-fix.mjs'
 
 permissions:
   contents: write
@@ -30,6 +31,8 @@ jobs:
       - run: npm ci
       - name: Align fleet canary to v7 -> v8
         run: node scripts/m7d9-v2-fleet-v8.mjs
+      - name: Apply bounded fleet assertion fixes
+        run: node scripts/m7d9-v2-fleet-v8-fix.mjs
       - run: git diff --check
       - name: Fleet contract proof
         run: >-
