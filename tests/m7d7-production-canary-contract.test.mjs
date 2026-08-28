@@ -7,11 +7,8 @@ const promotionWorkflow = await readFile(
   'utf8'
 );
 const fleetCanary = await readFile('scripts/cloudflare-tenant-data-plane-fleet-canary.mjs', 'utf8');
-const fleetWorkflow = await readFile(
-  '.github/workflows/cloudflare-tenant-data-plane-fleet-canary.yml',
-  'utf8'
-);
 const deployWorkflow = await readFile('.github/workflows/deploy-catalog-api.yml', 'utf8');
+const d7Closure = await readFile('docs/M7D7-CLOSURE-2026-08-27.md', 'utf8');
 
 describe('M7D7 trusted-main production canary contracts', () => {
   it('keeps D4-D6 scheduler-owned and invokes the D7 primitive only after verified state', () => {
@@ -50,14 +47,14 @@ describe('M7D7 trusted-main production canary contracts', () => {
     expect(deployWorkflow).toContain("'worker/**'");
   });
 
-  it('proves the fleet transition is v6 to v7 before D7 production authority proof', () => {
-    expect(fleetCanary).toContain("from '../worker/tenant-data-plane-schema-v6.js';");
+  it('retains exact historical D7 fleet evidence while allowing the permanent fleet canary to advance', () => {
+    expect(d7Closure).toContain('trusted-main implementation SHA: `725854afc408bb6177aa071e2797051369c4040c`');
+    expect(d7Closure).toContain('tenant data-plane fleet canary: run `33034549918` — **SUCCESS**');
+    expect(d7Closure).toContain('Schema v7 establishes:');
+    expect(d7Closure).toContain('catalog_serving_authority');
+    expect(d7Closure).toContain('supplier_sync_stage_authority');
     expect(fleetCanary).toContain("from '../worker/tenant-data-plane-schema-v7.js';");
-    expect(fleetCanary).toContain('PREVIOUS_SCHEMA_VERSION !== 6 || CURRENT_SCHEMA_VERSION !== 7');
-    expect(fleetCanary).toContain("? '1,2,3,4,5,6,7' : '1,2,3,4,5,6'");
-    expect(fleetCanary).toContain("name IN ('catalog_serving_authority','supplier_sync_stage_authority')");
-    expect(fleetWorkflow).toContain("'worker/tenant-data-plane-schema-v7.js'");
-    expect(fleetWorkflow).toContain('scheduler-owned v6 to v7 fleet maintenance');
-    expect(fleetWorkflow).toContain('Cron upgraded isolated v6 tenant to v7');
+    expect(fleetCanary).toContain("from '../worker/tenant-data-plane-schema-v8.js';");
+    expect(fleetCanary).toContain('PREVIOUS_SCHEMA_VERSION !== 7 || CURRENT_SCHEMA_VERSION !== 8');
   });
 });
