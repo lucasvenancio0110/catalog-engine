@@ -623,6 +623,10 @@ verified -> promoting -> promoted
 
 Promotion requires an idempotency key plus phase-aware lease/compare-and-set. Unverified stages are rejected. Cursor and schedule never advance before the authority switch and complete finalization. Redelivery after the switch recognizes already-promoted state and commits the remaining control metadata once. Cleanup cannot delete canonical state or the rollback authority.
 
+M7D8 is **PRODUCTION GREEN** at trusted-main implementation SHA `cb09e35b753a37726d74b18eab12761885e38faa`. Migration `0021_tenant_sync_finalization.sql` persists the exact due slot and finalization lease; scheduler job creation no longer advances schedule authority; post-promotion finalization uses exact tenant/source/run/slot ownership plus a phase-aware lease/CAS; an exact already-promoted replay commits only the remaining control metadata without promoting twice; duplicate terminal finalization is a no-op. Trusted-main deploy `33100902771`, M7D7 regression canary `33101085323` and dedicated M7D8 crash/replay canary `33101085492` passed on the exact implementation SHA. Full closure evidence lives in `M7D8-CLOSURE-2026-08-27.md`.
+
+Recurring Intelligent Sync remains disabled, the active cohort remains empty and M7D9 is the next approved slice. M7D8 does not activate repeated-miss/removal semantics or broad recovery/DLQ behavior.
+
 ### M7D9 — Repeated Miss and Safe Removal
 
 Commercial outcome: remove products truly gone from the supplier without deleting healthy products because of a failed scan.
