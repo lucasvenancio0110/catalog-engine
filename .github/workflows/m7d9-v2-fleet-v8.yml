@@ -8,6 +8,7 @@ on:
       - '.github/workflows/m7d9-v2-fleet-v8.yml'
       - 'scripts/m7d9-v2-fleet-v8.mjs'
       - 'scripts/m7d9-v2-fleet-v8-fix.mjs'
+      - 'tests/m7d7-production-canary-contract.test.mjs'
 
 permissions:
   contents: write
@@ -41,6 +42,7 @@ jobs:
           tests/tenant-data-plane-fleet-preparation.test.mjs
           tests/tenant-data-plane-fleet-migration.test.mjs
           tests/tenant-data-plane-command.test.mjs
+          tests/m7d7-production-canary-contract.test.mjs
       - name: D9 core proof
         run: npx vitest run tests/tenant-incremental-removal.test.mjs
       - name: Full quality
