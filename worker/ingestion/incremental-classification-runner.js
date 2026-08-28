@@ -75,6 +75,9 @@ function tenantRequest(context, platform, batch, queryBatch, fetchImpl) {
 }
 
 async function loadCandidateState(context, platform, queryBatch, fetchImpl) {
+  const overrideRelation = Number(context.schemaVersion || 0) >= 8
+    ? 'catalog_product_effective_classification_overrides'
+    : 'catalog_product_classification_overrides';
   const result = await tenantRequest(
     context,
     platform,
@@ -107,7 +110,7 @@ async function loadCandidateState(context, platform, queryBatch, fetchImpl) {
                 JOIN supplier_sync_stage_observations o
                   ON o.run_id=d.run_id AND o.public_product_id=d.public_product_id
                  AND o.album_source_id=d.album_source_id
-                LEFT JOIN catalog_product_classification_overrides override
+                LEFT JOIN ${overrideRelation} override
                   ON override.product_id=d.public_product_id
                 LEFT JOIN supplier_sync_stage_classification_state candidate
                   ON candidate.run_id=d.run_id AND candidate.public_product_id=d.public_product_id

@@ -238,6 +238,63 @@ function beginStageAuthorityQuery(context) {
   };
 }
 
+function removalPolicyForStage(context, plan) {
+  if (Number(context?.schemaVersion || 0) < 8) return null;
+  const policy = plan?.removalPolicy || null;
+  if (
+    !policy ||
+    !text(policy.scopeId) ||
+    !text(policy.scopeKind) ||
+    Number(policy.contractVersion || 0) !== 1 ||
+    Number(policy.policyVersion || 0) !== 1 ||
+    Number(policy.removalThreshold || 0) < 2 ||
+    text(policy.scopeId) !== text(plan?.decision?.scope?.id) ||
+    text(policy.scopeKind) !== text(plan?.decision?.scope?.kind)
+  ) {
+    throw new Error('tenant_sync_removal_policy_invalid');
+  }
+  return policy;
+}
+
+function beginStageRemovalPolicyQuery(context, policy) {
+  return {
+    sql: `INSERT OR IGNORE INTO supplier_sync_stage_removal_policy
+      (run_id, tenant_id, source_key, scope_id, scope_kind, contract_version, policy_version,
+       removal_threshold, created_at, updated_at)
+      SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+       WHERE EXISTS (
+         SELECT 1 FROM supplier_sync_stage_runs r
+          WHERE r.run_id=?1 AND r.tenant_id=?2 AND r.source_key=?3 AND r.state='staging'
+       )`,
+    params: [
+      context.importId, context.tenantId, context.sourceKey, policy.scopeId, policy.scopeKind,
+      Number(policy.contractVersion), Number(policy.policyVersion), Number(policy.removalThreshold)
+    ]
+  };
+}
+
+function enforceRemovalPolicySnapshotQuery(context, policy) {
+  return {
+    sql: `UPDATE supplier_sync_stage_runs
+             SET state='failed', last_error_code='sync_removal_policy_snapshot_mismatch',
+                 updated_at=CURRENT_TIMESTAMP
+           WHERE run_id=?1 AND tenant_id=?2 AND source_key=?3
+             AND state IN ('planned','details_pending')
+             AND NOT EXISTS (
+               SELECT 1 FROM supplier_sync_stage_removal_policy p
+                WHERE p.run_id=?1 AND p.tenant_id=?2 AND p.source_key=?3
+                  AND p.scope_id=?4 AND p.scope_kind=?5
+                  AND p.contract_version=CAST(?6 AS INTEGER)
+                  AND p.policy_version=CAST(?7 AS INTEGER)
+                  AND p.removal_threshold=CAST(?8 AS INTEGER)
+             )`,
+    params: [
+      context.importId, context.tenantId, context.sourceKey, policy.scopeId, policy.scopeKind,
+      Number(policy.contractVersion), Number(policy.policyVersion), Number(policy.removalThreshold)
+    ]
+  };
+}
+
 function clearStageQuery(table, context) {
   return {
     sql: `DELETE FROM ${table}
@@ -430,6 +487,7 @@ function sealSyncRunQuery(context) {
 export function buildIncrementalStageWritePlan({ context, scan, plan }) {
   assertIncrementalStageInput(context, scan, plan);
   const proceed = plan.decision.outcome === 'proceed';
+  const removalPolicy = removalPolicyForStage(context, plan);
   const planWithTaxonomy = { ...plan, scanTaxonomyCount: scan.taxonomy.length };
   const observationRecords = proceed
     ? scan.items.map((item, index) => normalizeObservation(item, index))
@@ -445,6 +503,7 @@ export function buildIncrementalStageWritePlan({ context, scan, plan }) {
       beginSyncRunQuery(context, scan, plan),
       beginStageQuery(context, scan, plan),
       beginStageAuthorityQuery(context),
+      ...(removalPolicy ? [beginStageRemovalPolicyQuery(context, removalPolicy)] : []),
       clearStageQuery('supplier_sync_stage_observations', context),
       clearStageQuery('supplier_sync_stage_events', context),
       clearStageQuery('supplier_sync_stage_categories', context)
@@ -462,6 +521,7 @@ export function buildIncrementalStageWritePlan({ context, scan, plan }) {
     ),
     sealBatch: Object.freeze([
       sealStageQuery(context, planWithTaxonomy),
+      ...(removalPolicy ? [enforceRemovalPolicySnapshotQuery(context, removalPolicy)] : []),
       sealSyncRunQuery(context)
     ])
   });
