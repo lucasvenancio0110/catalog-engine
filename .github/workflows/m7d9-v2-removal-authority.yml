@@ -1,5 +1,6 @@
 name: M7D9 v2 removal authority gate
 
+# Branch-local execution gate for the removal-authority patch.
 on:
   push:
     branches: ['m7d9/repeated-miss-safe-removal-v2']
