@@ -19,14 +19,20 @@ function expectScript(value) {
 }
 
 describe('automatic tenant import production canary', () => {
-  it('keeps Cloudflare credentials out of pull-request validation and runs production only after a trusted deploy', () => {
+  it('keeps Cloudflare credentials out of pull-request validation and waits for trusted prerequisites before taking the mutation lock', () => {
     const validateStart = workflow.indexOf('  validate:');
+    const prerequisiteStart = workflow.indexOf('  prerequisites:');
     const canaryStart = workflow.indexOf('  canary:');
     expect(validateStart).toBeGreaterThan(-1);
-    expect(canaryStart).toBeGreaterThan(validateStart);
-    const validateBlock = workflow.slice(validateStart, canaryStart);
+    expect(prerequisiteStart).toBeGreaterThan(validateStart);
+    expect(canaryStart).toBeGreaterThan(prerequisiteStart);
+    const validateBlock = workflow.slice(validateStart, prerequisiteStart);
+    const prerequisiteBlock = workflow.slice(prerequisiteStart, canaryStart);
+    const canaryBlock = workflow.slice(canaryStart);
     expect(validateBlock).toContain("if: github.event_name == 'pull_request'");
     expect(validateBlock).not.toContain('secrets.CLOUDFLARE');
+    expect(prerequisiteBlock).not.toContain('group: catalog-engine-production-d1');
+    expect(canaryBlock).toContain('group: catalog-engine-production-d1');
     expectWorkflow('workflow_run:');
     expectWorkflow("workflows: ['Deploy Catalog Engine application']");
     expectWorkflow("github.event.workflow_run.conclusion == 'success'");
@@ -34,8 +40,10 @@ describe('automatic tenant import production canary', () => {
     expectWorkflow('secrets.CLOUDFLARE_API_TOKEN');
     expectWorkflow('secrets.CLOUDFLARE_ACCOUNT_ID');
     expectWorkflow('Checkout exactly the deployed trusted-main SHA');
-    expectWorkflow('ref: ${{ github.event_name');
+    expectWorkflow('ref: ${{ needs.prerequisites.outputs.sha }}');
     expectWorkflow('github.event.workflow_run.head_sha');
+    expectWorkflow('application, Queue and fleet evidence outside mutation lock');
+    expectWorkflow("needs.prerequisites.result == 'success'");
     expect(workflow).not.toMatch(/^  push:/m);
   });
 
@@ -44,7 +52,7 @@ describe('automatic tenant import production canary', () => {
     expectWorkflow("if: steps.automation.outputs.enabled == 'false'");
     expectWorkflow("success() && steps.automation.outputs.enabled == 'true'");
     expectWorkflow("failure() && steps.automation.outputs.enabled == 'true'");
-    expectWorkflow('github.event.workflow_run.head_sha');
+    expectWorkflow('SHA: ${{ needs.prerequisites.outputs.sha }}');
     expectWorkflow('TENANT_IMPORT_AUTOMATION_ENABLED=0');
   });
 
