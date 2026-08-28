@@ -38,18 +38,36 @@ jobs:
           import { readFile, writeFile } from 'node:fs/promises';
           const path = 'scripts/m7d9-v2-removal-authority.mjs';
           let source = await readFile(path, 'utf8');
-          const label = "'verification-unchanged-global-removal'";
-          const labelAt = source.indexOf(label);
-          if (labelAt < 0) throw new Error('m7d9_temp_patch_label_missing');
-          const start = source.lastIndexOf('  source = replaceOnce(', labelAt);
-          const endMarker = '\n  );';
-          const endAt = source.indexOf(endMarker, labelAt);
-          if (start < 0 || endAt < 0) throw new Error('m7d9_temp_patch_range_invalid');
-          source = source.slice(0, start) + source.slice(endAt + endMarker.length);
+          for (const labelValue of [
+            'verification-unchanged-global-removal',
+            'promotion-effective-override'
+          ]) {
+            const label = `'${labelValue}'`;
+            const labelAt = source.indexOf(label);
+            if (labelAt < 0) throw new Error(`m7d9_temp_patch_label_missing:${labelValue}`);
+            const start = source.lastIndexOf('  source = replaceOnce(', labelAt);
+            const endMarker = '\n  );';
+            const endAt = source.indexOf(endMarker, labelAt);
+            if (start < 0 || endAt < 0) throw new Error(`m7d9_temp_patch_range_invalid:${labelValue}`);
+            source = source.slice(0, start) + source.slice(endAt + endMarker.length);
+          }
           await writeFile(path, source, 'utf8');
           NODE
       - name: Apply M7D9 removal authority
         run: node scripts/m7d9-v2-removal-authority.mjs
+      - name: Normalize effective override helper
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile, writeFile } from 'node:fs/promises';
+          const path = 'worker/ingestion/incremental-promotion.js';
+          let source = await readFile(path, 'utf8');
+          const from = '      LEFT JOIN catalog_product_classification_overrides o ON o.product_id=c.public_product_id';
+          const to = '      LEFT JOIN ${overrideRelation} o ON o.product_id=c.public_product_id';
+          if (!source.includes(from)) throw new Error('m7d9_effective_override_helper_missing');
+          source = source.replace(from, to);
+          await writeFile(path, source, 'utf8');
+          NODE
       - name: Diff sanity
         run: git diff --check
       - name: Legacy D5-D8 regression gate
