@@ -99,6 +99,12 @@ export async function queryTenantDataPlaneBatch(context, env, batch) {
   return payload.results;
 }
 
+function migrationCommandVersionForSchema(schemaVersion) {
+  if (schemaVersion === 7) return 3;
+  if (schemaVersion === 8) return TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION;
+  throw new TenantDataPlaneClientError('tenant_data_plane_schema_target_invalid', 500);
+}
+
 export async function migrateTenantDataPlaneSchema(context, env, targetSchemaVersion) {
   if (!tenantDataPlaneDispatchConfigured(env)) {
     throw new TenantDataPlaneClientError('tenant_data_plane_dispatch_unbound', 503);
@@ -108,6 +114,7 @@ export async function migrateTenantDataPlaneSchema(context, env, targetSchemaVer
   if (!Number.isInteger(schemaVersion) || schemaVersion < 1) {
     throw new TenantDataPlaneClientError('tenant_data_plane_schema_target_invalid', 500);
   }
+  const migrationCommandVersion = migrationCommandVersionForSchema(schemaVersion);
 
   let fetcher;
   try {
@@ -123,7 +130,7 @@ export async function migrateTenantDataPlaneSchema(context, env, targetSchemaVer
       'x-catalog-tenant-id': target.tenantId
     },
     body: JSON.stringify({
-      version: TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION,
+      version: migrationCommandVersion,
       tenantId: target.tenantId,
       targetSchemaVersion: schemaVersion
     })
@@ -144,7 +151,7 @@ export async function migrateTenantDataPlaneSchema(context, env, targetSchemaVer
   if (
     !response.ok ||
     payload?.ok !== true ||
-    Number(payload?.version) !== TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION
+    Number(payload?.version) !== migrationCommandVersion
   ) {
     const code = /^tenant_data_plane_[a-z0-9_]+$/.test(String(payload?.error || ''))
       ? String(payload.error)

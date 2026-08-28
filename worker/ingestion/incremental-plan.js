@@ -1,4 +1,5 @@
 import { planSafeListingDelta } from '../../src/sync/listing-delta.js';
+import { removalPolicySnapshot, scopedListingPreviousRow } from './incremental-removal.js';
 
 export const TENANT_INCREMENTAL_PLAN_CONTRACT_VERSION = 1;
 
@@ -37,18 +38,21 @@ function normalizeStatus(value) {
 }
 
 export function tenantIndexRowsToListingPrevious(rows = []) {
-  return rows.map((row) => ({
-    sourceId: text(row.album_source_id ?? row.sourceId),
-    publicProductId: text(row.public_product_id ?? row.publicProductId),
-    categoryId: nullableText(row.source_category_id ?? row.categoryId),
-    categoryPathIds: parseCategoryPath(
-      row.source_category_path_json ?? row.categoryPathIds ?? row.categoryPathJson
-    ),
-    listingFingerprint: text(row.listing_fingerprint ?? row.listingFingerprint),
-    detailFingerprint: nullableText(row.detail_fingerprint ?? row.detailFingerprint),
-    status: normalizeStatus(row.status),
-    missCount: Math.max(0, Number(row.miss_count ?? row.missCount ?? 0))
-  }));
+  return rows.map((row) => {
+    const scoped = scopedListingPreviousRow(row);
+    return {
+      sourceId: text(row.album_source_id ?? row.sourceId),
+      publicProductId: text(row.public_product_id ?? row.publicProductId),
+      categoryId: nullableText(row.source_category_id ?? row.categoryId),
+      categoryPathIds: parseCategoryPath(
+        row.source_category_path_json ?? row.categoryPathIds ?? row.categoryPathJson
+      ),
+      listingFingerprint: text(row.listing_fingerprint ?? row.listingFingerprint),
+      detailFingerprint: nullableText(row.detail_fingerprint ?? row.detailFingerprint),
+      status: normalizeStatus(scoped?.status ?? row.status),
+      missCount: Math.max(0, Number(scoped?.missCount ?? row.miss_count ?? row.missCount ?? 0))
+    };
+  });
 }
 
 export function providerScanItemsToListingObservations(items = []) {
@@ -93,6 +97,7 @@ export function planTenantIncrementalScan({
     throw error;
   }
 
+  const removalPolicy = removalPolicySnapshot({ scope, removalMissThreshold });
   const previous = tenantIndexRowsToListingPrevious(previousRows);
   const current = providerScanItemsToListingObservations(scan.items);
   const delta = planSafeListingDelta(previous, current, {
@@ -100,7 +105,7 @@ export function planTenantIncrementalScan({
     knownGoodCount: knownGoodListingCount(previous),
     scanComplete: scan.complete,
     disqualifyingFailureCount,
-    removalMissThreshold,
+    removalMissThreshold: removalPolicy.removalThreshold,
     ...(safetyPolicy ? { safetyPolicy } : {})
   });
 
@@ -109,6 +114,7 @@ export function planTenantIncrementalScan({
   const result = {
     contractVersion: TENANT_INCREMENTAL_PLAN_CONTRACT_VERSION,
     decision: delta.decision,
+    removalPolicy,
     mutationsAllowed,
     observedCount: current.length,
     previousKnownGoodCount: knownGoodListingCount(previous),
@@ -121,6 +127,7 @@ export function planTenantIncrementalScan({
 
   return Object.freeze({
     ...result,
+    removalPolicy: Object.freeze({ ...result.removalPolicy }),
     previous: Object.freeze(result.previous.map((entry) => Object.freeze({ ...entry }))),
     current: Object.freeze(result.current.map((entry) => Object.freeze({ ...entry }))),
     events: Object.freeze(result.events),

@@ -253,7 +253,7 @@ describe('tenant data-plane fleet migration activation', () => {
   });
 
   it('targets schema v7 and only discovers maintenance work for ready idle tenants', () => {
-    expect(migrationRunnerSource).toContain("from './tenant-data-plane-schema-v7.js'");
+    expect(migrationRunnerSource).toContain("from './tenant-data-plane-schema-v8.js'");
     expect(migrationRunnerSource).toContain("i.status='ready'");
     expect(migrationRunnerSource).toContain("migrationKind: 'maintenance'");
     expect(migrationRunnerSource).toContain('p.migration_command_version >= ?2');
@@ -265,11 +265,11 @@ describe('tenant data-plane fleet migration activation', () => {
     expect(migrationRunnerSource).toContain('j.target_schema_version=?2');
   });
 
-  it('keeps tenant schema CI aligned with the v7 fleet target and migration ownership', () => {
+  it('keeps tenant schema CI aligned with the v8 fleet target and migration ownership', () => {
     for (const workflow of [saasWorkflow, ingestionWorkflow]) {
       expect(workflow).toContain('schema_version FROM data_plane_identity');
-      expect(workflow).toContain("= '7'");
-      expect(workflow).toContain("= '1,2,3,4,5,6,7'");
+      expect(workflow).toContain("= '8'");
+      expect(workflow).toContain("= '1,2,3,4,5,6,7,8'");
       expect(workflow).toContain('catalog_product_intelligence_state');
       expect(workflow).toContain('supplier_sync_stage_runs');
       expect(workflow).toContain('supplier_sync_stage_observations');
@@ -277,6 +277,10 @@ describe('tenant data-plane fleet migration activation', () => {
       expect(workflow).toContain('supplier_sync_stage_categories');
       expect(workflow).toContain('supplier_sync_stage_product_details');
       expect(workflow).toContain('supplier_sync_stage_intelligence_state');
+      expect(workflow).toContain('supplier_scope_memberships');
+      expect(workflow).toContain('supplier_sync_stage_removal_policy');
+      expect(workflow).toContain('catalog_product_classification_override_retention');
+      expect(workflow).toContain('catalog_product_effective_classification_overrides');
     }
     expect(ingestionWorkflow).toContain("'migrations/0018_tenant_data_plane_fleet_migrations.sql'");
     expect(ingestionWorkflow).toContain(

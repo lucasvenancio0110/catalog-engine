@@ -11,11 +11,11 @@ import { TENANT_DATA_PLANE_MIGRATION_COMMAND_VERSION } from '../worker/tenant-da
 import {
   TENANT_DATA_PLANE_SCHEMA_VERSION as PREVIOUS_SCHEMA_VERSION,
   TENANT_SYNC_CANDIDATE_TABLES,
-  tenantDataPlaneCurrentBatch as tenantDataPlaneV6Batch
-} from '../worker/tenant-data-plane-schema-v6.js';
+  tenantDataPlaneCurrentBatch as tenantDataPlaneV7Batch
+} from '../worker/tenant-data-plane-schema-v7.js';
 import {
   TENANT_DATA_PLANE_SCHEMA_VERSION as CURRENT_SCHEMA_VERSION
-} from '../worker/tenant-data-plane-schema-v7.js';
+} from '../worker/tenant-data-plane-schema-v8.js';
 import { prepareTenantMigrationCommandCapability } from './cloudflare-tenant-data-plane-fleet-prepare.mjs';
 
 const API_ORIGIN = 'https://api.cloudflare.com';
@@ -28,7 +28,7 @@ const POLL_MS = 5_000;
 const COMPLETION_TIMEOUT_MS = 22 * 60_000;
 const HISTORICAL_TIMESTAMP = '2000-01-01T00:00:00Z';
 const HISTORICAL_CONTEXT = '{"fleetCanary":"historical"}';
-const HISTORICAL_MIGRATION_METADATA = '{"schemaVersion":6,"sentinel":"unchanged"}';
+const HISTORICAL_MIGRATION_METADATA = '{"schemaVersion":7,"sentinel":"unchanged"}';
 const EXPECTED_FAILURE_CODE = 'tenant_dispatch_namespace_mismatch';
 const LISTING_STAGE_TABLES = [
   'supplier_sync_stage_runs',
@@ -55,7 +55,7 @@ function validateRuntime() {
   if (!/^[a-z0-9][a-z0-9_-]{1,62}$/i.test(DISPATCH_NAMESPACE)) {
     throw new Error('fleet_canary_dispatch_namespace_invalid');
   }
-  if (PREVIOUS_SCHEMA_VERSION !== 6 || CURRENT_SCHEMA_VERSION !== 7) {
+  if (PREVIOUS_SCHEMA_VERSION !== 7 || CURRENT_SCHEMA_VERSION !== 8) {
     throw new Error('fleet_canary_schema_contract_mismatch');
   }
   if (!/^[a-f0-9-]{32,40}$/i.test(CONTROL_DB_ID)) {
@@ -239,7 +239,7 @@ export function initialDataPlaneSeed(fixture) {
     {
       sql: `INSERT INTO supplier_sync_stage_catalog_categories
               (run_id, category_id, name, parent_id, depth, sort_order, product_count)
-            VALUES (?1, ?2, 'Historical v6 candidate category', NULL, 0, 0, 0)`,
+            VALUES (?1, ?2, 'Historical v7 candidate category', NULL, 0, 0, 0)`,
       params: [fixture.stageRunId, fixture.stageCategoryId]
     }
   ];
@@ -548,6 +548,17 @@ async function dataPlaneState(fixture) {
     servingAuthority = authority[0]?.results?.[0] || null;
     stageAuthorityRows = Number(authority[1]?.results?.[0]?.total || 0);
   }
+  const schemaVersion = Number(result[0]?.results?.[0]?.schema_version || 0);
+  let scopeMembershipRows = null;
+  let removalPolicyRows = null;
+  if (schemaVersion >= 8) {
+    const removalState = await tenantBatch(fixture, [
+      { sql: 'SELECT COUNT(*) AS total FROM supplier_scope_memberships', params: [] },
+      { sql: 'SELECT COUNT(*) AS total FROM supplier_sync_stage_removal_policy', params: [] }
+    ]);
+    scopeMembershipRows = Number(removalState[0]?.results?.[0]?.total || 0);
+    removalPolicyRows = Number(removalState[1]?.results?.[0]?.total || 0);
+  }
   return {
     identity: result[0]?.results?.[0] || null,
     ledger: String(result[1]?.results?.[0]?.versions || ''),
@@ -559,6 +570,8 @@ async function dataPlaneState(fixture) {
     authorityTableCount,
     servingAuthority,
     stageAuthorityRows,
+    scopeMembershipRows,
+    removalPolicyRows,
     foreignKeyFindings: (result[7]?.results || []).length
   };
 }
@@ -595,9 +608,9 @@ function assertHistoricalOnboardingPreserved(state) {
 
 function assertLkgPreserved(fixture, state, expectedSchemaVersion) {
   const expectedLedger =
-    expectedSchemaVersion === CURRENT_SCHEMA_VERSION ? '1,2,3,4,5,6,7' : '1,2,3,4,5,6';
+    expectedSchemaVersion === CURRENT_SCHEMA_VERSION ? '1,2,3,4,5,6,7,8' : '1,2,3,4,5,6,7';
   const expectedCandidateStageTables = TENANT_SYNC_CANDIDATE_TABLES.length;
-  const expectedAuthorityTableCount = expectedSchemaVersion === CURRENT_SCHEMA_VERSION ? 2 : 0;
+  const expectedAuthorityTableCount = 2;
   if (
     state.identity?.tenant_id !== fixture.tenantId ||
     Number(state.identity?.schema_version) !== expectedSchemaVersion ||
@@ -606,21 +619,21 @@ function assertLkgPreserved(fixture, state, expectedSchemaVersion) {
     state.candidateStageTableCount !== expectedCandidateStageTables ||
     state.candidateRowCount !== 1 ||
     state.authorityTableCount !== expectedAuthorityTableCount ||
+    (expectedSchemaVersion === CURRENT_SCHEMA_VERSION &&
+      (state.scopeMembershipRows !== 0 || state.removalPolicyRows !== 0)) ||
+    (expectedSchemaVersion !== CURRENT_SCHEMA_VERSION &&
+      (state.scopeMembershipRows !== null || state.removalPolicyRows !== null)) ||
     state.foreignKeyFindings !== 0
   ) {
     throw new Error('fleet_canary_data_plane_schema_invalid');
   }
-  if (expectedSchemaVersion === CURRENT_SCHEMA_VERSION) {
-    if (
-      state.servingAuthority?.tenant_id !== fixture.tenantId ||
-      Number(state.servingAuthority?.contract_version) !== 1 ||
-      Number(state.servingAuthority?.revision) !== 0 ||
-      state.stageAuthorityRows !== 0
-    ) {
-      throw new Error('fleet_canary_authority_model_invalid');
-    }
-  } else if (state.servingAuthority !== null || state.stageAuthorityRows !== 0) {
-    throw new Error('fleet_canary_authority_model_leaked_backward');
+  if (
+    state.servingAuthority?.tenant_id !== fixture.tenantId ||
+    Number(state.servingAuthority?.contract_version) !== 1 ||
+    Number(state.servingAuthority?.revision) !== 0 ||
+    state.stageAuthorityRows !== 0
+  ) {
+    throw new Error('fleet_canary_authority_model_invalid');
   }
   if (
     state.historicalStage?.state !== 'preserved' ||
@@ -815,7 +828,7 @@ async function main() {
       fixture.databaseId = database.databaseId;
       await tenantBatch(
         fixture,
-        tenantDataPlaneV6Batch({
+        tenantDataPlaneV7Batch({
           tenantId: fixture.tenantId,
           source: {
             provider: 'yupoo',

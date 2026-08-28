@@ -30,34 +30,78 @@ function publicLeak(expression) {
   )`;
 }
 
-function composedProductCountSql() {
+function composedProductCountSql(context) {
+  if (Number(context?.schemaVersion || 0) < 8) {
+    return `(
+      (SELECT COUNT(*) FROM catalog_products p
+        WHERE NOT EXISTS (
+          SELECT 1 FROM supplier_sync_stage_product_details d
+           WHERE d.run_id=?1 AND d.public_product_id=p.product_id
+        ))
+      + (SELECT COUNT(*) FROM supplier_sync_stage_product_details d
+          WHERE d.run_id=?1 AND d.detail_state='complete')
+    )`;
+  }
   return `(
     (SELECT COUNT(*) FROM catalog_products p
       WHERE NOT EXISTS (
         SELECT 1 FROM supplier_sync_stage_product_details d
          WHERE d.run_id=?1 AND d.public_product_id=p.product_id
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM supplier_sync_stage_events e
+        JOIN supplier_sync_stage_runs r ON r.run_id=e.run_id
+         WHERE e.run_id=?1 AND e.public_product_id=p.product_id AND e.event_type='REMOVED'
+           AND NOT EXISTS (
+             SELECT 1 FROM supplier_scope_memberships sm
+              WHERE sm.tenant_id=r.tenant_id AND sm.public_product_id=p.product_id
+                AND sm.scope_id<>r.scope_id AND sm.state IN ('active','missing')
+           )
       ))
     + (SELECT COUNT(*) FROM supplier_sync_stage_product_details d
         WHERE d.run_id=?1 AND d.detail_state='complete')
   )`;
 }
 
-function composedMediaCountSql() {
+function composedMediaCountSql(context) {
+  if (Number(context?.schemaVersion || 0) < 8) {
+    return `(
+      (SELECT COUNT(*) FROM product_media pm
+        WHERE NOT EXISTS (
+          SELECT 1 FROM supplier_sync_stage_product_details d
+           WHERE d.run_id=?1 AND d.public_product_id=pm.product_id
+        ))
+      + (SELECT COUNT(*) FROM supplier_sync_stage_product_media pm WHERE pm.run_id=?1)
+    )`;
+  }
   return `(
     (SELECT COUNT(*) FROM product_media pm
       WHERE NOT EXISTS (
         SELECT 1 FROM supplier_sync_stage_product_details d
          WHERE d.run_id=?1 AND d.public_product_id=pm.product_id
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM supplier_sync_stage_events e
+        JOIN supplier_sync_stage_runs r ON r.run_id=e.run_id
+         WHERE e.run_id=?1 AND e.public_product_id=pm.product_id AND e.event_type='REMOVED'
+           AND NOT EXISTS (
+             SELECT 1 FROM supplier_scope_memberships sm
+              WHERE sm.tenant_id=r.tenant_id AND sm.public_product_id=pm.product_id
+                AND sm.scope_id<>r.scope_id AND sm.state IN ('active','missing')
+           )
       ))
     + (SELECT COUNT(*) FROM supplier_sync_stage_product_media pm WHERE pm.run_id=?1)
   )`;
 }
 
-function overrideMismatchSql() {
+function overrideMismatchSql(context) {
+  const overrideRelation = Number(context?.schemaVersion || 0) >= 8
+    ? 'catalog_product_effective_classification_overrides'
+    : 'catalog_product_classification_overrides';
   return `EXISTS (
     SELECT 1
       FROM supplier_sync_stage_classification_state c
-      LEFT JOIN catalog_product_classification_overrides o ON o.product_id=c.public_product_id
+      LEFT JOIN ${overrideRelation} o ON o.product_id=c.public_product_id
      WHERE c.run_id=?1 AND (
        c.override_applied<>CASE WHEN o.product_id IS NULL THEN 0 ELSE 1 END
        OR (o.product_id IS NOT NULL AND (
@@ -107,6 +151,27 @@ function absenceEventSql() {
   )`;
 }
 
+function removalPolicyGateSql() {
+  return `EXISTS (
+    SELECT 1
+      FROM supplier_sync_stage_runs r
+      JOIN supplier_sync_stage_removal_policy p
+        ON p.run_id=r.run_id AND p.tenant_id=r.tenant_id AND p.source_key=r.source_key
+     WHERE r.run_id=?1 AND r.tenant_id=?2 AND r.source_key=?3
+       AND p.scope_id=r.scope_id AND p.scope_kind=r.scope_kind
+       AND p.contract_version=1 AND p.policy_version=1 AND p.removal_threshold>=2
+       AND NOT EXISTS (
+         SELECT 1 FROM supplier_sync_stage_events e
+          WHERE e.run_id=?1 AND e.event_type IN ('MISSING','REMOVED') AND (
+            e.needs_detail<>0 OR e.next_miss_count IS NULL OR e.next_miss_count<1
+            OR COALESCE(e.reason_code,'')<>'sync_not_observed_authoritative'
+            OR (e.event_type='MISSING' AND e.next_miss_count>=p.removal_threshold)
+            OR (e.event_type='REMOVED' AND e.next_miss_count<p.removal_threshold)
+          )
+       )
+  )`;
+}
+
 function exactPromotingGate() {
   return `EXISTS (
     SELECT 1
@@ -125,6 +190,7 @@ function exactPromotingGate() {
 export function buildIncrementalPromotionPreflightBatch({ context }) {
   assertContext(context);
   const params = [context.importId, context.tenantId, context.sourceKey];
+  const removalSchema = Number(context.schemaVersion || 0) >= 8;
   return Object.freeze([
     {
       sql: `SELECT r.state, r.safety_outcome, r.verification_code, r.verified_at,
@@ -140,25 +206,18 @@ export function buildIncrementalPromotionPreflightBatch({ context }) {
              LIMIT 1`,
       params
     },
-    { sql: `SELECT ${composedProductCountSql()} AS total`, params: [context.importId] },
-    { sql: `SELECT ${composedMediaCountSql()} AS total`, params: [context.importId] },
+    { sql: `SELECT ${composedProductCountSql(context)} AS total`, params: [context.importId] },
+    { sql: `SELECT ${composedMediaCountSql(context)} AS total`, params: [context.importId] },
     {
       sql: `SELECT COUNT(*) AS total FROM supplier_sync_stage_events
              WHERE run_id=?1 AND event_type IN ('MISSING','REMOVED')`,
       params: [context.importId]
     },
+    ...(removalSchema
+      ? [{ sql: `SELECT CASE WHEN ${removalPolicyGateSql()} THEN 1 ELSE 0 END AS total`, params }]
+      : []),
     {
-      sql: `SELECT COUNT(*) AS total
-              FROM supplier_sync_stage_classification_state c
-              LEFT JOIN catalog_product_classification_overrides o ON o.product_id=c.public_product_id
-             WHERE c.run_id=?1 AND (
-               c.override_applied<>CASE WHEN o.product_id IS NULL THEN 0 ELSE 1 END
-               OR (o.product_id IS NOT NULL AND (
-                 COALESCE(c.merchant_override_version,0)<>o.override_version
-                 OR COALESCE(c.merchant_override_updated_at,'')<>COALESCE(o.updated_at,'')
-               ))
-               OR (o.product_id IS NULL AND c.merchant_override_version IS NOT NULL)
-             )`,
+      sql: `SELECT CASE WHEN ${overrideMismatchSql(context)} THEN 1 ELSE 0 END AS total`,
       params: [context.importId]
     },
     {
@@ -173,13 +232,19 @@ function resultRows(entry) {
 }
 
 export function parseIncrementalPromotionPreflight(result) {
+  const hasRemovalPolicyProbe = Array.isArray(result) && result.length >= 7;
+  const overrideIndex = hasRemovalPolicyProbe ? 5 : 4;
+  const leakIndex = hasRemovalPolicyProbe ? 6 : 5;
   return Object.freeze({
     run: resultRows(result?.[0])[0] || null,
     composedProducts: Number(resultRows(result?.[1])[0]?.total || 0),
     composedMediaRelationships: Number(resultRows(result?.[2])[0]?.total || 0),
     absenceEvents: Number(resultRows(result?.[3])[0]?.total || 0),
-    overrideMismatches: Number(resultRows(result?.[4])[0]?.total || 0),
-    publicLeakFindings: Number(resultRows(result?.[5])[0]?.total || 0)
+    removalPolicyValid: hasRemovalPolicyProbe
+      ? Number(resultRows(result?.[4])[0]?.total || 0)
+      : null,
+    overrideMismatches: Number(resultRows(result?.[overrideIndex])[0]?.total || 0),
+    publicLeakFindings: Number(resultRows(result?.[leakIndex])[0]?.total || 0)
   });
 }
 
@@ -205,8 +270,11 @@ export function assessIncrementalPromotionAdmission(preflight, context) {
   if (Number(run.base_authority_revision) !== Number(run.current_authority_revision)) {
     return { allowed: false, code: 'sync_promotion_stale_base' };
   }
-  if (preflight.absenceEvents > 0) {
+  if (preflight.absenceEvents > 0 && Number(context.schemaVersion || 0) < 8) {
     return { allowed: false, code: 'sync_promotion_removal_not_ready' };
+  }
+  if (Number(context.schemaVersion || 0) >= 8 && Number(preflight.removalPolicyValid || 0) !== 1) {
+    return { allowed: false, code: 'sync_promotion_removal_policy_invalid' };
   }
   if (preflight.overrideMismatches > 0) {
     return { allowed: false, code: 'sync_promotion_merchant_override_stale' };
@@ -228,6 +296,8 @@ export function buildIncrementalPromotionTransaction({ context }) {
   assertContext(context);
   const params = [context.importId, context.tenantId, context.sourceKey];
   const gate = exactPromotingGate();
+  const removalSchema = Number(context.schemaVersion || 0) >= 8;
+  const removalGate = removalSchema ? removalPolicyGateSql() : `NOT ${absenceEventSql()}`;
   const statements = [
     {
       sql: `UPDATE supplier_sync_stage_runs
@@ -246,11 +316,11 @@ export function buildIncrementalPromotionTransaction({ context }) {
                     AND sa.contract_version=1 AND a.contract_version=1
                     AND a.revision=sa.base_authority_revision
                )
-               AND NOT ${absenceEventSql()}
-               AND NOT ${overrideMismatchSql()}
+               AND ${removalGate}
+               AND NOT ${overrideMismatchSql(context)}
                AND NOT (${candidatePublicLeakSql()})
-               AND ${composedProductCountSql()} BETWEEN 1 AND ${TENANT_INCREMENTAL_PROMOTION_MAX_PRODUCTS}
-               AND ${composedMediaCountSql()} <= ${TENANT_INCREMENTAL_PROMOTION_MAX_MEDIA_RELATIONSHIPS}`,
+               AND ${composedProductCountSql(context)} BETWEEN 1 AND ${TENANT_INCREMENTAL_PROMOTION_MAX_PRODUCTS}
+               AND ${composedMediaCountSql(context)} <= ${TENANT_INCREMENTAL_PROMOTION_MAX_MEDIA_RELATIONSHIPS}`,
       params
     },
     {
@@ -303,6 +373,67 @@ export function buildIncrementalPromotionTransaction({ context }) {
                AND NOT EXISTS (SELECT 1 FROM supplier_album_index i WHERE i.tenant_id=?2 AND i.source_key=?3 AND i.album_source_id=o.album_source_id)`,
       params
     },
+    ...(removalSchema ? [
+      {
+        sql: `INSERT INTO supplier_scope_memberships
+                (tenant_id,source_key,scope_id,scope_kind,album_source_id,public_product_id,
+                 contract_version,removal_policy_version,removal_threshold,state,miss_count,
+                 last_observed_run_id,last_progress_run_id,detached_at,updated_at)
+              SELECT r.tenant_id,r.source_key,r.scope_id,r.scope_kind,o.album_source_id,o.public_product_id,
+                     p.contract_version,p.policy_version,p.removal_threshold,'active',0,?1,?1,NULL,CURRENT_TIMESTAMP
+                FROM supplier_sync_stage_observations o
+                JOIN supplier_sync_stage_runs r ON r.run_id=o.run_id
+                JOIN supplier_sync_stage_removal_policy p ON p.run_id=r.run_id
+               WHERE o.run_id=?1 AND ${gate}
+              ON CONFLICT(tenant_id,source_key,scope_id,album_source_id) DO UPDATE SET
+                public_product_id=excluded.public_product_id,scope_kind=excluded.scope_kind,
+                contract_version=excluded.contract_version,removal_policy_version=excluded.removal_policy_version,
+                removal_threshold=excluded.removal_threshold,state='active',miss_count=0,
+                last_observed_run_id=?1,last_progress_run_id=?1,detached_at=NULL,updated_at=CURRENT_TIMESTAMP`,
+        params
+      },
+      {
+        sql: `INSERT INTO supplier_scope_memberships
+                (tenant_id,source_key,scope_id,scope_kind,album_source_id,public_product_id,
+                 contract_version,removal_policy_version,removal_threshold,state,miss_count,
+                 last_progress_run_id,detached_at,updated_at)
+              SELECT r.tenant_id,r.source_key,r.scope_id,r.scope_kind,e.album_source_id,e.public_product_id,
+                     p.contract_version,p.policy_version,p.removal_threshold,
+                     CASE WHEN e.event_type='REMOVED' THEN 'detached' ELSE 'missing' END,
+                     e.next_miss_count,?1,
+                     CASE WHEN e.event_type='REMOVED' THEN CURRENT_TIMESTAMP ELSE NULL END,CURRENT_TIMESTAMP
+                FROM supplier_sync_stage_events e
+                JOIN supplier_sync_stage_runs r ON r.run_id=e.run_id
+                JOIN supplier_sync_stage_removal_policy p ON p.run_id=r.run_id
+               WHERE e.run_id=?1 AND e.event_type IN ('MISSING','REMOVED') AND ${gate}
+              ON CONFLICT(tenant_id,source_key,scope_id,album_source_id) DO UPDATE SET
+                public_product_id=excluded.public_product_id,scope_kind=excluded.scope_kind,
+                contract_version=excluded.contract_version,removal_policy_version=excluded.removal_policy_version,
+                removal_threshold=excluded.removal_threshold,state=excluded.state,miss_count=excluded.miss_count,
+                last_progress_run_id=?1,detached_at=excluded.detached_at,updated_at=CURRENT_TIMESTAMP`,
+        params
+      },
+      {
+        sql: `UPDATE supplier_album_index
+                 SET status=CASE
+                       WHEN EXISTS (SELECT 1 FROM supplier_scope_memberships sm
+                                    WHERE sm.tenant_id=?2 AND sm.public_product_id=supplier_album_index.public_product_id
+                                      AND sm.state='active') THEN 'active'
+                       WHEN EXISTS (SELECT 1 FROM supplier_scope_memberships sm
+                                    WHERE sm.tenant_id=?2 AND sm.public_product_id=supplier_album_index.public_product_id
+                                      AND sm.state='missing') THEN 'missing'
+                       ELSE 'deleted'
+                     END,
+                     miss_count=COALESCE((SELECT MAX(sm.miss_count) FROM supplier_scope_memberships sm
+                                          WHERE sm.tenant_id=?2 AND sm.public_product_id=supplier_album_index.public_product_id),0),
+                     updated_at=CURRENT_TIMESTAMP
+               WHERE tenant_id=?2 AND source_key=?3 AND ${gate}
+                 AND EXISTS (SELECT 1 FROM supplier_sync_stage_events e
+                              WHERE e.run_id=?1 AND e.album_source_id=supplier_album_index.album_source_id
+                                AND e.event_type IN ('MISSING','REMOVED'))`,
+        params
+      }
+    ] : []),
     {
       sql: `INSERT INTO catalog_categories
               (category_id,name,parent_id,depth,sort_order,product_count,updated_at)
@@ -376,6 +507,70 @@ export function buildIncrementalPromotionTransaction({ context }) {
               classification_confidence=excluded.classification_confidence,updated_at=CURRENT_TIMESTAMP`,
       params
     },
+    ...(removalSchema ? [
+      {
+        sql: `INSERT INTO catalog_product_classification_override_retention
+                (product_id,override_json,override_version,original_created_at,original_updated_at,
+                 retained_by_run_id,retained_at,updated_at)
+              SELECT o.product_id,o.override_json,o.override_version,o.created_at,o.updated_at,
+                     ?1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
+                FROM catalog_product_classification_overrides o
+                JOIN supplier_sync_stage_events e ON e.public_product_id=o.product_id
+                JOIN supplier_sync_stage_runs r ON r.run_id=e.run_id
+               WHERE e.run_id=?1 AND e.event_type='REMOVED' AND ${gate}
+                 AND NOT EXISTS (SELECT 1 FROM supplier_scope_memberships sm
+                                  WHERE sm.tenant_id=r.tenant_id AND sm.public_product_id=e.public_product_id
+                                    AND sm.state IN ('active','missing'))
+              ON CONFLICT(product_id) DO UPDATE SET
+                override_json=excluded.override_json,override_version=excluded.override_version,
+                original_created_at=excluded.original_created_at,original_updated_at=excluded.original_updated_at,
+                retained_by_run_id=excluded.retained_by_run_id,retained_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP`,
+        params
+      },
+      {
+        sql: `DELETE FROM catalog_products
+               WHERE ${gate}
+                 AND EXISTS (
+                   SELECT 1 FROM supplier_sync_stage_events e
+                   JOIN supplier_sync_stage_runs r ON r.run_id=e.run_id
+                    WHERE e.run_id=?1 AND e.event_type='REMOVED'
+                      AND e.public_product_id=catalog_products.product_id
+                      AND NOT EXISTS (SELECT 1 FROM supplier_scope_memberships sm
+                                      WHERE sm.tenant_id=r.tenant_id AND sm.public_product_id=e.public_product_id
+                                        AND sm.state IN ('active','missing'))
+                 )`,
+        params
+      },
+      {
+        sql: `INSERT INTO catalog_product_classification_overrides
+                (product_id,override_json,override_version,created_at,updated_at)
+              SELECT retained.product_id,retained.override_json,retained.override_version,
+                     retained.original_created_at,retained.original_updated_at
+                FROM catalog_product_classification_override_retention retained
+               WHERE ${gate}
+                 AND EXISTS (SELECT 1 FROM catalog_products p WHERE p.product_id=retained.product_id)
+                 AND EXISTS (SELECT 1 FROM supplier_sync_stage_events e
+                              WHERE e.run_id=?1 AND e.public_product_id=retained.product_id
+                                AND e.event_type='RESTORED')
+              ON CONFLICT(product_id) DO UPDATE SET
+                override_json=excluded.override_json,override_version=excluded.override_version,
+                updated_at=excluded.updated_at
+              WHERE excluded.override_version>=catalog_product_classification_overrides.override_version`,
+        params
+      },
+      {
+        sql: `DELETE FROM catalog_product_classification_override_retention
+               WHERE ${gate}
+                 AND EXISTS (SELECT 1 FROM supplier_sync_stage_events e
+                              WHERE e.run_id=?1
+                                AND e.public_product_id=catalog_product_classification_override_retention.product_id
+                                AND e.event_type='RESTORED')
+                 AND EXISTS (SELECT 1 FROM catalog_product_classification_overrides o
+                              WHERE o.product_id=catalog_product_classification_override_retention.product_id
+                                AND o.override_version>=catalog_product_classification_override_retention.override_version)`,
+        params
+      }
+    ] : []),
     {
       sql: `DELETE FROM product_media
              WHERE ${gate} AND product_id IN (

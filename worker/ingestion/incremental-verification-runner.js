@@ -85,6 +85,18 @@ function tenantRequest(context, platform, batch, queryBatch, fetchImpl) {
   );
 }
 
+function globalRemovalEventSql(context, alias = 'e') {
+  if (Number(context?.schemaVersion || 0) < 8) return `${alias}.event_type='REMOVED'`;
+  return `(${alias}.event_type='REMOVED' AND NOT EXISTS (
+    SELECT 1 FROM supplier_scope_memberships sm
+    JOIN supplier_sync_stage_runs sr ON sr.run_id=${alias}.run_id
+     WHERE sm.tenant_id=sr.tenant_id
+       AND sm.public_product_id=${alias}.public_product_id
+       AND sm.scope_id<>sr.scope_id
+       AND sm.state IN ('active','missing')
+  ))`;
+}
+
 async function loadReadiness(context, platform, queryBatch, fetchImpl) {
   const result = await tenantRequest(
     context,
@@ -210,6 +222,7 @@ function addRowsToMap(target, rows, keyField) {
 }
 
 async function persistProposedMerchandising(context, platform, queryBatch, fetchImpl) {
+  const globalRemoval = globalRemovalEventSql(context);
   const result = await tenantRequest(
     context,
     platform,
@@ -221,7 +234,7 @@ async function persistProposedMerchandising(context, platform, queryBatch, fetch
                WHERE NOT EXISTS (
                  SELECT 1 FROM supplier_sync_stage_events e
                   WHERE e.run_id=?1 AND e.public_product_id=p.product_id
-                    AND (e.needs_detail=1 OR e.event_type='REMOVED')
+                    AND (e.needs_detail=1 OR ${globalRemoval})
                )
                GROUP BY t.entity_type`,
         params: [context.importId]
@@ -242,7 +255,7 @@ async function persistProposedMerchandising(context, platform, queryBatch, fetch
                WHERE NOT EXISTS (
                  SELECT 1 FROM supplier_sync_stage_events e
                   WHERE e.run_id=?1 AND e.public_product_id=pf.product_id
-                    AND (e.needs_detail=1 OR e.event_type='REMOVED')
+                    AND (e.needs_detail=1 OR ${globalRemoval})
                )
                GROUP BY f.facet_id`,
         params: [context.importId]
@@ -323,6 +336,11 @@ function metricSpecs(context) {
   const runId = context.importId;
   const tenantId = context.tenantId;
   const sourceKey = context.sourceKey;
+  const removalSchema = Number(context.schemaVersion || 0) >= 8;
+  const overrideRelation = removalSchema
+    ? 'catalog_product_effective_classification_overrides'
+    : 'catalog_product_classification_overrides';
+  const globalRemoval = globalRemovalEventSql(context);
   const publicLeak = (expression) => `(
     lower(COALESCE(${expression},'')) LIKE '%x.yupoo.com%'
     OR lower(COALESCE(${expression},'')) LIKE '%photo.yupoo.com%'
@@ -408,6 +426,22 @@ function metricSpecs(context) {
       WHERE run_id=?1 AND event_type IN ('MISSING','REMOVED')
         AND (needs_detail<>0 OR next_miss_count IS NULL OR next_miss_count<1
              OR COALESCE(reason_code,'')<>'sync_not_observed_authoritative')`, [runId]],
+    ...(removalSchema ? [
+      ['removalPolicyValid', `SELECT COUNT(*) AS total
+         FROM supplier_sync_stage_removal_policy p
+         JOIN supplier_sync_stage_runs r ON r.run_id=p.run_id
+        WHERE p.run_id=?1 AND p.tenant_id=?2 AND p.source_key=?3
+          AND p.scope_id=r.scope_id AND p.scope_kind=r.scope_kind
+          AND p.contract_version=1 AND p.policy_version=1 AND p.removal_threshold>=2`,
+        [runId, tenantId, sourceKey]],
+      ['removalSemantics', `SELECT COUNT(*) AS total
+         FROM supplier_sync_stage_events e
+         JOIN supplier_sync_stage_removal_policy p ON p.run_id=e.run_id
+        WHERE e.run_id=?1 AND e.event_type IN ('MISSING','REMOVED') AND (
+          (e.event_type='MISSING' AND e.next_miss_count>=p.removal_threshold)
+          OR (e.event_type='REMOVED' AND e.next_miss_count<p.removal_threshold)
+        )`, [runId]]
+    ] : []),
     ['extraneousDetails', `SELECT COUNT(*) AS total
        FROM supplier_sync_stage_product_details d
       WHERE d.run_id=?1 AND NOT EXISTS (
@@ -512,7 +546,7 @@ function metricSpecs(context) {
       )`, [runId, CATALOG_CLASSIFIER_VERSION, CATALOG_CLASSIFIER_KEY]],
     ['overrideMismatch', `SELECT COUNT(*) AS total
        FROM supplier_sync_stage_classification_state c
-       LEFT JOIN catalog_product_classification_overrides o ON o.product_id=c.public_product_id
+       LEFT JOIN ${overrideRelation} o ON o.product_id=c.public_product_id
        LEFT JOIN supplier_sync_stage_intelligence_state i
          ON i.run_id=c.run_id AND i.public_product_id=c.public_product_id
       WHERE c.run_id=?1 AND (
@@ -592,7 +626,7 @@ function metricSpecs(context) {
       WHERE NOT EXISTS (
         SELECT 1 FROM supplier_sync_stage_events e
          WHERE e.run_id=?1 AND e.public_product_id=p.product_id
-           AND (e.needs_detail=1 OR e.event_type='REMOVED')
+           AND (e.needs_detail=1 OR ${globalRemoval})
       ) AND (
         ${publicLeak('p.name')} OR ${publicLeak('p.display_name')}
         OR ${publicLeak('p.description')} OR ${publicLeak('p.search_text')}
@@ -606,7 +640,7 @@ function metricSpecs(context) {
          ))
        - (SELECT COUNT(*) FROM catalog_products p WHERE EXISTS (
            SELECT 1 FROM supplier_sync_stage_events e
-            WHERE e.run_id=?1 AND e.public_product_id=p.product_id AND e.event_type='REMOVED'
+            WHERE e.run_id=?1 AND e.public_product_id=p.product_id AND ${globalRemoval}
               AND e.needs_detail=0
          ))
        + (SELECT COUNT(*) FROM supplier_sync_stage_product_details d
@@ -665,6 +699,7 @@ export function incrementalVerificationFindings(run, metrics) {
     ['observationIdentityMismatch', 'observation_identity_mismatch'],
     ['eventDetailSemantics', 'event_detail_semantics_invalid'],
     ['absenceSemantics', 'absence_semantics_invalid'],
+    ['removalSemantics', 'removal_semantics_invalid'],
     ['extraneousDetails', 'candidate_detail_extraneous'],
     ['missingDetails', 'candidate_detail_missing'],
     ['invalidProductIds', 'public_product_identity_invalid'],
@@ -688,6 +723,9 @@ export function incrementalVerificationFindings(run, metrics) {
   for (const [metric, code] of blockingMetricCodes) {
     if (Number(metrics[metric] || 0) > 0) findings.push(code);
   }
+  if (Object.hasOwn(metrics, 'removalPolicyValid') && Number(metrics.removalPolicyValid || 0) !== 1) {
+    findings.push('removal_policy_invalid');
+  }
   if (expectedDetail > 0 && Number(metrics.classificationMetaValid || 0) !== 1) {
     findings.push('candidate_classification_meta_invalid');
   }
@@ -698,6 +736,15 @@ export function incrementalVerificationFindings(run, metrics) {
 }
 
 async function markVerified(context, platform, queryBatch, fetchImpl) {
+  const removalPolicyGate = Number(context.schemaVersion || 0) >= 8
+    ? `AND EXISTS (
+         SELECT 1 FROM supplier_sync_stage_removal_policy p
+         JOIN supplier_sync_stage_runs rr ON rr.run_id=p.run_id
+        WHERE p.run_id=?1 AND p.tenant_id=?2 AND p.source_key=?3
+          AND p.scope_id=rr.scope_id AND p.scope_kind=rr.scope_kind
+          AND p.contract_version=1 AND p.policy_version=1 AND p.removal_threshold>=2
+       )`
+    : '';
   const result = await tenantRequest(
     context,
     platform,
@@ -713,6 +760,7 @@ async function markVerified(context, platform, queryBatch, fetchImpl) {
                  AND disqualifying_failure_count=0
                  AND staged_observation_count=observed_count
                  AND staged_event_count=expected_event_count
+                 ${removalPolicyGate}
                  AND (SELECT COUNT(*) FROM supplier_sync_stage_observations o WHERE o.run_id=?1)=observed_count
                  AND (SELECT COUNT(*) FROM supplier_sync_stage_events e WHERE e.run_id=?1)=expected_event_count
                  AND (SELECT COUNT(*) FROM supplier_sync_stage_events e WHERE e.run_id=?1 AND e.needs_detail=1)=expected_detail_count
