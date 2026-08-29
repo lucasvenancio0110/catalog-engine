@@ -33,6 +33,9 @@ describe('M7D9 trusted-main safe-removal canary contract', () => {
     expect(script).toContain("from '../worker/tenant-data-plane-schema-v8.js'");
     expect(script).toContain('TENANT_DATA_PLANE_SCHEMA_VERSION !== 8');
     expect(script).toContain('createEphemeralDatabase');
+    expect(script).toContain("from './d1-batch-chunks.mjs'");
+    expect(script).toContain('for (const chunk of splitD1Batch(schemaBootstrap))');
+    expect(script).toContain('await d1Batch(fixture.databaseId, chunk)');
     expect(script).toContain('cem7d9-');
     expect(script).toContain('productionBusinessDataMutated: false');
     expect(script).toContain('ephemeralTenantDataPlanes: true');
