@@ -24,6 +24,18 @@ describe('exact-SHA production proof trigger alignment', () => {
     expect(deployWorkflow).toContain("'.github/workflows/activate-tenant-import-queues.yml'");
   });
 
+  it('revalidates the application when M7D9 production-proof inputs change', () => {
+    for (const path of [
+      '.github/workflows/cloudflare-m7d9-removal-canary.yml',
+      'scripts/cloudflare-m7d9-removal-canary.mjs',
+      'scripts/d1-batch-chunks.mjs',
+      'tests/d1-batch-chunks.test.mjs',
+      'tests/tenant-m7d9-removal-canary.test.mjs'
+    ]) {
+      expect(deployWorkflow).toContain(`'${path}'`);
+    }
+  });
+
   it('waits outside the mutation lock before fleet and automatic import take the shared production lock', () => {
     for (const workflow of [fleetWorkflow, autoWorkflow]) {
       const prerequisiteStart = workflow.indexOf('  prerequisites:');
