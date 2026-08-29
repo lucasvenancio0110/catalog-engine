@@ -15,7 +15,8 @@ import { initialTenantImportId } from '../worker/tenant-import-queue.js';
 import {
   TENANT_DATA_PLANE_SCHEMA_VERSION,
   tenantDataPlaneCurrentBatch
-} from '../worker/tenant-data-plane-schema-v7.js';
+} from '../worker/tenant-data-plane-schema-v8.js';
+import { splitD1Batch } from './d1-batch-chunks.mjs';
 
 const API_ORIGIN = 'https://api.cloudflare.com';
 const ACCOUNT_ID = String(process.env.CLOUDFLARE_ACCOUNT_ID || '').trim();
@@ -245,19 +246,19 @@ async function setupFixture(scope) {
   });
   fixture.databaseId = database.databaseId;
 
-  await tenantBatch(
-    fixture.databaseId,
-    tenantDataPlaneCurrentBatch({
-      tenantId: fixture.tenantId,
-      source: {
-        provider: 'yupoo',
-        sourceKey: fixture.sourceKey,
-        sourceUrl: fixture.sourceUrl,
-        syncStrategy: 'incremental',
-        removalMissThreshold: 3
-      }
-    })
-  );
+  const schemaBootstrap = tenantDataPlaneCurrentBatch({
+    tenantId: fixture.tenantId,
+    source: {
+      provider: 'yupoo',
+      sourceKey: fixture.sourceKey,
+      sourceUrl: fixture.sourceUrl,
+      syncStrategy: 'incremental',
+      removalMissThreshold: 3
+    }
+  });
+  for (const chunk of splitD1Batch(schemaBootstrap)) {
+    await tenantBatch(fixture.databaseId, chunk);
+  }
 
   const worker = await uploadTenantCatalogWorker({
     ...platformConfig(),
@@ -458,6 +459,18 @@ async function waitForCeiCompletion(fixture) {
     }
     await sleep(POLL_MS);
   }
+  const state = await ceiControlState(fixture).catch(() => null);
+  console.error(
+    JSON.stringify({
+      autoCanaryCeiTimeoutState: true,
+      provisioningStatus: String(state?.run?.status || ''),
+      provisioningStep: String(state?.run?.current_step || ''),
+      classificationStatus: String(state?.classification?.status || ''),
+      classificationErrorCode: safeJobErrorCode(state?.classification?.last_error_code),
+      verificationStatus: String(state?.verification?.status || ''),
+      verificationErrorCode: safeJobErrorCode(state?.verification?.last_error_code)
+    })
+  );
   throw new Error('auto_canary_cei_completion_timeout');
 }
 
