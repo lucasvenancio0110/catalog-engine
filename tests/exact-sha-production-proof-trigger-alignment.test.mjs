@@ -36,6 +36,16 @@ describe('exact-SHA production proof trigger alignment', () => {
     }
   });
 
+  it('revalidates the application when the automatic import production proof changes', () => {
+    for (const path of [
+      '.github/workflows/cloudflare-auto-tenant-import-canary.yml',
+      'scripts/cloudflare-auto-tenant-import-canary.mjs',
+      'tests/tenant-import-auto-canary.test.mjs'
+    ]) {
+      expect(deployWorkflow).toContain(`'${path}'`);
+    }
+  });
+
   it('waits outside the mutation lock before fleet and automatic import take the shared production lock', () => {
     for (const workflow of [fleetWorkflow, autoWorkflow]) {
       const prerequisiteStart = workflow.indexOf('  prerequisites:');
