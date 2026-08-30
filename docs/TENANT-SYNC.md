@@ -625,7 +625,7 @@ Promotion requires an idempotency key plus phase-aware lease/compare-and-set. Un
 
 M7D8 is **PRODUCTION GREEN** at trusted-main implementation SHA `cb09e35b753a37726d74b18eab12761885e38faa`. Migration `0021_tenant_sync_finalization.sql` persists the exact due slot and finalization lease; scheduler job creation no longer advances schedule authority; post-promotion finalization uses exact tenant/source/run/slot ownership plus a phase-aware lease/CAS; an exact already-promoted replay commits only the remaining control metadata without promoting twice; duplicate terminal finalization is a no-op. Trusted-main deploy `33100902771`, M7D7 regression canary `33101085323` and dedicated M7D8 crash/replay canary `33101085492` passed on the exact implementation SHA. Full closure evidence lives in `M7D8-CLOSURE-2026-08-27.md`.
 
-Recurring Intelligent Sync remains disabled, the active cohort remains empty and M7D9 is the next approved slice. M7D8 does not activate repeated-miss/removal semantics or broad recovery/DLQ behavior.
+M7D8 historically leaves recurring Intelligent Sync disabled and does not itself activate repeated-miss/removal semantics or broad recovery/DLQ behavior. M7D9 is now **PRODUCTION GREEN**; the active tenant sync cohort remains empty and M7D10 is the next approved slice.
 
 ### M7D9 — Repeated Miss and Safe Removal
 
@@ -640,6 +640,10 @@ Required contract:
 - REMOVED is a candidate event that must verify and promote;
 - RESTORED resets/progresses the ledger deterministically and can safely return a removed product;
 - outage, 429/5xx, malformed HTML, pagination failure, zero and catastrophic drop never progress removal.
+
+M7D9 is **PRODUCTION GREEN** at trusted-main implementation/proof SHA `9214094197b010f46f7bf5144e7dbb445afa90ef`. Tenant data-plane schema v8 freezes versioned scope/threshold policy per run, tracks scoped membership misses, detaches one scope without deleting a product still owned by another valid scope, retains merchant classification overrides before final canonical deletion and reapplies them on `RESTORED`. Duplicate/replayed promoted runs are idempotent and cannot increment the miss ledger twice. Exact-SHA deploy, Queue, fleet v7→v8, M7D7/D8 regressions, dedicated safe-removal proof and automatic initial-import/CEI regression all passed. The historical D7 `sync_promotion_removal_not_ready` boundary is therefore closed only for valid schema-v8 removal candidates; recurring tenant Intelligent Sync remains disabled. Full evidence lives in `M7D9-CLOSURE-2026-08-30.md`.
+
+M7D10 is the next approved slice and owns crash/lease/retry/DLQ/replay/operational-observability closure; M7D9 does not claim those paths.
 
 ### M7D10 — Recovery, Replay and Operational Observability
 

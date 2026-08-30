@@ -335,66 +335,54 @@ Do **not** attempt to make this file contain its own final repository HEAD as an
 
 # 10. LAST KNOWN CHECKPOINT — MUST BE REVALIDATED LIVE
 
-Captured against live GitHub on **2026-08-27 (America/Sao_Paulo)**.
+Captured against live GitHub on **2026-08-30 (America/Sao_Paulo)**.
 
 ## Repository / capture semantics
 
 ```text
 repository = lucasvenancio0110/catalog-engine
 branch = main
-production implementation checkpoint = cb09e35b753a37726d74b18eab12761885e38faa
-prior documentation reconciliation capture point after PR #154 = 8c1f40012355d6d29f1add4d2990d3b24f101eb8
+production implementation checkpoint = 9214094197b010f46f7bf5144e7dbb445afa90ef
+pre-closure live repository capture point = f03a30ca896c8039ec7be9fc80358f3b04b84f73
 ```
 
 The two SHAs intentionally mean different things:
 
-- `cb09e35b...` is the last known **feature implementation SHA with exact M7D8 trusted-main production proof**;
-- `8c1f4001...` is the prior **documentation-only repository capture point** that completed M7D7 continuity reconciliation before M7D8 implementation. The M7D8 closure commit is intentionally not self-recorded as an eternal HEAD; discover live `main`.
+- `92140941...` is the final **M7D9 trusted-main production implementation/proof SHA**;
+- `f03a30ca...` is the later live-main capture point produced by the distinct transitional default-catalog sync and modifies only the sanitized compatibility snapshot `data/catalog.json` relative to the M7D9 proof SHA. It is preserved by the documentation closure and does not replace the production implementation identity.
 
 Neither value is permission to skip live GitHub revalidation.
 
-Last known production-feature merge:
+M7D9 primary feature implementation entered through PR `#157 — m7d9: remove repeatedly missing products safely`; production-proof fixes continued through PRs `#158–#164`, with final proof SHA `9214094197b010f46f7bf5144e7dbb445afa90ef`.
+
+## Exact known trusted-main status on the M7D9 production implementation SHA
+
+The exact SHA `9214094197b010f46f7bf5144e7dbb445afa90ef` completed **SUCCESS** for:
 
 ```text
-PR #155 — m7d8: finalize promoted sync control state exactly once
-production implementation SHA = cb09e35b753a37726d74b18eab12761885e38faa
-```
-
-Continuity protocol merge:
-
-```text
-PR #151 — docs: add universal AI continuity entrypoint
-documentation-only SHA = cf026808ff8809c2cd9458ae51fb229635398ec9
-```
-
-## Exact known trusted-main status on the M7D8 production implementation SHA
-
-The exact SHA `cb09e35b753a37726d74b18eab12761885e38faa` published success for:
-
-```text
-catalog-engine/queue-consumer-activation
-  run 33100902745
-
 catalog-engine/application-deploy
-  run 33100902771
+  run 33262375277
+
+catalog-engine/queue-consumer-activation
+  run 33262420873
 
 catalog-engine/tenant-data-plane-fleet-canary
-  run 33101085125
+  run 33262420846 / job 99126693083
 
 catalog-engine/tenant-incremental-affected-detail-canary
-  run 33101085323
-
 catalog-engine/tenant-incremental-cei-candidate-canary
-  run 33101085323
-
 catalog-engine/tenant-incremental-candidate-verification-canary
-  run 33101085323
-
 catalog-engine/tenant-incremental-promotion-authority-canary
-  run 33101085323
+  cumulative run 33262420886 / job 99126532164
 
 catalog-engine/tenant-incremental-finalization-canary
-  run 33101085492
+  run 33262420896 / job 99126532227
+
+catalog-engine/tenant-incremental-safe-removal-canary
+  run 33262420879 / job 99126532113
+
+automatic initial-import + CEI regression
+  run 33262420865 / job 99127336932
 ```
 
 This is a last-known checkpoint only. Requery statuses/runs before using it as current truth.
@@ -418,8 +406,8 @@ M7D5 = PRODUCTION GREEN
 M7D6 = PRODUCTION GREEN
 M7D7 = PRODUCTION GREEN
 M7D8 = PRODUCTION GREEN
-M7D9 = PLANNED — NEXT APPROVED
-M7D10 = PLANNED
+M7D9 = PRODUCTION GREEN
+M7D10 = PLANNED — NEXT APPROVED
 M7D11 = PLANNED / scope decision before customer UI
 M7E = DECISION REQUIRED / activation-only
 ```
@@ -441,11 +429,12 @@ These debts do not authorize unrelated runtime changes. Fix them in bounded docu
 Last known active code target:
 
 ```text
-TENANT_DATA_PLANE_SCHEMA_VERSION = 7
-migration command capability = v3
+TENANT_DATA_PLANE_SCHEMA_VERSION = 8
+migration command capability = v4
+historical compatibility = v3 -> schema7 remains accepted
 ```
 
-Schema v7 provides serving-authority revision + immutable run base-authority snapshot for stale-base CAS.
+Schema v8 adds scoped membership/miss authority, immutable removal policy and merchant-override retention on top of the v7 serving-authority CAS state.
 
 ## Critical Intelligent Sync activation boundary
 
@@ -457,9 +446,11 @@ TENANT_SYNC_ACTIVE_COHORT = empty
 recurring Intelligent Sync = disabled
 ```
 
-Do not enable recurring sync in M7D8, M7D9, M7D10 or M7D11.
+Do not enable recurring sync in M7D10 or M7D11; M7D8/M7D9 are already closed with the scheduler still disabled.
 
 Do not create a real cohort merely to make a canary easier.
+
+The scheduled legacy/default-catalog `sync-yupoo-incremental.yml` workflow is a distinct transitional automation and may advance the sanitized `data/catalog.json` snapshot even while tenant Intelligent Sync remains disabled. Preserve and audit those bot commits separately; do not misclassify them as M7 tenant-cohort activation.
 
 ---
 
@@ -467,27 +458,19 @@ Do not create a real cohort merely to make a canary easier.
 
 Subject to live revalidation, the next roadmap slice is:
 
-## M7D9 — Repeated Miss and Safe Removal
+## M7D10 — Recovery, Replay and Operational Observability
 
 Commercial outcome:
 
-> Remove products truly gone from the supplier without deleting healthy products because of a failed scan.
+> Ordinary failures recover without daily owner intervention while exceptions remain diagnosable.
 
 Normative owner:
 
 - `docs/TENANT-SYNC.md`
 
-Required contract:
+Required proof covers duplicate Queue delivery, expired lease/reclaim, crash between listing chunks, affected-detail failure, crash before/after verify, crash before/during/after authority switch, post-promotion redelivery, partial-item error, bounded retry exhaustion, DLQ/replay ownership and unrelated-tenant continuity. Errors must be phase-aware and safe, unresolved failed work must block conflicts, and LKG/evidence must remain preserved until exact audited cleanup.
 
-- only independent complete, healthy, plausible and safety-authorized promoted runs may progress miss state;
-- duplicate delivery/run must not increment miss state twice;
-- incomplete scope, category exit, provider outage, 429/5xx, malformed HTML, pagination failure, zero result or catastrophic drop must not reduce unrelated/global healthy membership;
-- miss threshold and scope identity must be explicit and versioned;
-- REMOVED is a candidate event that must still verify and promote safely;
-- RESTORED must reset/progress the ledger deterministically and safely return a removed product;
-- recurring Intelligent Sync remains disabled and no real activation cohort is created in M7D9.
-
-M7D9 must not absorb M7D10 recovery/DLQ/observability, M7D11 change-feed scope or M7E activation.
+M7D10 must not absorb M7D11 customer change/review feed scope or M7E activation. Recurring tenant Intelligent Sync remains disabled and no real activation cohort is created in M7D10.
 
 ---
 
@@ -496,8 +479,6 @@ M7D9 must not absorb M7D10 recovery/DLQ/observability, M7D11 change-feed scope o
 Subject to live roadmap revalidation:
 
 ```text
-M7D9 — Repeated Miss and Safe Removal
-↓
 M7D10 — Recovery, Replay and Operational Observability
 ↓
 M7D11 — Safe Change and Review Feed

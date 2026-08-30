@@ -89,17 +89,18 @@ v4 -> detailed domain-neutral CEI intelligence state
 v5 -> private staged incremental-sync state
 v6 -> private relational candidate detail/media/CEI/merchandising state
 v7 -> serving-authority revision + run-scoped stale-base snapshot for atomic promotion CAS
+v8 -> scoped supplier membership/miss ledger + immutable removal policy + merchant-override retention
 ```
 
 ### Active code target and production boundary
 
-The active code migration target is schema v7:
+The active code migration target is schema v8:
 
-`TENANT_DATA_PLANE_SCHEMA_VERSION = 7`
+`TENANT_DATA_PLANE_SCHEMA_VERSION = 8`
 
-New/in-flight tenants are migrated to v7 through the normal provisioning migration path. Already-ready tenants below v7 are discovered as bounded maintenance work instead of being sent back through onboarding.
+New/in-flight tenants are migrated to v8 through the normal provisioning migration path. Already-ready tenants below v8 are discovered as bounded maintenance work instead of being sent back through onboarding. Current migration-command capability is v4 for target schema v8; the historical v3 → schema7 command remains accepted for backward-compatible safe maintenance/rollback behavior.
 
-Schema v7 activation does **not** itself enable recurring incremental sync, promote a candidate or advance cursor/schedule authority. It adds only the minimum serving-authority CAS state required by M7D7. The recurring scheduler remains independently gated until all remaining M7 safety slices and deliberate M7E activation are proven.
+Schema v8 activation does **not** itself enable recurring tenant Intelligent Sync or create an active cohort. It adds the scoped removal authority required by M7D9 on top of the v7 serving-authority CAS state. The recurring scheduler remains independently gated until M7D10, M7D11 and deliberate M7E activation are proven.
 
 Each version extends previous versions rather than destructively replacing them.
 
@@ -231,6 +232,19 @@ Schema v7 is additive and introduces only the minimum durable authority state re
 M7D7 deliberately does not activate repeated-miss removal. A verified run containing `MISSING` or `REMOVED` remains fail-closed at promotion with `sync_promotion_removal_not_ready` until M7D9 owns the retention/removal contract. This prevents schema/promotion work from deleting durable merchant override truth before safe removal semantics exist.
 
 The migration-command capability marker for v7 is v3. Fleet activation must prove v6 -> v7 on ready isolated tenants while preserving LKG, merchant overrides and existing private candidate/stage evidence.
+
+## M7D9 scoped removal authority in v8
+
+Schema v8 is additive and introduces the minimum durable state for safe repeated-miss removal and restoration:
+
+- `supplier_scope_memberships` stores tenant/source/scope/product membership, scoped state, miss count, policy/contract versions and last observed/progress run;
+- `supplier_sync_stage_removal_policy` freezes the exact tenant/source/scope, policy version and threshold for one staged run;
+- `catalog_product_classification_override_retention` preserves merchant override truth independently of the canonical product foreign-key lifecycle;
+- `catalog_product_effective_classification_overrides` provides the effective live/retained override projection used during restoration.
+
+Only complete, healthy, plausible and safety-authorized promoted runs may progress a scope miss. Replay of the same promoted run is idempotent. Detaching one scope cannot delete a canonical product while another valid scope still owns it; final canonical deletion occurs only after the last valid scope detaches at threshold. Before that deletion, merchant override truth is retained. A later verified/promoted `RESTORED` candidate returns the product, reapplies retained override truth and resets scoped absence state.
+
+This closes the historical M7D7 `sync_promotion_removal_not_ready` gate only for valid schema-v8 candidates. It does not activate recurring tenant sync. Trusted-main fleet run `33262420846` proved scheduler-owned v7 → v8 maintenance while preserving LKG/merchant truth and keeping `TENANT_SYNC_AUTOMATION_ENABLED=0`. Dedicated M7D9 production proof is recorded in `M7D9-CLOSURE-2026-08-30.md`.
 
 ## Private source handling
 
