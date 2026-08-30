@@ -1,7 +1,7 @@
 # Catalog Engine — Current State
 
 Status: **Living operational truth**  
-Snapshot: **2026-08-27 after M7D8 trusted-main production proof**
+Snapshot: **2026-08-30 after M7D9 trusted-main production proof**
 Purpose: record what is implemented/proven now, separate from durable product contracts and future roadmap work.
 
 ## How to use this document
@@ -20,6 +20,7 @@ This document owns mutable implementation/deployment truth.
 - M7D6 production closure evidence lives in `docs/M7D6-CLOSURE-2026-08-25.md`.
 - M7D7 production closure evidence lives in `docs/M7D7-CLOSURE-2026-08-27.md`.
 - M7D8 production closure evidence lives in `docs/M7D8-CLOSURE-2026-08-27.md`.
+- M7D9 production closure evidence lives in `docs/M7D9-CLOSURE-2026-08-30.md`.
 
 ## Repository baseline
 
@@ -38,7 +39,7 @@ Milestone state:
 - M4 Provider Engine: **complete**;
 - M5 automatic tenant Queue import: **complete / production-proven**;
 - M6 CEI Core + Sports Knowledge Pack v1: **complete / production-proven**;
-- **M7 Intelligent Sync v2: current execution milestone; safety/scheduling/delta/staging/schema-fleet/candidate-state foundations plus controlled enrollment, live incremental dispatch/scan, affected-detail completion, affected-only CEI candidate processing, complete private candidate verification and atomic promotion authority plus post-promotion cursor/schedule/control finalization through M7D8 are production-proven**.
+- **M7 Intelligent Sync v2: current execution milestone; safety/scheduling/delta/staging/schema-fleet/candidate-state foundations plus controlled enrollment, live incremental dispatch/scan, affected-detail completion, affected-only CEI candidate processing, complete private candidate verification, atomic promotion authority, post-promotion cursor/schedule/control finalization and repeated-miss scoped removal/restoration through M7D9 are production-proven**.
 
 ## Final M6 production checkpoint
 
@@ -284,9 +285,9 @@ M6D production canaries found two real issues before closure:
 
 The final canary passed after both were corrected. Verification was not weakened to obtain green status.
 
-## M7 state — M7A through M7D8 production-proven
+## M7 state — M7A through M7D9 production-proven
 
-M7 remains the active milestone. Safety, scheduler, provider-neutral listing delta, private listing stage, additive schema fleet, candidate-state schema, controlled enrollment, live incremental dispatcher-to-private-stage, affected-detail candidate completion, affected-only CEI candidate processing, complete private candidate verification and atomic canonical promotion authority are now production-proven through M7D8.
+M7 remains the active milestone. Safety, scheduler, provider-neutral listing delta, private listing stage, additive schema fleet, candidate-state schema, controlled enrollment, live incremental dispatcher-to-private-stage, affected-detail candidate completion, affected-only CEI candidate processing, complete private candidate verification, atomic canonical promotion authority, post-promotion finalization and repeated-miss scoped removal/restoration are now production-proven through M7D9.
 
 Implemented and proven:
 
@@ -765,7 +766,7 @@ M0 truth/governance
 → M4 Provider Engine ✅
 → M5 automatic tenant Queue import ✅ production-proven
 → M6 CEI Core + Sports Knowledge Pack v1 ✅ production-proven
-→ M7A–M7D6 safety, delta/staging, schema fleet, candidate-state, enrollment, live scan, affected-detail, affected-only CEI and complete private candidate verification ✅ production-proven
+→ M7A–M7D9 safety, delta/staging, schema fleet, candidate-state, enrollment, live scan, affected-detail, affected-only CEI, verification, atomic promotion/finalization and safe scoped removal/restoration ✅ production-proven
 ```
 
 Current milestone:
@@ -776,11 +777,17 @@ M7's primary safety goal is that supplier outages, partial scans, malformed scan
 
 Immediate next execution boundary:
 
-**M7D9 — Repeated Miss and Safe Removal**
+**M7D10 — Recovery, Replay and Operational Observability**
 
-M7D9 must add authoritative repeated-miss/removal/restoration semantics only from independent complete, healthy, plausible and safety-authorized promoted runs. Duplicate delivery must not increment miss state twice; incomplete scopes, outages and implausible scans must not reduce healthy membership; scope identity and thresholds must remain explicit; RESTORED must recover deterministically.
+M7D10 must close ordinary recovery across duplicate Queue delivery, expired/reclaimed leases, crashes before and after verification/promotion/finalization, bounded retries, poison/DLQ/replay ownership and safe phase-aware diagnostics while preserving LKG and unrelated-tenant continuity. It must not absorb the M7D11 review-feed boundary or M7E activation.
 
-The complete approved M7 slice ledger lives in `DEVELOPMENT-ROADMAP.md`, with detailed contracts in `TENANT-SYNC.md`. M7D8 is **PRODUCTION GREEN**; M7D9 is the **next approved** slice; M7D10–M7D11 remain planned in order; M7E remains an explicit activation decision. Recurring Intelligent Sync stays disabled.
+The complete approved M7 slice ledger lives in `DEVELOPMENT-ROADMAP.md`, with detailed contracts in `TENANT-SYNC.md`. M7D9 is **PRODUCTION GREEN**; M7D10 is the **next approved** slice; M7D11 remains planned in order; M7E remains an explicit activation decision. Recurring Intelligent Sync stays disabled.
+
+### M7D9 repeated-miss and safe removal — production-proven
+
+Final trusted-main implementation/proof SHA: `9214094197b010f46f7bf5144e7dbb445afa90ef`. Application deploy `33262375277`, Queue activation `33262420873`, fleet v7→v8 `33262420846`, cumulative M7D4→M7D7 authority regression `33262420886`, M7D8 finalization regression `33262420896`, dedicated M7D9 safe-removal canary `33262420879` / job `99126532113`, and automatic initial-import/CEI regression `33262420865` / job `99127336932` all completed **SUCCESS** on that exact SHA. Schema v8 now owns explicit scope membership/miss state, immutable removal policy and merchant-override retention. A canonical product is deleted only after its last valid scope detaches at threshold, replay does not double-increment, and `RESTORED` reapplies retained merchant truth. Tenant recurring Intelligent Sync remains off with an empty cohort and cap `1`. Full evidence lives in `M7D9-CLOSURE-2026-08-30.md`.
+
+The later `f03a30ca896c8039ec7be9fc80358f3b04b84f73` commit was emitted by the distinct transitional default-catalog sync and changed only the sanitized compatibility snapshot `data/catalog.json`; it does not replace the M7D9 production implementation identity.
 
 Future macro milestones such as M8 and M9 do not yet have approved A/B subdivisions. Their sub-slices must be proposed and merged through the decomposition protocol immediately before execution; a future contributor may not invent those names or treat a conversational proposal as approved scope.
 

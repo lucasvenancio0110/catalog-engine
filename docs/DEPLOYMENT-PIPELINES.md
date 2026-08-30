@@ -34,7 +34,7 @@ Rules:
 - after applying the additive M7D2 control-plane migration, it performs a read-only bounded D1 aggregate proving that no tenant/source is enrolled. It emits counts only, never tenant/source IDs or supplier evidence;
 - because schema migrations share the production D1, the workflow remains serialized with other production D1 mutation jobs.
 
-After a trusted-main deploy that changes the tenant fleet schema target, preparation boundary or fleet-proof implementation, `.github/workflows/cloudflare-tenant-data-plane-fleet-canary.yml` owns the production maintenance proof. For the v6 target it uses isolated v5 fixtures, the same trusted-CI preparation helper and the deployed cron to verify capability-marker v2 promotion, binding-native v5→v6 success, safe failure, active-import exclusion and LKG/onboarding/staged-listing/isolation preservation. It also proves that the additive migration creates the candidate tables without creating candidate rows or changing catalog authority. It does not enqueue tenant import work manually or replace catalog data. On unexpected failure it reports only bounded migration job evidence and retains the isolated fixtures. Changes to the fleet-canary workflow, script or tests are owned by the application-deploy path filter and reach the proof only through the successful deploy's `workflow_run`; the fleet workflow must not start a competing direct-push run in the shared production-D1 concurrency group.
+After a trusted-main deploy that changes the tenant fleet schema target, preparation boundary or fleet-proof implementation, `.github/workflows/cloudflare-tenant-data-plane-fleet-canary.yml` owns the production maintenance proof. The current target is schema v8: isolated v7 fixtures are prepared with migration-command capability v4 and upgraded through scheduler-owned binding-native v7→v8 maintenance while LKG, merchant overrides, existing stage evidence and unrelated-tenant isolation remain safe. Recurring tenant Intelligent Sync remains disabled throughout the fleet proof. The canary does not enqueue tenant import work manually or replace catalog data. On unexpected failure it reports only bounded migration evidence and retains isolated fixtures. Changes to the fleet-canary workflow, script or tests are owned by the application-deploy path filter and reach the proof only through the successful deploy's `workflow_run`; the fleet workflow must not start a competing direct-push run in the shared production-D1 concurrency group.
 
 The fleet workflow's secret-free pull-request validation uses a PR-scoped concurrency group and may run alongside production. Only the privileged trusted-main canary uses `catalog-engine-production-d1`; validation must not occupy or replace the single pending production slot.
 
@@ -81,7 +81,7 @@ Its responsibilities include:
 - cursor promotion only after public verification;
 - sync success/failure state.
 
-This workflow is transitional. Long-term tenant sync moves to durable tenant jobs/Queues according to the roadmap.
+This workflow is transitional. It is a distinct default-catalog automation and is **not** the M7 tenant Intelligent Sync scheduler governed by `TENANT_SYNC_AUTOMATION_ENABLED` / active-cohort controls. It may still advance the sanitized compatibility snapshot `data/catalog.json` through its catalog bot while tenant recurring sync remains off. Long-term tenant sync moves to durable tenant jobs/Queues according to the roadmap.
 
 ## Full recovery
 
@@ -103,7 +103,7 @@ Current sync/recovery workflows can still persist a sanitized snapshot to Git fo
 
 Jobs that mutate the shared/default production D1 currently use the `catalog-engine-production-d1` concurrency group with `cancel-in-progress: false`. The tenant import Queue-consumer activation workflow shares this group because deploying its Worker consumers and inspecting/attaching Queue control-plane resources must not overlap the application Worker deploy or trusted production canaries using those Queues.
 
-This prevents application migrations, Worker/Queue deployments, catalog publication, default sync/recovery and trusted production canaries from racing each other.
+This prevents application migrations, Worker/Queue deployments, catalog publication, default sync/recovery and trusted production canaries from racing each other. M7D9 hardened the exact-SHA proof graph so application deploy completes before Queue activation; fleet and automatic-import prerequisite waiters observe required exact-SHA statuses outside the mutation lock and only their actual privileged canary jobs enter `catalog-engine-production-d1`. This avoids pending-job cancellation/deadlock without weakening exact-SHA gates for D7/D8/D9.
 
 As tenant-isolated Queue processing becomes primary, per-tenant concurrency/locking must replace unnecessary global serialization for tenant data planes.
 
