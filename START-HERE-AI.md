@@ -3,7 +3,7 @@
 Status: **Operational entrypoint for every new AI/contributor session**  
 Repository: `lucasvenancio0110/catalog-engine`  
 Default branch: `main`  
-Purpose: let a brand-new AI understand the entire Catalog Engine, revalidate live truth, execute exactly one approved submilestone, prove it correctly, update the repository as the durable memory, and stop with a clean handoff for the next conversation.
+Purpose: let a brand-new AI understand the entire Catalog Engine, revalidate live truth, execute approved work within the continuity boundary, prove it correctly, and update the repository as durable memory.
 
 ---
 
@@ -52,6 +52,12 @@ When the selected submilestone reaches **PRODUCTION GREEN**, the AI must not con
 The next conversation must start from this file again.
 
 Do not invent, rename, reorder, merge or split submilestones outside the roadmap/decomposition protocol defined by `docs/DEVELOPMENT-CONTINUITY.md`.
+
+## 1.1 Explicit owner-authorized continuous campaign exception
+
+The default above remains normative. An owner may make a narrower, conversation-specific exception by explicitly naming an ordered campaign boundary. That exception changes only when the conversation stops; it does not combine implementation scope or relax any slice gate.
+
+For the owner-authorized campaign begun on 2026-08-30, the boundary is `M7D10 -> M7D11 -> M7E -> M8 -> M9 -> M10 -> M11`. Each slice still requires its own revalidation, branch, bounded PR, CI, exact-head merge, trusted-main proof and applicable production canaries. The next slice may begin only after the preceding slice is honestly **PRODUCTION GREEN**. M8 and later macro milestones still require the formal decomposition protocol where needed. Record a compact evidence checkpoint after each Green slice; defer consolidated closure documentation until the owner says `FAÇA O SAVE`. Stop after M11. This authorization is not transferable to another conversation or a broader milestone range.
 
 ---
 
@@ -509,7 +515,7 @@ Never regress these principles:
 - no manual Queue injection when the contract requires scheduler-owned proof;
 - do not weaken gates after a production canary reveals a real defect;
 - no recurring-sync activation before M7E;
-- one conversation executes at most one approved submilestone.
+- one conversation executes at most one approved submilestone unless the owner has explicitly activated a bounded continuous campaign under section 1.1; every slice gate remains independent.
 
 ---
 

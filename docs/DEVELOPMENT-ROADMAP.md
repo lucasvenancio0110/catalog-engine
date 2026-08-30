@@ -878,12 +878,11 @@ If that condition is not true, the product is still assisted service/infrastruct
 
 ## Immediate execution order from this document
 
-1. Execute M7D9 recovery-safe repeated-miss/removal semantics.
-2. Execute M7D10 recovery/replay/operational observability.
-3. Resolve the M7D11 backend/UI scope decision and deliver the approved safe change/review-feed boundary.
-4. Execute M7E only after explicit cohort, operational-limit and activation approval; keep recurring sync off until then.
-5. Decompose M8 in a planning PR immediately before M8 execution. Any names such as M8A/M8B remain **PROPOSED** until that PR merges.
-6. Decompose M9 the same way immediately before Storefront UX 2.0 execution. Any names such as M9A/M9B remain **PROPOSED** until that PR merges.
-7. Continue M10 -> M17 as the productization path, decomposing each macro milestone before implementation where more than one bounded PR is required.
-8. Finish remaining M1 governance debt through focused safety PRs without displacing the active milestone unless it becomes a blocker.
-9. Do not enter closed beta before M18-M20 launch gates are materially complete.
+1. Execute M7D10 recovery/replay/operational observability.
+2. Resolve the M7D11 backend/UI scope decision and deliver the approved safe change/review-feed boundary.
+3. Execute M7E only after explicit cohort, operational-limit and activation approval; keep recurring sync off until then.
+4. Decompose M8 in a planning PR immediately before M8 execution. Any names such as M8A/M8B remain **PROPOSED** until that PR merges.
+5. Decompose M9 the same way immediately before Storefront UX 2.0 execution. Any names such as M9A/M9B remain **PROPOSED** until that PR merges.
+6. Continue M10 -> M17 as the productization path, decomposing each macro milestone before implementation where more than one bounded PR is required.
+7. Finish remaining M1 governance debt through focused safety PRs without displacing the active milestone unless it becomes a blocker.
+8. Do not enter closed beta before M18-M20 launch gates are materially complete.
