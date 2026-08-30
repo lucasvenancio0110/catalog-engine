@@ -438,6 +438,15 @@ async function updateControlProgress(db, context, progress, safeCode = null) {
               deferred_detail_count=?5,
               next_attempt_at=NULL,
               last_error_code=?6,
+              last_failure_phase=CASE WHEN ?2='failed' THEN 'detail' ELSE last_failure_phase END,
+              last_delivery_at=CURRENT_TIMESTAMP,
+              state_revision=state_revision+CASE
+                WHEN status<>?2
+                  OR completed_detail_count<>CAST(?3 AS INTEGER)
+                  OR failed_detail_count<>CAST(?4 AS INTEGER)
+                  OR deferred_detail_count<>CAST(?5 AS INTEGER)
+                  OR last_error_code IS NOT ?6
+                THEN 1 ELSE 0 END,
               updated_at=CURRENT_TIMESTAMP
         WHERE import_id=?1 AND tenant_id=?7 AND source_key=?8 AND mode='incremental'`
     )

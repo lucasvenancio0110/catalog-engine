@@ -8,6 +8,11 @@ import {
 import { buildSportsMerchandisingState } from '../cei-merchandising-persistence.js';
 import { queryD1Batch } from '../cloudflare-platform.js';
 import {
+  claimTenantSyncPhaseLease,
+  failTenantSyncPhaseLease,
+  releaseTenantSyncPhaseLease
+} from '../tenant-sync-phase-lease.js';
+import {
   TenantImportContextError,
   ingestionPlatformConfig,
   loadTenantImportContext
@@ -50,7 +55,7 @@ function verificationFailureCode(findings) {
 async function discoverCandidateJobs(db, limit) {
   const result = await db
     .prepare(
-      `SELECT j.import_id, j.tenant_id, j.source_key
+      `SELECT j.import_id, j.tenant_id, j.source_key, j.state_revision
          FROM tenant_import_jobs j
          JOIN tenant_catalog_instances i ON i.tenant_id=j.tenant_id
          JOIN tenant_data_plane_provider_state p ON p.tenant_id=j.tenant_id
@@ -60,6 +65,8 @@ async function discoverCandidateJobs(db, limit) {
           AND j.completed_detail_count=j.discovered_count
           AND j.failed_detail_count=0
           AND j.deferred_detail_count=0
+          AND j.candidate_classified_at IS NOT NULL
+          AND (j.phase_lease_token IS NULL OR j.phase_lease_until<=CURRENT_TIMESTAMP)
           AND i.status='ready'
           AND i.schema_version >= 6
           AND p.database_status='active'
@@ -825,31 +832,31 @@ async function markPrivateFailure(context, platform, safeCode, queryBatch, fetch
   ).catch(() => {});
 }
 
-async function markControlVerified(db, context) {
-  await db
+async function markControlVerified(db, context, ownership) {
+  const result = await db
     .prepare(
       `UPDATE tenant_import_jobs
           SET status='finalizing', phase='finalize',
               next_attempt_at=NULL, last_error_code=NULL,
+              recovery_attempt_count=0,last_failure_phase=NULL,
+              phase_lease_kind=NULL,phase_lease_token=NULL,phase_lease_until=NULL,
+              state_revision=state_revision+1,
               updated_at=CURRENT_TIMESTAMP
         WHERE import_id=?1 AND tenant_id=?2 AND source_key=?3
-          AND mode='incremental' AND status='details' AND phase='details'`
+          AND mode='incremental' AND status='details' AND phase='details'
+          AND candidate_classified_at IS NOT NULL
+          AND phase_lease_kind='verification' AND phase_lease_token=?4
+          AND state_revision=CAST(?5 AS INTEGER)`
     )
-    .bind(context.importId, context.tenantId, context.sourceKey)
-    .run();
-}
-
-async function markControlFailure(db, context, safeCode) {
-  await db
-    .prepare(
-      `UPDATE tenant_import_jobs
-          SET status='failed', phase='details', next_attempt_at=NULL,
-              last_error_code=?4, updated_at=CURRENT_TIMESTAMP
-        WHERE import_id=?1 AND tenant_id=?2 AND source_key=?3
-          AND mode='incremental' AND status IN ('details','finalizing')`
+    .bind(
+      context.importId,
+      context.tenantId,
+      context.sourceKey,
+      ownership.token,
+      ownership.revision
     )
-    .bind(context.importId, context.tenantId, context.sourceKey, safeCode)
     .run();
+  return Number(result?.meta?.changes || 0) === 1;
 }
 
 export async function processTenantIncrementalVerification(
@@ -960,6 +967,16 @@ export async function runDueTenantIncrementalVerifications(
 
   for (const job of due) {
     let context = null;
+    const ownership = await claimTenantSyncPhaseLease(
+      env.CATALOG_DB,
+      job,
+      'verification'
+    );
+    if (!ownership) {
+      busy += 1;
+      outcomes.push({ importId: job.import_id, outcome: 'busy' });
+      continue;
+    }
     try {
       context = await loadTenantImportContext(
         env.CATALOG_DB,
@@ -975,18 +992,29 @@ export async function runDueTenantIncrementalVerifications(
         fetchImpl
       });
       if (result.outcome === 'success') {
-        succeeded += 1;
-        await markControlVerified(env.CATALOG_DB, context);
+        const committed = await markControlVerified(
+          env.CATALOG_DB,
+          context,
+          ownership
+        );
+        if (committed) succeeded += 1;
+        else busy += 1;
       } else if (result.outcome === 'failed') {
         failed += 1;
-        await markControlFailure(env.CATALOG_DB, context, result.error || 'sync_candidate_verification_failed');
+        await failTenantSyncPhaseLease(
+          env.CATALOG_DB,
+          job,
+          ownership,
+          result.error || 'sync_candidate_verification_failed'
+        );
       } else {
         busy += 1;
+        await releaseTenantSyncPhaseLease(env.CATALOG_DB, job, ownership);
       }
       outcomes.push({ importId: job.import_id, ...result });
     } catch (error) {
       const code = safeVerificationError(error);
-      if (context) await markControlFailure(env.CATALOG_DB, context, code);
+      await failTenantSyncPhaseLease(env.CATALOG_DB, job, ownership, code);
       failed += 1;
       outcomes.push({ importId: job.import_id, outcome: 'failed', error: code });
     }

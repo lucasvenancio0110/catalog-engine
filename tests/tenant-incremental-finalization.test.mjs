@@ -7,6 +7,10 @@ const finalizationMigrationPath = new URL(
   '../migrations/0021_tenant_sync_finalization.sql',
   import.meta.url
 );
+const recoveryMigrationPath = new URL(
+  '../migrations/0022_tenant_sync_recovery.sql',
+  import.meta.url
+);
 const TENANT_ID = 't_0123456789abcdefabcd';
 const SOURCE_KEY = 'primary';
 const IMPORT_ID = 'imp_11111111111111111111';
@@ -112,6 +116,7 @@ async function createDatabase({ scheduleSlot = SCHEDULED_FOR } = {}) {
       phase TEXT NOT NULL,
       attempt_count INTEGER NOT NULL DEFAULT 0,
       detail_enqueue_cursor INTEGER NOT NULL DEFAULT 0,
+      scan_lease_until TEXT,
       discovered_count INTEGER NOT NULL DEFAULT 0,
       next_attempt_at TEXT,
       finished_at TEXT,
@@ -134,6 +139,7 @@ async function createDatabase({ scheduleSlot = SCHEDULED_FOR } = {}) {
     );
   `);
   database.exec(await readFile(finalizationMigrationPath, 'utf8'));
+  database.exec(await readFile(recoveryMigrationPath, 'utf8'));
   database.prepare(`INSERT INTO catalog_tenants(tenant_id,status) VALUES (?, 'active')`).run(TENANT_ID);
   database.prepare(`INSERT INTO supplier_sources
     (tenant_id,source_key,provider,source_url,status,sync_strategy,removal_miss_threshold)

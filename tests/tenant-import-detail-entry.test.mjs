@@ -19,12 +19,12 @@ const finalizeMessage = {
 };
 
 describe('tenant detail queue entrypoint', () => {
-  it('acks malformed payloads', async () => {
+  it('retries malformed payloads into the bounded poison-message/DLQ policy', async () => {
     const ack = vi.fn();
     const retry = vi.fn();
     await detailWorker.queue({ messages: [{ body: { invalid: true }, ack, retry }] }, {});
-    expect(ack).toHaveBeenCalledTimes(1);
-    expect(retry).not.toHaveBeenCalled();
+    expect(ack).not.toHaveBeenCalled();
+    expect(retry).toHaveBeenCalledWith({ delaySeconds: 300 });
   });
 
   it('retries a valid detail message instead of losing it when runtime state is unavailable', async () => {

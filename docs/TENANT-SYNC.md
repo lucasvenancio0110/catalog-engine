@@ -651,6 +651,23 @@ Commercial outcome: ordinary failures recover without daily owner intervention w
 
 Required proof covers duplicate Queue delivery, expired lease/reclaim, crash between listing chunks, affected-detail failure, crash before/after verify, crash before/during/after authority switch, post-promotion redelivery, partial-item error, DLQ/replay and unrelated-tenant continuity. Retries are bounded, errors are phase-aware and safe, unresolved failed work blocks conflicts, and evidence is retained until exact audited cleanup. Global Queue/DLQ purge and manual Queue messages are not proof mechanisms.
 
+Implementation contract:
+
+- migration `0022_tenant_sync_recovery.sql` adds a monotonic control-state revision, bounded recovery counter, phase/failure identity, tokenized phase lease, a durable candidate-classified checkpoint, last delivery/recovery timestamps and durable `tenant_sync_replay_requests`; tenant data-plane schema remains v8;
+- scan, candidate CEI, candidate verification and finalization claim an opaque lease token and exact state revision. Lease expiry permits a new owner to claim only after revision advancement; an expired owner cannot release, fail or commit later work;
+- ordinary scan, classification, verification and finalization executions are bounded to four failed attempts; recoverable failures wait `2`, `4` and `8` minutes before attempts two through four, and the fourth failure is terminal. Non-admissible/stale/policy/privacy failures stop immediately rather than busy-looping;
+- successful candidate CEI records its control-plane checkpoint before becoming verification-eligible, preventing the CEI and verification runners from racing or repeatedly starving one another under the bounded cron limits;
+- recovery/replay selection is bounded, ordered by due time and capped to one operation per tenant per tick. Every selected tenant is isolated in its own error boundary, so one invalid candidate or a backlog from one tenant cannot stop healthy tenants in the same cron tick;
+- detail retries remain per-candidate and Queue-bounded. Exhausted detail evidence requires an explicit durable replay request rather than accepting another caller-supplied Queue payload;
+- replay input is strict and bounded to opaque run identity, exact failed phase, expected job revision and expected authority revision. Tenant/source are resolved from server-side authority, stage/admissibility is checked in tenant D1, and any Queue message is reconstructed from durable private candidate rows;
+- replay request leases are reclaimable and bounded to three execution attempts. A crash before the control commit safely repeats idempotent private work; job transition and replay success are committed together in control D1;
+- duplicate/stale Queue deliveries are acknowledged only when durable state proves them obsolete. Not-yet-admissible work retries; malformed or wrong-queue poison reaches the configured DLQ after the existing bounded Cloudflare delivery policy;
+- post-promotion finalization replay recognizes the exact run already owning `base + 1`, commits only remaining schedule/control metadata and never promotes a second time;
+- `GET /api/admin/stores/{tenant}/sync/operations` returns a tenant-scoped bounded projection of opaque run/replay IDs, phase/state, retry/revision/lease timing and sanitized error codes. It does not expose source URLs, provider-private IDs/evidence, HTML, D1/Worker locators, Cloudflare identifiers or credentials;
+- `POST /api/admin/stores/{tenant}/sync/replays` requires tenant owner/admin authorization and accepts no payload, source URL, album list or infrastructure locator. Duplicate exact requests are idempotent; stale job/authority revisions fail closed.
+
+M7D10 does not enable recurring tenant sync, create an active cohort, change tenant schema v8 or add the M7D11 customer review feed. Production stays at global flag `0`, empty cohort and per-tick cap `1` until M7E.
+
 ### M7D11 — Safe Change and Review Feed
 
 Commercial outcome: support the product principle “automate normal operations; surface only exceptions.”

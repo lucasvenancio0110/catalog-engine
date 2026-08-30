@@ -1,5 +1,10 @@
 import { TenantImportContextError, loadTenantImportContext } from './context.js';
 import { processTenantIncrementalPromotion } from './incremental-promotion.js';
+import {
+  claimTenantSyncPhaseLease,
+  failTenantSyncPhaseLease,
+  releaseTenantSyncPhaseLease
+} from '../tenant-sync-phase-lease.js';
 
 const DEFAULT_LIMIT = 2;
 const MAX_LIMIT = 5;
@@ -43,7 +48,8 @@ function safeFinalizationError(error) {
 async function discoverFinalizationJobs(db, limit) {
   const result = await db
     .prepare(
-      `SELECT j.import_id, j.tenant_id, j.source_key, j.sync_scheduled_for
+      `SELECT j.import_id, j.tenant_id, j.source_key, j.sync_scheduled_for,
+              j.state_revision
          FROM tenant_import_jobs j
          JOIN tenant_sync_schedules schedule
            ON schedule.tenant_id=j.tenant_id AND schedule.source_key=j.source_key
@@ -54,6 +60,7 @@ async function discoverFinalizationJobs(db, limit) {
           AND j.phase='finalize'
           AND j.sync_scheduled_for IS NOT NULL
           AND (j.finalize_lease_until IS NULL OR j.finalize_lease_until<=CURRENT_TIMESTAMP)
+          AND (j.phase_lease_token IS NULL OR j.phase_lease_until<=CURRENT_TIMESTAMP)
           AND instance.status='ready'
           AND instance.schema_version>=7
           AND provider_state.database_status='active'
@@ -68,7 +75,8 @@ async function discoverFinalizationJobs(db, limit) {
 }
 
 async function acquireFinalizationLease(db, job) {
-  const modifier = `+${FINALIZE_LEASE_MINUTES} minutes`;
+  const ownership = await claimTenantSyncPhaseLease(db, job, 'finalization');
+  if (!ownership) return null;
   const result = await db
     .prepare(
       `UPDATE tenant_import_jobs
@@ -79,31 +87,26 @@ async function acquireFinalizationLease(db, job) {
           AND status='finalizing'
           AND phase='finalize'
           AND sync_scheduled_for=?4
-          AND (finalize_lease_until IS NULL OR finalize_lease_until<=CURRENT_TIMESTAMP)`
+          AND (finalize_lease_until IS NULL OR finalize_lease_until<=CURRENT_TIMESTAMP)
+          AND phase_lease_kind='finalization' AND phase_lease_token=?6
+          AND state_revision=CAST(?7 AS INTEGER)`
     )
-    .bind(job.import_id, job.tenant_id, job.source_key, job.sync_scheduled_for, modifier)
+    .bind(
+      job.import_id,
+      job.tenant_id,
+      job.source_key,
+      job.sync_scheduled_for,
+      `+${FINALIZE_LEASE_MINUTES} minutes`,
+      ownership.token,
+      ownership.revision
+    )
     .run();
-  return Number(result?.meta?.changes || 0) === 1;
+  if (Number(result?.meta?.changes || 0) === 1) return ownership;
+  await releaseTenantSyncPhaseLease(db, job, ownership).catch(() => {});
+  return null;
 }
 
-async function markFinalizationFailure(db, job, code) {
-  await db
-    .prepare(
-      `UPDATE tenant_import_jobs
-          SET status='failed', next_attempt_at=NULL,
-              finalize_lease_until=NULL, last_error_code=?5,
-              updated_at=CURRENT_TIMESTAMP
-        WHERE import_id=?1 AND tenant_id=?2 AND source_key=?3
-          AND mode='incremental'
-          AND status='finalizing'
-          AND phase='finalize'
-          AND sync_scheduled_for=?4`
-    )
-    .bind(job.import_id, job.tenant_id, job.source_key, job.sync_scheduled_for, code)
-    .run();
-}
-
-export async function commitPromotedIncrementalControlState(db, job) {
+export async function commitPromotedIncrementalControlState(db, job, ownership) {
   const results = await db.batch([
     db
       .prepare(
@@ -128,15 +131,28 @@ export async function commitPromotedIncrementalControlState(db, job) {
                  AND claimed_job.phase='finalize'
                  AND claimed_job.sync_scheduled_for=?4
                  AND claimed_job.finalize_lease_until>CURRENT_TIMESTAMP
+                 AND claimed_job.phase_lease_kind='finalization'
+                 AND claimed_job.phase_lease_token=?5
+                 AND claimed_job.state_revision=CAST(?6 AS INTEGER)
             )`
       )
-      .bind(job.tenant_id, job.source_key, job.import_id, job.sync_scheduled_for),
+      .bind(
+        job.tenant_id,
+        job.source_key,
+        job.import_id,
+        job.sync_scheduled_for,
+        ownership.token,
+        ownership.revision
+      ),
     db
       .prepare(
         `UPDATE tenant_import_jobs
             SET status='success', phase='complete',
                 next_attempt_at=NULL, finished_at=CURRENT_TIMESTAMP,
                 finalize_lease_until=NULL, last_error_code=NULL,
+                recovery_attempt_count=0,last_failure_phase=NULL,
+                phase_lease_kind=NULL,phase_lease_token=NULL,phase_lease_until=NULL,
+                state_revision=state_revision+1,
                 updated_at=CURRENT_TIMESTAMP
           WHERE import_id=?1 AND tenant_id=?2 AND source_key=?3
             AND mode='incremental'
@@ -144,6 +160,8 @@ export async function commitPromotedIncrementalControlState(db, job) {
             AND phase='finalize'
             AND sync_scheduled_for=?4
             AND finalize_lease_until>CURRENT_TIMESTAMP
+            AND phase_lease_kind='finalization' AND phase_lease_token=?5
+            AND state_revision=CAST(?6 AS INTEGER)
             AND EXISTS (
               SELECT 1
                 FROM tenant_sync_schedules committed_schedule
@@ -153,7 +171,14 @@ export async function commitPromotedIncrementalControlState(db, job) {
                  AND committed_schedule.next_sync_at>?4
             )`
       )
-      .bind(job.import_id, job.tenant_id, job.source_key, job.sync_scheduled_for)
+      .bind(
+        job.import_id,
+        job.tenant_id,
+        job.source_key,
+        job.sync_scheduled_for,
+        ownership.token,
+        ownership.revision
+      )
   ]);
 
   if (
@@ -194,8 +219,8 @@ export async function processTenantIncrementalFinalizationJob(
   { promote = processTenantIncrementalPromotion } = {}
 ) {
   const db = env.CATALOG_DB;
-  const leased = await acquireFinalizationLease(db, job);
-  if (!leased) return { outcome: 'busy', importId: job.import_id };
+  const ownership = await acquireFinalizationLease(db, job);
+  if (!ownership) return { outcome: 'busy', importId: job.import_id };
 
   try {
     const context = await loadTenantImportContext(
@@ -221,7 +246,7 @@ export async function processTenantIncrementalFinalizationJob(
       throw error;
     }
 
-    const committed = await commitPromotedIncrementalControlState(db, job);
+    const committed = await commitPromotedIncrementalControlState(db, job, ownership);
     if (!committed) {
       const error = new Error('sync_finalization_control_cas_conflict');
       error.code = 'sync_finalization_control_cas_conflict';
@@ -237,7 +262,7 @@ export async function processTenantIncrementalFinalizationJob(
   } catch (error) {
     const code = safeFinalizationError(error);
     try {
-      await markFinalizationFailure(db, job, code);
+      await failTenantSyncPhaseLease(db, job, ownership, code);
     } catch {
       // A process/database interruption may leave the lease in place. Expiry is the
       // recovery boundary for M7D8; broader retry/DLQ policy remains M7D10.

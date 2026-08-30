@@ -109,3 +109,78 @@ export function assertPublicSafeImportMessage(message) {
   }
   return message;
 }
+
+export async function tenantImportMessageDisposition(db, message) {
+  if (!db || typeof db.prepare !== 'function') return { disposition: 'retry', code: 'database_unbound' };
+  const row = await db
+    .prepare(
+      `SELECT mode,status,phase,detail_enqueue_cursor,discovered_count
+         FROM tenant_import_jobs
+        WHERE import_id=?1 AND tenant_id=?2 AND source_key=?3
+        LIMIT 1`
+    )
+    .bind(message.importId, message.tenantId, message.sourceKey)
+    .first();
+  if (!row) return { disposition: 'retry', code: 'tenant_import_not_found' };
+  if (row.status === 'success' || row.status === 'cancelled' || row.phase === 'complete') {
+    return { disposition: 'stale', code: 'tenant_import_delivery_stale' };
+  }
+
+  if (message.type === 'scan') {
+    if (row.phase === 'finalize') {
+      return { disposition: 'stale', code: 'tenant_import_scan_phase_stale' };
+    }
+    if (
+      row.phase === 'details' &&
+      Number(row.detail_enqueue_cursor || 0) >= Number(row.discovered_count || 0)
+    ) {
+      return { disposition: 'stale', code: 'tenant_import_scan_complete' };
+    }
+    return { disposition: 'admit', code: 'tenant_import_delivery_admitted' };
+  }
+
+  if (message.type === 'detail') {
+    if (row.phase === 'scan') return { disposition: 'retry', code: 'tenant_import_detail_not_ready' };
+    if (row.phase !== 'details') {
+      return { disposition: 'stale', code: 'tenant_import_detail_phase_stale' };
+    }
+    if (row.status === 'failed') {
+      return { disposition: 'retry', code: 'tenant_import_detail_recovery_pending' };
+    }
+    return { disposition: 'admit', code: 'tenant_import_delivery_admitted' };
+  }
+
+  if (message.type === 'finalize') {
+    if (row.mode !== 'initial') {
+      return { disposition: 'stale', code: 'tenant_import_finalize_mode_stale' };
+    }
+    if (row.status === 'failed') {
+      return { disposition: 'retry', code: 'tenant_import_finalize_recovery_pending' };
+    }
+    if (row.mode === 'initial' && row.phase === 'details') {
+      return { disposition: 'admit', code: 'tenant_import_delivery_admitted' };
+    }
+    if (row.phase === 'scan' || row.phase === 'details') {
+      return { disposition: 'retry', code: 'tenant_import_finalize_not_ready' };
+    }
+    if (row.phase !== 'finalize') {
+      return { disposition: 'stale', code: 'tenant_import_finalize_phase_stale' };
+    }
+    return { disposition: 'admit', code: 'tenant_import_delivery_admitted' };
+  }
+
+  return { disposition: 'retry', code: 'tenant_import_message_type_invalid' };
+}
+
+export async function recordTenantImportDelivery(db, message) {
+  if (!db || typeof db.prepare !== 'function') return false;
+  const result = await db
+    .prepare(
+      `UPDATE tenant_import_jobs
+          SET last_delivery_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP
+        WHERE import_id=?1 AND tenant_id=?2 AND source_key=?3`
+    )
+    .bind(message.importId, message.tenantId, message.sourceKey)
+    .run();
+  return Number(result?.meta?.changes || 0) === 1;
+}

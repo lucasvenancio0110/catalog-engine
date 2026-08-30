@@ -12,6 +12,11 @@ import {
 } from './context.js';
 import { handleTenantIncrementalScan } from './incremental-scan-consumer.js';
 import { resolveCatalogIngestionProvider } from './providers/index.js';
+import {
+  claimTenantSyncPhaseLease,
+  failTenantSyncPhaseLease,
+  releaseTenantSyncPhaseLease
+} from '../tenant-sync-phase-lease.js';
 
 const INDEX_WRITE_BATCH = 75;
 const DETAIL_QUEUE_BATCH = 100;
@@ -34,6 +39,23 @@ function safeScanError(error) {
   return 'tenant_import_scan_failed';
 }
 
+async function failedScanRetryDue(db, context) {
+  if (context.importStatus !== 'failed') return true;
+  const row = await db
+    .prepare(
+      `SELECT CASE
+                WHEN next_attempt_at IS NOT NULL AND next_attempt_at<=CURRENT_TIMESTAMP THEN 1
+                ELSE 0
+              END AS retry_due
+         FROM tenant_import_jobs
+        WHERE import_id=?1 AND tenant_id=?2 AND source_key=?3
+        LIMIT 1`
+    )
+    .bind(context.importId, context.tenantId, context.sourceKey)
+    .first();
+  return Number(row?.retry_due || 0) === 1;
+}
+
 async function claimScanLease(db, context) {
   if (
     context.phase === 'details' &&
@@ -43,33 +65,51 @@ async function claimScanLease(db, context) {
     return { claimed: false, complete: true };
   }
 
+  const ownership = await claimTenantSyncPhaseLease(
+    db,
+    {
+      import_id: context.importId,
+      tenant_id: context.tenantId,
+      source_key: context.sourceKey,
+      mode: context.mode
+    },
+    'scan'
+  );
+  if (!ownership) return { claimed: false, complete: false };
   const result = await db
     .prepare(
       `UPDATE tenant_import_jobs
-          SET status='scanning',
-              scan_lease_until=datetime(CURRENT_TIMESTAMP, ?2),
+          SET status='scanning',scan_lease_until=phase_lease_until,
               started_at=COALESCE(started_at,CURRENT_TIMESTAMP),
               last_error_code=NULL,
               updated_at=CURRENT_TIMESTAMP
         WHERE import_id=?1
-          AND tenant_id=?3
+          AND tenant_id=?2 AND source_key=?3
           AND status IN ('queued','scanning','details')
-          AND (scan_lease_until IS NULL OR scan_lease_until <= CURRENT_TIMESTAMP)`
+          AND phase_lease_kind='scan' AND phase_lease_token=?4
+          AND (?5 IS NULL OR state_revision=CAST(?5 AS INTEGER))`
     )
-    .bind(context.importId, `+${SCAN_LEASE_MINUTES} minutes`, context.tenantId)
-    .run();
-  return { claimed: Number(result.meta?.changes || 0) > 0, complete: false };
-}
-
-async function releaseScanLease(db, importId, tenantId) {
-  await db
-    .prepare(
-      `UPDATE tenant_import_jobs
-          SET scan_lease_until=NULL, updated_at=CURRENT_TIMESTAMP
-        WHERE import_id=?1 AND tenant_id=?2`
+    .bind(
+      context.importId,
+      context.tenantId,
+      context.sourceKey,
+      ownership.token,
+      ownership.revision
     )
-    .bind(importId, tenantId)
     .run();
+  if (Number(result.meta?.changes || 0) === 1) {
+    return { claimed: true, complete: false, ownership };
+  }
+  await releaseTenantSyncPhaseLease(
+    db,
+    {
+      import_id: context.importId,
+      tenant_id: context.tenantId,
+      source_key: context.sourceKey
+    },
+    ownership
+  ).catch(() => {});
+  return { claimed: false, complete: false };
 }
 
 function categoryInsert(category, context, sortOrder) {
@@ -185,8 +225,8 @@ async function persistCompleteListingScan(context, scan, platform, fetchImpl) {
   }
 }
 
-async function markScanPersisted(db, context, scan) {
-  await db
+async function markScanPersisted(db, context, scan, ownership) {
+  const result = await db
     .prepare(
       `UPDATE tenant_import_jobs
           SET status='scanning', phase='details',
@@ -198,17 +238,26 @@ async function markScanPersisted(db, context, scan) {
               deferred_detail_count=0,
               scan_completed_at=CURRENT_TIMESTAMP,
               scan_lease_until=datetime(CURRENT_TIMESTAMP, ?3),
+              phase_lease_until=datetime(CURRENT_TIMESTAMP, ?3),
               last_error_code=NULL,
               updated_at=CURRENT_TIMESTAMP
-        WHERE import_id=?1 AND tenant_id=?4`
+        WHERE import_id=?1 AND tenant_id=?4 AND source_key=?5
+          AND phase_lease_kind='scan' AND phase_lease_token=?6
+          AND (?7 IS NULL OR state_revision=CAST(?7 AS INTEGER))`
     )
     .bind(
       context.importId,
       scan.items.length,
       `+${SCAN_LEASE_MINUTES} minutes`,
-      context.tenantId
+      context.tenantId,
+      context.sourceKey,
+      ownership.token,
+      ownership.revision
     )
     .run();
+  if (Number(result?.meta?.changes || 0) !== 1) {
+    throw new Error('tenant_import_scan_ownership_lost');
+  }
 }
 
 async function nextAlbumIds(context, platform, cursor, fetchImpl) {
@@ -232,30 +281,36 @@ async function nextAlbumIds(context, platform, cursor, fetchImpl) {
   return (result[0]?.results || []).map((row) => String(row.album_source_id)).filter(Boolean);
 }
 
-async function updateFanoutCursor(db, context, previousCursor, nextCursor) {
+async function updateFanoutCursor(db, context, previousCursor, nextCursor, ownership) {
   const result = await db
     .prepare(
       `UPDATE tenant_import_jobs
           SET detail_enqueue_cursor=?2,
               queued_detail_count=?2,
               scan_lease_until=datetime(CURRENT_TIMESTAMP, ?3),
+              phase_lease_until=datetime(CURRENT_TIMESTAMP, ?3),
               updated_at=CURRENT_TIMESTAMP
         WHERE import_id=?1 AND tenant_id=?4
-          AND detail_enqueue_cursor=?5`
+          AND source_key=?5 AND detail_enqueue_cursor=?6
+          AND phase_lease_kind='scan' AND phase_lease_token=?7
+          AND (?8 IS NULL OR state_revision=CAST(?8 AS INTEGER))`
     )
     .bind(
       context.importId,
       nextCursor,
       `+${SCAN_LEASE_MINUTES} minutes`,
       context.tenantId,
-      previousCursor
+      context.sourceKey,
+      previousCursor,
+      ownership.token,
+      ownership.revision
     )
     .run();
   if (Number(result.meta?.changes || 0) !== 1) throw new Error('tenant_import_fanout_cursor_conflict');
 }
 
-async function finishFanout(db, context, discoveredCount) {
-  await db
+async function finishFanout(db, context, discoveredCount, ownership) {
+  const result = await db
     .prepare(
       `UPDATE tenant_import_jobs
           SET status='details', phase='details',
@@ -264,14 +319,29 @@ async function finishFanout(db, context, discoveredCount) {
               scan_lease_until=NULL,
               next_attempt_at=NULL,
               last_error_code=NULL,
+              recovery_attempt_count=0,last_failure_phase=NULL,
+              phase_lease_kind=NULL,phase_lease_token=NULL,phase_lease_until=NULL,
+              state_revision=state_revision+1,
               updated_at=CURRENT_TIMESTAMP
-        WHERE import_id=?1 AND tenant_id=?3`
+        WHERE import_id=?1 AND tenant_id=?3 AND source_key=?4
+          AND phase_lease_kind='scan' AND phase_lease_token=?5
+          AND (?6 IS NULL OR state_revision=CAST(?6 AS INTEGER))`
     )
-    .bind(context.importId, discoveredCount, context.tenantId)
+    .bind(
+      context.importId,
+      discoveredCount,
+      context.tenantId,
+      context.sourceKey,
+      ownership.token,
+      ownership.revision
+    )
     .run();
+  if (Number(result?.meta?.changes || 0) !== 1) {
+    throw new Error('tenant_import_scan_ownership_lost');
+  }
 }
 
-async function fanOutDetails(db, context, platform, detailQueue, fetchImpl) {
+async function fanOutDetails(db, context, platform, detailQueue, fetchImpl, ownership) {
   let cursor = context.detailEnqueueCursor;
   const discoveredCount = context.discoveredCount;
 
@@ -291,27 +361,12 @@ async function fanOutDetails(db, context, platform, detailQueue, fetchImpl) {
     }));
     await detailQueue.sendBatch(messages);
     const nextCursor = cursor + albumIds.length;
-    await updateFanoutCursor(db, context, cursor, nextCursor);
+    await updateFanoutCursor(db, context, cursor, nextCursor, ownership);
     cursor = nextCursor;
   }
 
-  await finishFanout(db, context, discoveredCount);
+  await finishFanout(db, context, discoveredCount, ownership);
   return cursor;
-}
-
-async function markScanFailure(db, message, safeCode) {
-  await db
-    .prepare(
-      `UPDATE tenant_import_jobs
-          SET status='failed',
-              next_attempt_at=datetime(CURRENT_TIMESTAMP,'+10 minutes'),
-              scan_lease_until=NULL,
-              last_error_code=?2,
-              updated_at=CURRENT_TIMESTAMP
-        WHERE import_id=?1 AND tenant_id=?3`
-    )
-    .bind(message.importId, safeCode, message.tenantId)
-    .run();
 }
 
 export async function handleTenantImportScanMessage(
@@ -327,11 +382,16 @@ export async function handleTenantImportScanMessage(
   }
 
   const db = env.CATALOG_DB;
-  let leaseOwned = false;
+  let leaseOwned = null;
   try {
     let context = await loadTenantImportContext(db, message, {
       allowedModes: ['initial', 'incremental']
     });
+    const retryDue = await failedScanRetryDue(db, context);
+    if (!retryDue) {
+      return { outcome: 'success', alreadyFailed: true };
+    }
+    context = { ...context, retryDue };
     const provider = resolveCatalogIngestionProvider(context.privateSource.provider);
     const platform = ingestionPlatformConfig(env, context.dataPlane.dispatchNamespace);
 
@@ -351,7 +411,7 @@ export async function handleTenantImportScanMessage(
     const lease = await claimScanLease(db, context);
     if (lease.complete) return { outcome: 'success', alreadyComplete: true };
     if (!lease.claimed) return { outcome: 'busy' };
-    leaseOwned = true;
+    leaseOwned = lease.ownership;
 
     if (context.phase === 'scan') {
       const scan = assertCatalogProviderScanResult(
@@ -359,7 +419,7 @@ export async function handleTenantImportScanMessage(
       );
       if (scan.items.length === 0) throw new Error('supplier_listing_empty');
       await persistCompleteListingScan(context, scan, platform, fetchImpl);
-      await markScanPersisted(db, context, scan);
+      await markScanPersisted(db, context, scan, leaseOwned);
       context = {
         ...context,
         phase: 'details',
@@ -373,16 +433,36 @@ export async function handleTenantImportScanMessage(
       context,
       platform,
       env.TENANT_IMPORT_DETAIL_QUEUE,
-      fetchImpl
+      fetchImpl,
+      leaseOwned
     );
     return { outcome: 'success', discovered: context.discoveredCount, queued };
   } catch (error) {
     const safeCode = safeScanError(error);
-    await markScanFailure(db, message, safeCode).catch(() => {});
+    if (leaseOwned) {
+      await failTenantSyncPhaseLease(
+        db,
+        {
+          import_id: message.importId,
+          tenant_id: message.tenantId,
+          source_key: message.sourceKey
+        },
+        leaseOwned,
+        safeCode
+      ).catch(() => {});
+    }
     return { outcome: 'failed', error: safeCode };
   } finally {
     if (leaseOwned) {
-      await releaseScanLease(db, message.importId, message.tenantId).catch(() => {});
+      await releaseTenantSyncPhaseLease(
+        db,
+        {
+          import_id: message.importId,
+          tenant_id: message.tenantId,
+          source_key: message.sourceKey
+        },
+        leaseOwned
+      ).catch(() => {});
     }
   }
 }

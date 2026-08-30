@@ -1,0 +1,203 @@
+name: Cloudflare M7D10 recovery and replay canary
+
+on:
+  pull_request:
+    branches: ['main']
+    paths:
+      - '.github/workflows/cloudflare-m7d10-recovery-canary.yml'
+      - 'migrations/0022_tenant_sync_recovery.sql'
+      - 'scripts/cloudflare-m7d10-recovery-canary.mjs'
+      - 'worker/entry.js'
+      - 'worker/admin-control-plane.js'
+      - 'worker/import-detail-entry.js'
+      - 'worker/import-scan-entry.js'
+      - 'worker/tenant-import-dispatcher.js'
+      - 'worker/tenant-import-queue.js'
+      - 'worker/tenant-sync-phase-lease.js'
+      - 'worker/tenant-sync-replay.js'
+      - 'worker/ingestion/incremental-classification-runner.js'
+      - 'worker/ingestion/incremental-detail-consumer.js'
+      - 'worker/ingestion/incremental-finalization-runner.js'
+      - 'worker/ingestion/incremental-recovery-runner.js'
+      - 'worker/ingestion/incremental-scan-consumer.js'
+      - 'worker/ingestion/incremental-verification-runner.js'
+      - 'worker/ingestion/scan-consumer.js'
+      - 'tests/tenant-m7d10-recovery-canary.test.mjs'
+      - 'tests/tenant-sync-phase-lease.test.mjs'
+      - 'tests/tenant-sync-recovery-replay.test.mjs'
+  workflow_run:
+    workflows: ['Deploy Catalog Engine application']
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: catalog-engine-m7d10-recovery-canary
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Secret-free quality gate
+        run: npm run quality
+
+  prerequisites:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    outputs:
+      sha: ${{ steps.target.outputs.sha }}
+    env:
+      APPLICATION_STATUS_CONTEXT: catalog-engine/application-deploy
+      QUEUE_STATUS_CONTEXT: catalog-engine/queue-consumer-activation
+      FLEET_STATUS_CONTEXT: catalog-engine/tenant-data-plane-fleet-canary
+      D7_STATUS_CONTEXT: catalog-engine/tenant-incremental-promotion-authority-canary
+      D8_STATUS_CONTEXT: catalog-engine/tenant-incremental-finalization-canary
+      D9_STATUS_CONTEXT: catalog-engine/tenant-incremental-safe-removal-canary
+      AUTO_IMPORT_STATUS_CONTEXT: catalog-engine/tenant-import-auto-canary
+    steps:
+      - name: Resolve exact deployed trusted-main SHA
+        id: target
+        env:
+          EVENT_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$EVENT_SHA" || { echo "Missing target SHA"; exit 1; }
+          echo "sha=$EVENT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for exact-SHA Queue, fleet, D7, D8, D9 and automatic import/CEI evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ steps.target.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 300); do
+            STATUS_JSON="$(curl --fail --silent --show-error \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/$REPO/commits/$SHA/status")"
+            APP="$(printf '%s' "$STATUS_JSON" | jq -r --arg c "$APPLICATION_STATUS_CONTEXT" '[.statuses[] | select(.context==$c)][0].state // "missing"')"
+            QUEUE="$(printf '%s' "$STATUS_JSON" | jq -r --arg c "$QUEUE_STATUS_CONTEXT" '[.statuses[] | select(.context==$c)][0].state // "missing"')"
+            FLEET="$(printf '%s' "$STATUS_JSON" | jq -r --arg c "$FLEET_STATUS_CONTEXT" '[.statuses[] | select(.context==$c)][0].state // "missing"')"
+            D7="$(printf '%s' "$STATUS_JSON" | jq -r --arg c "$D7_STATUS_CONTEXT" '[.statuses[] | select(.context==$c)][0].state // "missing"')"
+            D8="$(printf '%s' "$STATUS_JSON" | jq -r --arg c "$D8_STATUS_CONTEXT" '[.statuses[] | select(.context==$c)][0].state // "missing"')"
+            D9="$(printf '%s' "$STATUS_JSON" | jq -r --arg c "$D9_STATUS_CONTEXT" '[.statuses[] | select(.context==$c)][0].state // "missing"')"
+            AUTO="$(printf '%s' "$STATUS_JSON" | jq -r --arg c "$AUTO_IMPORT_STATUS_CONTEXT" '[.statuses[] | select(.context==$c)][0].state // "missing"')"
+            if [ "$APP:$QUEUE:$FLEET:$D7:$D8:$D9:$AUTO" = success:success:success:success:success:success:success ]; then
+              exit 0
+            fi
+            case "$APP:$QUEUE:$FLEET:$D7:$D8:$D9:$AUTO" in
+              *failure*|*error*)
+                echo "Exact-SHA prerequisite failed: app=$APP queue=$QUEUE fleet=$FLEET d7=$D7 d8=$D8 d9=$D9 auto=$AUTO"
+                exit 1
+                ;;
+            esac
+            sleep 10
+          done
+          echo "Exact-SHA M7D10 prerequisite evidence did not arrive"
+          exit 1
+
+  canary:
+    needs: prerequisites
+    if: needs.prerequisites.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE: catalog-engine-production
+      M7D10_STATUS_CONTEXT: catalog-engine/tenant-sync-recovery-replay-canary
+    steps:
+      - name: Checkout exactly the deployed trusted-main SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prerequisites.outputs.sha }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Quality gate before production canary
+        run: npm run quality
+
+      - name: Validate trusted Cloudflare credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
+
+      - name: Prove bounded recovery, validated replay, isolation and safe observability
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/cloudflare-m7d10-recovery-canary.mjs | tee /tmp/m7d10-canary.json
+          cat /tmp/m7d10-canary.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish successful M7D10 canary evidence
+        if: ${{ success() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ needs.prerequisites.outputs.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n --arg state success --arg context "$M7D10_STATUS_CONTEXT" \
+            --arg description "Expired owners fail closed; bounded recovery/replay preserve tenant LKG and isolation" \
+            --arg target_url "$RUN_URL" \
+            '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
+          curl --fail --silent --show-error -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/statuses/$SHA" -d @/tmp/status.json
+
+      - name: Publish failed M7D10 canary evidence
+        if: ${{ failure() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ needs.prerequisites.outputs.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n --arg state failure --arg context "$M7D10_STATUS_CONTEXT" \
+            --arg description "M7D10 recovery/replay proof failed; retain isolated D1 evidence, recurring sync OFF" \
+            --arg target_url "$RUN_URL" \
+            '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
+          curl --fail --silent --show-error -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/statuses/$SHA" -d @/tmp/status.json

@@ -112,6 +112,21 @@ DLQ messages are operational evidence, not a substitute for durable import state
 
 Do not copy raw source URLs or credentials into DLQ messages for convenience.
 
+### M7D10 recovery ownership
+
+The historical M5 proof established that the physical Cloudflare retry/DLQ topology works. M7D10 supersedes its manual repair/re-send procedure for tenant Intelligent Sync:
+
+- poison delivery is allowed to reach the owning scan/detail DLQ under the configured `3`/`5` delivery-retry thresholds;
+- a DLQ entry is evidence, not an executable recovery request and not authority to mutate a tenant;
+- diagnosis starts from opaque tenant/run/phase state plus Queue/DLQ counts and safe error codes; supplier URL, raw HTML/provider evidence and credentials never enter logs or replay input;
+- automatic recovery may resume only phase-admissible durable state with bounded backoff;
+- operator replay must create `tenant_sync_replay_requests` through the tenant-authorized control-plane boundary. It validates exact tenant/source/run/phase, job revision, serving-authority revision and candidate admissibility;
+- replay code derives canonical minimal Queue messages from the tenant's durable private stage. Operators must never copy a DLQ body or submit an arbitrary payload back to `/messages`;
+- a Queue delivery that races the replay control commit remains not-ready and retries. Candidate claims/writes are idempotent, replay lease expiry is reclaimable and the durable request cannot produce a second authority promotion;
+- DLQ cleanup occurs only after the durable job/replay is terminally understood and current Queue metrics prove the evidence obsolete. Global purge is not a normal recovery mechanism.
+
+The legacy production smoke that repaired orchestration rows and manually resent a message was retired when this durable boundary landed. Its historical GitHub run remains M5 evidence; it is not current operating procedure.
+
 ## Fail-closed rules
 
 Automatic discovery must return without querying control-plane D1 when the feature gate is disabled.

@@ -7,6 +7,11 @@ import {
 import { candidateIntelligenceStateStatement } from '../cei-intelligence-persistence.js';
 import { queryD1Batch } from '../cloudflare-platform.js';
 import {
+  claimTenantSyncPhaseLease,
+  failTenantSyncPhaseLease,
+  releaseTenantSyncPhaseLease
+} from '../tenant-sync-phase-lease.js';
+import {
   TenantImportContextError,
   ingestionPlatformConfig,
   loadTenantImportContext
@@ -38,7 +43,7 @@ function safeClassificationError(error) {
 async function discoverCandidateJobs(db, limit) {
   const result = await db
     .prepare(
-      `SELECT j.import_id, j.tenant_id, j.source_key
+      `SELECT j.import_id, j.tenant_id, j.source_key, j.state_revision
          FROM tenant_import_jobs j
          JOIN tenant_catalog_instances i ON i.tenant_id=j.tenant_id
          JOIN tenant_data_plane_provider_state p ON p.tenant_id=j.tenant_id
@@ -49,6 +54,8 @@ async function discoverCandidateJobs(db, limit) {
           AND j.completed_detail_count=j.discovered_count
           AND j.failed_detail_count=0
           AND j.deferred_detail_count=0
+          AND j.candidate_classified_at IS NULL
+          AND (j.phase_lease_token IS NULL OR j.phase_lease_until<=CURRENT_TIMESTAMP)
           AND i.status='ready'
           AND i.schema_version >= 6
           AND p.database_status='active'
@@ -443,19 +450,6 @@ async function recordPrivateFailure(context, platform, safeCode, queryBatch, fet
   ).catch(() => {});
 }
 
-async function recordControlFailure(db, context, safeCode) {
-  await db
-    .prepare(
-      `UPDATE tenant_import_jobs
-          SET status='failed', phase='details', next_attempt_at=NULL,
-              last_error_code=?2, updated_at=CURRENT_TIMESTAMP
-        WHERE import_id=?1 AND tenant_id=?3 AND source_key=?4
-          AND mode='incremental' AND status='details' AND phase='details'`
-    )
-    .bind(context.importId, safeCode, context.tenantId, context.sourceKey)
-    .run();
-}
-
 async function clearCandidateError(context, platform, queryBatch, fetchImpl) {
   await tenantRequest(
     context,
@@ -557,10 +551,21 @@ export async function runDueTenantIncrementalClassifications(
   const outcomes = [];
   let succeeded = 0;
   let failed = 0;
+  let busy = 0;
   let processed = 0;
 
   for (const job of due) {
     let context = null;
+    const ownership = await claimTenantSyncPhaseLease(
+      env.CATALOG_DB,
+      job,
+      'classification'
+    );
+    if (!ownership) {
+      busy += 1;
+      outcomes.push({ importId: job.import_id, outcome: 'busy' });
+      continue;
+    }
     try {
       context = await loadTenantImportContext(env.CATALOG_DB, {
         importId: job.import_id,
@@ -571,7 +576,17 @@ export async function runDueTenantIncrementalClassifications(
         queryBatch,
         fetchImpl
       });
-      if (result.outcome === 'success') succeeded += 1;
+      if (result.outcome === 'success') {
+        const committed = await releaseTenantSyncPhaseLease(env.CATALOG_DB, job, ownership, {
+          resetRecovery: true,
+          markClassified: true
+        });
+        if (committed) succeeded += 1;
+        else busy += 1;
+      } else {
+        busy += 1;
+        await releaseTenantSyncPhaseLease(env.CATALOG_DB, job, ownership);
+      }
       processed += Number(result.processed || 0);
       outcomes.push({ importId: job.import_id, outcome: result.outcome, ...result });
     } catch (error) {
@@ -582,8 +597,8 @@ export async function runDueTenantIncrementalClassifications(
           tenantId: context.tenantId
         };
         await recordPrivateFailure(context, platform, safeCode, queryBatch, fetchImpl);
-        await recordControlFailure(env.CATALOG_DB, context, safeCode);
       }
+      await failTenantSyncPhaseLease(env.CATALOG_DB, job, ownership, safeCode);
       failed += 1;
       outcomes.push({ importId: job.import_id, outcome: 'failed', error: safeCode });
     }
@@ -596,6 +611,7 @@ export async function runDueTenantIncrementalClassifications(
     processed,
     succeeded,
     failed,
+    busy,
     outcomes
   };
 }

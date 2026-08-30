@@ -44,6 +44,8 @@ When the automatic tenant import canary retains a fixture, `.github/workflows/cl
 
 When the fleet-maintenance canary retains its isolated success/failure/blocked trio, `.github/workflows/cloudflare-tenant-data-plane-fleet-diagnostic.yml` owns read-only diagnosis for those exact opaque tenant IDs on trusted `main`. A trusted-main dispatch may retarget only the three validated, distinct opaque IDs; the diagnostic must preserve fixtures, report bounded migration/LKG/schema/onboarding/isolation evidence, and perform no D1, Worker, Queue or DLQ mutation.
 
+M7D10 production recovery evidence is owned by `.github/workflows/cloudflare-m7d10-recovery-canary.yml`. Pull requests receive only the secret-free quality job. The privileged canary resolves the exact successful application-deploy SHA, then requires Queue activation, schema-v8 fleet, D7 promotion, D8 finalization, D9 removal and automatic import/CEI statuses on that same SHA. It verifies migration `0022` read-only in production, reads all four Queue/DLQ metrics and mutates only isolated ephemeral Cloudflare D1 fixtures. The proof covers expired-owner token/revision CAS, bounded cross-tenant recovery, strict durable replay and redacted operational projection while recurring tenant sync remains off. Successful fixtures are removed only after every assertion; failed isolated evidence is retained without printing resource identifiers.
+
 A future migration architecture may separate schema deployment further, but that is a separate controlled decision.
 
 ## Manual default snapshot publication
