@@ -108,6 +108,12 @@ For every approved slice:
 
 No contributor may mark a slice complete, begin the next slice or describe a milestone as production-green while the corresponding state/roadmap update is missing. If evidence and documentation cannot be updated together, stop at the lower proven status.
 
+### Explicit continuous-campaign exception
+
+The owner may explicitly authorize one conversation to execute a named, ordered range of already approved slices and formally decomposed macro milestones. This changes only the conversation stop boundary. It never permits a multi-milestone PR, parallel unproven slices, skipped revalidation, weakened CI, untrusted deployment, premature activation or advancement past a slice that is not honestly **PRODUCTION GREEN**.
+
+The campaign authorized on 2026-08-30 is `M7D10 -> M7D11 -> M7E -> M8 -> M9 -> M10 -> M11`. Each slice keeps its own branch, bounded PR, exact tested head, merge, trusted-main proof, applicable production canaries and rollback boundary. Between Green slices, a compact GitHub/roadmap evidence checkpoint is sufficient; consolidated closures and handoff refresh are deferred until the owner requests `FAÇA O SAVE`. Formal decomposition remains mandatory before M8 and any later macro milestone that cannot fit safely in one small PR. This exception ends at M11 and is not reusable by a future conversation without fresh owner authorization.
+
 ## Handoff update protocol
 
 Create or refresh a handoff when responsibility is intentionally transferred, after a material production closure or when context size makes a new execution session necessary. Routine PRs do not need a new giant handoff.
