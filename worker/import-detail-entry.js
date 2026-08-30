@@ -1,7 +1,12 @@
 import { handleTenantImportDetailMessage } from './ingestion/detail-consumer.js';
 import { handleTenantImportFinalizeMessage } from './ingestion/finalize-consumer.js';
 import { handleTenantIncrementalDetailMessage } from './ingestion/incremental-detail-consumer.js';
-import { initialTenantImportId, parseTenantImportMessage } from './tenant-import-queue.js';
+import {
+  initialTenantImportId,
+  parseTenantImportMessage,
+  recordTenantImportDelivery,
+  tenantImportMessageDisposition
+} from './tenant-import-queue.js';
 
 function retryDelay(result, fallback) {
   const value = Number(result?.delaySeconds || fallback);
@@ -26,18 +31,43 @@ export default {
       try {
         parsed = parseTenantImportMessage(message.body);
       } catch {
-        message.ack();
+        message.retry({ delaySeconds: 300 });
         continue;
       }
 
       let result;
-      if (parsed.type === 'detail') {
-        result = await handleDetail(parsed, env);
-      } else if (parsed.type === 'finalize') {
-        result = await handleTenantImportFinalizeMessage(parsed, env);
-      } else {
+      if (!['detail', 'finalize'].includes(parsed.type)) {
+        message.retry({ delaySeconds: 300 });
+        continue;
+      }
+
+      let disposition;
+      try {
+        disposition = await tenantImportMessageDisposition(env.CATALOG_DB, parsed);
+      } catch {
+        message.retry({ delaySeconds: 120 });
+        continue;
+      }
+      if (disposition.disposition === 'stale') {
         message.ack();
         continue;
+      }
+      if (disposition.disposition !== 'admit') {
+        message.retry({
+          delaySeconds: retryDelay({}, parsed.type === 'finalize' ? 90 : 300)
+        });
+        continue;
+      }
+      await recordTenantImportDelivery(env.CATALOG_DB, parsed).catch(() => {});
+
+      try {
+        if (parsed.type === 'detail') {
+          result = await handleDetail(parsed, env);
+        } else {
+          result = await handleTenantImportFinalizeMessage(parsed, env);
+        }
+      } catch {
+        result = { outcome: 'failed', error: 'tenant_import_delivery_failed' };
       }
 
       if (['success', 'skipped', 'deferred'].includes(result.outcome)) {

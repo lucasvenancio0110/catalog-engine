@@ -157,7 +157,9 @@ Queue delivery retries and durable application retry/deferred state are separate
 
 DLQ messages are operational evidence and remain minimal. Do not copy source URLs or credentials into DLQs for convenience.
 
-Recovery should preserve durable import state, repair the underlying cause and replay through the controlled path.
+Recovery preserves durable import/candidate state and retries phase-admissible ordinary failures with a token/revision lease, bounded attempts and backoff. An expired owner cannot later commit over the replacement owner.
+
+Explicit replay is a durable `tenant_sync_replay_requests` operation bound to the exact opaque tenant/source/run/phase plus job and serving-authority revisions. It accepts no supplier URL, album list, raw Queue/DLQ body or arbitrary payload. Required Queue messages are reconstructed from tenant-private candidate state and remain idempotent under redelivery.
 
 Global Queue purges are not a normal smoke/recovery technique.
 

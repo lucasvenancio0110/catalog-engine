@@ -11,6 +11,8 @@ on:
       - 'migrations/0018_tenant_data_plane_fleet_migrations.sql'
       - 'migrations/0019_tenant_data_plane_migration_capability.sql'
       - 'migrations/0020_tenant_sync_controlled_enrollment.sql'
+      - 'migrations/0021_tenant_sync_finalization.sql'
+      - 'migrations/0022_tenant_sync_recovery.sql'
       - 'src/catalog-provider/**'
       - 'src/domain/catalog-classifier.js'
       - 'src/sync/**'
@@ -86,10 +88,12 @@ jobs:
           done
           sqlite3 "$DB" 'PRAGMA foreign_key_check;'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM pragma_table_info('tenant_import_jobs') WHERE name IN ('detail_enqueue_cursor','scan_completed_at','scan_lease_until');")" = '3'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM pragma_table_info('tenant_import_jobs') WHERE name IN ('state_revision','recovery_attempt_count','last_failure_phase','phase_lease_kind','phase_lease_token','phase_lease_until','last_recovery_at','last_delivery_at','candidate_classified_at');")" = '9'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='tenant_classification_jobs';")" = '1'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='tenant_verification_jobs';")" = '1'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='tenant_sync_schedules';")" = '1'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='tenant_sync_enrollments';")" = '1'
+          test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='tenant_sync_replay_requests';")" = '1'
           test "$(sqlite3 "$DB" "SELECT COUNT(*) FROM tenant_sync_enrollments WHERE status='enrolled';")" = '0'
 
       - name: Verify current tenant data-plane schema

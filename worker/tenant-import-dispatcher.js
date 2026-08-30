@@ -5,6 +5,7 @@ import {
   buildTenantImportScanMessageForJob,
   initialTenantImportId
 } from './tenant-import-queue.js';
+import { reclaimExpiredTenantSyncPhaseLeases } from './tenant-sync-phase-lease.js';
 
 const MAX_AUTOMATIC_ATTEMPTS = 6;
 const DEFAULT_LIMIT = 3;
@@ -102,6 +103,7 @@ async function reclaimStaleScans(db) {
       `UPDATE tenant_import_jobs
           SET status='failed', next_attempt_at=CURRENT_TIMESTAMP,
               scan_lease_until=NULL, last_error_code='tenant_import_scan_lease_reclaimed',
+              last_failure_phase='scan',state_revision=state_revision+1,
               updated_at=CURRENT_TIMESTAMP
         WHERE status='scanning'
           AND (
@@ -109,7 +111,8 @@ async function reclaimStaleScans(db) {
             (mode='incremental' AND phase='scan')
           )
           AND scan_lease_until IS NOT NULL
-          AND scan_lease_until <= CURRENT_TIMESTAMP`
+          AND scan_lease_until <= CURRENT_TIMESTAMP
+          AND phase_lease_token IS NULL`
     )
     .run();
 }
@@ -131,7 +134,10 @@ async function dueImportJobs(db, limit) {
           AND (j.next_attempt_at IS NULL OR j.next_attempt_at <= CURRENT_TIMESTAMP)
           AND (
             (j.mode='initial' AND (
-              (j.phase='scan' AND j.status IN ('pending','failed')) OR
+              (j.phase='scan' AND (
+                j.status='pending' OR
+                (j.status='failed' AND j.next_attempt_at IS NOT NULL)
+              )) OR
               (j.phase='details' AND j.status='failed'
                 AND j.detail_enqueue_cursor < j.discovered_count)
             )) OR
@@ -140,7 +146,7 @@ async function dueImportJobs(db, limit) {
               (j.status='failed' AND j.next_attempt_at IS NOT NULL)
             ))
           )
-        ORDER BY j.created_at ASC
+        ORDER BY COALESCE(j.next_attempt_at,j.created_at) ASC, j.created_at ASC
         LIMIT ?2`
     )
     .bind(MAX_AUTOMATIC_ATTEMPTS, limit)
@@ -173,8 +179,11 @@ async function markQueued(db, job) {
         `UPDATE tenant_import_jobs
             SET status='queued', attempt_count=attempt_count+1,
                 started_at=COALESCE(started_at,CURRENT_TIMESTAMP),
-                next_attempt_at=NULL, last_error_code=NULL, updated_at=CURRENT_TIMESTAMP
-          WHERE import_id=?1 AND tenant_id=?2 AND status IN ('pending','failed')`
+                next_attempt_at=NULL, last_error_code=NULL,
+                last_delivery_at=CURRENT_TIMESTAMP,state_revision=state_revision+1,
+                updated_at=CURRENT_TIMESTAMP
+          WHERE import_id=?1 AND tenant_id=?2 AND status IN ('pending','failed')
+            AND phase_lease_token IS NULL`
       )
       .bind(job.import_id, job.tenant_id)
   ];
@@ -270,6 +279,7 @@ export async function runDueTenantImportDispatches(
 
   const db = env.CATALOG_DB;
   const jobLimit = boundedLimit(limit);
+  await reclaimExpiredTenantSyncPhaseLeases(db);
   await reclaimStaleScans(db);
   const discovered = await discoverImportCandidates(db, jobLimit);
   const due = await dueImportJobs(db, jobLimit);

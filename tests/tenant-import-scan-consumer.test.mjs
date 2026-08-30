@@ -81,18 +81,18 @@ describe('tenant import scan consumer activation boundary', () => {
     expect(ack).not.toHaveBeenCalled();
   });
 
-  it('acknowledges malformed queue payloads without touching tenant state', async () => {
+  it('routes malformed queue payloads through bounded retries and the scan DLQ', async () => {
     const ack = vi.fn();
     const retry = vi.fn();
     await importScanWorker.queue(
       { messages: [{ body: { hello: 'world' }, ack, retry }] },
       {}
     );
-    expect(ack).toHaveBeenCalledTimes(1);
-    expect(retry).not.toHaveBeenCalled();
+    expect(ack).not.toHaveBeenCalled();
+    expect(retry).toHaveBeenCalledWith({ delaySeconds: 300 });
   });
 
-  it('acks non-scan message types because they belong on the separate detail queue', async () => {
+  it('routes a message delivered to the wrong queue through poison-message handling', async () => {
     const ack = vi.fn();
     const retry = vi.fn();
     await importScanWorker.queue(
@@ -114,7 +114,7 @@ describe('tenant import scan consumer activation boundary', () => {
       },
       {}
     );
-    expect(ack).toHaveBeenCalledTimes(1);
-    expect(retry).not.toHaveBeenCalled();
+    expect(ack).not.toHaveBeenCalled();
+    expect(retry).toHaveBeenCalledWith({ delaySeconds: 300 });
   });
 });

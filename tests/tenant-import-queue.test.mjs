@@ -4,7 +4,8 @@ import {
   buildTenantImportDetailMessage,
   buildTenantImportFinalizeMessage,
   buildTenantImportScanMessage,
-  parseTenantImportMessage
+  parseTenantImportMessage,
+  tenantImportMessageDisposition
 } from '../worker/tenant-import-queue.js';
 import {
   runDueTenantImportDispatches,
@@ -13,6 +14,14 @@ import {
 } from '../worker/tenant-import-dispatcher.js';
 
 const tenantId = 't_0123456789abcdefabcd';
+
+function dispositionDb(row) {
+  return {
+    prepare: vi.fn(() => ({
+      bind: vi.fn(() => ({ first: vi.fn(async () => row) }))
+    }))
+  };
+}
 
 describe('tenant import queue foundation', () => {
   it('creates a deterministic initial scan message containing only opaque routing identifiers', async () => {
@@ -58,6 +67,116 @@ describe('tenant import queue foundation', () => {
     });
     expect(parseTenantImportMessage(message)).toEqual(message);
     expect(assertPublicSafeImportMessage(message)).toEqual(message);
+  });
+
+  it('acks every duplicate delivery after the durable run is complete', async () => {
+    const db = dispositionDb({
+      mode: 'incremental',
+      status: 'success',
+      phase: 'complete',
+      detail_enqueue_cursor: 1,
+      discovered_count: 1
+    });
+    const messages = [
+      {
+        version: 1,
+        type: 'scan',
+        importId: 'imp_0123456789abcdefabcd',
+        tenantId,
+        sourceKey: 'primary'
+      },
+      buildTenantImportDetailMessage({
+        importId: 'imp_0123456789abcdefabcd',
+        tenantId,
+        sourceKey: 'primary',
+        albumSourceId: '123'
+      }),
+      buildTenantImportFinalizeMessage({
+        importId: 'imp_0123456789abcdefabcd',
+        tenantId,
+        sourceKey: 'primary'
+      })
+    ];
+
+    for (const message of messages) {
+      await expect(tenantImportMessageDisposition(db, message)).resolves.toMatchObject({
+        disposition: 'stale'
+      });
+    }
+  });
+
+  it('holds detail delivery while durable replay is still failed and admits it after recovery commit', async () => {
+    const message = buildTenantImportDetailMessage({
+      importId: 'imp_0123456789abcdefabcd',
+      tenantId,
+      sourceKey: 'primary',
+      albumSourceId: '123'
+    });
+    await expect(
+      tenantImportMessageDisposition(
+        dispositionDb({
+          mode: 'incremental',
+          status: 'failed',
+          phase: 'details',
+          detail_enqueue_cursor: 1,
+          discovered_count: 1
+        }),
+        message
+      )
+    ).resolves.toEqual({
+      disposition: 'retry',
+      code: 'tenant_import_detail_recovery_pending'
+    });
+    await expect(
+      tenantImportMessageDisposition(
+        dispositionDb({
+          mode: 'incremental',
+          status: 'details',
+          phase: 'details',
+          detail_enqueue_cursor: 1,
+          discovered_count: 1
+        }),
+        message
+      )
+    ).resolves.toMatchObject({ disposition: 'admit' });
+  });
+
+  it('never routes incremental or failed initial finalization through the legacy finalize consumer', async () => {
+    const message = buildTenantImportFinalizeMessage({
+      importId: 'imp_0123456789abcdefabcd',
+      tenantId,
+      sourceKey: 'primary'
+    });
+    await expect(
+      tenantImportMessageDisposition(
+        dispositionDb({
+          mode: 'incremental',
+          status: 'finalizing',
+          phase: 'finalize',
+          detail_enqueue_cursor: 0,
+          discovered_count: 0
+        }),
+        message
+      )
+    ).resolves.toEqual({
+      disposition: 'stale',
+      code: 'tenant_import_finalize_mode_stale'
+    });
+    await expect(
+      tenantImportMessageDisposition(
+        dispositionDb({
+          mode: 'initial',
+          status: 'failed',
+          phase: 'details',
+          detail_enqueue_cursor: 1,
+          discovered_count: 1
+        }),
+        message
+      )
+    ).resolves.toEqual({
+      disposition: 'retry',
+      code: 'tenant_import_finalize_recovery_pending'
+    });
   });
 
   it('rejects queue messages that attempt to carry supplier or infrastructure secrets', () => {

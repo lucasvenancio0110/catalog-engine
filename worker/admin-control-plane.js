@@ -12,6 +12,10 @@ import {
   publicWorkerProvisioningSummary,
   publicWorkerTenantSourceSummary
 } from './control-plane-plan.js';
+import {
+  createTenantSyncReplayRequest,
+  readTenantSyncOperations
+} from './tenant-sync-replay.js';
 
 const TENANT_ID_PATTERN = /^t_[a-f0-9]{20}$/;
 const MUTATING_ROLES = new Set(['owner', 'admin']);
@@ -600,6 +604,48 @@ export async function handleAdminApi(request, env, { fetchImpl = fetch } = {}) {
       );
       await persistSourceConnection(db, tenantId, auth.principalId, plan);
       return adminJson({ source: publicWorkerTenantSourceSummary(plan) }, 200);
+    }
+
+    const syncOperationsMatch = url.pathname.match(
+      /^\/api\/admin\/stores\/(t_[a-f0-9]{20})\/sync\/operations$/
+    );
+    if (syncOperationsMatch && request.method === 'GET') {
+      const tenantId = syncOperationsMatch[1];
+      await requireMembership(db, tenantId, auth.principalId);
+      return adminJson(await readTenantSyncOperations(db, tenantId));
+    }
+
+    const syncReplayMatch = url.pathname.match(
+      /^\/api\/admin\/stores\/(t_[a-f0-9]{20})\/sync\/replays$/
+    );
+    if (syncReplayMatch && request.method === 'POST') {
+      const tenantId = syncReplayMatch[1];
+      await requireMembership(db, tenantId, auth.principalId, { mutate: true });
+      const body = await readJsonBody(request);
+      const replay = await createTenantSyncReplayRequest(db, {
+        ...body,
+        tenantId,
+        requestedByPrincipalId: auth.principalId
+      });
+      await db
+        .prepare(
+          `INSERT INTO tenant_audit_log
+            (tenant_id,principal_id,action,target_type,target_id,metadata_json,created_at)
+           SELECT ?1,?2,'tenant.sync.replay.requested','sync_replay',?3,?4,CURRENT_TIMESTAMP
+            WHERE NOT EXISTS (
+              SELECT 1 FROM tenant_audit_log
+               WHERE tenant_id=?1 AND principal_id=?2
+                 AND action='tenant.sync.replay.requested' AND target_id=?3
+            )`
+        )
+        .bind(
+          tenantId,
+          auth.principalId,
+          replay.replayId,
+          JSON.stringify({ runId: replay.runId, phase: replay.phase })
+        )
+        .run();
+      return adminJson({ replay }, 202);
     }
 
     const domainRefreshMatch = url.pathname.match(

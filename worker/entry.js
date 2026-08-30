@@ -7,8 +7,10 @@ import { runDueTenantClassifications } from './tenant-classification-runner.js';
 import { runDueTenantIncrementalClassifications } from './ingestion/incremental-classification-runner.js';
 import { runDueTenantIncrementalVerifications } from './ingestion/incremental-verification-runner.js';
 import { runDueTenantIncrementalFinalizations } from './ingestion/incremental-finalization-runner.js';
+import { runDueTenantIncrementalRecoveries } from './ingestion/incremental-recovery-runner.js';
 import { runDueTenantImportDispatches } from './tenant-import-dispatcher.js';
 import { runDueTenantSyncScheduling } from './tenant-sync-scheduler.js';
+import { runDueTenantSyncReplays } from './tenant-sync-replay.js';
 import { runDueTenantVerifications } from './tenant-verification-runner.js';
 import {
   isCatalogAdminHost,
@@ -30,6 +32,9 @@ function safeScheduleSummary(summary) {
     succeeded: summary.succeeded || 0,
     failed: summary.failed || 0,
     busy: summary.busy || 0,
+    recovered: summary.recovered || 0,
+    blocked: summary.blocked || 0,
+    reclaimed: summary.reclaimed || 0,
     decisionCounts:
       summary.decisionCounts && typeof summary.decisionCounts === 'object'
         ? Object.fromEntries(
@@ -39,6 +44,15 @@ function safeScheduleSummary(summary) {
           )
         : {}
   };
+}
+
+function safeScheduleError(error) {
+  const code = String(error?.code || error?.message || error || '').trim().toLowerCase();
+  return /^(tenant|sync|supplier|catalog_provider|cloudflare_platform)_[a-z0-9_]{1,112}$/.test(
+    code
+  )
+    ? code
+    : 'scheduled_operation_failed';
 }
 
 function shouldDispatchTenantRequest(pathname) {
@@ -125,6 +139,8 @@ export default {
         runDueDataPlaneMigrations(env),
         runDueTenantImportDispatches(env),
         runDueTenantSyncScheduling(env),
+        runDueTenantSyncReplays(env),
+        runDueTenantIncrementalRecoveries(env),
         runDueTenantIncrementalClassifications(env),
         runDueTenantIncrementalVerifications(env),
         runDueTenantIncrementalFinalizations(env),
@@ -137,6 +153,8 @@ export default {
           'data_plane_migration_schedule',
           'tenant_import_dispatch_schedule',
           'tenant_sync_schedule',
+          'tenant_sync_replay_schedule',
+          'tenant_sync_recovery_schedule',
           'tenant_incremental_classification_schedule',
           'tenant_incremental_verification_schedule',
           'tenant_incremental_finalization_schedule',
@@ -150,7 +168,7 @@ export default {
           if (result.status === 'fulfilled') {
             console.log(label, JSON.stringify(safeScheduleSummary(result.value)));
           } else {
-            console.error(`${label}_failed`, String(result.reason?.message || result.reason).slice(0, 160));
+            console.error(`${label}_failed`, safeScheduleError(result.reason));
           }
         }
       })
