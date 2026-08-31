@@ -1,7 +1,7 @@
 # Catalog Engine — Current State
 
 Status: **Living operational truth**  
-Snapshot: **2026-08-30 after M7D9 trusted-main production proof**
+Snapshot: **2026-08-31 after M7D10 trusted-main production proof and M9 sequencing decision**
 Purpose: record what is implemented/proven now, separate from durable product contracts and future roadmap work.
 
 ## How to use this document
@@ -39,7 +39,8 @@ Milestone state:
 - M4 Provider Engine: **complete**;
 - M5 automatic tenant Queue import: **complete / production-proven**;
 - M6 CEI Core + Sports Knowledge Pack v1: **complete / production-proven**;
-- **M7 Intelligent Sync v2: current execution milestone; safety/scheduling/delta/staging/schema-fleet/candidate-state foundations plus controlled enrollment, live incremental dispatch/scan, affected-detail completion, affected-only CEI candidate processing, complete private candidate verification, atomic promotion authority, post-promotion cursor/schedule/control finalization and repeated-miss scoped removal/restoration through M7D9 are production-proven**.
+- **M7 Intelligent Sync v2: incomplete; safety/scheduling/delta/staging/schema-fleet/candidate-state foundations plus controlled enrollment, live incremental dispatch/scan, affected-detail completion, affected-only CEI candidate processing, complete private candidate verification, atomic promotion/finalization, safe scoped removal/restoration and recovery/replay through M7D10 are production-proven**.
+- **M9 Storefront UX 2.0: current execution milestone under the owner-authorized 2026-08-31 sequencing exception; implementation has not started and M9A is the next approved slice**.
 
 ## Final M6 production checkpoint
 
@@ -777,11 +778,15 @@ M7's primary safety goal is that supplier outages, partial scans, malformed scan
 
 Immediate next execution boundary:
 
-**M7D10 — Recovery, Replay and Operational Observability**
+**M9A — Commerce Shell and URL State**
 
-M7D10 must close ordinary recovery across duplicate Queue delivery, expired/reclaimed leases, crashes before and after verification/promotion/finalization, bounded retries, poison/DLQ/replay ownership and safe phase-aware diagnostics while preserving LKG and unrelated-tenant continuity. It must not absorb the M7D11 review-feed boundary or M7E activation.
+M9A must deliver a premium responsive storefront shell, a clear search/navigation hierarchy, products visible without traversing an oversized discovery wall, structured loading/empty/error states and URL-backed catalog query state that restores correctly through reload and browser back/forward. It may not invent merchandising truth, alter the media trust boundary or pull M9B–M9D scope into the first feature PR.
 
-The complete approved M7 slice ledger lives in `DEVELOPMENT-ROADMAP.md`, with detailed contracts in `TENANT-SYNC.md`. M7D9 is **PRODUCTION GREEN**; M7D10 is the **next approved** slice; M7D11 remains planned in order; M7E remains an explicit activation decision. Recurring Intelligent Sync stays disabled.
+The approved M9A–M9D ledger and the sequencing exception live in `DEVELOPMENT-ROADMAP.md`. M7D11 and M7E remain pending; M8 remains undecomposed and unproven. Recurring Intelligent Sync stays disabled.
+
+### M7D10 recovery/replay — compact production checkpoint
+
+PRs `#167`, `#168` and `#169` reached trusted-main proof SHA `caaa12340e3038e5c1ad5824b8b329c8880b5b98`. Application deploy `33343450164`, Queue proof `33343603174`, fleet proof `33343603238`, M7D7 regression `33343603170`, M7D8 regression `33343603168`, M7D9 regression `33343603212`, automatic import/CEI regression `33343603183` and dedicated M7D10 recovery/replay canary `33343603219` all completed successfully on the exact SHA. Queue/DLQ recovery, bounded replay, stale ownership and unrelated-tenant isolation were proven while `TENANT_SYNC_AUTOMATION_ENABLED=0`, the active cohort remained empty and the per-tick cap remained `1`.
 
 ### M7D9 repeated-miss and safe removal — production-proven
 
@@ -789,13 +794,15 @@ Final trusted-main implementation/proof SHA: `9214094197b010f46f7bf5144e7dbb445a
 
 The later `f03a30ca896c8039ec7be9fc80358f3b04b84f73` commit was emitted by the distinct transitional default-catalog sync and changed only the sanitized compatibility snapshot `data/catalog.json`; it does not replace the M7D9 production implementation identity.
 
-Future macro milestones such as M8 and M9 do not yet have approved A/B subdivisions. Their sub-slices must be proposed and merged through the decomposition protocol immediately before execution; a future contributor may not invent those names or treat a conversational proposal as approved scope.
+M9 now has an approved A–D decomposition. M8 does not; its future sub-slices must still be proposed and merged through the decomposition protocol immediately before execution.
 
 Then:
 
 ```text
-M8 Media Engine hardening
-→ M9 Storefront UX 2.0
+M9A–M9D Storefront UX 2.0
+→ M7D11 Safe Change and Review Feed
+→ M7E Deliberate Activation
+→ M8 Media Engine hardening
 → M10 Theme/Brand
 → M11 Portal UX
 → M12 CEI Review

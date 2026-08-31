@@ -357,26 +357,26 @@ A supplier outage, malformed scan or abnormal result cannot silently destroy a h
 
 The table below is the canonical M7 slice order. Detailed behavior and safety invariants remain owned by `TENANT-SYNC.md`; production evidence remains owned by `CURRENT-STATE.md` and focused closure records.
 
-| Slice                                                  | Status                                                             | Bounded outcome                                                                                       |
-| ------------------------------------------------------ | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| M7A — Sync safety decision                             | **PRODUCTION GREEN**                                               | Preserve/quarantine partial, unhealthy or implausible scans before destructive delta reasoning.       |
-| M7B — Recurring scheduler foundation                   | **PRODUCTION GREEN — foundation disabled**                         | Durable per-tenant schedule/job foundation with recurring automation still off.                       |
-| M7C1 — Shared listing delta                            | **PRODUCTION GREEN**                                               | One provider-neutral NEW/CHANGED/MOVED/RESTORED/MISSING/REMOVED contract.                             |
-| M7C2 — Incremental planning                            | **PRODUCTION GREEN — read-only foundation**                        | Read paginated private LKG and calculate a safe plan without canonical mutation.                      |
-| M7C3 — Private staged sync state                       | **PRODUCTION GREEN — listing foundation**                          | Assemble listing/delta state privately while LKG remains authoritative.                               |
-| M7C4 — Schema v5 fleet activation                      | **PRODUCTION GREEN**                                               | Additive ready-tenant fleet migration for listing-stage storage.                                      |
-| M7D1 — Candidate State Schema v6                       | **PRODUCTION GREEN**                                               | Private relational storage for candidate detail, media, CEI and merchandising, still inert.           |
-| M7D2 — Controlled Enrollment and Scheduling Guard      | **PRODUCTION GREEN**                                               | Default-disabled tenant/source enrollment, per-cycle limits, kill switch and conflict-safe selection. |
-| M7D3 — Incremental Dispatch and Scan-to-Stage          | **PRODUCTION GREEN**                                               | Live dispatcher/Queue incremental scan safely reaches private `details_pending` stage with LKG intact.|
-| M7D4 — Staged Affected Detail                          | **PRODUCTION GREEN**                                               | Fetch and stage detail/media only for events that require it, with bounded idempotent retry.          |
-| M7D5 — Affected-only CEI Candidate Processing          | **PRODUCTION GREEN**                                               | Reprocess only affected candidates while preserving merchant overrides and generic CEI boundaries.    |
-| M7D6 — Candidate Verification                          | **PRODUCTION GREEN**                                               | Verify the complete candidate view, counts, relationships, media, CEI and privacy before promotion.   |
-| M7D7 — Promotion Authority Primitive                   | **PRODUCTION GREEN**                                               | Verified candidates promote through one bounded atomic D1 authority transaction with stale-base CAS and idempotent replay. |
-| M7D8 — Verified Promotion and Cursor Commit            | **PRODUCTION GREEN**                                        | Advance cursor/schedule/control metadata only after exact durable promoted authority, with crash-safe replay. |
-| M7D9 — Repeated Miss and Safe Removal                  | **PRODUCTION GREEN**                                               | Apply authoritative repeated-miss, multi-scope membership, removal and restoration semantics.         |
-| M7D10 — Recovery, Replay and Operational Observability | **PLANNED — NEXT APPROVED**                                                        | Close crash, lease, duplicate delivery, DLQ/replay and safe diagnostic paths.                         |
-| M7D11 — Safe Change and Review Feed                    | **PLANNED — scope decision before customer UI**                    | Project promoted changes and exceptions through opaque, tenant-scoped, redacted events.               |
-| M7E — Deliberate Activation                            | **DECISION REQUIRED**                                              | Activation-only change for an explicitly approved canary cohort and scheduler-owned production proof. |
+| Slice                                                  | Status                                          | Bounded outcome                                                                                                            |
+| ------------------------------------------------------ | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| M7A — Sync safety decision                             | **PRODUCTION GREEN**                            | Preserve/quarantine partial, unhealthy or implausible scans before destructive delta reasoning.                            |
+| M7B — Recurring scheduler foundation                   | **PRODUCTION GREEN — foundation disabled**      | Durable per-tenant schedule/job foundation with recurring automation still off.                                            |
+| M7C1 — Shared listing delta                            | **PRODUCTION GREEN**                            | One provider-neutral NEW/CHANGED/MOVED/RESTORED/MISSING/REMOVED contract.                                                  |
+| M7C2 — Incremental planning                            | **PRODUCTION GREEN — read-only foundation**     | Read paginated private LKG and calculate a safe plan without canonical mutation.                                           |
+| M7C3 — Private staged sync state                       | **PRODUCTION GREEN — listing foundation**       | Assemble listing/delta state privately while LKG remains authoritative.                                                    |
+| M7C4 — Schema v5 fleet activation                      | **PRODUCTION GREEN**                            | Additive ready-tenant fleet migration for listing-stage storage.                                                           |
+| M7D1 — Candidate State Schema v6                       | **PRODUCTION GREEN**                            | Private relational storage for candidate detail, media, CEI and merchandising, still inert.                                |
+| M7D2 — Controlled Enrollment and Scheduling Guard      | **PRODUCTION GREEN**                            | Default-disabled tenant/source enrollment, per-cycle limits, kill switch and conflict-safe selection.                      |
+| M7D3 — Incremental Dispatch and Scan-to-Stage          | **PRODUCTION GREEN**                            | Live dispatcher/Queue incremental scan safely reaches private `details_pending` stage with LKG intact.                     |
+| M7D4 — Staged Affected Detail                          | **PRODUCTION GREEN**                            | Fetch and stage detail/media only for events that require it, with bounded idempotent retry.                               |
+| M7D5 — Affected-only CEI Candidate Processing          | **PRODUCTION GREEN**                            | Reprocess only affected candidates while preserving merchant overrides and generic CEI boundaries.                         |
+| M7D6 — Candidate Verification                          | **PRODUCTION GREEN**                            | Verify the complete candidate view, counts, relationships, media, CEI and privacy before promotion.                        |
+| M7D7 — Promotion Authority Primitive                   | **PRODUCTION GREEN**                            | Verified candidates promote through one bounded atomic D1 authority transaction with stale-base CAS and idempotent replay. |
+| M7D8 — Verified Promotion and Cursor Commit            | **PRODUCTION GREEN**                            | Advance cursor/schedule/control metadata only after exact durable promoted authority, with crash-safe replay.              |
+| M7D9 — Repeated Miss and Safe Removal                  | **PRODUCTION GREEN**                            | Apply authoritative repeated-miss, multi-scope membership, removal and restoration semantics.                              |
+| M7D10 — Recovery, Replay and Operational Observability | **PRODUCTION GREEN**                            | Close crash, lease, duplicate delivery, DLQ/replay and safe diagnostic paths.                                              |
+| M7D11 — Safe Change and Review Feed                    | **PLANNED — scope decision before customer UI** | Project promoted changes and exceptions through opaque, tenant-scoped, redacted events.                                    |
+| M7E — Deliberate Activation                            | **DECISION REQUIRED**                           | Activation-only change for an explicitly approved canary cohort and scheduler-owned production proof.                      |
 
 M7D3 production closure is recorded in `M7D3-CLOSURE-2026-08-25.md`. The final scheduler-owned canary proved dispatcher discovery, zero manual Queue injection, private `details_pending` stage, clean queues and unchanged canonical/storefront state while `TENANT_SYNC_AUTOMATION_ENABLED` remained off.
 
@@ -392,7 +392,7 @@ M7D8 production closure is recorded in `M7D8-CLOSURE-2026-08-27.md`. Trusted-mai
 
 M7D9 production closure is recorded in `M7D9-CLOSURE-2026-08-30.md`. Trusted-main implementation/proof SHA `9214094197b010f46f7bf5144e7dbb445afa90ef` passed application deploy `33262375277`, Queue activation `33262420873`, fleet v7→v8 `33262420846`, cumulative M7D4→M7D7 authority regression `33262420886`, M7D8 finalization regression `33262420896`, dedicated safe-removal canary `33262420879` / job `99126532113` and automatic initial-import/CEI regression `33262420865` / job `99127336932`. Schema v8 now advances misses only from authoritative promoted runs, detaches scopes independently, deletes canonical state only after the last valid scope is gone, preserves merchant overrides through deletion and restores them on `RESTORED`. Recurring tenant Intelligent Sync remains disabled with an empty active cohort and cap `1`.
 
-M7D10 is therefore the next approved slice. Its recovery/replay/observability contract must remain separate from M7D11 review-feed scope and from M7E activation.
+M7D10 reached **PRODUCTION GREEN** through PRs `#167`, `#168` and `#169` at trusted-main proof SHA `caaa12340e3038e5c1ad5824b8b329c8880b5b98`. Exact-SHA application deploy `33343450164`, Queue proof `33343603174`, fleet proof `33343603238`, M7D7 regression `33343603170`, M7D8 regression `33343603168`, M7D9 regression `33343603212`, automatic import/CEI regression `33343603183` and dedicated recovery/replay canary `33343603219` all passed. Recurring sync remained disabled, its cohort empty and the per-tick cap `1`.
 
 M7D2 through M7D11 must remain separate implementation claims unless a later documentation decision proves a safer decomposition. M7E may not contain feature code or migrations. `TENANT_SYNC_AUTOMATION_ENABLED` remains `0` until the M7E decision and complete production proof.
 
@@ -434,6 +434,19 @@ Media upstream behavior cannot escape the trust boundary or make ordinary storef
 Priority: **P1 / visible product value**
 
 This is a full product-experience redesign, not a CSS facelift.
+
+## M9 approved execution ledger
+
+The owner explicitly authorized M9 execution before the remaining M7 and M8 work on 2026-08-31. This is a sequencing exception only: M7 remains incomplete, M8 remains unproven, M7E activation stays forbidden, and M9 may consume only the existing opaque media boundary without weakening or redesigning it. After M9, execution returns to `M7D11 -> M7E -> M8` unless a later owner decision changes the order.
+
+| Slice                                                      | Status                      | Bounded outcome                                                                                                                                                                            |
+| ---------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| M9A — Commerce Shell and URL State                         | **PLANNED — NEXT APPROVED** | Deliver the premium responsive shell, search/navigation hierarchy, early product visibility, structured loading/empty/error states and browser-restorable catalog query state.             |
+| M9B — Product Discovery and Merchandising                  | **PLANNED**                 | Deliver safe filters/facets/sort, category/entity discovery and retail-grade cards; render collections/new/featured only when authoritative public data supports the claim.                |
+| M9C — Product Detail, Share and Deep Links                 | **PLANNED**                 | Deliver an opaque-ID product route, responsive gallery, contact/share actions, direct-load and back/forward semantics, plus accessible focus and scroll behavior.                          |
+| M9D — SEO, Accessibility, Performance and Production Proof | **PLANNED**                 | Close honest canonical/Open Graph delivery, responsive and assistive-input validation, reduced-motion and performance budgets, then prove the exact trusted-main storefront in production. |
+
+Quick view remains optional: M9C may omit it when the product route provides the clearer, more accessible discovery path. No M9 slice may invent featured/new status or expose supplier-private evidence.
 
 Deliverables:
 
@@ -878,11 +891,10 @@ If that condition is not true, the product is still assisted service/infrastruct
 
 ## Immediate execution order from this document
 
-1. Execute M7D10 recovery/replay/operational observability.
-2. Resolve the M7D11 backend/UI scope decision and deliver the approved safe change/review-feed boundary.
-3. Execute M7E only after explicit cohort, operational-limit and activation approval; keep recurring sync off until then.
+1. Execute the approved M9A -> M9D ledger under the 2026-08-31 owner sequencing exception.
+2. Return to M7D11, resolve its backend/UI scope decision and deliver the approved safe change/review-feed boundary.
+3. Execute M7E only after its activation gates remain satisfied; keep recurring sync off until then.
 4. Decompose M8 in a planning PR immediately before M8 execution. Any names such as M8A/M8B remain **PROPOSED** until that PR merges.
-5. Decompose M9 the same way immediately before Storefront UX 2.0 execution. Any names such as M9A/M9B remain **PROPOSED** until that PR merges.
-6. Continue M10 -> M17 as the productization path, decomposing each macro milestone before implementation where more than one bounded PR is required.
-7. Finish remaining M1 governance debt through focused safety PRs without displacing the active milestone unless it becomes a blocker.
-8. Do not enter closed beta before M18-M20 launch gates are materially complete.
+5. Continue M10 -> M17 as the productization path, decomposing each macro milestone before implementation where more than one bounded PR is required.
+6. Finish remaining M1 governance debt through focused safety PRs without displacing the active milestone unless it becomes a blocker.
+7. Do not enter closed beta before M18-M20 launch gates are materially complete.
