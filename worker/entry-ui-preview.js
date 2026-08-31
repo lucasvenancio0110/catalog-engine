@@ -1,13 +1,55 @@
 const teams = [
-  { team_id: 'real-madrid', name: 'Real Madrid', initials: 'RMA', league_id: 'laliga', entity_type: 'club', product_count: 4 },
-  { team_id: 'barcelona', name: 'Barcelona', initials: 'BAR', league_id: 'laliga', entity_type: 'club', product_count: 3 },
-  { team_id: 'flamengo', name: 'Flamengo', initials: 'FLA', league_id: 'brasileirao', entity_type: 'club', product_count: 4 },
-  { team_id: 'brasil', name: 'Brasil', initials: 'BRA', league_id: 'national', entity_type: 'national_team', product_count: 3 }
+  {
+    team_id: 'real-madrid',
+    name: 'Real Madrid',
+    initials: 'RMA',
+    league_id: 'laliga',
+    entity_type: 'club',
+    product_count: 4
+  },
+  {
+    team_id: 'barcelona',
+    name: 'Barcelona',
+    initials: 'BAR',
+    league_id: 'laliga',
+    entity_type: 'club',
+    product_count: 3
+  },
+  {
+    team_id: 'flamengo',
+    name: 'Flamengo',
+    initials: 'FLA',
+    league_id: 'brasileirao',
+    entity_type: 'club',
+    product_count: 4
+  },
+  {
+    team_id: 'brasil',
+    name: 'Brasil',
+    initials: 'BRA',
+    league_id: 'national',
+    entity_type: 'national_team',
+    product_count: 3
+  }
 ];
 
 const leagues = [
-  { league_id: 'laliga', name: 'La Liga', country_code: 'ES', country_name: 'Espanha', entity_type: 'club', product_count: 7 },
-  { league_id: 'brasileirao', name: 'Brasileirão', country_code: 'BR', country_name: 'Brasil', entity_type: 'club', product_count: 4 }
+  {
+    league_id: 'laliga',
+    name: 'La Liga',
+    country_code: 'ES',
+    country_name: 'Espanha',
+    entity_type: 'club',
+    product_count: 7
+  },
+  {
+    league_id: 'brasileirao',
+    name: 'Brasileirão',
+    country_code: 'BR',
+    country_name: 'Brasil',
+    entity_type: 'club',
+    product_count: 4
+  }
 ];
 
 const facets = [
@@ -23,27 +65,148 @@ function art(label, a = '#111827', b = '#2563eb') {
 }
 
 const products = [
-  ['p01', 'Real Madrid 26/27 Home', 'Real Madrid', 'real-madrid', 'laliga', 'kits', 'RMA HOME', '#f8fafc', '#c4b5fd'],
-  ['p02', 'Real Madrid Black Special', 'Real Madrid', 'real-madrid', 'laliga', 'kits', 'RMA BLACK', '#111827', '#475569'],
-  ['p03', 'Real Madrid Retro 1998', 'Real Madrid', 'real-madrid', 'laliga', 'retro', 'RMA 98', '#f8fafc', '#818cf8'],
-  ['p04', 'Real Madrid Infantil', 'Real Madrid', 'real-madrid', 'laliga', 'kids', 'RMA KIDS', '#f8fafc', '#60a5fa'],
-  ['p05', 'Barcelona Home', 'Barcelona', 'barcelona', 'laliga', 'kits', 'BAR HOME', '#7f1d1d', '#1d4ed8'],
-  ['p06', 'Barcelona Away', 'Barcelona', 'barcelona', 'laliga', 'kits', 'BAR AWAY', '#facc15', '#1e40af'],
-  ['p07', 'Barcelona Retro', 'Barcelona', 'barcelona', 'laliga', 'retro', 'BAR RETRO', '#991b1b', '#1e3a8a'],
-  ['p08', 'Flamengo Home', 'Flamengo', 'flamengo', 'brasileirao', 'kits', 'FLA HOME', '#7f1d1d', '#18181b'],
-  ['p09', 'Flamengo Away', 'Flamengo', 'flamengo', 'brasileirao', 'kits', 'FLA AWAY', '#fafafa', '#dc2626'],
-  ['p10', 'Flamengo Retro 1981', 'Flamengo', 'flamengo', 'brasileirao', 'retro', 'FLA 81', '#dc2626', '#18181b'],
-  ['p11', 'Flamengo Feminino', 'Flamengo', 'flamengo', 'brasileirao', 'women', 'FLA WOMEN', '#ef4444', '#18181b'],
+  [
+    'p01',
+    'Real Madrid 26/27 Home',
+    'Real Madrid',
+    'real-madrid',
+    'laliga',
+    'kits',
+    'RMA HOME',
+    '#f8fafc',
+    '#c4b5fd'
+  ],
+  [
+    'p02',
+    'Real Madrid Black Special',
+    'Real Madrid',
+    'real-madrid',
+    'laliga',
+    'kits',
+    'RMA BLACK',
+    '#111827',
+    '#475569'
+  ],
+  [
+    'p03',
+    'Real Madrid Retro 1998',
+    'Real Madrid',
+    'real-madrid',
+    'laliga',
+    'retro',
+    'RMA 98',
+    '#f8fafc',
+    '#818cf8'
+  ],
+  [
+    'p04',
+    'Real Madrid Infantil',
+    'Real Madrid',
+    'real-madrid',
+    'laliga',
+    'kids',
+    'RMA KIDS',
+    '#f8fafc',
+    '#60a5fa'
+  ],
+  [
+    'p05',
+    'Barcelona Home',
+    'Barcelona',
+    'barcelona',
+    'laliga',
+    'kits',
+    'BAR HOME',
+    '#7f1d1d',
+    '#1d4ed8'
+  ],
+  [
+    'p06',
+    'Barcelona Away',
+    'Barcelona',
+    'barcelona',
+    'laliga',
+    'kits',
+    'BAR AWAY',
+    '#facc15',
+    '#1e40af'
+  ],
+  [
+    'p07',
+    'Barcelona Retro',
+    'Barcelona',
+    'barcelona',
+    'laliga',
+    'retro',
+    'BAR RETRO',
+    '#991b1b',
+    '#1e3a8a'
+  ],
+  [
+    'p08',
+    'Flamengo Home',
+    'Flamengo',
+    'flamengo',
+    'brasileirao',
+    'kits',
+    'FLA HOME',
+    '#7f1d1d',
+    '#18181b'
+  ],
+  [
+    'p09',
+    'Flamengo Away',
+    'Flamengo',
+    'flamengo',
+    'brasileirao',
+    'kits',
+    'FLA AWAY',
+    '#fafafa',
+    '#dc2626'
+  ],
+  [
+    'p10',
+    'Flamengo Retro 1981',
+    'Flamengo',
+    'flamengo',
+    'brasileirao',
+    'retro',
+    'FLA 81',
+    '#dc2626',
+    '#18181b'
+  ],
+  [
+    'p11',
+    'Flamengo Feminino',
+    'Flamengo',
+    'flamengo',
+    'brasileirao',
+    'women',
+    'FLA WOMEN',
+    '#ef4444',
+    '#18181b'
+  ],
   ['p12', 'Brasil Home', 'Brasil', 'brasil', 'national', 'kits', 'BRA HOME', '#facc15', '#16a34a'],
   ['p13', 'Brasil Away', 'Brasil', 'brasil', 'national', 'kits', 'BRA AWAY', '#2563eb', '#16a34a'],
-  ['p14', 'Brasil Retro 2002', 'Brasil', 'brasil', 'national', 'retro', 'BRA 02', '#facc15', '#15803d']
+  [
+    'p14',
+    'Brasil Retro 2002',
+    'Brasil',
+    'brasil',
+    'national',
+    'retro',
+    'BRA 02',
+    '#facc15',
+    '#15803d'
+  ]
 ].map(([id, name, category, teamId, leagueId, facetId, label, a, b]) => {
   const image = art(label, a, b);
   return {
     id,
     name,
     category,
-    description: 'Produto demonstrativo para validar design, responsividade e navegação do Catalog Engine.',
+    description:
+      'Produto demonstrativo para validar design, responsividade e navegação do Catalog Engine.',
     teamId,
     leagueId,
     facetId,
@@ -68,7 +231,11 @@ function filteredProducts(url) {
     if (teamId && product.teamId !== teamId) return false;
     if (leagueId && product.leagueId !== leagueId) return false;
     if (facetId && product.facetId !== facetId) return false;
-    if (q && !`${product.name} ${product.category} ${product.description}`.toLowerCase().includes(q)) return false;
+    if (
+      q &&
+      !`${product.name} ${product.category} ${product.description}`.toLowerCase().includes(q)
+    )
+      return false;
     return true;
   });
 }
@@ -78,7 +245,10 @@ function teamDetail(team) {
   return {
     team: { ...team, product_count: teamProducts.length },
     facets: facets
-      .map((facet) => ({ ...facet, product_count: teamProducts.filter((product) => product.facetId === facet.facet_id).length }))
+      .map((facet) => ({
+        ...facet,
+        product_count: teamProducts.filter((product) => product.facetId === facet.facet_id).length
+      }))
       .filter((facet) => facet.product_count > 0)
   };
 }
@@ -88,14 +258,15 @@ export default {
     const url = new URL(request.url);
     if (!['GET', 'HEAD'].includes(request.method)) return json({ error: 'preview_read_only' }, 405);
 
-    if (url.pathname === '/api/health') return json({ ok: true, preview: true, environment: 'ui-staging' });
+    if (url.pathname === '/api/health')
+      return json({ ok: true, preview: true, environment: 'ui-staging' });
     if (url.pathname === '/api/catalog/meta') {
       return json({
         store: {
-          name: 'CATALOG ENGINE • UI PREVIEW',
-          eyebrow: 'STAGING VISUAL',
-          heroEyebrow: 'DESIGN SYSTEM • M3',
-          heroTitle: 'Veja a experiência evoluindo antes do lançamento.',
+          name: 'Estádio 90 • UI PREVIEW',
+          eyebrow: 'VITRINE OFICIAL',
+          heroEyebrow: 'NOVA TEMPORADA',
+          heroTitle: 'Sua paixão entra em campo.',
           whatsapp: '5541999999999',
           theme: 'dark'
         },
@@ -114,7 +285,11 @@ export default {
     if (url.pathname === '/api/teams') {
       const entityType = url.searchParams.get('entityType');
       const leagueId = url.searchParams.get('leagueId');
-      const items = teams.filter((team) => (!entityType || team.entity_type === entityType) && (!leagueId || team.league_id === leagueId));
+      const items = teams.filter(
+        (team) =>
+          (!entityType || team.entity_type === entityType) &&
+          (!leagueId || team.league_id === leagueId)
+      );
       return json({ items });
     }
     if (url.pathname.startsWith('/api/teams/')) {
@@ -129,7 +304,15 @@ export default {
       const start = (page - 1) * pageSize;
       const pageItems = items.slice(start, start + pageSize);
       const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
-      return json({ items: pageItems, page, pageSize, total: items.length, totalPages, hasPrevious: page > 1, hasMore: page < totalPages });
+      return json({
+        items: pageItems,
+        page,
+        pageSize,
+        total: items.length,
+        totalPages,
+        hasPrevious: page > 1,
+        hasMore: page < totalPages
+      });
     }
     if (url.pathname.startsWith('/api/products/')) {
       const id = decodeURIComponent(url.pathname.slice('/api/products/'.length));

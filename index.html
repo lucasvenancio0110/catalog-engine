@@ -1,116 +1,197 @@
 <!doctype html>
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0b0b0c" />
-  <meta name="description" content="Catálogo digital" />
-  <title>Catálogo</title>
-  <link rel="stylesheet" href="/src/ui/foundation.css" />
-  <link rel="stylesheet" href="/src/ui/iconography.css" />
-</head>
-<body class="ce-storefront">
-  <header class="topbar">
-    <div class="brand-lockup">
-      <img id="storeLogo" class="store-logo" alt="" hidden />
-      <div>
-        <span id="storeEyebrow" class="eyebrow">CATÁLOGO DIGITAL</span>
-        <h1 id="storeName">Catálogo</h1>
-      </div>
-    </div>
-    <button id="themeToggle" class="ghost theme-toggle" type="button" aria-label="Alternar tema">
-      <i class="theme-icon theme-icon--sun" data-lucide="sun"></i>
-      <i class="theme-icon theme-icon--moon" data-lucide="moon"></i>
-    </button>
-  </header>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0b0c" />
+    <meta name="description" content="Explore produtos, categorias e novidades da loja." />
+    <title>Catálogo</title>
+    <link rel="stylesheet" href="/src/ui/foundation.css" />
+    <link rel="stylesheet" href="/src/ui/iconography.css" />
+  </head>
+  <body class="ce-storefront">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand-lockup" href="/" aria-label="Ir para o início da loja">
+          <img id="storeLogo" class="store-logo" alt="" hidden />
+          <span class="brand-copy">
+            <span id="storeEyebrow" class="eyebrow">VITRINE DIGITAL</span>
+            <strong id="storeName">Catálogo</strong>
+          </span>
+        </a>
 
-  <main>
-    <section class="hero">
-      <div>
-        <p id="heroEyebrow" class="eyebrow">NOVIDADES</p>
-        <h2 id="heroTitle">Encontre o produto certo.</h2>
-      </div>
-      <div class="stats">
-        <strong id="productCount">0</strong>
-        <span>produtos</span>
-      </div>
-    </section>
+        <nav class="primary-nav" aria-label="Navegação principal">
+          <a href="#inicio">Início</a>
+          <a href="#explorar">Explorar</a>
+          <a href="#catalogo">Produtos</a>
+        </nav>
 
-    <section class="toolbar" aria-label="Filtros do catálogo">
-      <label class="search">
-        <span>Buscar</span>
-        <input id="searchInput" type="search" placeholder="Nome, modelo ou categoria" autocomplete="off" />
-      </label>
-    </section>
-
-    <section id="categoryBrowser" class="category-browser" aria-label="Explorar categorias">
-      <div class="category-browser-head">
-        <div class="category-browser-copy">
-          <span class="eyebrow">EXPLORAR</span>
-          <strong id="categoryTitle">Categorias</strong>
-          <span id="categorySubtitle" class="category-subtitle"></span>
+        <div class="header-actions">
+          <a id="headerContact" class="header-contact" target="_blank" rel="noopener" hidden>
+            <i data-lucide="message-circle"></i>
+            <span>Falar com a loja</span>
+          </a>
+          <button
+            id="themeToggle"
+            class="ghost theme-toggle"
+            type="button"
+            aria-label="Alternar tema"
+          >
+            <i class="theme-icon theme-icon--sun" data-lucide="sun"></i>
+            <i class="theme-icon theme-icon--moon" data-lucide="moon"></i>
+          </button>
         </div>
-        <button id="categoryBack" class="category-back" type="button" hidden>
-          <i data-lucide="chevron-left"></i>
-          <span>Voltar</span>
-        </button>
       </div>
-      <nav id="categoryTrail" class="category-trail" aria-label="Caminho da categoria" hidden></nav>
-      <nav id="categoryChips" class="category-chips" aria-label="Categorias disponíveis"></nav>
-    </section>
+    </header>
 
-    <div id="status" class="status">Carregando catálogo…</div>
-    <section id="productGrid" class="grid" aria-live="polite"></section>
-    <nav id="pagination" class="pagination" aria-label="Paginação do catálogo" hidden>
-      <button id="previousPage" class="pagination-button" type="button">
-        <i data-lucide="chevron-left"></i>
-        <span>Anterior</span>
+    <main>
+      <section id="inicio" class="hero" aria-labelledby="heroTitle">
+        <div class="hero-copy">
+          <p id="heroEyebrow" class="eyebrow">COLEÇÃO ATUAL</p>
+          <h2 id="heroTitle">Encontre o produto certo.</h2>
+          <p class="hero-support">Explore a seleção da loja e encontre seu próximo favorito.</p>
+        </div>
+
+        <div class="hero-side">
+          <div class="stats" aria-label="Tamanho do catálogo">
+            <strong id="productCount">0</strong>
+            <span>itens disponíveis</span>
+          </div>
+        </div>
+
+        <form id="searchForm" class="search-shell" role="search">
+          <label class="sr-only" for="searchInput">Buscar no catálogo</label>
+          <i class="search-icon" data-lucide="search"></i>
+          <input
+            id="searchInput"
+            type="search"
+            placeholder="Busque por time, modelo ou categoria"
+            autocomplete="off"
+          />
+          <button
+            id="clearSearch"
+            class="search-clear"
+            type="button"
+            aria-label="Limpar busca"
+            hidden
+          >
+            <i data-lucide="x"></i>
+          </button>
+        </form>
+      </section>
+
+      <section
+        id="explorar"
+        class="category-browser"
+        aria-label="Explorar categorias"
+        data-view="root"
+      >
+        <div class="category-browser-head">
+          <div class="category-browser-copy">
+            <span class="eyebrow">EXPLORAR</span>
+            <strong id="categoryTitle">Categorias</strong>
+            <span id="categorySubtitle" class="category-subtitle"></span>
+          </div>
+          <button id="categoryBack" class="category-back" type="button" hidden>
+            <i data-lucide="chevron-left"></i>
+            <span>Voltar</span>
+          </button>
+        </div>
+        <nav
+          id="categoryTrail"
+          class="category-trail"
+          aria-label="Caminho da categoria"
+          hidden
+        ></nav>
+        <nav id="categoryChips" class="category-chips" aria-label="Categorias disponíveis"></nav>
+      </section>
+
+      <section id="catalogo" class="catalog-section" aria-labelledby="catalogTitle">
+        <div class="catalog-head">
+          <div>
+            <span class="eyebrow">CATÁLOGO</span>
+            <h2 id="catalogTitle">Produtos</h2>
+            <p id="status" class="status" role="status" aria-live="polite">Carregando catálogo…</p>
+          </div>
+          <button id="clearCatalogState" class="clear-catalog-state" type="button" hidden>
+            Limpar busca e filtros
+          </button>
+        </div>
+
+        <section id="catalogState" class="catalog-state" aria-live="polite" hidden>
+          <span id="catalogStateIcon" class="catalog-state-icon"></span>
+          <h3 id="catalogStateTitle"></h3>
+          <p id="catalogStateCopy"></p>
+          <button id="catalogStateAction" class="state-action" type="button"></button>
+        </section>
+
+        <section id="productGrid" class="grid" aria-live="polite" aria-busy="true"></section>
+        <nav id="pagination" class="pagination" aria-label="Paginação do catálogo" hidden>
+          <button id="previousPage" class="pagination-button" type="button">
+            <i data-lucide="chevron-left"></i>
+            <span>Anterior</span>
+          </button>
+          <span id="pageInfo" class="page-info"></span>
+          <button id="nextPage" class="pagination-button" type="button">
+            <span>Próxima</span>
+            <i data-lucide="chevron-right"></i>
+          </button>
+        </nav>
+      </section>
+    </main>
+
+    <template id="productTemplate">
+      <article class="card">
+        <div class="image-wrap" role="button" tabindex="0">
+          <img class="product-image" alt="" loading="lazy" />
+          <div class="image-fallback">Sem imagem</div>
+        </div>
+        <div class="card-content">
+          <span class="category"></span>
+          <h3 class="product-name"></h3>
+          <p class="description"></p>
+        </div>
+      </article>
+    </template>
+
+    <template id="productSkeletonTemplate">
+      <article class="card skeleton-card" aria-hidden="true">
+        <div class="skeleton-media skeleton-pulse"></div>
+        <div class="card-content">
+          <span class="skeleton-line skeleton-line--short skeleton-pulse"></span>
+          <span class="skeleton-line skeleton-line--title skeleton-pulse"></span>
+          <span class="skeleton-line skeleton-pulse"></span>
+        </div>
+      </article>
+    </template>
+
+    <dialog id="productDialog">
+      <button id="dialogClose" class="dialog-close" type="button" aria-label="Fechar">
+        <i data-lucide="x"></i>
       </button>
-      <span id="pageInfo" class="page-info"></span>
-      <button id="nextPage" class="pagination-button" type="button">
-        <span>Próxima</span>
-        <i data-lucide="chevron-right"></i>
-      </button>
-    </nav>
-  </main>
 
-  <template id="productTemplate">
-    <article class="card">
-      <div class="image-wrap" role="button" tabindex="0">
-        <img class="product-image" alt="" loading="lazy" />
-        <div class="image-fallback">Sem imagem</div>
+      <div class="dialog-gallery">
+        <div class="dialog-main-media">
+          <div
+            id="productSwiper"
+            class="swiper product-swiper"
+            aria-label="Galeria de fotos do produto"
+          ></div>
+        </div>
+        <div id="dialogThumbs" class="dialog-thumbs" aria-label="Miniaturas do produto"></div>
       </div>
-      <div class="card-content">
-        <span class="category"></span>
-        <h3 class="product-name"></h3>
-        <p class="description"></p>
+
+      <div class="dialog-copy">
+        <span id="dialogCategory" class="category"></span>
+        <h2 id="dialogName"></h2>
+        <p id="dialogDescription"></p>
+        <a id="whatsappButton" class="primary-action" target="_blank" rel="noopener">
+          <i data-lucide="message-circle"></i>
+          <span>Pedir no WhatsApp</span>
+        </a>
       </div>
-    </article>
-  </template>
+    </dialog>
 
-  <dialog id="productDialog">
-    <button id="dialogClose" class="dialog-close" type="button" aria-label="Fechar">
-      <i data-lucide="x"></i>
-    </button>
-
-    <div class="dialog-gallery">
-      <div class="dialog-main-media">
-        <div id="productSwiper" class="swiper product-swiper" aria-label="Galeria de fotos do produto"></div>
-      </div>
-      <div id="dialogThumbs" class="dialog-thumbs" aria-label="Miniaturas do produto"></div>
-    </div>
-
-    <div class="dialog-copy">
-      <span id="dialogCategory" class="category"></span>
-      <h2 id="dialogName"></h2>
-      <p id="dialogDescription"></p>
-      <a id="whatsappButton" class="primary-action" target="_blank" rel="noopener">
-        <i data-lucide="message-circle"></i>
-        <span>Pedir no WhatsApp</span>
-      </a>
-    </div>
-  </dialog>
-
-  <script type="module" src="/src/entry.js"></script>
-</body>
+    <script type="module" src="/src/entry.js"></script>
+  </body>
 </html>
