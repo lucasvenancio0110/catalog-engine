@@ -30,6 +30,9 @@ describe('M7D8 trusted production evidence boundary', () => {
     expect(script).toContain('crashGapPromotedBeforeControlCommit: true');
     expect(script).toContain('replayObservedAlreadyPromoted: true');
     expect(script).toContain('authorityAdvancedAgainOnReplay: false');
+    expect(script).toContain('state_revision INTEGER NOT NULL DEFAULT 0');
+    expect(script).toContain('recovery_attempt_count INTEGER NOT NULL DEFAULT 0');
+    expect(script).toContain('phase_lease_kind TEXT, phase_lease_token TEXT, phase_lease_until TEXT');
     expect(script).not.toMatch(/TENANT_IMPORT_QUEUE|TENANT_IMPORT_DETAIL_QUEUE|\.sendBatch?\s*\(/);
     expect(config.vars?.TENANT_SYNC_AUTOMATION_ENABLED).toBe('0');
     expect(config.vars?.TENANT_SYNC_ACTIVE_COHORT).toBe('');

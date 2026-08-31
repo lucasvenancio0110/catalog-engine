@@ -180,6 +180,11 @@ async function initializeControlDatabase(databaseId) {
               discovered_count INTEGER NOT NULL DEFAULT 0,
               next_attempt_at TEXT, finished_at TEXT, last_error_code TEXT,
               sync_scheduled_for TEXT, finalize_lease_until TEXT,
+              state_revision INTEGER NOT NULL DEFAULT 0,
+              recovery_attempt_count INTEGER NOT NULL DEFAULT 0,
+              last_failure_phase TEXT,
+              phase_lease_kind TEXT, phase_lease_token TEXT, phase_lease_until TEXT,
+              last_recovery_at TEXT, last_delivery_at TEXT, candidate_classified_at TEXT,
               created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
               updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )`,
