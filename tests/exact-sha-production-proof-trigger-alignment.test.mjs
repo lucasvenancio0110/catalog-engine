@@ -36,6 +36,19 @@ describe('exact-SHA production proof trigger alignment', () => {
     }
   });
 
+  it('revalidates the application when cumulative M7D8 and M7D10 proofs change', () => {
+    for (const path of [
+      '.github/workflows/cloudflare-m7d8-finalization-canary.yml',
+      'scripts/cloudflare-m7d8-finalization-canary.mjs',
+      'tests/tenant-m7d8-finalization-canary.test.mjs',
+      '.github/workflows/cloudflare-m7d10-recovery-canary.yml',
+      'scripts/cloudflare-m7d10-recovery-canary.mjs',
+      'tests/tenant-m7d10-recovery-canary.test.mjs'
+    ]) {
+      expect(deployWorkflow).toContain(`'${path}'`);
+    }
+  });
+
   it('revalidates the application when the automatic import production proof changes', () => {
     for (const path of [
       '.github/workflows/cloudflare-auto-tenant-import-canary.yml',
