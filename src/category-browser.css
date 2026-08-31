@@ -1,13 +1,10 @@
-.toolbar {
-  grid-template-columns: minmax(0, 1fr);
-}
-
 .category-browser {
-  margin: 4px 0 20px;
+  margin: 0 0 20px;
   padding: 16px;
   border: 1px solid var(--line);
   border-radius: 24px;
   background: color-mix(in srgb, var(--panel) 86%, transparent);
+  scroll-margin-top: 6rem;
 }
 
 .category-browser-head {
@@ -26,12 +23,12 @@
 
 .category-browser-head strong {
   font-size: 1.1rem;
-  letter-spacing: -.02em;
+  letter-spacing: -0.02em;
 }
 
 .category-subtitle {
   color: var(--muted);
-  font-size: .8rem;
+  font-size: 0.8rem;
   line-height: 1.35;
 }
 
@@ -43,7 +40,7 @@
   border-radius: 999px;
   background: var(--panel-2);
   color: var(--text);
-  font-size: .78rem;
+  font-size: 0.78rem;
   font-weight: 800;
 }
 
@@ -66,7 +63,7 @@
   border: 0;
   background: transparent;
   color: var(--muted);
-  font-size: .74rem;
+  font-size: 0.74rem;
   font-weight: 750;
 }
 
@@ -76,7 +73,7 @@
   color: var(--muted);
 }
 
-.category-trail-item[aria-current="page"] {
+.category-trail-item[aria-current='page'] {
   color: var(--text);
 }
 
@@ -86,6 +83,27 @@
   gap: 10px;
   overflow: visible;
   padding: 0;
+}
+
+.category-browser[data-view='root'] .category-browser-head {
+  align-items: center;
+  margin-bottom: 11px;
+}
+
+.category-browser[data-view='root'] .category-chips {
+  display: flex;
+  gap: 9px;
+  overflow-x: auto;
+  padding: 1px 1px 5px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+  scroll-snap-type: x proximity;
+}
+
+.category-browser[data-view='root'] .category-chip {
+  flex: 0 0 clamp(10.5rem, 18vw, 13rem);
+  min-height: 72px;
+  scroll-snap-align: start;
 }
 
 .category-chip {
@@ -101,7 +119,10 @@
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 10px;
-  transition: transform .16s ease, border-color .16s ease, background .16s ease;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease;
 }
 
 .category-chip:hover {
@@ -123,14 +144,14 @@
 }
 
 .category-card-copy strong {
-  font-size: .9rem;
+  font-size: 0.9rem;
   line-height: 1.14;
   overflow-wrap: anywhere;
 }
 
 .category-card-copy span {
   color: var(--muted);
-  font-size: .7rem;
+  font-size: 0.7rem;
   line-height: 1.25;
 }
 
@@ -151,7 +172,7 @@
   border-radius: 999px;
   background: var(--panel);
   color: var(--muted);
-  font-size: .68rem;
+  font-size: 0.68rem;
   font-weight: 850;
   white-space: nowrap;
 }
@@ -163,8 +184,12 @@
 }
 
 .root-card {
-  min-height: 92px;
-  background: linear-gradient(145deg, color-mix(in srgb, var(--panel-2) 92%, #fff 8%), var(--panel-2));
+  min-height: 72px;
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--panel-2) 92%, #fff 8%),
+    var(--panel-2)
+  );
 }
 
 .team-card {
@@ -186,9 +211,9 @@
   overflow: hidden;
   background: var(--panel);
   border: 1px solid var(--line);
-  font-size: .73rem;
+  font-size: 0.73rem;
   font-weight: 900;
-  letter-spacing: -.02em;
+  letter-spacing: -0.02em;
 }
 
 .team-mark img {
@@ -204,7 +229,7 @@
 }
 
 .facet-card .category-card-copy strong {
-  font-size: .82rem;
+  font-size: 0.82rem;
 }
 
 .facet-card.active {
@@ -235,7 +260,7 @@
 
 @media (max-width: 620px) {
   .category-browser {
-    margin-inline: -2px;
+    margin-inline: 0;
     padding: 12px;
     border-radius: 20px;
   }
@@ -271,16 +296,16 @@
   }
 
   .category-card-copy strong {
-    font-size: .82rem;
+    font-size: 0.82rem;
   }
 
   .category-card-copy span {
-    font-size: .65rem;
+    font-size: 0.65rem;
   }
 
   .category-count {
     padding: 5px 7px;
-    font-size: .63rem;
+    font-size: 0.63rem;
   }
 
   .category-arrow {
@@ -288,7 +313,11 @@
   }
 
   .root-card {
-    min-height: 84px;
+    min-height: 70px;
+  }
+
+  .category-browser[data-view='root'] .category-chip {
+    flex-basis: 10rem;
   }
 
   .team-card {

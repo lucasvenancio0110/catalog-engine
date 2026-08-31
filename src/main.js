@@ -1,24 +1,40 @@
 import './styles.css';
 import { getProductMedia, productGalleryUrls } from './catalog/media.js';
 import { mountProductGallery } from './product/gallery.js';
+import {
+  buildCatalogUrl,
+  hasCatalogRefinement,
+  readCatalogUrlState
+} from './storefront/catalog-url-state.js';
 import { hydrateStorefrontIcons } from './ui/storefront-icons.js';
 import { revealCards, revealDialog } from './ui/motion.js';
 
 const PAGE_SIZE = 15;
+const initialUrlState = readCatalogUrlState(window.location.href);
 
 const state = {
   catalog: { store: {}, stats: {}, navigation: [] },
   products: [],
-  query: '',
-  filters: { teamId: '', leagueId: '', facetId: '' },
-  pagination: { page: 1, pageSize: PAGE_SIZE, total: 0, totalPages: 0, hasPrevious: false, hasMore: false },
-  loading: false,
+  query: initialUrlState.query,
+  filters: initialUrlState.filters,
+  pagination: {
+    page: initialUrlState.page,
+    pageSize: PAGE_SIZE,
+    total: 0,
+    totalPages: 0,
+    hasPrevious: false,
+    hasMore: false
+  },
+  loading: true,
+  error: null,
   requestSequence: 0,
   activeProduct: null,
   gallery: null,
   leagues: null,
   facets: null,
-  explorerStack: [{ kind: 'root', title: 'Explorar', subtitle: 'Escolha como navegar pelo catálogo.' }]
+  explorerStack: [
+    { kind: 'root', title: 'Explorar', subtitle: 'Escolha como navegar pelo catálogo.' }
+  ]
 };
 
 const prefetchedImages = new Map();
@@ -26,23 +42,33 @@ const els = {
   storeName: document.querySelector('#storeName'),
   storeLogo: document.querySelector('#storeLogo'),
   storeEyebrow: document.querySelector('#storeEyebrow'),
+  headerContact: document.querySelector('#headerContact'),
   heroEyebrow: document.querySelector('#heroEyebrow'),
   heroTitle: document.querySelector('#heroTitle'),
   productCount: document.querySelector('#productCount'),
+  searchForm: document.querySelector('#searchForm'),
   searchInput: document.querySelector('#searchInput'),
-  categoryBrowser: document.querySelector('#categoryBrowser'),
+  clearSearch: document.querySelector('#clearSearch'),
+  categoryBrowser: document.querySelector('#explorar'),
   categoryTitle: document.querySelector('#categoryTitle'),
   categorySubtitle: document.querySelector('#categorySubtitle'),
   categoryBack: document.querySelector('#categoryBack'),
   categoryTrail: document.querySelector('#categoryTrail'),
   categoryChips: document.querySelector('#categoryChips'),
   status: document.querySelector('#status'),
+  clearCatalogState: document.querySelector('#clearCatalogState'),
+  catalogState: document.querySelector('#catalogState'),
+  catalogStateIcon: document.querySelector('#catalogStateIcon'),
+  catalogStateTitle: document.querySelector('#catalogStateTitle'),
+  catalogStateCopy: document.querySelector('#catalogStateCopy'),
+  catalogStateAction: document.querySelector('#catalogStateAction'),
   grid: document.querySelector('#productGrid'),
   pagination: document.querySelector('#pagination'),
   pageInfo: document.querySelector('#pageInfo'),
   previousPage: document.querySelector('#previousPage'),
   nextPage: document.querySelector('#nextPage'),
   template: document.querySelector('#productTemplate'),
+  skeletonTemplate: document.querySelector('#productSkeletonTemplate'),
   dialog: document.querySelector('#productDialog'),
   dialogClose: document.querySelector('#dialogClose'),
   productSwiper: document.querySelector('#productSwiper'),
@@ -66,7 +92,10 @@ function prefetchImage(url) {
 }
 
 function scheduleInitialViewPrefetch(products) {
-  const urls = products.slice(0, 4).map((product) => getProductMedia(product)[0]?.url).filter(Boolean);
+  const urls = products
+    .slice(0, 4)
+    .map((product) => getProductMedia(product)[0]?.url)
+    .filter(Boolean);
   const run = () => urls.forEach(prefetchImage);
   if ('requestIdleCallback' in window) window.requestIdleCallback(run, { timeout: 1800 });
   else setTimeout(run, 600);
@@ -93,7 +122,52 @@ function resetFilters() {
 
 function setFilter(next) {
   state.filters = { teamId: '', leagueId: '', facetId: '', ...next };
-  void loadProducts(1, { scroll: true });
+  void loadProducts(1, { scroll: true, history: 'push' });
+}
+
+function catalogStateForUrl(page = state.pagination.page) {
+  return { query: state.query, filters: state.filters, page };
+}
+
+function normalizedCatalogState(page = state.pagination.page) {
+  const relativeUrl = buildCatalogUrl(window.location.href, catalogStateForUrl(page));
+  return readCatalogUrlState(new URL(relativeUrl, window.location.origin));
+}
+
+function writeCatalogHistory(mode, page = state.pagination.page) {
+  if (mode === 'none') return;
+  const nextUrl = buildCatalogUrl(window.location.href, catalogStateForUrl(page));
+  const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (mode === 'push' && nextUrl === currentUrl) return;
+  window.history[`${mode}State`]({ catalog: true }, '', nextUrl);
+}
+
+function applyUrlState() {
+  const urlState = readCatalogUrlState(window.location.href);
+  state.query = urlState.query;
+  state.filters = urlState.filters;
+  state.pagination.page = urlState.page;
+  els.searchInput.value = state.query;
+}
+
+function renderRefinementControls() {
+  els.clearSearch.hidden = !state.query;
+  els.clearCatalogState.hidden = !hasCatalogRefinement(catalogStateForUrl());
+}
+
+function resetExplorer() {
+  state.explorerStack = [
+    { kind: 'root', title: 'Explorar', subtitle: 'Escolha como navegar pelo catálogo.' }
+  ];
+  void renderExplorer();
+}
+
+function clearCatalogRefinements({ scroll = true } = {}) {
+  state.query = '';
+  resetFilters();
+  els.searchInput.value = '';
+  resetExplorer();
+  void loadProducts(1, { scroll, history: 'push' });
 }
 
 function iconNode(name, className = '') {
@@ -115,7 +189,17 @@ function navigationIconName(item) {
   return 'tag';
 }
 
-function cardButton({ title, count = null, subtitle = '', iconName = '', kind = '', onClick, initials = '', logoUrl = null, arrow = true }) {
+function cardButton({
+  title,
+  count = null,
+  subtitle = '',
+  iconName = '',
+  kind = '',
+  onClick,
+  initials = '',
+  logoUrl = null,
+  arrow = true
+}) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = `category-chip ${kind}`.trim();
@@ -202,6 +286,7 @@ async function getFacets() {
 
 async function renderExplorer() {
   const view = currentExplorer();
+  els.categoryBrowser.dataset.view = view.kind;
   els.categoryTitle.textContent = view.title || 'Explorar';
   els.categorySubtitle.textContent = view.subtitle || '';
   els.categoryBack.hidden = state.explorerStack.length <= 1;
@@ -211,103 +296,159 @@ async function renderExplorer() {
   try {
     if (view.kind === 'root') {
       for (const item of state.catalog.navigation || []) {
-        els.categoryChips.appendChild(cardButton({
-          title: item.name,
-          count: item.count,
-          iconName: navigationIconName(item),
-          kind: 'root-card',
-          onClick: () => {
-            if (item.kind === 'teams') {
-              pushExplorer({ kind: 'countries', title: 'Times', subtitle: 'Escolha o país ou região.' });
-            } else if (item.kind === 'national_teams') {
-              pushExplorer({ kind: 'national-teams', title: 'Seleções', subtitle: 'Seleções nacionais disponíveis.' });
-            } else {
-              setFilter({ facetId: item.facetId });
-              pushExplorer({ kind: 'facet', title: item.name, subtitle: `${Number(item.count || 0).toLocaleString('pt-BR')} produtos`, facetId: item.facetId });
+        els.categoryChips.appendChild(
+          cardButton({
+            title: item.name,
+            count: item.count,
+            iconName: navigationIconName(item),
+            kind: 'root-card',
+            onClick: () => {
+              if (item.kind === 'teams') {
+                pushExplorer({
+                  kind: 'countries',
+                  title: 'Times',
+                  subtitle: 'Escolha o país ou região.'
+                });
+              } else if (item.kind === 'national_teams') {
+                pushExplorer({
+                  kind: 'national-teams',
+                  title: 'Seleções',
+                  subtitle: 'Seleções nacionais disponíveis.'
+                });
+              } else {
+                setFilter({ facetId: item.facetId });
+                pushExplorer({
+                  kind: 'facet',
+                  title: item.name,
+                  subtitle: `${Number(item.count || 0).toLocaleString('pt-BR')} produtos`,
+                  facetId: item.facetId
+                });
+              }
             }
-          }
-        }));
+          })
+        );
       }
     } else if (view.kind === 'countries') {
       const leagues = await getLeagues();
       const groups = new Map();
       for (const league of leagues.filter((entry) => entry.entity_type === 'club')) {
         const key = league.country_code;
-        const current = groups.get(key) || { countryCode: key, countryName: league.country_name, count: 0, leagues: 0 };
+        const current = groups.get(key) || {
+          countryCode: key,
+          countryName: league.country_name,
+          count: 0,
+          leagues: 0
+        };
         current.count += Number(league.product_count || 0);
         current.leagues += 1;
         groups.set(key, current);
       }
-      for (const group of [...groups.values()].sort((a, b) => b.count - a.count || a.countryName.localeCompare(b.countryName))) {
-        els.categoryChips.appendChild(cardButton({
-          title: group.countryName,
-          count: group.count,
-          subtitle: `${group.leagues} liga${group.leagues === 1 ? '' : 's'}`,
-          iconName: 'globe',
-          kind: 'country-card',
-          onClick: () => pushExplorer({ kind: 'leagues', title: group.countryName, crumb: group.countryName, subtitle: 'Escolha a competição.', countryCode: group.countryCode })
-        }));
+      for (const group of [...groups.values()].sort(
+        (a, b) => b.count - a.count || a.countryName.localeCompare(b.countryName)
+      )) {
+        els.categoryChips.appendChild(
+          cardButton({
+            title: group.countryName,
+            count: group.count,
+            subtitle: `${group.leagues} liga${group.leagues === 1 ? '' : 's'}`,
+            iconName: 'globe',
+            kind: 'country-card',
+            onClick: () =>
+              pushExplorer({
+                kind: 'leagues',
+                title: group.countryName,
+                crumb: group.countryName,
+                subtitle: 'Escolha a competição.',
+                countryCode: group.countryCode
+              })
+          })
+        );
       }
     } else if (view.kind === 'leagues') {
-      const leagues = (await getLeagues()).filter((league) => league.country_code === view.countryCode && league.entity_type === 'club');
+      const leagues = (await getLeagues()).filter(
+        (league) => league.country_code === view.countryCode && league.entity_type === 'club'
+      );
       for (const league of leagues) {
-        els.categoryChips.appendChild(cardButton({
-          title: league.name,
-          count: league.product_count,
-          subtitle: league.country_name,
-          iconName: 'trophy',
-          kind: 'league-card',
-          onClick: () => pushExplorer({ kind: 'teams', title: league.name, crumb: league.name, subtitle: 'Escolha o time.', leagueId: league.league_id })
-        }));
+        els.categoryChips.appendChild(
+          cardButton({
+            title: league.name,
+            count: league.product_count,
+            subtitle: league.country_name,
+            iconName: 'trophy',
+            kind: 'league-card',
+            onClick: () =>
+              pushExplorer({
+                kind: 'teams',
+                title: league.name,
+                crumb: league.name,
+                subtitle: 'Escolha o time.',
+                leagueId: league.league_id
+              })
+          })
+        );
       }
     } else if (view.kind === 'teams') {
-      const teams = (await fetchJson(`/api/teams?leagueId=${encodeURIComponent(view.leagueId)}&entityType=club`)).items || [];
+      const teams =
+        (
+          await fetchJson(
+            `/api/teams?leagueId=${encodeURIComponent(view.leagueId)}&entityType=club`
+          )
+        ).items || [];
       if (!teams.length) setFilter({ leagueId: view.leagueId });
       for (const team of teams) {
-        els.categoryChips.appendChild(cardButton({
-          title: team.name,
-          count: team.product_count,
-          initials: team.initials,
-          logoUrl: team.logo_url,
-          kind: 'team-card',
-          onClick: () => openTeam(team)
-        }));
+        els.categoryChips.appendChild(
+          cardButton({
+            title: team.name,
+            count: team.product_count,
+            initials: team.initials,
+            logoUrl: team.logo_url,
+            kind: 'team-card',
+            onClick: () => openTeam(team)
+          })
+        );
       }
     } else if (view.kind === 'national-teams') {
       const teams = (await fetchJson('/api/teams?entityType=national_team')).items || [];
       for (const team of teams) {
-        els.categoryChips.appendChild(cardButton({
-          title: team.name,
-          count: team.product_count,
-          initials: team.initials,
-          logoUrl: team.logo_url,
-          kind: 'team-card',
-          onClick: () => openTeam(team)
-        }));
+        els.categoryChips.appendChild(
+          cardButton({
+            title: team.name,
+            count: team.product_count,
+            initials: team.initials,
+            logoUrl: team.logo_url,
+            kind: 'team-card',
+            onClick: () => openTeam(team)
+          })
+        );
       }
     } else if (view.kind === 'team') {
       const payload = await fetchJson(`/api/teams/${encodeURIComponent(view.teamId)}`);
       els.categorySubtitle.textContent = `${Number(payload.team.product_count || 0).toLocaleString('pt-BR')} produtos`;
-      els.categoryChips.appendChild(cardButton({
-        title: 'Todos',
-        count: payload.team.product_count,
-        kind: 'facet-card active',
-        arrow: false,
-        onClick: () => setFilter({ teamId: view.teamId })
-      }));
-      for (const facet of payload.facets || []) {
-        els.categoryChips.appendChild(cardButton({
-          title: facet.name,
-          count: facet.product_count,
-          kind: 'facet-card',
+      els.categoryChips.appendChild(
+        cardButton({
+          title: 'Todos',
+          count: payload.team.product_count,
+          kind: 'facet-card active',
           arrow: false,
-          onClick: () => setFilter({ teamId: view.teamId, facetId: facet.facet_id })
-        }));
+          onClick: () => setFilter({ teamId: view.teamId })
+        })
+      );
+      for (const facet of payload.facets || []) {
+        els.categoryChips.appendChild(
+          cardButton({
+            title: facet.name,
+            count: facet.product_count,
+            kind: 'facet-card',
+            arrow: false,
+            onClick: () => setFilter({ teamId: view.teamId, facetId: facet.facet_id })
+          })
+        );
       }
     } else if (view.kind === 'facet') {
       const facets = await getFacets();
       const facet = facets.find((entry) => entry.facet_id === view.facetId);
-      if (facet) els.categorySubtitle.textContent = `${Number(facet.product_count || 0).toLocaleString('pt-BR')} produtos`;
+      if (facet)
+        els.categorySubtitle.textContent = `${Number(facet.product_count || 0).toLocaleString('pt-BR')} produtos`;
     }
   } catch (error) {
     console.error('explorer_failed', error);
@@ -319,22 +460,73 @@ async function renderExplorer() {
 
 function openTeam(team) {
   setFilter({ teamId: team.team_id });
-  pushExplorer({ kind: 'team', title: team.name, crumb: team.name, subtitle: `${Number(team.product_count || 0).toLocaleString('pt-BR')} produtos`, teamId: team.team_id });
+  pushExplorer({
+    kind: 'team',
+    title: team.name,
+    crumb: team.name,
+    subtitle: `${Number(team.product_count || 0).toLocaleString('pt-BR')} produtos`,
+    teamId: team.team_id
+  });
 }
 
 function renderPagination() {
   const { page, totalPages, hasPrevious, hasMore } = state.pagination;
-  els.pagination.hidden = state.loading || totalPages <= 1;
+  els.pagination.hidden = state.loading || Boolean(state.error) || totalPages <= 1;
   els.pageInfo.textContent = totalPages ? `Página ${page} de ${totalPages}` : '';
   els.previousPage.disabled = !hasPrevious || state.loading;
   els.nextPage.disabled = !hasMore || state.loading;
 }
 
+function renderCatalogMessage({ icon, title, copy, action, actionKind }) {
+  els.catalogStateIcon.innerHTML = '';
+  els.catalogStateIcon.appendChild(iconNode(icon));
+  els.catalogStateTitle.textContent = title;
+  els.catalogStateCopy.textContent = copy;
+  els.catalogStateAction.textContent = action;
+  els.catalogStateAction.dataset.action = actionKind;
+  els.catalogState.hidden = false;
+  hydrateStorefrontIcons(els.catalogStateIcon);
+}
+
+function hideCatalogMessage() {
+  els.catalogState.hidden = true;
+  els.catalogStateAction.removeAttribute('data-action');
+}
+
+function renderSkeletons() {
+  for (let index = 0; index < 10; index += 1) {
+    els.grid.appendChild(els.skeletonTemplate.content.cloneNode(true));
+  }
+}
+
+function scrollToCatalog() {
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  els.status.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+}
+
 function renderProducts() {
   els.grid.innerHTML = '';
+  els.grid.setAttribute('aria-busy', String(state.loading));
   els.productCount.textContent = Number(state.catalog.stats?.products || 0).toLocaleString('pt-BR');
+  renderRefinementControls();
   if (state.loading) {
-    els.status.textContent = 'Carregando produtos…';
+    els.status.textContent = state.pagination.total
+      ? 'Atualizando produtos…'
+      : 'Preparando a vitrine…';
+    hideCatalogMessage();
+    renderSkeletons();
+    renderPagination();
+    return;
+  }
+  if (state.error) {
+    els.status.textContent = 'A vitrine não pôde ser atualizada.';
+    renderCatalogMessage({
+      icon: 'refresh-cw',
+      title: 'Não foi possível carregar os produtos',
+      copy: 'Tente novamente. Se o problema continuar, volte em alguns instantes.',
+      action: 'Tentar novamente',
+      actionKind: 'retry'
+    });
     renderPagination();
     return;
   }
@@ -342,8 +534,21 @@ function renderProducts() {
     const start = (state.pagination.page - 1) * state.pagination.pageSize + 1;
     const end = start + state.products.length - 1;
     els.status.textContent = `Mostrando ${start}–${end} de ${state.pagination.total.toLocaleString('pt-BR')} produtos.`;
+    hideCatalogMessage();
   } else {
-    els.status.textContent = 'Nenhum produto encontrado com esses filtros.';
+    const refined = hasCatalogRefinement(catalogStateForUrl());
+    els.status.textContent = refined
+      ? 'Nenhum produto corresponde à sua busca.'
+      : 'Nenhum produto disponível no momento.';
+    renderCatalogMessage({
+      icon: refined ? 'search' : 'tag',
+      title: refined ? 'Não encontramos esse produto' : 'A vitrine está sendo preparada',
+      copy: refined
+        ? 'Tente outro termo ou limpe a busca e os filtros para ver todo o catálogo.'
+        : 'Novos produtos poderão aparecer aqui em breve.',
+      action: refined ? 'Ver todos os produtos' : 'Atualizar vitrine',
+      actionKind: refined ? 'clear' : 'retry'
+    });
   }
 
   for (const [index, product] of state.products.entries()) {
@@ -393,15 +598,27 @@ function renderProducts() {
   scheduleInitialViewPrefetch(state.products);
 }
 
-async function loadProducts(page = 1, { scroll = false } = {}) {
-  const requestSequence = ++state.requestSequence;
-  state.loading = true;
-  renderProducts();
+function productsApiUrl(page) {
   const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
   if (state.query.trim()) params.set('q', state.query.trim());
   for (const [key, value] of Object.entries(state.filters)) if (value) params.set(key, value);
+  return `/api/products?${params}`;
+}
+
+async function loadProducts(page = 1, { scroll = false, history = 'none' } = {}) {
+  const normalized = normalizedCatalogState(page);
+  state.query = normalized.query;
+  state.filters = normalized.filters;
+  page = normalized.page;
+  els.searchInput.value = state.query;
+  const requestSequence = ++state.requestSequence;
+  state.pagination.page = page;
+  state.loading = true;
+  state.error = null;
+  writeCatalogHistory(history, page);
+  renderProducts();
   try {
-    const payload = await fetchJson(`/api/products?${params}`);
+    const payload = await fetchJson(productsApiUrl(page));
     if (requestSequence !== state.requestSequence) return;
     state.products = payload.items || [];
     state.pagination = {
@@ -413,16 +630,18 @@ async function loadProducts(page = 1, { scroll = false } = {}) {
       hasMore: Boolean(payload.hasMore)
     };
     state.loading = false;
+    state.error = null;
+    writeCatalogHistory('replace', state.pagination.page);
     renderProducts();
-    if (scroll) els.status.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (scroll) scrollToCatalog();
   } catch (error) {
     if (requestSequence !== state.requestSequence) return;
-    console.error(error);
+    console.error('catalog_products_failed', error);
     state.loading = false;
+    state.error = error;
     state.products = [];
-    els.grid.innerHTML = '';
-    els.status.textContent = 'Não foi possível carregar os produtos.';
-    renderPagination();
+    renderProducts();
+    if (scroll) scrollToCatalog();
   }
 }
 
@@ -500,8 +719,8 @@ function applyStoreConfig() {
   const store = state.catalog.store || {};
   const name = store.name || 'Catálogo';
   els.storeName.textContent = name;
-  els.storeEyebrow.textContent = store.eyebrow || 'CATÁLOGO DIGITAL';
-  els.heroEyebrow.textContent = store.heroEyebrow || 'NOVIDADES';
+  els.storeEyebrow.textContent = store.eyebrow || 'VITRINE DIGITAL';
+  els.heroEyebrow.textContent = store.heroEyebrow || 'COLEÇÃO ATUAL';
   els.heroTitle.textContent = store.heroTitle || 'Encontre o produto certo.';
   document.title = name;
   if (store.logo) {
@@ -512,14 +731,25 @@ function applyStoreConfig() {
     els.storeLogo.hidden = true;
     els.storeLogo.removeAttribute('src');
   }
+  const phone = (store.whatsapp || '').replace(/\D/g, '');
+  if (phone) {
+    els.headerContact.href = `https://wa.me/${phone}?text=${encodeURIComponent('Olá! Vim pela vitrine e gostaria de ajuda.')}`;
+    els.headerContact.hidden = false;
+  } else {
+    els.headerContact.hidden = true;
+    els.headerContact.removeAttribute('href');
+  }
   document.documentElement.classList.toggle('light', store.theme === 'light');
 }
 
 async function init() {
+  applyUrlState();
+  writeCatalogHistory('replace', state.pagination.page);
+  renderProducts();
   try {
     const [meta, products] = await Promise.all([
       fetchJson('/api/catalog/meta'),
-      fetchJson(`/api/products?page=1&limit=${PAGE_SIZE}`)
+      fetchJson(productsApiUrl(state.pagination.page))
     ]);
     state.catalog = {
       store: meta.store || {},
@@ -537,21 +767,38 @@ async function init() {
       hasMore: Boolean(products.hasMore)
     };
     state.loading = false;
+    state.error = null;
     applyStoreConfig();
     await renderExplorer();
+    writeCatalogHistory('replace', state.pagination.page);
     renderProducts();
   } catch (error) {
-    console.error(error);
+    console.error('catalog_init_failed', error);
     state.loading = false;
-    els.status.textContent = 'Não foi possível carregar o catálogo.';
+    state.error = error;
+    renderProducts();
   }
 }
 
 let searchTimer;
 els.searchInput.addEventListener('input', (event) => {
   state.query = event.target.value;
+  renderRefinementControls();
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => void loadProducts(1), 300);
+  searchTimer = setTimeout(() => void loadProducts(1, { history: 'push' }), 350);
+});
+els.searchForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  clearTimeout(searchTimer);
+  state.query = els.searchInput.value;
+  void loadProducts(1, { scroll: true, history: 'push' });
+});
+els.clearSearch.addEventListener('click', () => {
+  clearTimeout(searchTimer);
+  state.query = '';
+  els.searchInput.value = '';
+  els.searchInput.focus();
+  void loadProducts(1, { history: 'push' });
 });
 els.categoryBack.addEventListener('click', () => {
   if (state.explorerStack.length <= 1) return;
@@ -559,21 +806,34 @@ els.categoryBack.addEventListener('click', () => {
   const view = currentExplorer();
   if (['root', 'countries', 'leagues', 'teams', 'national-teams'].includes(view.kind)) {
     resetFilters();
-    void loadProducts(1);
+    void loadProducts(1, { history: 'push' });
   }
   void renderExplorer();
 });
 els.previousPage.addEventListener('click', () => {
-  if (state.pagination.hasPrevious) void loadProducts(state.pagination.page - 1, { scroll: true });
+  if (state.pagination.hasPrevious)
+    void loadProducts(state.pagination.page - 1, { scroll: true, history: 'push' });
 });
 els.nextPage.addEventListener('click', () => {
-  if (state.pagination.hasMore) void loadProducts(state.pagination.page + 1, { scroll: true });
+  if (state.pagination.hasMore)
+    void loadProducts(state.pagination.page + 1, { scroll: true, history: 'push' });
+});
+els.clearCatalogState.addEventListener('click', () => clearCatalogRefinements());
+els.catalogStateAction.addEventListener('click', () => {
+  if (els.catalogStateAction.dataset.action === 'clear') clearCatalogRefinements();
+  else void loadProducts(state.pagination.page, { history: 'none' });
 });
 els.dialogClose.addEventListener('click', closeProduct);
 els.dialog.addEventListener('click', (event) => {
   if (event.target === els.dialog) closeProduct();
 });
 els.themeToggle.addEventListener('click', () => document.documentElement.classList.toggle('light'));
+window.addEventListener('popstate', () => {
+  clearTimeout(searchTimer);
+  applyUrlState();
+  resetExplorer();
+  void loadProducts(state.pagination.page, { history: 'none' });
+});
 
 hydrateStorefrontIcons(document);
 init();
