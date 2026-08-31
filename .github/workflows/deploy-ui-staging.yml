@@ -84,7 +84,7 @@ jobs:
           curl --fail --silent --show-error "$PREVIEW_URL/api/catalog/meta" > /tmp/preview-meta.json
           curl --fail --silent --show-error "$PREVIEW_URL/api/products?page=1&limit=15" > /tmp/preview-products.json
           curl --fail --silent --show-error "$PREVIEW_URL/" > /tmp/preview-storefront.html
-          curl --fail --silent --show-error "$PREVIEW_URL/app.html" > /tmp/preview-app.html
+          curl --fail --silent --show-error "$PREVIEW_URL/app" > /tmp/preview-app.html
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const health = JSON.parse(fs.readFileSync('/tmp/preview-health.json', 'utf8'));
@@ -112,7 +112,7 @@ jobs:
             "status": "verified",
             "previewUrl": "$PREVIEW_URL",
             "storefrontUrl": "$PREVIEW_URL/",
-            "appUrl": "$PREVIEW_URL/app.html",
+            "appUrl": "$PREVIEW_URL/app",
             "sourceCommit": "$SOURCE_SHA",
             "verifiedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "environment": "isolated-demo-data",
