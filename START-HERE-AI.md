@@ -57,7 +57,7 @@ Do not invent, rename, reorder, merge or split submilestones outside the roadmap
 
 The default above remains normative. An owner may make a narrower, conversation-specific exception by explicitly naming an ordered campaign boundary. That exception changes only when the conversation stops; it does not combine implementation scope or relax any slice gate.
 
-For the owner-authorized campaign begun on 2026-08-30, the boundary is `M7D10 -> M7D11 -> M7E -> M8 -> M9 -> M10 -> M11`. Each slice still requires its own revalidation, branch, bounded PR, CI, exact-head merge, trusted-main proof and applicable production canaries. The next slice may begin only after the preceding slice is honestly **PRODUCTION GREEN**. M8 and later macro milestones still require the formal decomposition protocol where needed. Record a compact evidence checkpoint after each Green slice; defer consolidated closure documentation until the owner says `FAÇA O SAVE`. Stop after M11. This authorization is not transferable to another conversation or a broader milestone range.
+For the owner-authorized campaign begun on 2026-08-30, the original boundary was `M7D10 -> M7D11 -> M7E -> M8 -> M9 -> M10 -> M11`. On 2026-08-31 the owner explicitly reordered the remaining work to execute M9 first, then return to M7D11/M7E and M8. This sequencing exception does not mark M7 or M8 complete, permit M7E activation, or let M9 weaken the existing opaque media boundary. Each slice still requires its own revalidation, branch, bounded PR, CI, exact-head merge, trusted-main proof and applicable production canaries. M8 and later undecomposed macro milestones still require the formal decomposition protocol where needed. Record a compact evidence checkpoint after each Green slice; defer consolidated closure documentation until the owner says `FAÇA O SAVE`. Stop after M11. This authorization is not transferable to another conversation or a broader milestone range.
 
 ---
 
@@ -413,9 +413,10 @@ M7D6 = PRODUCTION GREEN
 M7D7 = PRODUCTION GREEN
 M7D8 = PRODUCTION GREEN
 M7D9 = PRODUCTION GREEN
-M7D10 = PLANNED — NEXT APPROVED
+M7D10 = PRODUCTION GREEN
 M7D11 = PLANNED / scope decision before customer UI
 M7E = DECISION REQUIRED / activation-only
+M9A = PLANNED — NEXT APPROVED under owner sequencing exception
 ```
 
 ## M7D7 documentation reconciliation
@@ -464,37 +465,44 @@ The scheduled legacy/default-catalog `sync-yupoo-incremental.yml` workflow is a 
 
 Subject to live revalidation, the next roadmap slice is:
 
-## M7D10 — Recovery, Replay and Operational Observability
+## M9A — Commerce Shell and URL State
 
 Commercial outcome:
 
-> Ordinary failures recover without daily owner intervention while exceptions remain diagnosable.
+> A shopper sees a credible retail storefront immediately and can reload or navigate browser history without losing catalog state.
 
 Normative owner:
 
-- `docs/TENANT-SYNC.md`
+- `docs/DESIGN-SYSTEM.md`
+- `docs/DEVELOPMENT-ROADMAP.md`
 
-Required proof covers duplicate Queue delivery, expired lease/reclaim, crash between listing chunks, affected-detail failure, crash before/after verify, crash before/during/after authority switch, post-promotion redelivery, partial-item error, bounded retry exhaustion, DLQ/replay ownership and unrelated-tenant continuity. Errors must be phase-aware and safe, unresolved failed work must block conflicts, and LKG/evidence must remain preserved until exact audited cleanup.
+Required scope covers the premium responsive shell, search/navigation hierarchy, early product visibility, structured loading/empty/error states and URL-backed query/filter/page state with reload and back/forward restoration. M9A must stay within existing public APIs and opaque media IDs and must not invent collections, featured/new claims or supplier truth.
 
-M7D10 must not absorb M7D11 customer change/review feed scope or M7E activation. Recurring tenant Intelligent Sync remains disabled and no real activation cohort is created in M7D10.
+M9A must not absorb M9B discovery/merchandising, M9C product-route or M9D SEO/performance proof scope. Recurring tenant Intelligent Sync remains disabled and no real activation cohort is created during M9.
 
 ---
 
-# 12. M7 REMAINING ORDER — DO NOT SKIP
+# 12. OWNER-AUTHORIZED REMAINING ORDER
 
 Subject to live roadmap revalidation:
 
 ```text
-M7D10 — Recovery, Replay and Operational Observability
+M9A — Commerce Shell and URL State
+↓
+M9B — Product Discovery and Merchandising
+↓
+M9C — Product Detail, Share and Deep Links
+↓
+M9D — SEO, Accessibility, Performance and Production Proof
 ↓
 M7D11 — Safe Change and Review Feed
 ↓
 M7E — Deliberate Activation (decision + activation only)
 ↓
-M7 COMPLETE
+M8 — decompose formally before implementation
 ```
 
-After M7, do not invent M8A/M8B names. Follow the decomposition protocol before implementing M8 if the macro milestone needs multiple slices.
+Do not invent M8A/M8B names. Follow the decomposition protocol before implementing M8 if the macro milestone needs multiple slices. M7 and M8 remain incomplete until their own proof gates pass.
 
 ---
 
