@@ -11,11 +11,14 @@ const [html, source, styles, categoryStyles, worker, tenantRuntime] = await Prom
 ]);
 
 describe('M9B product discovery and merchandising', () => {
-  it('renders crest-led club discovery from safe public team entities', () => {
-    expect(source).toContain("title: 'Clubes em destaque'");
+  it('renders crest-led club discovery without inventing featured status', () => {
+    expect(source).toContain("title: 'Explore por clube'");
+    expect(source).not.toContain("title: 'Clubes em destaque'");
     expect(source).toContain('clubs.slice(0, 12)');
     expect(source).toContain('resolveTeamCrest(team)?.url || null');
     expect(source).not.toContain('team.logo_url');
+    expect(worker).toContain('ORDER BY product_count DESC, name ASC');
+    expect(tenantRuntime).toContain('ORDER BY product_count DESC, name ASC');
     expect(categoryStyles).toContain('.popular-team-card');
     expect(categoryStyles).toContain('.discovery-group-items');
   });
