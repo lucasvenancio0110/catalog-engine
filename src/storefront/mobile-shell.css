@@ -48,44 +48,50 @@
       opacity var(--ce-duration-base) var(--ce-ease-standard);
   }
 
-  .mobile-dock a,
-  .mobile-dock a:first-child,
-  .mobile-dock .mobile-dock-search {
+  .mobile-dock :is(a, button) {
+    min-width: 0;
     min-height: 50px;
+    display: grid;
+    place-items: center;
+    align-content: center;
     gap: 3px;
+    padding: 0;
+    border: 0;
     border-radius: 14px;
     background: transparent;
     color: var(--muted);
+    font: inherit;
     font-size: 0.62rem;
     font-weight: 760;
+    text-decoration: none;
     transition:
       background var(--ce-duration-fast) var(--ce-ease-standard),
       color var(--ce-duration-fast) var(--ce-ease-standard),
       transform var(--ce-duration-fast) var(--ce-ease-standard);
   }
 
-  .mobile-dock a svg,
-  .mobile-dock .mobile-dock-search svg {
+  .mobile-dock :is(a, button) svg {
     width: 20px;
     height: 20px;
     color: currentColor;
   }
 
-  .mobile-dock a.is-active {
+  .mobile-dock :is(a, button).is-active {
     background: color-mix(in srgb, var(--accent) 14%, transparent);
     color: var(--text);
   }
 
-  .mobile-dock a.is-active svg {
+  .mobile-dock :is(a, button).is-active svg {
     color: var(--accent);
   }
 
-  .mobile-dock a:active {
+  .mobile-dock :is(a, button):active {
     transform: scale(0.97);
   }
 
   body.is-keyboard-open .mobile-dock,
-  body:has(#productDialog[open]) .mobile-dock {
+  body:has(#productDialog[open]) .mobile-dock,
+  body:has(#searchDialog[open]) .mobile-dock {
     opacity: 0;
     pointer-events: none;
     transform: translate(-50%, calc(100% + 28px));
@@ -110,9 +116,7 @@
     border-radius: 17px;
   }
 
-  .mobile-dock a,
-  .mobile-dock a:first-child,
-  .mobile-dock .mobile-dock-search {
+  .mobile-dock :is(a, button) {
     min-height: 48px;
     font-size: 0.59rem;
   }
@@ -120,7 +124,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .mobile-dock,
-  .mobile-dock a,
+  .mobile-dock :is(a, button),
   .topbar-inner,
   .store-logo {
     transition: none !important;
