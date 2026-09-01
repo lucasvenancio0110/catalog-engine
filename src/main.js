@@ -396,7 +396,7 @@ function openNavigationItem(item) {
 async function renderRootDiscovery() {
   const featured = discoveryGroup({
     eyebrow: 'COMPRE POR TIME',
-    title: 'Clubes em destaque',
+    title: 'Explore por clube',
     subtitle: 'Toque no escudo para abrir a coleção.',
     className: 'featured-clubs'
   });
