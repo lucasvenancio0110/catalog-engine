@@ -441,12 +441,14 @@ The owner explicitly authorized M9 execution before the remaining M7 and M8 work
 
 | Slice                                                      | Status                      | Bounded outcome                                                                                                                                                                            |
 | ---------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| M9A — Commerce Shell and URL State                         | **PLANNED — NEXT APPROVED** | Deliver the premium responsive shell, search/navigation hierarchy, early product visibility, structured loading/empty/error states and browser-restorable catalog query state.             |
-| M9B — Product Discovery and Merchandising                  | **PLANNED**                 | Deliver safe filters/facets/sort, category/entity discovery and retail-grade cards; render collections/new/featured only when authoritative public data supports the claim.                |
+| M9A — Commerce Shell and URL State                         | **PRODUCTION GREEN**        | Delivered the premium responsive shell, search/navigation hierarchy, early product visibility, structured loading/empty/error states and browser-restorable catalog query state.           |
+| M9B — Product Discovery and Merchandising                  | **PLANNED — NEXT APPROVED** | Deliver safe filters/facets/sort, category/entity discovery and retail-grade cards; render collections/new/featured only when authoritative public data supports the claim.                |
 | M9C — Product Detail, Share and Deep Links                 | **PLANNED**                 | Deliver an opaque-ID product route, responsive gallery, contact/share actions, direct-load and back/forward semantics, plus accessible focus and scroll behavior.                          |
 | M9D — SEO, Accessibility, Performance and Production Proof | **PLANNED**                 | Close honest canonical/Open Graph delivery, responsive and assistive-input validation, reduced-motion and performance budgets, then prove the exact trusted-main storefront in production. |
 
 Quick view remains optional: M9C may omit it when the product route provides the clearer, more accessible discovery path. No M9 slice may invent featured/new status or expose supplier-private evidence.
+
+M9A production checkpoint: PRs `#171`/`#172`; application SHA `0b2c4fd8f21db5d86cf6981ba510875a637985ed`; trusted-main proof SHA `f5366ac7b281ce8326ceb74efe051d58ff6758df`; deploy `33408598897`; UI staging `33409329391`. Production search for `Almeria` returned 11 products and browser back/forward restored the root and query states exactly. Recurring tenant sync remained disabled. Next: M9B.
 
 Deliverables:
 
