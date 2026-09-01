@@ -14,7 +14,11 @@
     "vite",
     "vitest"
   ],
-  "approvedFutureStorefront": [],
+  "approvedFutureStorefront": [
+    "@awesome.me/webawesome",
+    "framework7",
+    "gsap"
+  ],
   "blockedByDefault": [
     "axios",
     "got",
