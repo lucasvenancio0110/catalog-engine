@@ -208,6 +208,7 @@ const products = [
     description:
       'Produto demonstrativo para validar design, responsividade e navegação do Catalog Engine.',
     teamId,
+    teamName: teams.find((team) => team.team_id === teamId)?.name || category,
     leagueId,
     facetId,
     imageCount: 1,
@@ -227,7 +228,10 @@ function filteredProducts(url) {
   const teamId = url.searchParams.get('teamId') || '';
   const leagueId = url.searchParams.get('leagueId') || '';
   const facetId = url.searchParams.get('facetId') || '';
-  return products.filter((product) => {
+  const sort = ['name-asc', 'name-desc'].includes(url.searchParams.get('sort'))
+    ? url.searchParams.get('sort')
+    : 'catalog';
+  const filtered = products.filter((product) => {
     if (teamId && product.teamId !== teamId) return false;
     if (leagueId && product.leagueId !== leagueId) return false;
     if (facetId && product.facetId !== facetId) return false;
@@ -238,6 +242,9 @@ function filteredProducts(url) {
       return false;
     return true;
   });
+  if (sort === 'name-asc') return filtered.toSorted((a, b) => a.name.localeCompare(b.name));
+  if (sort === 'name-desc') return filtered.toSorted((a, b) => b.name.localeCompare(a.name));
+  return filtered;
 }
 
 function teamDetail(team) {
@@ -272,8 +279,9 @@ export default {
         },
         stats: { products: products.length },
         navigation: [
-          { kind: 'teams', name: 'Times', count: 11 },
+          { kind: 'teams', name: 'Clubes', count: 11 },
           { kind: 'national_teams', name: 'Seleções', count: 3 },
+          { kind: 'facet', facetId: 'kits', name: 'Camisas', count: 10 },
           { kind: 'facet', facetId: 'retro', name: 'Retrô', count: 4 },
           { kind: 'facet', facetId: 'kids', name: 'Infantil', count: 2 },
           { kind: 'facet', facetId: 'women', name: 'Feminino', count: 2 }
@@ -311,7 +319,10 @@ export default {
         total: items.length,
         totalPages,
         hasPrevious: page > 1,
-        hasMore: page < totalPages
+        hasMore: page < totalPages,
+        sort: ['name-asc', 'name-desc'].includes(url.searchParams.get('sort'))
+          ? url.searchParams.get('sort')
+          : 'catalog'
       });
     }
     if (url.pathname.startsWith('/api/products/')) {

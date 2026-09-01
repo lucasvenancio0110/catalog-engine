@@ -53,7 +53,7 @@ function fakeTenantD1(tenantId, product, mediaId, storeName) {
           if (sql.includes('FROM data_plane_identity')) {
             return { tenant_id: tenantId, schema_version: 3 };
           }
-          if (sql.includes('FROM catalog_products WHERE product_id')) {
+          if (sql.includes('FROM catalog_products p') && sql.includes('WHERE p.product_id')) {
             return state.params[0] === product.product_id ? product : null;
           }
           if (sql.includes('COUNT(*) AS total FROM catalog_products')) return { total: 1 };
@@ -106,6 +106,8 @@ describe('isolated tenant runtime and dispatch boundary', () => {
     expect(source).not.toContain('/api/admin/');
     expect(source).not.toContain('tenant_memberships');
     expect(source).not.toContain('tenant_domains');
+    expect(source).toContain("['name-asc', 'name-desc']");
+    expect(source).toContain('COLLATE NOCASE ASC');
   });
 
   it('keeps two tenant D1 databases isolated even when product ids are probed cross-tenant', async () => {
@@ -148,7 +150,7 @@ describe('isolated tenant runtime and dispatch boundary', () => {
       mediaB,
       'Loja B'
     );
-    const get = vi.fn((script) => ({ 'ce-a': fetcherA, 'ce-b': fetcherB }[script]));
+    const get = vi.fn((script) => ({ 'ce-a': fetcherA, 'ce-b': fetcherB })[script]);
     const env = { TENANT_DISPATCH: { get } };
     expect(tenantDispatchConfigured(env)).toBe(true);
 

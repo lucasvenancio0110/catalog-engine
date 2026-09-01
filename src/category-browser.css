@@ -21,6 +21,18 @@
   min-width: 0;
 }
 
+.category-logo {
+  width: 62px;
+  height: 62px;
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #f7f7f8;
+  object-fit: contain;
+}
+
 .category-browser-head strong {
   font-size: 1.1rem;
   letter-spacing: -0.02em;
@@ -34,6 +46,7 @@
 
 .category-back {
   flex: 0 0 auto;
+  margin-left: auto;
   min-height: 36px;
   padding: 0 13px;
   border: 1px solid var(--line);
@@ -91,18 +104,46 @@
 }
 
 .category-browser[data-view='root'] .category-chips {
-  display: flex;
+  display: grid;
+  gap: 22px;
+  overflow: visible;
+  padding: 0;
+}
+
+.discovery-group {
+  min-width: 0;
+  display: grid;
+  gap: 11px;
+}
+
+.discovery-group-head {
+  display: grid;
+  gap: 3px;
+}
+
+.discovery-group-head strong {
+  font-size: 1rem;
+  letter-spacing: -0.025em;
+}
+
+.discovery-group-head > span:last-child {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.discovery-group-items {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: clamp(10.5rem, 18vw, 13rem);
   gap: 9px;
   overflow-x: auto;
-  padding: 1px 1px 5px;
+  padding: 1px 1px 7px;
   scrollbar-width: thin;
   scrollbar-color: var(--line-strong) transparent;
   scroll-snap-type: x proximity;
 }
 
-.category-browser[data-view='root'] .category-chip {
-  flex: 0 0 clamp(10.5rem, 18vw, 13rem);
-  min-height: 72px;
+.discovery-group-items > .category-chip {
   scroll-snap-align: start;
 }
 
@@ -222,6 +263,54 @@
   object-fit: contain;
 }
 
+.popular-team-card {
+  min-height: 142px;
+  padding: 14px 10px 12px;
+  display: block;
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 18%, color-mix(in srgb, #fff 9%, transparent), transparent 52%),
+    var(--panel-2);
+}
+
+.popular-team-card .category-card-lead {
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+}
+
+.popular-team-card .team-mark {
+  width: 72px;
+  height: 72px;
+  padding: 8px;
+  border-radius: 22px;
+  border-color: color-mix(in srgb, var(--line) 62%, transparent);
+  background: #f7f7f8;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.13);
+}
+
+.popular-team-card .team-mark img {
+  width: 100%;
+  height: 100%;
+}
+
+.popular-team-card .category-card-copy {
+  justify-items: center;
+}
+
+.popular-team-card .category-card-copy strong {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 0.82rem;
+  line-height: 1.15;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.popular-team-card .category-card-copy span {
+  font-size: 0.64rem;
+}
+
 .facet-card {
   min-height: 54px;
   border-radius: 999px;
@@ -317,7 +406,31 @@
   }
 
   .category-browser[data-view='root'] .category-chip {
-    flex-basis: 10rem;
+    min-width: 0;
+  }
+
+  .discovery-group-items {
+    grid-auto-columns: 9.35rem;
+  }
+
+  .featured-clubs .discovery-group-items {
+    grid-auto-columns: 7.6rem;
+  }
+
+  .popular-team-card {
+    min-height: 132px;
+  }
+
+  .popular-team-card .team-mark {
+    width: 66px;
+    height: 66px;
+    border-radius: 20px;
+  }
+
+  .category-logo {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
   }
 
   .team-card {

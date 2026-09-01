@@ -15,10 +15,23 @@ describe('storefront catalog URL state', () => {
     ).toEqual({
       query: 'camisa',
       page: 3,
+      sort: 'catalog',
       filters: { teamId: 'tm_123', leagueId: '', facetId: 'retro' }
     });
 
     expect(readCatalogUrlState('https://shop.example/?page=-8').page).toBe(1);
+  });
+
+  it('persists only allowlisted catalog sorting', () => {
+    expect(readCatalogUrlState('https://shop.example/?sort=name-desc').sort).toBe('name-desc');
+    expect(readCatalogUrlState('https://shop.example/?sort=DROP%20TABLE').sort).toBe('catalog');
+    expect(
+      buildCatalogUrl('https://shop.example/', {
+        sort: 'name-asc',
+        filters: {},
+        page: 1
+      })
+    ).toBe('/?sort=name-asc');
   });
 
   it('serializes only the allowlisted catalog state with a clean first page', () => {

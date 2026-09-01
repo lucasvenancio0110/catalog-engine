@@ -21,7 +21,7 @@ describe('M9A storefront commerce shell', () => {
   });
 
   it('keeps products near the first viewport with compact horizontal root discovery', () => {
-    expect(categoryStyles).toContain(".category-browser[data-view='root'] .category-chips");
+    expect(categoryStyles).toContain('.discovery-group-items');
     expect(categoryStyles).toContain('overflow-x: auto');
     expect(source).toContain('els.categoryBrowser.dataset.view = view.kind');
   });

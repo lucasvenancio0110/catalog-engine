@@ -92,6 +92,7 @@
             <strong id="categoryTitle">Categorias</strong>
             <span id="categorySubtitle" class="category-subtitle"></span>
           </div>
+          <img id="categoryLogo" class="category-logo" alt="" hidden />
           <button id="categoryBack" class="category-back" type="button" hidden>
             <i data-lucide="chevron-left"></i>
             <span>Voltar</span>
@@ -103,7 +104,12 @@
           aria-label="Caminho da categoria"
           hidden
         ></nav>
-        <nav id="categoryChips" class="category-chips" aria-label="Categorias disponíveis"></nav>
+        <div
+          id="categoryChips"
+          class="category-chips"
+          role="navigation"
+          aria-label="Categorias disponíveis"
+        ></div>
       </section>
 
       <section id="catalogo" class="catalog-section" aria-labelledby="catalogTitle">
@@ -113,9 +119,19 @@
             <h2 id="catalogTitle">Produtos</h2>
             <p id="status" class="status" role="status" aria-live="polite">Carregando catálogo…</p>
           </div>
-          <button id="clearCatalogState" class="clear-catalog-state" type="button" hidden>
-            Limpar busca e filtros
-          </button>
+          <div class="catalog-tools">
+            <label class="sort-control" for="sortSelect">
+              <span>Ordenar</span>
+              <select id="sortSelect">
+                <option value="catalog">Organização da loja</option>
+                <option value="name-asc">Nome: A–Z</option>
+                <option value="name-desc">Nome: Z–A</option>
+              </select>
+            </label>
+            <button id="clearCatalogState" class="clear-catalog-state" type="button" hidden>
+              Limpar busca e filtros
+            </button>
+          </div>
         </div>
 
         <section id="catalogState" class="catalog-state" aria-live="polite" hidden>
@@ -145,11 +161,22 @@
         <div class="image-wrap" role="button" tabindex="0">
           <img class="product-image" alt="" loading="lazy" />
           <div class="image-fallback">Sem imagem</div>
+          <span class="photo-count" hidden>
+            <i data-lucide="images"></i>
+            <span></span>
+          </span>
         </div>
         <div class="card-content">
-          <span class="category"></span>
+          <div class="product-meta">
+            <span class="product-team"></span>
+            <span class="category"></span>
+          </div>
           <h3 class="product-name"></h3>
           <p class="description"></p>
+          <button class="card-open" type="button">
+            <span>Ver produto</span>
+            <i data-lucide="arrow-up-right"></i>
+          </button>
         </div>
       </article>
     </template>
