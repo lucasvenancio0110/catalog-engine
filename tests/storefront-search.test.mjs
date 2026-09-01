@@ -26,10 +26,11 @@ describe('storefront server-backed search contract', () => {
     expect(source).toContain("if (state.sort !== 'catalog') params.set('sort', state.sort);");
   });
 
-  it('restores search, filters and pagination through browser history', () => {
+  it('restores search, filters and the public feed start through browser history', () => {
     expect(source).toContain('readCatalogUrlState(window.location.href)');
     expect(source).toContain("window.history[`${mode}State`]({ catalog: true }, '', nextUrl)");
     expect(source).toContain("window.addEventListener('popstate'");
-    expect(source).toContain("loadProducts(state.pagination.page, { history: 'none' })");
+    expect(source).toContain('state.feed.startPage = urlState.page;');
+    expect(source).toContain("loadProducts(state.feed.startPage, { history: 'none' })");
   });
 });

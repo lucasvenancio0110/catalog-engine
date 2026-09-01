@@ -29,7 +29,7 @@ describe('M9A storefront commerce shell', () => {
   it('renders structured loading, empty and retryable error states', () => {
     expect(html).toContain('id="productSkeletonTemplate"');
     expect(html).toContain('id="catalogState"');
-    expect(source).toContain('function renderSkeletons()');
+    expect(source).toContain('function renderSkeletons(target = els.grid, count = 10)');
     expect(source).toContain("actionKind: 'retry'");
     expect(source).toContain("actionKind: refined ? 'clear' : 'retry'");
     expect(source).toContain("els.grid.setAttribute('aria-busy', String(state.loading))");

@@ -160,17 +160,19 @@
         </section>
 
         <section id="productGrid" class="grid" aria-live="polite" aria-busy="true"></section>
-        <nav id="pagination" class="pagination" aria-label="Paginação do catálogo" hidden>
-          <button id="previousPage" class="pagination-button" type="button">
-            <i data-lucide="chevron-left"></i>
-            <span>Anterior</span>
+        <section id="catalogLoadMore" class="catalog-load-more" aria-label="Carregamento do catálogo" hidden>
+          <div
+            id="catalogLoadMoreSkeletons"
+            class="catalog-load-more-skeletons"
+            aria-hidden="true"
+            hidden
+          ></div>
+          <p id="catalogLoadMoreStatus" class="catalog-load-more-status" role="status" aria-live="polite"></p>
+          <button id="catalogLoadMoreRetry" class="catalog-load-more-retry" type="button" hidden>
+            Tentar novamente
           </button>
-          <span id="pageInfo" class="page-info"></span>
-          <button id="nextPage" class="pagination-button" type="button">
-            <span>Próxima</span>
-            <i data-lucide="chevron-right"></i>
-          </button>
-        </nav>
+          <div id="catalogLoadMoreSentinel" class="catalog-load-more-sentinel" aria-hidden="true"></div>
+        </section>
       </section>
     </main>
 
