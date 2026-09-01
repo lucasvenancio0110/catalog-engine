@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0b0b0c" />
+    <meta name="theme-color" content="#08090b" />
     <meta name="description" content="Explore produtos, categorias e novidades da loja." />
     <title>Catálogo</title>
     <link rel="stylesheet" href="/src/ui/foundation.css" />
@@ -12,7 +12,7 @@
   <body class="ce-storefront">
     <header class="topbar">
       <div class="topbar-inner">
-        <a class="brand-lockup" href="/" aria-label="Ir para o início da loja">
+        <a class="brand-lockup" href="#inicio" aria-label="Ir para o início da loja">
           <img id="storeLogo" class="store-logo" alt="" hidden />
           <span class="brand-copy">
             <span id="storeEyebrow" class="eyebrow">VITRINE DIGITAL</span>
@@ -27,6 +27,9 @@
         </nav>
 
         <div class="header-actions">
+          <a class="header-icon-action" href="#searchForm" aria-label="Buscar no catálogo">
+            <i data-lucide="search"></i>
+          </a>
           <a id="headerContact" class="header-contact" target="_blank" rel="noopener" hidden>
             <i data-lucide="message-circle"></i>
             <span>Falar com a loja</span>
@@ -47,27 +50,49 @@
     <main>
       <section id="inicio" class="hero" aria-labelledby="heroTitle">
         <div class="hero-copy">
-          <p id="heroEyebrow" class="eyebrow">COLEÇÃO ATUAL</p>
-          <h2 id="heroTitle">Encontre o produto certo.</h2>
-          <p class="hero-support">Explore a seleção da loja e encontre seu próximo favorito.</p>
-        </div>
+          <p id="heroEyebrow" class="eyebrow hero-eyebrow">COLEÇÃO ATUAL</p>
+          <h1 id="heroTitle">Encontre sua próxima escolha.</h1>
+          <p class="hero-support">
+            Explore a seleção da loja com uma navegação pensada para descobrir produtos sem esforço.
+          </p>
 
-        <div class="hero-side">
-          <div class="stats" aria-label="Tamanho do catálogo">
-            <strong id="productCount">0</strong>
-            <span>itens disponíveis</span>
+          <div class="hero-actions">
+            <a class="hero-cta" href="#explorar">
+              <span>Explorar coleção</span>
+              <i data-lucide="arrow-right"></i>
+            </a>
+            <div class="stats" aria-label="Tamanho do catálogo">
+              <strong id="productCount">0</strong>
+              <span>itens</span>
+            </div>
           </div>
         </div>
 
+        <aside id="heroShowcase" class="hero-showcase" aria-label="Produto da coleção" hidden>
+          <div class="hero-product-art">
+            <span class="hero-product-glow" aria-hidden="true"></span>
+            <img id="heroProductImage" class="hero-product-image" alt="" />
+          </div>
+          <div class="hero-product-caption">
+            <span id="heroProductMeta" class="hero-product-meta">Da coleção</span>
+            <strong id="heroProductName"></strong>
+          </div>
+        </aside>
+
         <form id="searchForm" class="search-shell" role="search">
           <label class="sr-only" for="searchInput">Buscar no catálogo</label>
-          <i class="search-icon" data-lucide="search"></i>
-          <input
-            id="searchInput"
-            type="search"
-            placeholder="Busque por time, modelo ou categoria"
-            autocomplete="off"
-          />
+          <span class="search-leading" aria-hidden="true">
+            <i class="search-icon" data-lucide="search"></i>
+          </span>
+          <span class="search-field-copy">
+            <span class="search-prompt">O que você procura?</span>
+            <input
+              id="searchInput"
+              type="search"
+              placeholder="Busque por time, modelo ou categoria"
+              autocomplete="off"
+            />
+          </span>
           <button
             id="clearSearch"
             class="search-clear"
@@ -89,7 +114,7 @@
         <div class="category-browser-head">
           <div class="category-browser-copy">
             <span class="eyebrow">EXPLORAR</span>
-            <strong id="categoryTitle">Categorias</strong>
+            <strong id="categoryTitle">Explorar</strong>
             <span id="categorySubtitle" class="category-subtitle"></span>
           </div>
           <img id="categoryLogo" class="category-logo" alt="" hidden />
@@ -156,6 +181,25 @@
       </section>
     </main>
 
+    <nav class="mobile-dock" aria-label="Navegação rápida">
+      <a href="#inicio">
+        <i data-lucide="home"></i>
+        <span>Início</span>
+      </a>
+      <a href="#explorar">
+        <i data-lucide="compass"></i>
+        <span>Explorar</span>
+      </a>
+      <a class="mobile-dock-search" href="#searchForm">
+        <i data-lucide="search"></i>
+        <span>Buscar</span>
+      </a>
+      <a href="#catalogo">
+        <i data-lucide="grid-2x2"></i>
+        <span>Produtos</span>
+      </a>
+    </nav>
+
     <template id="productTemplate">
       <article class="card">
         <div class="image-wrap" role="button" tabindex="0">
@@ -174,7 +218,7 @@
           <h3 class="product-name"></h3>
           <p class="description"></p>
           <button class="card-open" type="button">
-            <span>Ver produto</span>
+            <span>Ver detalhes</span>
             <i data-lucide="arrow-up-right"></i>
           </button>
         </div>
