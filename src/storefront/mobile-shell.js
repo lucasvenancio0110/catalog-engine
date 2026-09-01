@@ -11,6 +11,17 @@ export function navKeyForSectionId(sectionId) {
   return SECTION_NAV_KEYS.get(sectionId) || 'home';
 }
 
+export function navKeyAtReadingLine(sectionPositions, readingLine) {
+  const positions = Array.isArray(sectionPositions) ? sectionPositions : [];
+  let candidateId = positions[0]?.id || 'inicio';
+  for (const section of positions) {
+    if (!Number.isFinite(section?.top)) continue;
+    if (section.top <= readingLine) candidateId = section.id;
+    if (section.top > readingLine) break;
+  }
+  return navKeyForSectionId(candidateId);
+}
+
 export function isVirtualKeyboardOpen({ layoutHeight, visualHeight, isMobile }) {
   if (!isMobile) return false;
   if (!Number.isFinite(layoutHeight) || !Number.isFinite(visualHeight)) return false;
@@ -51,13 +62,11 @@ function initMobileShell() {
 
   function sectionAtReadingLine() {
     const readingLine = Math.max(96, window.innerHeight * 0.28);
-    let candidate = sections[0];
-    for (const section of sections) {
-      const rect = section.getBoundingClientRect();
-      if (rect.top <= readingLine) candidate = section;
-      if (rect.top > readingLine) break;
-    }
-    return navKeyForSectionId(candidate?.id || 'inicio');
+    const sectionPositions = sections.map((section) => ({
+      id: section.id,
+      top: section.getBoundingClientRect().top
+    }));
+    return navKeyAtReadingLine(sectionPositions, readingLine);
   }
 
   function syncSectionFromLayout() {
@@ -68,6 +77,7 @@ function initMobileShell() {
   function syncScrollState() {
     scrollFrame = 0;
     body.classList.toggle('is-shell-scrolled', window.scrollY > 12);
+    syncSectionFromLayout();
   }
 
   function scheduleScrollState() {
@@ -130,27 +140,6 @@ function initMobileShell() {
       lastSearchTrigger.focus({ preventScroll: true });
     }
   }
-
-  const sectionObserver =
-    'IntersectionObserver' in window
-      ? new IntersectionObserver(
-          (entries) => {
-            const visible = entries
-              .filter((entry) => entry.isIntersecting)
-              .sort(
-                (a, b) =>
-                  Math.abs(a.boundingClientRect.top - window.innerHeight * 0.22) -
-                  Math.abs(b.boundingClientRect.top - window.innerHeight * 0.22)
-              );
-            if (!visible.length) return;
-            currentSection = navKeyForSectionId(visible[0].target.id);
-            if (!searchHasFocus && !searchModeOpen) setActiveNav(currentSection);
-          },
-          { rootMargin: '-18% 0px -68% 0px', threshold: 0 }
-        )
-      : null;
-
-  sections.forEach((section) => sectionObserver?.observe(section));
 
   searchForm?.addEventListener('focusin', () => {
     searchHasFocus = true;
