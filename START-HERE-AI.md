@@ -416,7 +416,8 @@ M7D9 = PRODUCTION GREEN
 M7D10 = PRODUCTION GREEN
 M7D11 = PLANNED / scope decision before customer UI
 M7E = DECISION REQUIRED / activation-only
-M9A = PLANNED — NEXT APPROVED under owner sequencing exception
+M9A = PRODUCTION GREEN — PRs #171/#172; application SHA 0b2c4fd8f21db5d86cf6981ba510875a637985ed; trusted-main proof SHA f5366ac7b281ce8326ceb74efe051d58ff6758df
+M9B = PLANNED — NEXT APPROVED under owner sequencing exception
 ```
 
 ## M7D7 documentation reconciliation
@@ -479,6 +480,8 @@ Normative owner:
 Required scope covers the premium responsive shell, search/navigation hierarchy, early product visibility, structured loading/empty/error states and URL-backed query/filter/page state with reload and back/forward restoration. M9A must stay within existing public APIs and opaque media IDs and must not invent collections, featured/new claims or supplier truth.
 
 M9A must not absorb M9B discovery/merchandising, M9C product-route or M9D SEO/performance proof scope. Recurring tenant Intelligent Sync remains disabled and no real activation cohort is created during M9.
+
+Production checkpoint: M9A passed PR CI, trusted-main application deploy `33408598897`, isolated UI staging `33409329391`, and live production search/back/forward proof. M9B is the next approved slice.
 
 ---
 

@@ -1,7 +1,7 @@
 # Catalog Engine — Current State
 
 Status: **Living operational truth**  
-Snapshot: **2026-08-31 after M7D10 trusted-main production proof and M9 sequencing decision**
+Snapshot: **2026-09-01 after M9A production proof**
 Purpose: record what is implemented/proven now, separate from durable product contracts and future roadmap work.
 
 ## How to use this document
@@ -40,7 +40,7 @@ Milestone state:
 - M5 automatic tenant Queue import: **complete / production-proven**;
 - M6 CEI Core + Sports Knowledge Pack v1: **complete / production-proven**;
 - **M7 Intelligent Sync v2: incomplete; safety/scheduling/delta/staging/schema-fleet/candidate-state foundations plus controlled enrollment, live incremental dispatch/scan, affected-detail completion, affected-only CEI candidate processing, complete private candidate verification, atomic promotion/finalization, safe scoped removal/restoration and recovery/replay through M7D10 are production-proven**.
-- **M9 Storefront UX 2.0: current execution milestone under the owner-authorized 2026-08-31 sequencing exception; implementation has not started and M9A is the next approved slice**.
+- **M9 Storefront UX 2.0: M9A is production-proven at application SHA `0b2c4fd8f21db5d86cf6981ba510875a637985ed`; M9B is the next approved slice under the owner-authorized sequencing exception**.
 
 ## Final M6 production checkpoint
 
