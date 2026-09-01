@@ -2,13 +2,15 @@ import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import {
   isVirtualKeyboardOpen,
+  navKeyAtReadingLine,
   navKeyForSectionId
 } from '../src/storefront/mobile-shell.js';
 
-const [html, entry, styles] = await Promise.all([
+const [html, entry, styles, shellSource] = await Promise.all([
   readFile('index.html', 'utf8'),
   readFile('src/entry.js', 'utf8'),
-  readFile('src/storefront/mobile-shell.css', 'utf8')
+  readFile('src/storefront/mobile-shell.css', 'utf8'),
+  readFile('src/storefront/mobile-shell.js', 'utf8')
 ]);
 
 describe('M9B mobile storefront shell stabilization', () => {
@@ -17,6 +19,22 @@ describe('M9B mobile storefront shell stabilization', () => {
     expect(navKeyForSectionId('explorar')).toBe('explore');
     expect(navKeyForSectionId('catalogo')).toBe('products');
     expect(navKeyForSectionId('unknown')).toBe('home');
+  });
+
+  it('selects the last section that has crossed the reading line', () => {
+    const positions = [
+      { id: 'inicio', top: -620 },
+      { id: 'explorar', top: -180 },
+      { id: 'catalogo', top: 140 }
+    ];
+    expect(navKeyAtReadingLine(positions, 180)).toBe('products');
+    expect(navKeyAtReadingLine(positions, 100)).toBe('explore');
+  });
+
+  it('uses the scroll animation frame as the single section-state owner', () => {
+    expect(shellSource).toContain('syncSectionFromLayout();');
+    expect(shellSource).toContain("window.addEventListener('scroll', scheduleScrollState");
+    expect(shellSource).not.toContain('IntersectionObserver');
   });
 
   it('treats only a material mobile visual-viewport contraction as keyboard-open', () => {
