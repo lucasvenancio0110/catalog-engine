@@ -8,5 +8,6 @@ import './storefront/entity-browser-density.css';
 import './storefront/experience-motion.css';
 import './storefront/catalog-mobile-density.css';
 import './storefront/team-page-filter-density.css';
+import './storefront/mobile-quick-view.css';
 import './storefront/luxury-mobile.js';
 import './storefront/mobile-shell.js';

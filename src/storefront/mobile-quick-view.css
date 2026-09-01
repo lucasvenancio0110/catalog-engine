@@ -1,0 +1,134 @@
+@media (max-width: 47.99rem) {
+  #productDialog {
+    width: calc(100% - 8px);
+    margin: auto auto 4px;
+    border-radius: 24px 24px 18px 18px;
+    overflow-x: hidden;
+  }
+
+  #productDialog[open] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #productDialog .dialog-gallery {
+    padding: 5px 5px 0;
+    background: transparent;
+  }
+
+  #productDialog .dialog-main-media,
+  #productDialog .product-swiper {
+    min-height: 0;
+    aspect-ratio: 1 / 1;
+  }
+
+  #productDialog .dialog-main-media {
+    border-radius: 20px;
+    background: #09090a;
+  }
+
+  #productDialog .dialog-thumbs {
+    display: none;
+  }
+
+  #productDialog .swiper-pagination {
+    bottom: 10px;
+  }
+
+  #productDialog .swiper-pagination-bullet {
+    width: 6px;
+    height: 6px;
+    margin-inline: 3px;
+    opacity: 0.42;
+  }
+
+  #productDialog .swiper-pagination-bullet-active {
+    width: 18px;
+    border-radius: 999px;
+    background: var(--accent);
+    opacity: 1;
+  }
+
+  #productDialog .dialog-close {
+    top: 10px;
+    right: 10px;
+    width: 44px;
+    height: 44px;
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(8, 9, 11, 0.48);
+    color: #fff;
+    box-shadow: none;
+    backdrop-filter: blur(12px);
+  }
+
+  #productDialog .dialog-close svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  #productDialog .dialog-copy {
+    padding: 14px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  #productDialog .dialog-copy > .category {
+    color: var(--accent);
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+  }
+
+  #productDialog .dialog-copy h2 {
+    margin: 6px 0 0;
+    font-family: inherit;
+    font-size: clamp(1.12rem, 5.2vw, 1.4rem);
+    font-weight: 790;
+    line-height: 1.12;
+    letter-spacing: -0.025em;
+    text-wrap: pretty;
+  }
+
+  #productDialog .dialog-copy p {
+    margin: 8px 0 0;
+    font-size: 0.84rem;
+    line-height: 1.48;
+  }
+
+  #productDialog .primary-action:not([hidden]) {
+    width: 100%;
+    min-height: 50px;
+    margin-top: 14px;
+    border-radius: 15px;
+  }
+}
+
+@media (max-width: 47.99rem) and (pointer: coarse) {
+  #productDialog .product-swiper .swiper-button-next,
+  #productDialog .product-swiper .swiper-button-prev {
+    display: none;
+  }
+}
+
+@media (max-width: 22.49rem) {
+  #productDialog {
+    width: calc(100% - 6px);
+    border-radius: 21px 21px 16px 16px;
+  }
+
+  #productDialog .dialog-gallery {
+    padding: 4px 4px 0;
+  }
+
+  #productDialog .dialog-main-media {
+    border-radius: 18px;
+  }
+
+  #productDialog .dialog-copy {
+    padding-inline: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #productDialog .swiper-pagination-bullet,
+  #productDialog .dialog-close,
+  #productDialog .primary-action {
+    transition: none !important;
+  }
+}
