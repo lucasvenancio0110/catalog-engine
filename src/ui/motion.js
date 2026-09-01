@@ -38,8 +38,11 @@ export function runViewTransition(update) {
   return document.startViewTransition(update);
 }
 
-export function bindPressFeedback(target, { pressedScale = 0.97 } = {}) {
-  if (!target || reducedMotionRequested()) return () => {};
+export function bindPressFeedback(
+  target,
+  { pressedScale = 0.97, visualTarget = target } = {}
+) {
+  if (!target || !visualTarget || reducedMotionRequested()) return () => {};
 
   let pressed = false;
 
@@ -47,7 +50,7 @@ export function bindPressFeedback(target, { pressedScale = 0.97 } = {}) {
     if (pressed) return;
     pressed = true;
     animate(
-      target,
+      visualTarget,
       { scale: pressedScale },
       { duration: MOTION_DURATION.press, ease: MOTION_EASE.standard }
     );
@@ -57,7 +60,7 @@ export function bindPressFeedback(target, { pressedScale = 0.97 } = {}) {
     if (!pressed) return;
     pressed = false;
     animate(
-      target,
+      visualTarget,
       { scale: 1 },
       { duration: MOTION_DURATION.fast, ease: MOTION_EASE.emphasized }
     );
