@@ -1,0 +1,202 @@
+.category-chip:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 72%, white 10%);
+  outline-offset: 3px;
+}
+
+.discovery-group-items {
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.category-browser[data-view='team'] .category-chips {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 1px 1px 5px;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.category-browser[data-view='team'] .facet-card {
+  min-width: max-content;
+  min-height: 48px;
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  grid-template-columns: auto auto;
+  gap: 8px;
+  scroll-snap-align: start;
+}
+
+.category-browser[data-view='team'] .facet-card .category-card-copy strong {
+  white-space: nowrap;
+}
+
+@media (max-width: 47.99rem) {
+  .category-browser[data-view='root'] {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .category-browser[data-view='root'] .category-browser-head {
+    margin-bottom: 16px;
+  }
+
+  .category-browser[data-view='root'] .category-subtitle {
+    display: none;
+  }
+
+  .category-browser[data-view='root'] .category-chips {
+    gap: 18px;
+  }
+
+  .discovery-group {
+    gap: 8px;
+  }
+
+  .discovery-group-head {
+    gap: 2px;
+  }
+
+  .discovery-group-head strong {
+    font-size: 1.02rem;
+  }
+
+  .discovery-group-head > span:last-child {
+    display: none;
+  }
+
+  .discovery-group-items,
+  .category-browser[data-view='team'] .category-chips {
+    scrollbar-width: none;
+  }
+
+  .discovery-group-items::-webkit-scrollbar,
+  .category-browser[data-view='team'] .category-chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .discovery-group-items {
+    gap: 8px;
+    padding: 1px 1px 4px;
+  }
+
+  .featured-clubs .discovery-group-items {
+    grid-auto-columns: 6.85rem;
+  }
+
+  .popular-team-card {
+    min-height: 108px;
+    padding: 10px 8px;
+    border-radius: 18px;
+  }
+
+  .popular-team-card .category-card-lead {
+    gap: 7px;
+  }
+
+  .popular-team-card .team-mark {
+    width: 56px;
+    height: 56px;
+    padding: 6px;
+    border-radius: 17px;
+  }
+
+  .popular-team-card .category-card-copy strong {
+    font-size: 0.78rem;
+    line-height: 1.12;
+  }
+
+  .popular-team-card .category-card-copy span {
+    display: none;
+  }
+
+  .commercial-categories .discovery-group-items {
+    grid-auto-columns: 8.35rem;
+  }
+
+  .commercial-categories .root-card {
+    min-height: 62px;
+    padding: 9px 10px;
+    border-radius: 16px;
+  }
+
+  .commercial-categories .category-card-copy span,
+  .commercial-categories .category-count {
+    display: none;
+  }
+
+  .commercial-categories .category-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 11px;
+  }
+
+  .commercial-categories .category-card-copy strong {
+    font-size: 0.8rem;
+  }
+
+  .category-browser[data-view='team'] {
+    padding: 12px 12px 10px;
+  }
+
+  .category-browser[data-view='team'] .category-browser-head {
+    align-items: center;
+    margin-bottom: 9px;
+  }
+
+  .category-browser[data-view='team'] .category-logo {
+    width: 46px;
+    height: 46px;
+    padding: 5px;
+    border-radius: 14px;
+  }
+
+  .category-browser[data-view='team'] .category-trail {
+    margin-bottom: 8px;
+  }
+
+  .category-browser[data-view='team'] .facet-card {
+    min-height: 44px;
+    padding: 7px 11px;
+    border-radius: 999px;
+  }
+
+  .category-browser[data-view='team'] .facet-card .category-card-copy strong {
+    font-size: 0.78rem;
+  }
+
+  .category-browser[data-view='team'] .facet-card .category-count {
+    padding: 4px 6px;
+    font-size: 0.6rem;
+  }
+}
+
+@media (max-width: 22.49rem) {
+  .featured-clubs .discovery-group-items {
+    grid-auto-columns: 6.45rem;
+  }
+
+  .commercial-categories .discovery-group-items {
+    grid-auto-columns: 7.9rem;
+  }
+
+  .popular-team-card {
+    min-height: 102px;
+  }
+
+  .popular-team-card .team-mark {
+    width: 52px;
+    height: 52px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .category-chip {
+    transition: none !important;
+  }
+}
