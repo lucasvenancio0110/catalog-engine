@@ -8,7 +8,7 @@ import {
   readCatalogUrlState
 } from './storefront/catalog-url-state.js';
 import { hydrateStorefrontIcons } from './ui/storefront-icons.js';
-import { revealCards, revealDialog } from './ui/motion.js';
+import { bindPressFeedback, revealCards, revealDialog } from './ui/motion.js';
 
 const PAGE_SIZE = 15;
 const initialUrlState = readCatalogUrlState(window.location.href);
@@ -125,9 +125,9 @@ function resetFilters() {
   state.filters = { teamId: '', leagueId: '', facetId: '' };
 }
 
-function setFilter(next) {
+function setFilter(next, { scroll = true } = {}) {
   state.filters = { teamId: '', leagueId: '', facetId: '', ...next };
-  void loadProducts(1, { scroll: true, history: 'push' });
+  void loadProducts(1, { scroll, history: 'push' });
 }
 
 function catalogStateForUrl(page = state.pagination.page) {
@@ -205,11 +205,13 @@ function cardButton({
   onClick,
   initials = '',
   logoUrl = null,
-  arrow = true
+  arrow = true,
+  pressed = null
 }) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = `category-chip ${kind}`.trim();
+  if (pressed !== null) button.setAttribute('aria-pressed', String(pressed));
   const lead = document.createElement('span');
   lead.className = 'category-card-lead';
 
@@ -256,7 +258,21 @@ function cardButton({
     button.appendChild(iconNode('chevron-right', 'category-arrow'));
   }
   button.addEventListener('click', onClick);
+  bindPressFeedback(button, { pressedScale: kind.includes('facet-card') ? 0.96 : 0.985 });
   return button;
+}
+
+function syncTeamFacetSelection(selectedFacetId = '') {
+  for (const button of els.categoryChips.querySelectorAll('.facet-card')) {
+    const selected = (button.dataset.facetId || '') === selectedFacetId;
+    button.classList.toggle('active', selected);
+    button.setAttribute('aria-pressed', String(selected));
+  }
+}
+
+function selectTeamFacet(teamId, facetId = '') {
+  syncTeamFacetSelection(facetId);
+  setFilter({ teamId, facetId });
 }
 
 function renderTrail() {
@@ -423,6 +439,10 @@ async function renderExplorer() {
   els.categoryLogo.hidden = true;
   els.categoryLogo.removeAttribute('src');
   els.categoryBack.hidden = state.explorerStack.length <= 1;
+  els.categoryChips.setAttribute(
+    'aria-label',
+    view.kind === 'team' ? `Filtrar produtos de ${view.title}` : 'Categorias disponíveis'
+  );
   renderTrail();
   els.categoryChips.innerHTML = '';
 
@@ -531,25 +551,29 @@ async function renderExplorer() {
         els.categoryLogo.alt = `Escudo ${payload.team.name}`;
         els.categoryLogo.hidden = false;
       }
-      els.categoryChips.appendChild(
-        cardButton({
-          title: 'Todos',
-          count: payload.team.product_count,
-          kind: 'facet-card active',
-          arrow: false,
-          onClick: () => setFilter({ teamId: view.teamId })
-        })
-      );
+      const activeFacetId = state.filters.teamId === view.teamId ? state.filters.facetId || '' : '';
+      const allButton = cardButton({
+        title: 'Todos',
+        count: payload.team.product_count,
+        kind: `facet-card${activeFacetId ? '' : ' active'}`,
+        arrow: false,
+        pressed: !activeFacetId,
+        onClick: () => selectTeamFacet(view.teamId)
+      });
+      allButton.dataset.facetId = '';
+      els.categoryChips.appendChild(allButton);
       for (const facet of payload.facets || []) {
-        els.categoryChips.appendChild(
-          cardButton({
-            title: facet.name,
-            count: facet.product_count,
-            kind: 'facet-card',
-            arrow: false,
-            onClick: () => setFilter({ teamId: view.teamId, facetId: facet.facet_id })
-          })
-        );
+        const selected = activeFacetId === facet.facet_id;
+        const facetButton = cardButton({
+          title: facet.name,
+          count: facet.product_count,
+          kind: `facet-card${selected ? ' active' : ''}`,
+          arrow: false,
+          pressed: selected,
+          onClick: () => selectTeamFacet(view.teamId, facet.facet_id)
+        });
+        facetButton.dataset.facetId = facet.facet_id;
+        els.categoryChips.appendChild(facetButton);
       }
     } else if (view.kind === 'facet') {
       const facets = await getFacets();
@@ -566,7 +590,7 @@ async function renderExplorer() {
 }
 
 function openTeam(team) {
-  setFilter({ teamId: team.team_id });
+  setFilter({ teamId: team.team_id }, { scroll: false });
   pushExplorer({
     kind: 'team',
     title: team.name,
