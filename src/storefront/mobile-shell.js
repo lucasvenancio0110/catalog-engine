@@ -17,10 +17,6 @@ export function isVirtualKeyboardOpen({ layoutHeight, visualHeight, isMobile }) 
   return layoutHeight - visualHeight > KEYBOARD_DELTA_PX;
 }
 
-function prefersReducedMotion() {
-  return Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
-}
-
 function initMobileShell() {
   const body = document.body;
   const root = document.documentElement;
