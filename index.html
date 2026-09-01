@@ -27,9 +27,14 @@
         </nav>
 
         <div class="header-actions">
-          <a class="header-icon-action" href="#searchForm" aria-label="Buscar no catálogo">
+          <button
+            class="header-icon-action"
+            type="button"
+            data-open-search
+            aria-label="Buscar no catálogo"
+          >
             <i data-lucide="search"></i>
-          </a>
+          </button>
           <a id="headerContact" class="header-contact" target="_blank" rel="noopener" hidden>
             <i data-lucide="message-circle"></i>
             <span>Falar com a loja</span>
@@ -50,7 +55,7 @@
     <main>
       <section id="inicio" class="hero" aria-labelledby="heroTitle">
         <div class="hero-copy">
-          <p id="heroEyebrow" class="eyebrow hero-eyebrow">COLEÇÃO ATUAL</p>
+          <p id="heroEyebrow" class="eyebrow hero-eyebrow">CATÁLOGO</p>
           <h1 id="heroTitle">Encontre sua próxima escolha.</h1>
           <p class="hero-support">
             Explore a seleção da loja com uma navegação pensada para descobrir produtos sem esforço.
@@ -58,7 +63,7 @@
 
           <div class="hero-actions">
             <a class="hero-cta" href="#explorar">
-              <span>Explorar coleção</span>
+              <span>Explorar produtos</span>
               <i data-lucide="arrow-right"></i>
             </a>
             <div class="stats" aria-label="Tamanho do catálogo">
@@ -68,41 +73,29 @@
           </div>
         </div>
 
-        <aside id="heroShowcase" class="hero-showcase" aria-label="Produto da coleção" hidden>
+        <aside id="heroShowcase" class="hero-showcase" aria-label="Produto do catálogo" hidden>
           <div class="hero-product-art">
             <span class="hero-product-glow" aria-hidden="true"></span>
             <img id="heroProductImage" class="hero-product-image" alt="" />
           </div>
           <div class="hero-product-caption">
-            <span id="heroProductMeta" class="hero-product-meta">Da coleção</span>
+            <span id="heroProductMeta" class="hero-product-meta">Do catálogo</span>
             <strong id="heroProductName"></strong>
           </div>
         </aside>
+      </section>
 
-        <form id="searchForm" class="search-shell" role="search">
-          <label class="sr-only" for="searchInput">Buscar no catálogo</label>
-          <span class="search-leading" aria-hidden="true">
-            <i class="search-icon" data-lucide="search"></i>
+      <section class="search-entry" aria-label="Buscar produtos">
+        <button class="search-launcher" type="button" data-open-search>
+          <span class="search-launcher-icon" aria-hidden="true">
+            <i data-lucide="search"></i>
           </span>
-          <span class="search-field-copy">
-            <span class="search-prompt">O que você procura?</span>
-            <input
-              id="searchInput"
-              type="search"
-              placeholder="Busque por time, modelo ou categoria"
-              autocomplete="off"
-            />
+          <span class="search-launcher-copy">
+            <strong>O que você procura?</strong>
+            <span>Time, modelo ou categoria</span>
           </span>
-          <button
-            id="clearSearch"
-            class="search-clear"
-            type="button"
-            aria-label="Limpar busca"
-            hidden
-          >
-            <i data-lucide="x"></i>
-          </button>
-        </form>
+          <i class="search-launcher-arrow" data-lucide="arrow-right" aria-hidden="true"></i>
+        </button>
       </section>
 
       <section
@@ -190,15 +183,64 @@
         <i data-lucide="compass"></i>
         <span>Explorar</span>
       </a>
-      <a href="#searchForm" data-mobile-nav="search">
+      <button type="button" data-mobile-nav="search" data-open-search>
         <i data-lucide="search"></i>
         <span>Buscar</span>
-      </a>
+      </button>
       <a href="#catalogo" data-mobile-nav="products">
         <i data-lucide="grid-2x2"></i>
         <span>Produtos</span>
       </a>
     </nav>
+
+    <dialog id="searchDialog" class="search-dialog" aria-labelledby="searchDialogTitle">
+      <div class="search-dialog-head">
+        <div>
+          <span class="eyebrow">BUSCAR</span>
+          <h2 id="searchDialogTitle">Encontre rápido.</h2>
+        </div>
+        <button
+          id="searchDialogClose"
+          class="search-dialog-close"
+          type="button"
+          aria-label="Fechar busca"
+        >
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <form id="searchForm" class="search-shell search-shell--dialog" role="search">
+        <label class="sr-only" for="searchInput">Buscar no catálogo</label>
+        <span class="search-leading" aria-hidden="true">
+          <i class="search-icon" data-lucide="search"></i>
+        </span>
+        <span class="search-field-copy">
+          <span class="search-prompt">O que você procura?</span>
+          <input
+            id="searchInput"
+            type="search"
+            placeholder="Ex.: Real Madrid, retrô ou infantil"
+            autocomplete="off"
+            enterkeyhint="search"
+          />
+        </span>
+        <button
+          id="clearSearch"
+          class="search-clear"
+          type="button"
+          aria-label="Limpar busca"
+          hidden
+        >
+          <i data-lucide="x"></i>
+        </button>
+      </form>
+
+      <p class="search-dialog-hint">Digite um time, modelo ou categoria para pesquisar no catálogo.</p>
+      <button class="search-submit" type="submit" form="searchForm">
+        <span>Buscar produtos</span>
+        <i data-lucide="arrow-right"></i>
+      </button>
+    </dialog>
 
     <template id="productTemplate">
       <article class="card">
