@@ -51,10 +51,13 @@
   }
 
   .category-browser[data-view='root'] .category-chips {
-    gap: 18px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
   }
 
   .discovery-group {
+    width: 100%;
+    min-width: 0;
     gap: 8px;
   }
 
@@ -81,6 +84,7 @@
   }
 
   .discovery-group-items {
+    width: 100%;
     gap: 8px;
     padding: 1px 1px 4px;
   }
