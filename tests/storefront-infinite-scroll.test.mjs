@@ -41,8 +41,8 @@ describe('storefront incremental catalog feed', () => {
 
   it('uses a native prefetch sentinel and keeps public page state as the feed start', async () => {
     const [html, main] = await Promise.all([
-      readFile(new URL('../index.html', root), 'utf8'),
-      readFile(new URL('../src/main.js', root), 'utf8')
+      readFile(new URL('index.html', root), 'utf8'),
+      readFile(new URL('src/main.js', root), 'utf8')
     ]);
 
     expect(html).toContain('id="catalogLoadMoreSentinel"');
