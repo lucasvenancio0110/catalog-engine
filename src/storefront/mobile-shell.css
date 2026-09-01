@@ -1,0 +1,128 @@
+@media (max-width: 47.99rem) {
+  :root {
+    --ce-mobile-dock-height: 62px;
+    --ce-mobile-dock-gap: 8px;
+    --ce-mobile-bottom-reserve: calc(
+      var(--ce-mobile-dock-height) + var(--ce-mobile-dock-gap) +
+        max(8px, env(safe-area-inset-bottom, 0px)) + 16px
+    );
+  }
+
+  body.ce-storefront {
+    padding-bottom: 0;
+  }
+
+  body.ce-storefront main {
+    padding-bottom: var(--ce-mobile-bottom-reserve);
+  }
+
+  .topbar {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .topbar-inner {
+    min-height: 64px;
+    transition: min-height var(--ce-duration-base) var(--ce-ease-standard);
+  }
+
+  body.is-shell-scrolled .topbar-inner {
+    min-height: 58px;
+  }
+
+  body.is-shell-scrolled .store-logo {
+    width: 38px;
+    height: 38px;
+  }
+
+  .mobile-dock {
+    left: 50%;
+    right: auto;
+    bottom: max(var(--ce-mobile-dock-gap), env(safe-area-inset-bottom, 0px));
+    width: min(calc(100% - 20px), 28rem);
+    min-height: var(--ce-mobile-dock-height);
+    padding: 5px;
+    border-radius: 19px;
+    transform: translateX(-50%);
+    transition:
+      transform var(--ce-duration-base) var(--ce-ease-emphasized),
+      opacity var(--ce-duration-base) var(--ce-ease-standard);
+  }
+
+  .mobile-dock a,
+  .mobile-dock a:first-child,
+  .mobile-dock .mobile-dock-search {
+    min-height: 50px;
+    gap: 3px;
+    border-radius: 14px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 0.62rem;
+    font-weight: 760;
+    transition:
+      background var(--ce-duration-fast) var(--ce-ease-standard),
+      color var(--ce-duration-fast) var(--ce-ease-standard),
+      transform var(--ce-duration-fast) var(--ce-ease-standard);
+  }
+
+  .mobile-dock a svg,
+  .mobile-dock .mobile-dock-search svg {
+    width: 20px;
+    height: 20px;
+    color: currentColor;
+  }
+
+  .mobile-dock a.is-active {
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--text);
+  }
+
+  .mobile-dock a.is-active svg {
+    color: var(--accent);
+  }
+
+  .mobile-dock a:active {
+    transform: scale(0.97);
+  }
+
+  body.is-keyboard-open .mobile-dock,
+  body:has(#productDialog[open]) .mobile-dock {
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, calc(100% + 28px));
+  }
+
+  #productDialog {
+    max-height: min(
+      calc(var(--ce-visual-viewport-height, 100dvh) - 12px),
+      calc(100dvh - 12px)
+    );
+  }
+}
+
+@media (max-width: 22.49rem) {
+  :root {
+    --ce-mobile-dock-height: 60px;
+  }
+
+  .mobile-dock {
+    width: calc(100% - 14px);
+    padding: 4px;
+    border-radius: 17px;
+  }
+
+  .mobile-dock a,
+  .mobile-dock a:first-child,
+  .mobile-dock .mobile-dock-search {
+    min-height: 48px;
+    font-size: 0.59rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-dock,
+  .mobile-dock a,
+  .topbar-inner,
+  .store-logo {
+    transition: none !important;
+  }
+}
