@@ -3,6 +3,11 @@ import { getProductMedia, productGalleryUrls } from './catalog/media.js';
 import { resolveTeamCrest } from './catalog/team-crests.js';
 import { mountProductGallery } from './product/gallery.js';
 import {
+  canLoadNextCatalogPage,
+  catalogFeedRange,
+  mergeCatalogProductBatch
+} from './storefront/catalog-feed.js';
+import {
   buildCatalogUrl,
   hasCatalogRefinement,
   readCatalogUrlState
@@ -27,6 +32,11 @@ const state = {
     hasPrevious: false,
     hasMore: false
   },
+  feed: {
+    startPage: initialUrlState.page,
+    loadingMore: false,
+    loadMoreError: null
+  },
   loading: true,
   error: null,
   requestSequence: 0,
@@ -40,6 +50,7 @@ const state = {
   ]
 };
 
+const supportsInfiniteScroll = 'IntersectionObserver' in window;
 const prefetchedImages = new Map();
 const els = {
   storeName: document.querySelector('#storeName'),
@@ -68,10 +79,11 @@ const els = {
   catalogStateCopy: document.querySelector('#catalogStateCopy'),
   catalogStateAction: document.querySelector('#catalogStateAction'),
   grid: document.querySelector('#productGrid'),
-  pagination: document.querySelector('#pagination'),
-  pageInfo: document.querySelector('#pageInfo'),
-  previousPage: document.querySelector('#previousPage'),
-  nextPage: document.querySelector('#nextPage'),
+  loadMore: document.querySelector('#catalogLoadMore'),
+  loadMoreSkeletons: document.querySelector('#catalogLoadMoreSkeletons'),
+  loadMoreStatus: document.querySelector('#catalogLoadMoreStatus'),
+  loadMoreRetry: document.querySelector('#catalogLoadMoreRetry'),
+  loadMoreSentinel: document.querySelector('#catalogLoadMoreSentinel'),
   template: document.querySelector('#productTemplate'),
   skeletonTemplate: document.querySelector('#productSkeletonTemplate'),
   dialog: document.querySelector('#productDialog'),
@@ -130,16 +142,16 @@ function setFilter(next, { scroll = true } = {}) {
   void loadProducts(1, { scroll, history: 'push' });
 }
 
-function catalogStateForUrl(page = state.pagination.page) {
+function catalogStateForUrl(page = state.feed.startPage) {
   return { query: state.query, sort: state.sort, filters: state.filters, page };
 }
 
-function normalizedCatalogState(page = state.pagination.page) {
+function normalizedCatalogState(page = state.feed.startPage) {
   const relativeUrl = buildCatalogUrl(window.location.href, catalogStateForUrl(page));
   return readCatalogUrlState(new URL(relativeUrl, window.location.origin));
 }
 
-function writeCatalogHistory(mode, page = state.pagination.page) {
+function writeCatalogHistory(mode, page = state.feed.startPage) {
   if (mode === 'none') return;
   const nextUrl = buildCatalogUrl(window.location.href, catalogStateForUrl(page));
   const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
@@ -153,6 +165,9 @@ function applyUrlState() {
   state.sort = urlState.sort;
   state.filters = urlState.filters;
   state.pagination.page = urlState.page;
+  state.feed.startPage = urlState.page;
+  state.feed.loadingMore = false;
+  state.feed.loadMoreError = null;
   els.searchInput.value = state.query;
   els.sortSelect.value = state.sort;
 }
@@ -600,12 +615,62 @@ function openTeam(team) {
   });
 }
 
-function renderPagination() {
-  const { page, totalPages, hasPrevious, hasMore } = state.pagination;
-  els.pagination.hidden = state.loading || Boolean(state.error) || totalPages <= 1;
-  els.pageInfo.textContent = totalPages ? `Página ${page} de ${totalPages}` : '';
-  els.previousPage.disabled = !hasPrevious || state.loading;
-  els.nextPage.disabled = !hasMore || state.loading;
+function renderLoadMoreSkeletons() {
+  els.loadMoreSkeletons.innerHTML = '';
+  if (!state.feed.loadingMore) {
+    els.loadMoreSkeletons.hidden = true;
+    return;
+  }
+  for (let index = 0; index < 4; index += 1) {
+    els.loadMoreSkeletons.appendChild(els.skeletonTemplate.content.cloneNode(true));
+  }
+  els.loadMoreSkeletons.hidden = false;
+}
+
+function renderLoadMore() {
+  const { hasMore, page } = state.pagination;
+  const { startPage, loadingMore, loadMoreError } = state.feed;
+  const progressed = page > startPage;
+  const reachedEnd = !hasMore && progressed;
+  const visible =
+    !state.loading &&
+    !state.error &&
+    state.products.length > 0 &&
+    (hasMore || loadingMore || Boolean(loadMoreError) || reachedEnd);
+
+  els.loadMore.hidden = !visible;
+  els.loadMore.setAttribute('aria-busy', String(loadingMore));
+  renderLoadMoreSkeletons();
+  els.loadMoreRetry.hidden = true;
+  els.loadMoreSentinel.hidden = true;
+
+  if (!visible) {
+    els.loadMoreStatus.textContent = '';
+    return;
+  }
+  if (loadingMore) {
+    els.loadMoreStatus.textContent = 'Carregando mais produtos…';
+    return;
+  }
+  if (loadMoreError) {
+    els.loadMoreStatus.textContent = 'Não foi possível carregar mais produtos.';
+    els.loadMoreRetry.textContent = 'Tentar novamente';
+    els.loadMoreRetry.hidden = false;
+    return;
+  }
+  if (!hasMore) {
+    els.loadMoreStatus.textContent = 'Você viu todos os produtos desta seleção.';
+    return;
+  }
+  if (!supportsInfiniteScroll) {
+    els.loadMoreStatus.textContent = 'Há mais produtos para explorar.';
+    els.loadMoreRetry.textContent = 'Carregar mais produtos';
+    els.loadMoreRetry.hidden = false;
+    return;
+  }
+
+  els.loadMoreStatus.textContent = '';
+  els.loadMoreSentinel.hidden = false;
 }
 
 function renderCatalogMessage({ icon, title, copy, action, actionKind }) {
@@ -624,15 +689,91 @@ function hideCatalogMessage() {
   els.catalogStateAction.removeAttribute('data-action');
 }
 
-function renderSkeletons() {
-  for (let index = 0; index < 10; index += 1) {
-    els.grid.appendChild(els.skeletonTemplate.content.cloneNode(true));
+function renderSkeletons(target = els.grid, count = 10) {
+  for (let index = 0; index < count; index += 1) {
+    target.appendChild(els.skeletonTemplate.content.cloneNode(true));
   }
 }
 
 function scrollToCatalog() {
   const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   els.status.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+}
+
+function renderProductStatus() {
+  const range = catalogFeedRange({
+    startPage: state.feed.startPage,
+    pageSize: state.pagination.pageSize,
+    loadedCount: state.products.length,
+    total: state.pagination.total
+  });
+  els.status.textContent = `Mostrando ${range.start}–${range.end} de ${range.total.toLocaleString('pt-BR')} produtos.`;
+}
+
+function productCardNode(product, index) {
+  const node = els.template.content.cloneNode(true);
+  const imageWrap = node.querySelector('.image-wrap');
+  const image = node.querySelector('.product-image');
+  const fallback = node.querySelector('.image-fallback');
+  const photoCount = node.querySelector('.photo-count');
+  const media = getProductMedia(product);
+  const firstImage = media[0]?.thumbnailUrl || media[0]?.url;
+  if (firstImage) {
+    image.loading = index < 4 ? 'eager' : 'lazy';
+    image.decoding = 'async';
+    image.fetchPriority = index < 4 ? 'high' : 'low';
+    image.src = firstImage;
+    image.alt = product.name;
+    fallback.hidden = true;
+    image.addEventListener('error', () => {
+      image.hidden = true;
+      fallback.hidden = false;
+    });
+  } else {
+    image.hidden = true;
+    fallback.hidden = false;
+  }
+  imageWrap.setAttribute('aria-label', `Ver ${product.name}`);
+  const teamLabel = node.querySelector('.product-team');
+  const categoryLabel = node.querySelector('.category');
+  teamLabel.textContent = product.teamName || product.category || 'Catálogo';
+  categoryLabel.textContent = product.category || '';
+  categoryLabel.hidden = !product.category || product.category === teamLabel.textContent;
+  const imageCount = Number(product.imageCount || 0);
+  if (imageCount > 1) {
+    photoCount.querySelector('span').textContent = `${imageCount} fotos`;
+    photoCount.hidden = false;
+  }
+  node.querySelector('.product-name').textContent = product.name;
+  const description = node.querySelector('.description');
+  description.textContent = product.description || '';
+  description.hidden = !product.description;
+
+  const prefetchHero = () => prefetchImage(media[0]?.url);
+  imageWrap.addEventListener('pointerenter', prefetchHero, { once: true });
+  imageWrap.addEventListener('focus', prefetchHero, { once: true });
+  imageWrap.addEventListener('touchstart', prefetchHero, { once: true, passive: true });
+  const open = () => void openProduct(product);
+  imageWrap.addEventListener('click', open);
+  imageWrap.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      open();
+    }
+  });
+  node.querySelector('.card-open').addEventListener('click', open);
+  return node;
+}
+
+function appendProductCards(products, startIndex = 0) {
+  if (!products.length) return;
+  const fragment = document.createDocumentFragment();
+  products.forEach((product, index) => {
+    fragment.appendChild(productCardNode(product, startIndex + index));
+  });
+  els.grid.appendChild(fragment);
+  hydrateStorefrontIcons(els.grid);
+  revealCards(els.grid);
 }
 
 function renderProducts() {
@@ -646,7 +787,7 @@ function renderProducts() {
       : 'Preparando a vitrine…';
     hideCatalogMessage();
     renderSkeletons();
-    renderPagination();
+    renderLoadMore();
     return;
   }
   if (state.error) {
@@ -658,13 +799,11 @@ function renderProducts() {
       action: 'Tentar novamente',
       actionKind: 'retry'
     });
-    renderPagination();
+    renderLoadMore();
     return;
   }
   if (state.products.length) {
-    const start = (state.pagination.page - 1) * state.pagination.pageSize + 1;
-    const end = start + state.products.length - 1;
-    els.status.textContent = `Mostrando ${start}–${end} de ${state.pagination.total.toLocaleString('pt-BR')} produtos.`;
+    renderProductStatus();
     hideCatalogMessage();
   } else {
     const refined = hasCatalogRefinement(catalogStateForUrl());
@@ -682,63 +821,8 @@ function renderProducts() {
     });
   }
 
-  for (const [index, product] of state.products.entries()) {
-    const node = els.template.content.cloneNode(true);
-    const imageWrap = node.querySelector('.image-wrap');
-    const image = node.querySelector('.product-image');
-    const fallback = node.querySelector('.image-fallback');
-    const photoCount = node.querySelector('.photo-count');
-    const media = getProductMedia(product);
-    const firstImage = media[0]?.thumbnailUrl || media[0]?.url;
-    if (firstImage) {
-      image.loading = index < 4 ? 'eager' : 'lazy';
-      image.decoding = 'async';
-      image.fetchPriority = index < 4 ? 'high' : 'low';
-      image.src = firstImage;
-      image.alt = product.name;
-      fallback.hidden = true;
-      image.addEventListener('error', () => {
-        image.hidden = true;
-        fallback.hidden = false;
-      });
-    } else {
-      image.hidden = true;
-      fallback.hidden = false;
-    }
-    imageWrap.setAttribute('aria-label', `Ver ${product.name}`);
-    const teamLabel = node.querySelector('.product-team');
-    const categoryLabel = node.querySelector('.category');
-    teamLabel.textContent = product.teamName || product.category || 'Catálogo';
-    categoryLabel.textContent = product.category || '';
-    categoryLabel.hidden = !product.category || product.category === teamLabel.textContent;
-    const imageCount = Number(product.imageCount || 0);
-    if (imageCount > 1) {
-      photoCount.querySelector('span').textContent = `${imageCount} fotos`;
-      photoCount.hidden = false;
-    }
-    node.querySelector('.product-name').textContent = product.name;
-    const description = node.querySelector('.description');
-    description.textContent = product.description || '';
-    description.hidden = !product.description;
-
-    const prefetchHero = () => prefetchImage(media[0]?.url);
-    imageWrap.addEventListener('pointerenter', prefetchHero, { once: true });
-    imageWrap.addEventListener('focus', prefetchHero, { once: true });
-    imageWrap.addEventListener('touchstart', prefetchHero, { once: true, passive: true });
-    const open = () => void openProduct(product);
-    imageWrap.addEventListener('click', open);
-    imageWrap.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        open();
-      }
-    });
-    node.querySelector('.card-open').addEventListener('click', open);
-    els.grid.appendChild(node);
-  }
-  renderPagination();
-  hydrateStorefrontIcons(els.grid);
-  revealCards(els.grid);
+  appendProductCards(state.products);
+  renderLoadMore();
   scheduleInitialViewPrefetch(state.products);
 }
 
@@ -748,6 +832,17 @@ function productsApiUrl(page) {
   if (state.sort !== 'catalog') params.set('sort', state.sort);
   for (const [key, value] of Object.entries(state.filters)) if (value) params.set(key, value);
   return `/api/products?${params}`;
+}
+
+function paginationFromPayload(payload) {
+  return {
+    page: Number(payload.page || 1),
+    pageSize: Number(payload.pageSize || PAGE_SIZE),
+    total: Number(payload.total || 0),
+    totalPages: Number(payload.totalPages || 0),
+    hasPrevious: Boolean(payload.hasPrevious),
+    hasMore: Boolean(payload.hasMore)
+  };
 }
 
 async function loadProducts(page = 1, { scroll = false, history = 'none' } = {}) {
@@ -760,6 +855,9 @@ async function loadProducts(page = 1, { scroll = false, history = 'none' } = {})
   els.sortSelect.value = state.sort;
   const requestSequence = ++state.requestSequence;
   state.pagination.page = page;
+  state.feed.startPage = page;
+  state.feed.loadingMore = false;
+  state.feed.loadMoreError = null;
   state.loading = true;
   state.error = null;
   writeCatalogHistory(history, page);
@@ -768,17 +866,10 @@ async function loadProducts(page = 1, { scroll = false, history = 'none' } = {})
     const payload = await fetchJson(productsApiUrl(page));
     if (requestSequence !== state.requestSequence) return;
     state.products = payload.items || [];
-    state.pagination = {
-      page: Number(payload.page || 1),
-      pageSize: Number(payload.pageSize || PAGE_SIZE),
-      total: Number(payload.total || 0),
-      totalPages: Number(payload.totalPages || 0),
-      hasPrevious: Boolean(payload.hasPrevious),
-      hasMore: Boolean(payload.hasMore)
-    };
+    state.pagination = paginationFromPayload(payload);
     state.loading = false;
     state.error = null;
-    writeCatalogHistory('replace', state.pagination.page);
+    writeCatalogHistory('replace', state.feed.startPage);
     renderProducts();
     if (scroll) scrollToCatalog();
   } catch (error) {
@@ -790,6 +881,57 @@ async function loadProducts(page = 1, { scroll = false, history = 'none' } = {})
     renderProducts();
     if (scroll) scrollToCatalog();
   }
+}
+
+async function loadMoreProducts() {
+  if (
+    !canLoadNextCatalogPage({
+      loading: state.loading,
+      loadingMore: state.feed.loadingMore,
+      error: state.error,
+      loadMoreError: state.feed.loadMoreError,
+      hasMore: state.pagination.hasMore
+    })
+  ) {
+    return;
+  }
+
+  const nextPage = state.pagination.page + 1;
+  const requestSequence = state.requestSequence;
+  state.feed.loadingMore = true;
+  state.feed.loadMoreError = null;
+  renderLoadMore();
+
+  try {
+    const payload = await fetchJson(productsApiUrl(nextPage));
+    if (requestSequence !== state.requestSequence) return;
+    const previousCount = state.products.length;
+    const merged = mergeCatalogProductBatch(state.products, payload.items || []);
+    state.products = merged.items;
+    state.pagination = paginationFromPayload(payload);
+    state.feed.loadingMore = false;
+    state.feed.loadMoreError = null;
+    appendProductCards(merged.added, previousCount);
+    renderProductStatus();
+    renderLoadMore();
+  } catch (error) {
+    if (requestSequence !== state.requestSequence) return;
+    console.error('catalog_load_more_failed', error);
+    state.feed.loadingMore = false;
+    state.feed.loadMoreError = error;
+    renderLoadMore();
+  }
+}
+
+function setupCatalogInfiniteScroll() {
+  if (!supportsInfiniteScroll) return;
+  const observer = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) void loadMoreProducts();
+    },
+    { rootMargin: '600px 0px', threshold: 0 }
+  );
+  observer.observe(els.loadMoreSentinel);
 }
 
 function renderThumbs(product) {
@@ -891,7 +1033,7 @@ function applyStoreConfig() {
 
 async function init() {
   applyUrlState();
-  writeCatalogHistory('replace', state.pagination.page);
+  writeCatalogHistory('replace', state.feed.startPage);
   renderProducts();
   try {
     const [meta, products] = await Promise.all([
@@ -905,19 +1047,15 @@ async function init() {
       normalization: meta.normalization || {}
     };
     state.products = products.items || [];
-    state.pagination = {
-      page: Number(products.page || 1),
-      pageSize: Number(products.pageSize || PAGE_SIZE),
-      total: Number(products.total || 0),
-      totalPages: Number(products.totalPages || 0),
-      hasPrevious: Boolean(products.hasPrevious),
-      hasMore: Boolean(products.hasMore)
-    };
+    state.pagination = paginationFromPayload(products);
+    state.feed.startPage = state.pagination.page;
+    state.feed.loadingMore = false;
+    state.feed.loadMoreError = null;
     state.loading = false;
     state.error = null;
     applyStoreConfig();
     await renderExplorer();
-    writeCatalogHistory('replace', state.pagination.page);
+    writeCatalogHistory('replace', state.feed.startPage);
     renderProducts();
   } catch (error) {
     console.error('catalog_init_failed', error);
@@ -961,18 +1099,14 @@ els.categoryBack.addEventListener('click', () => {
   }
   void renderExplorer();
 });
-els.previousPage.addEventListener('click', () => {
-  if (state.pagination.hasPrevious)
-    void loadProducts(state.pagination.page - 1, { scroll: true, history: 'push' });
-});
-els.nextPage.addEventListener('click', () => {
-  if (state.pagination.hasMore)
-    void loadProducts(state.pagination.page + 1, { scroll: true, history: 'push' });
+els.loadMoreRetry.addEventListener('click', () => {
+  state.feed.loadMoreError = null;
+  void loadMoreProducts();
 });
 els.clearCatalogState.addEventListener('click', () => clearCatalogRefinements());
 els.catalogStateAction.addEventListener('click', () => {
   if (els.catalogStateAction.dataset.action === 'clear') clearCatalogRefinements();
-  else void loadProducts(state.pagination.page, { history: 'none' });
+  else void loadProducts(state.feed.startPage, { history: 'none' });
 });
 els.dialogClose.addEventListener('click', closeProduct);
 els.dialog.addEventListener('click', (event) => {
@@ -983,8 +1117,9 @@ window.addEventListener('popstate', () => {
   clearTimeout(searchTimer);
   applyUrlState();
   resetExplorer();
-  void loadProducts(state.pagination.page, { history: 'none' });
+  void loadProducts(state.feed.startPage, { history: 'none' });
 });
 
 hydrateStorefrontIcons(document);
+setupCatalogInfiniteScroll();
 init();
