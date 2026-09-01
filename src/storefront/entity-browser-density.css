@@ -1,0 +1,223 @@
+@media (max-width: 47.99rem) {
+  .category-browser:is(
+      [data-view='countries'],
+      [data-view='leagues'],
+      [data-view='teams'],
+      [data-view='national-teams']
+    ) {
+    margin-bottom: 18px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .category-browser:is(
+      [data-view='countries'],
+      [data-view='leagues'],
+      [data-view='teams'],
+      [data-view='national-teams']
+    )
+    .category-browser-head {
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .category-browser:is(
+      [data-view='countries'],
+      [data-view='leagues'],
+      [data-view='teams'],
+      [data-view='national-teams']
+    )
+    .category-trail {
+    margin-bottom: 9px;
+  }
+
+  .category-browser:is(
+      [data-view='countries'],
+      [data-view='leagues'],
+      [data-view='teams'],
+      [data-view='national-teams']
+    )
+    .category-chips {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+  }
+
+  .category-browser:is(
+      [data-view='countries'],
+      [data-view='leagues'],
+      [data-view='teams'],
+      [data-view='national-teams']
+    )
+    .category-chip {
+    width: 100%;
+    min-height: 64px;
+    padding: 8px 10px;
+    border-radius: 16px;
+    grid-template-columns: minmax(0, 1fr) auto 18px;
+    gap: 8px;
+    touch-action: manipulation;
+    transform-origin: center;
+  }
+
+  .category-browser:is(
+      [data-view='countries'],
+      [data-view='leagues'],
+      [data-view='teams'],
+      [data-view='national-teams']
+    )
+    .category-chip:active {
+    transform: scale(0.985);
+    border-color: color-mix(in srgb, var(--accent) 44%, var(--line));
+  }
+
+  .category-browser:is(
+      [data-view='countries'],
+      [data-view='leagues'],
+      [data-view='teams'],
+      [data-view='national-teams']
+    )
+    .category-card-lead {
+    min-width: 0;
+    gap: 10px;
+  }
+
+  .category-browser:is(
+      [data-view='countries'],
+      [data-view='leagues'],
+      [data-view='teams'],
+      [data-view='national-teams']
+    )
+    .category-card-copy {
+    min-width: 0;
+    gap: 2px;
+  }
+
+  .category-browser:is(
+      [data-view='countries'],
+      [data-view='leagues'],
+      [data-view='teams'],
+      [data-view='national-teams']
+    )
+    .category-card-copy strong {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 0.86rem;
+    line-height: 1.15;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .category-browser:is(
+      [data-view='countries'],
+      [data-view='leagues'],
+      [data-view='teams'],
+      [data-view='national-teams']
+    )
+    .category-card-copy span {
+    font-size: 0.65rem;
+    line-height: 1.2;
+  }
+
+  .category-browser[data-view='leagues'] .league-card .category-card-copy span {
+    display: none;
+  }
+
+  .category-browser:is([data-view='countries'], [data-view='leagues']) .category-icon {
+    width: 38px;
+    height: 38px;
+    border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--panel-2) 72%, white 4%);
+  }
+
+  .category-browser:is([data-view='teams'], [data-view='national-teams']) .team-card {
+    min-height: 64px;
+  }
+
+  .category-browser:is([data-view='teams'], [data-view='national-teams']) .team-mark {
+    width: 44px;
+    height: 44px;
+    padding: 5px;
+    border-radius: 13px;
+    background: #f7f7f8;
+    box-shadow: 0 5px 14px rgba(0, 0, 0, 0.12);
+  }
+
+  .category-browser:is([data-view='teams'], [data-view='national-teams']) .team-mark img {
+    width: 100%;
+    height: 100%;
+  }
+
+  .category-browser:is(
+      [data-view='countries'],
+      [data-view='leagues'],
+      [data-view='teams'],
+      [data-view='national-teams']
+    )
+    .category-count {
+    padding: 5px 7px;
+    background: color-mix(in srgb, var(--panel) 78%, transparent);
+    font-size: 0.63rem;
+  }
+
+  .category-browser:is(
+      [data-view='countries'],
+      [data-view='leagues'],
+      [data-view='teams'],
+      [data-view='national-teams']
+    )
+    .category-arrow {
+    display: grid;
+    width: 18px;
+    height: 18px;
+    place-items: center;
+    justify-self: end;
+    opacity: 0.72;
+  }
+
+  .category-browser:is(
+      [data-view='countries'],
+      [data-view='leagues'],
+      [data-view='teams'],
+      [data-view='national-teams']
+    )
+    .category-back {
+    min-height: 40px;
+  }
+}
+
+@media (max-width: 22.49rem) {
+  .category-browser:is(
+      [data-view='countries'],
+      [data-view='leagues'],
+      [data-view='teams'],
+      [data-view='national-teams']
+    )
+    .category-chip {
+    min-height: 60px;
+    padding-inline: 9px;
+  }
+
+  .category-browser:is([data-view='teams'], [data-view='national-teams']) .team-mark {
+    width: 42px;
+    height: 42px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .category-browser:is(
+      [data-view='countries'],
+      [data-view='leagues'],
+      [data-view='teams'],
+      [data-view='national-teams']
+    )
+    .category-chip:active {
+    transform: none;
+  }
+}

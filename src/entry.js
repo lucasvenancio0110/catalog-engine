@@ -4,6 +4,7 @@ import './storefront/luxury-mobile.css';
 import './storefront/mobile-shell.css';
 import './storefront/compact-hero-search.css';
 import './storefront/discovery-density.css';
+import './storefront/entity-browser-density.css';
 import './storefront/experience-motion.css';
 import './storefront/catalog-mobile-density.css';
 import './storefront/luxury-mobile.js';
