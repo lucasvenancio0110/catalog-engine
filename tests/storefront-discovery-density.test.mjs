@@ -15,9 +15,10 @@ describe('M9B mobile discovery density', () => {
     );
   });
 
-  it('keeps root discovery horizontal and removes unnecessary phone chrome', () => {
+  it('stacks the root discovery groups while keeping each group horizontally browsable', () => {
     expect(densityStyles).toContain(".category-browser[data-view='root']");
     expect(densityStyles).toContain('background: transparent');
+    expect(densityStyles).toContain('grid-template-columns: minmax(0, 1fr)');
     expect(densityStyles).toContain('.featured-clubs .discovery-group-items');
     expect(densityStyles).toContain('.commercial-categories .discovery-group-items');
     expect(densityStyles).toContain('overflow-x: auto');
