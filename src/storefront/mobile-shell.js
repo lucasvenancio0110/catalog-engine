@@ -17,17 +17,16 @@ export function isVirtualKeyboardOpen({ layoutHeight, visualHeight, isMobile }) 
   return layoutHeight - visualHeight > KEYBOARD_DELTA_PX;
 }
 
-function prefersReducedMotion() {
-  return Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
-}
-
 function initMobileShell() {
   const body = document.body;
   const root = document.documentElement;
   const dock = document.querySelector('.mobile-dock');
+  const searchDialog = document.querySelector('#searchDialog');
+  const searchDialogClose = document.querySelector('#searchDialogClose');
   const searchForm = document.querySelector('#searchForm');
   const searchInput = document.querySelector('#searchInput');
   const navItems = [...document.querySelectorAll('.mobile-dock [data-mobile-nav]')];
+  const searchOpeners = [...document.querySelectorAll('[data-open-search]')];
   const sections = [...SECTION_NAV_KEYS.keys()]
     .map((id) => document.getElementById(id))
     .filter(Boolean);
@@ -37,6 +36,8 @@ function initMobileShell() {
   const mobileMedia = window.matchMedia(MOBILE_QUERY);
   let currentSection = navKeyForSectionId(window.location.hash.replace('#', ''));
   let searchHasFocus = false;
+  let searchModeOpen = false;
+  let lastSearchTrigger = null;
   let scrollFrame = 0;
 
   function setActiveNav(key) {
@@ -61,7 +62,7 @@ function initMobileShell() {
 
   function syncSectionFromLayout() {
     currentSection = sectionAtReadingLine();
-    if (!searchHasFocus) setActiveNav(currentSection);
+    if (!searchHasFocus && !searchModeOpen) setActiveNav(currentSection);
   }
 
   function syncScrollState() {
@@ -90,6 +91,46 @@ function initMobileShell() {
     );
   }
 
+  function focusSearchInput() {
+    window.requestAnimationFrame(() => {
+      searchInput?.focus({ preventScroll: true });
+      const end = searchInput?.value?.length || 0;
+      searchInput?.setSelectionRange?.(end, end);
+    });
+  }
+
+  function openSearch(trigger) {
+    if (!searchDialog || !searchInput) return;
+    lastSearchTrigger = trigger || document.activeElement;
+    searchModeOpen = true;
+    body.classList.add('is-search-open');
+    setActiveNav('search');
+
+    if (!searchDialog.open) {
+      if (typeof searchDialog.showModal === 'function') searchDialog.showModal();
+      else searchDialog.setAttribute('open', '');
+    }
+
+    focusSearchInput();
+  }
+
+  function closeSearch({ restoreFocus = true } = {}) {
+    if (!searchDialog) return;
+    searchModeOpen = false;
+    body.classList.remove('is-search-open');
+
+    if (searchDialog.open) {
+      if (typeof searchDialog.close === 'function') searchDialog.close();
+      else searchDialog.removeAttribute('open');
+    }
+
+    searchHasFocus = false;
+    syncSectionFromLayout();
+    if (restoreFocus && lastSearchTrigger instanceof HTMLElement) {
+      lastSearchTrigger.focus({ preventScroll: true });
+    }
+  }
+
   const sectionObserver =
     'IntersectionObserver' in window
       ? new IntersectionObserver(
@@ -103,7 +144,7 @@ function initMobileShell() {
               );
             if (!visible.length) return;
             currentSection = navKeyForSectionId(visible[0].target.id);
-            if (!searchHasFocus) setActiveNav(currentSection);
+            if (!searchHasFocus && !searchModeOpen) setActiveNav(currentSection);
           },
           { rootMargin: '-18% 0px -68% 0px', threshold: 0 }
         )
@@ -120,30 +161,42 @@ function initMobileShell() {
     window.setTimeout(() => {
       if (searchForm.contains(document.activeElement)) return;
       searchHasFocus = false;
-      syncSectionFromLayout();
+      if (!searchModeOpen) syncSectionFromLayout();
     }, 0);
+  });
+
+  searchForm?.addEventListener('submit', () => {
+    window.setTimeout(() => closeSearch({ restoreFocus: false }), 0);
+  });
+
+  for (const opener of searchOpeners) {
+    if (opener.closest('.mobile-dock')) continue;
+    opener.addEventListener('click', () => openSearch(opener));
+  }
+
+  searchDialogClose?.addEventListener('click', () => closeSearch());
+  searchDialog?.addEventListener('click', (event) => {
+    if (event.target === searchDialog) closeSearch();
+  });
+  searchDialog?.addEventListener('close', () => {
+    searchModeOpen = false;
+    searchHasFocus = false;
+    body.classList.remove('is-search-open');
+    syncSectionFromLayout();
   });
 
   for (const item of navItems) {
     item.addEventListener('click', (event) => {
       const key = item.dataset.mobileNav;
-      if (key !== 'search') {
-        searchHasFocus = false;
-        setActiveNav(key);
+      if (key === 'search') {
+        event.preventDefault();
+        openSearch(item);
         return;
       }
 
-      event.preventDefault();
-      searchHasFocus = true;
-      setActiveNav('search');
-      searchForm?.scrollIntoView({
-        behavior: prefersReducedMotion() ? 'auto' : 'smooth',
-        block: 'center'
-      });
-      window.setTimeout(
-        () => searchInput?.focus({ preventScroll: true }),
-        prefersReducedMotion() ? 0 : 220
-      );
+      searchHasFocus = false;
+      searchModeOpen = false;
+      setActiveNav(key);
     });
   }
 
