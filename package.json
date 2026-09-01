@@ -13,6 +13,7 @@
     "crawl:core": "node scripts/crawl-yupoo.mjs",
     "taxonomy:enrich": "node scripts/enrich-taxonomy.mjs",
     "media:optimize": "node scripts/media-pipeline.mjs",
+    "assets:team-crests": "node scripts/import-team-crests.mjs",
     "audit": "node scripts/quality-audit.mjs",
     "sync:audit": "node scripts/sync-audit.mjs",
     "sync:incremental:scan": "node scripts/scan-yupoo-listing-index.mjs",

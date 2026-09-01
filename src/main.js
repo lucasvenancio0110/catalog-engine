@@ -1,5 +1,6 @@
 import './styles.css';
 import { getProductMedia, productGalleryUrls } from './catalog/media.js';
+import { resolveTeamCrest } from './catalog/team-crests.js';
 import { mountProductGallery } from './product/gallery.js';
 import {
   buildCatalogUrl,
@@ -16,6 +17,7 @@ const state = {
   catalog: { store: {}, stats: {}, navigation: [] },
   products: [],
   query: initialUrlState.query,
+  sort: initialUrlState.sort,
   filters: initialUrlState.filters,
   pagination: {
     page: initialUrlState.page,
@@ -31,6 +33,7 @@ const state = {
   activeProduct: null,
   gallery: null,
   leagues: null,
+  teams: { club: null, national_team: null },
   facets: null,
   explorerStack: [
     { kind: 'root', title: 'Explorar', subtitle: 'Escolha como navegar pelo catálogo.' }
@@ -52,10 +55,12 @@ const els = {
   categoryBrowser: document.querySelector('#explorar'),
   categoryTitle: document.querySelector('#categoryTitle'),
   categorySubtitle: document.querySelector('#categorySubtitle'),
+  categoryLogo: document.querySelector('#categoryLogo'),
   categoryBack: document.querySelector('#categoryBack'),
   categoryTrail: document.querySelector('#categoryTrail'),
   categoryChips: document.querySelector('#categoryChips'),
   status: document.querySelector('#status'),
+  sortSelect: document.querySelector('#sortSelect'),
   clearCatalogState: document.querySelector('#clearCatalogState'),
   catalogState: document.querySelector('#catalogState'),
   catalogStateIcon: document.querySelector('#catalogStateIcon'),
@@ -126,7 +131,7 @@ function setFilter(next) {
 }
 
 function catalogStateForUrl(page = state.pagination.page) {
-  return { query: state.query, filters: state.filters, page };
+  return { query: state.query, sort: state.sort, filters: state.filters, page };
 }
 
 function normalizedCatalogState(page = state.pagination.page) {
@@ -145,9 +150,11 @@ function writeCatalogHistory(mode, page = state.pagination.page) {
 function applyUrlState() {
   const urlState = readCatalogUrlState(window.location.href);
   state.query = urlState.query;
+  state.sort = urlState.sort;
   state.filters = urlState.filters;
   state.pagination.page = urlState.page;
   els.searchInput.value = state.query;
+  els.sortSelect.value = state.sort;
 }
 
 function renderRefinementControls() {
@@ -284,50 +291,144 @@ async function getFacets() {
   return state.facets;
 }
 
+async function getTeams(entityType = 'club') {
+  if (!['club', 'national_team'].includes(entityType)) return [];
+  if (!state.teams[entityType]) {
+    state.teams[entityType] =
+      (await fetchJson(`/api/teams?entityType=${encodeURIComponent(entityType)}`)).items || [];
+  }
+  return state.teams[entityType];
+}
+
+function discoveryGroup({ eyebrow, title, subtitle, className }) {
+  const section = document.createElement('section');
+  section.className = `discovery-group ${className || ''}`.trim();
+  const head = document.createElement('div');
+  head.className = 'discovery-group-head';
+  const kicker = document.createElement('span');
+  kicker.className = 'eyebrow';
+  kicker.textContent = eyebrow;
+  const heading = document.createElement('strong');
+  heading.textContent = title;
+  const support = document.createElement('span');
+  support.textContent = subtitle;
+  head.append(kicker, heading, support);
+  const items = document.createElement('div');
+  items.className = 'discovery-group-items';
+  section.append(head, items);
+  return { section, items };
+}
+
+function navigationPriority(item) {
+  if (item.kind === 'teams') return 0;
+  if (item.kind === 'national_teams') return 1;
+  if (item.facetId === 'kits') return 2;
+  if (item.facetId === 'retro') return 3;
+  if (item.facetId === 'kids') return 4;
+  if (item.facetId === 'women') return 5;
+  return 10;
+}
+
+function navigationTitle(item) {
+  if (item.kind === 'teams') return 'Clubes';
+  return item.name;
+}
+
+function navigationSubtitle(item) {
+  if (item.kind === 'teams') return 'Escolha pelo escudo';
+  if (item.kind === 'national_teams') return 'Países e seleções';
+  if (item.facetId === 'retro') return 'Clássicos de outras épocas';
+  if (item.facetId === 'kids') return 'Modelos infantis';
+  return 'Explore a coleção';
+}
+
+function openNavigationItem(item) {
+  if (item.kind === 'teams') {
+    pushExplorer({ kind: 'countries', title: 'Clubes', subtitle: 'Escolha o país ou região.' });
+  } else if (item.kind === 'national_teams') {
+    pushExplorer({
+      kind: 'national-teams',
+      title: 'Seleções',
+      subtitle: 'Seleções nacionais disponíveis.'
+    });
+  } else {
+    setFilter({ facetId: item.facetId });
+    pushExplorer({
+      kind: 'facet',
+      title: item.name,
+      subtitle: `${Number(item.count || 0).toLocaleString('pt-BR')} produtos`,
+      facetId: item.facetId
+    });
+  }
+}
+
+async function renderRootDiscovery() {
+  const featured = discoveryGroup({
+    eyebrow: 'COMPRE POR TIME',
+    title: 'Clubes em destaque',
+    subtitle: 'Toque no escudo para abrir a coleção.',
+    className: 'featured-clubs'
+  });
+  els.categoryChips.appendChild(featured.section);
+
+  try {
+    const clubs = await getTeams('club');
+    for (const team of clubs.slice(0, 12)) {
+      featured.items.appendChild(
+        cardButton({
+          title: team.name,
+          subtitle: `${Number(team.product_count || 0).toLocaleString('pt-BR')} produtos`,
+          initials: team.initials,
+          logoUrl: resolveTeamCrest(team)?.url || null,
+          kind: 'team-card popular-team-card',
+          arrow: false,
+          onClick: () => openTeam(team)
+        })
+      );
+    }
+  } catch (error) {
+    console.error('featured_teams_failed', error);
+    featured.section.remove();
+  }
+
+  const categories = discoveryGroup({
+    eyebrow: 'CATEGORIAS',
+    title: 'Encontre do seu jeito',
+    subtitle: 'Clubes, seleções e coleções organizadas.',
+    className: 'commercial-categories'
+  });
+  els.categoryChips.appendChild(categories.section);
+  const navigation = [...(state.catalog.navigation || [])].sort(
+    (a, b) => navigationPriority(a) - navigationPriority(b)
+  );
+  for (const item of navigation) {
+    categories.items.appendChild(
+      cardButton({
+        title: navigationTitle(item),
+        count: item.count,
+        subtitle: navigationSubtitle(item),
+        iconName: navigationIconName(item),
+        kind: 'root-card',
+        onClick: () => openNavigationItem(item)
+      })
+    );
+  }
+}
+
 async function renderExplorer() {
   const view = currentExplorer();
   els.categoryBrowser.dataset.view = view.kind;
   els.categoryTitle.textContent = view.title || 'Explorar';
   els.categorySubtitle.textContent = view.subtitle || '';
+  els.categoryLogo.hidden = true;
+  els.categoryLogo.removeAttribute('src');
   els.categoryBack.hidden = state.explorerStack.length <= 1;
   renderTrail();
   els.categoryChips.innerHTML = '';
 
   try {
     if (view.kind === 'root') {
-      for (const item of state.catalog.navigation || []) {
-        els.categoryChips.appendChild(
-          cardButton({
-            title: item.name,
-            count: item.count,
-            iconName: navigationIconName(item),
-            kind: 'root-card',
-            onClick: () => {
-              if (item.kind === 'teams') {
-                pushExplorer({
-                  kind: 'countries',
-                  title: 'Times',
-                  subtitle: 'Escolha o país ou região.'
-                });
-              } else if (item.kind === 'national_teams') {
-                pushExplorer({
-                  kind: 'national-teams',
-                  title: 'Seleções',
-                  subtitle: 'Seleções nacionais disponíveis.'
-                });
-              } else {
-                setFilter({ facetId: item.facetId });
-                pushExplorer({
-                  kind: 'facet',
-                  title: item.name,
-                  subtitle: `${Number(item.count || 0).toLocaleString('pt-BR')} produtos`,
-                  facetId: item.facetId
-                });
-              }
-            }
-          })
-        );
-      }
+      await renderRootDiscovery();
     } else if (view.kind === 'countries') {
       const leagues = await getLeagues();
       const groups = new Map();
@@ -401,21 +502,21 @@ async function renderExplorer() {
             title: team.name,
             count: team.product_count,
             initials: team.initials,
-            logoUrl: team.logo_url,
+            logoUrl: resolveTeamCrest(team)?.url || null,
             kind: 'team-card',
             onClick: () => openTeam(team)
           })
         );
       }
     } else if (view.kind === 'national-teams') {
-      const teams = (await fetchJson('/api/teams?entityType=national_team')).items || [];
+      const teams = await getTeams('national_team');
       for (const team of teams) {
         els.categoryChips.appendChild(
           cardButton({
             title: team.name,
             count: team.product_count,
             initials: team.initials,
-            logoUrl: team.logo_url,
+            logoUrl: resolveTeamCrest(team)?.url || null,
             kind: 'team-card',
             onClick: () => openTeam(team)
           })
@@ -424,6 +525,12 @@ async function renderExplorer() {
     } else if (view.kind === 'team') {
       const payload = await fetchJson(`/api/teams/${encodeURIComponent(view.teamId)}`);
       els.categorySubtitle.textContent = `${Number(payload.team.product_count || 0).toLocaleString('pt-BR')} produtos`;
+      const crest = resolveTeamCrest(payload.team);
+      if (crest) {
+        els.categoryLogo.src = crest.url;
+        els.categoryLogo.alt = `Escudo ${payload.team.name}`;
+        els.categoryLogo.hidden = false;
+      }
       els.categoryChips.appendChild(
         cardButton({
           title: 'Todos',
@@ -556,6 +663,7 @@ function renderProducts() {
     const imageWrap = node.querySelector('.image-wrap');
     const image = node.querySelector('.product-image');
     const fallback = node.querySelector('.image-fallback');
+    const photoCount = node.querySelector('.photo-count');
     const media = getProductMedia(product);
     const firstImage = media[0]?.thumbnailUrl || media[0]?.url;
     if (firstImage) {
@@ -573,7 +681,17 @@ function renderProducts() {
       image.hidden = true;
       fallback.hidden = false;
     }
-    node.querySelector('.category').textContent = product.category || 'Catálogo';
+    imageWrap.setAttribute('aria-label', `Ver ${product.name}`);
+    const teamLabel = node.querySelector('.product-team');
+    const categoryLabel = node.querySelector('.category');
+    teamLabel.textContent = product.teamName || product.category || 'Catálogo';
+    categoryLabel.textContent = product.category || '';
+    categoryLabel.hidden = !product.category || product.category === teamLabel.textContent;
+    const imageCount = Number(product.imageCount || 0);
+    if (imageCount > 1) {
+      photoCount.querySelector('span').textContent = `${imageCount} fotos`;
+      photoCount.hidden = false;
+    }
     node.querySelector('.product-name').textContent = product.name;
     const description = node.querySelector('.description');
     description.textContent = product.description || '';
@@ -591,9 +709,11 @@ function renderProducts() {
         open();
       }
     });
+    node.querySelector('.card-open').addEventListener('click', open);
     els.grid.appendChild(node);
   }
   renderPagination();
+  hydrateStorefrontIcons(els.grid);
   revealCards(els.grid);
   scheduleInitialViewPrefetch(state.products);
 }
@@ -601,6 +721,7 @@ function renderProducts() {
 function productsApiUrl(page) {
   const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
   if (state.query.trim()) params.set('q', state.query.trim());
+  if (state.sort !== 'catalog') params.set('sort', state.sort);
   for (const [key, value] of Object.entries(state.filters)) if (value) params.set(key, value);
   return `/api/products?${params}`;
 }
@@ -608,9 +729,11 @@ function productsApiUrl(page) {
 async function loadProducts(page = 1, { scroll = false, history = 'none' } = {}) {
   const normalized = normalizedCatalogState(page);
   state.query = normalized.query;
+  state.sort = normalized.sort;
   state.filters = normalized.filters;
   page = normalized.page;
   els.searchInput.value = state.query;
+  els.sortSelect.value = state.sort;
   const requestSequence = ++state.requestSequence;
   state.pagination.page = page;
   state.loading = true;
@@ -799,6 +922,10 @@ els.clearSearch.addEventListener('click', () => {
   els.searchInput.value = '';
   els.searchInput.focus();
   void loadProducts(1, { history: 'push' });
+});
+els.sortSelect.addEventListener('change', () => {
+  state.sort = els.sortSelect.value;
+  void loadProducts(1, { scroll: true, history: 'push' });
 });
 els.categoryBack.addEventListener('click', () => {
   if (state.explorerStack.length <= 1) return;

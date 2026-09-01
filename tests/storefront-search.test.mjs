@@ -23,6 +23,7 @@ describe('storefront server-backed search contract', () => {
     expect(source).toContain(
       'for (const [key, value] of Object.entries(state.filters)) if (value) params.set(key, value);'
     );
+    expect(source).toContain("if (state.sort !== 'catalog') params.set('sort', state.sort);");
   });
 
   it('restores search, filters and pagination through browser history', () => {

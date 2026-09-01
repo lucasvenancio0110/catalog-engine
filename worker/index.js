@@ -58,12 +58,15 @@ async function findMediaSource(env, mediaId) {
        FROM media_sources
       WHERE media_id = ?1 AND active = 1
       LIMIT 1`
-  ).bind(mediaId).first();
+  )
+    .bind(mediaId)
+    .first();
   return { state: row ? 'found' : 'missing', row };
 }
 
 function sourceForVariant(row, variant) {
-  if (variant === 'thumb') return row.thumbnail_source_url || row.display_source_url || row.source_url;
+  if (variant === 'thumb')
+    return row.thumbnail_source_url || row.display_source_url || row.source_url;
   if (variant === 'view') return row.display_source_url || row.source_url;
   return row.source_url;
 }
@@ -75,7 +78,8 @@ function upstreamCacheTtl(variant) {
 }
 
 async function serveMedia(request, env, ctx, mediaId, variant = 'original') {
-  if (request.method !== 'GET' && request.method !== 'HEAD') return mediaError(405, 'method_not_allowed');
+  if (request.method !== 'GET' && request.method !== 'HEAD')
+    return mediaError(405, 'method_not_allowed');
   const normalizedId = normalizeMediaId(mediaId);
   if (!normalizedId) return mediaError(404, 'media_not_found');
   const cacheKey = mediaCacheKey(request);
@@ -113,7 +117,8 @@ async function serveMedia(request, env, ctx, mediaId, variant = 'original') {
     console.error('media_upstream_fetch_failed', normalizedId, variant, error?.message || error);
     return mediaError(502, 'media_upstream_unavailable');
   }
-  if (!upstream.ok) return mediaError(upstream.status === 404 ? 404 : 502, 'media_upstream_unavailable');
+  if (!upstream.ok)
+    return mediaError(upstream.status === 404 ? 404 : 502, 'media_upstream_unavailable');
   const finalSource = safeSourceUrl(upstream.url, allowedHosts);
   const responseHeaders = publicMediaHeaders(upstream.headers);
   if (!finalSource || !responseHeaders) {
@@ -122,7 +127,8 @@ async function serveMedia(request, env, ctx, mediaId, variant = 'original') {
   }
   responseHeaders.set('x-catalog-media-variant', variant);
   const response = new Response(upstream.body, { status: 200, headers: responseHeaders });
-  if (edgeCache && request.method === 'GET') ctx.waitUntil(edgeCache.put(cacheKey, response.clone()));
+  if (edgeCache && request.method === 'GET')
+    ctx.waitUntil(edgeCache.put(cacheKey, response.clone()));
   if (request.method === 'HEAD') {
     await response.body?.cancel();
     return new Response(null, { status: 200, headers: responseHeaders });
@@ -150,6 +156,20 @@ function safeSlug(value = '') {
   return SAFE_SLUG_PATTERN.test(value) ? value : '';
 }
 
+function normalizeCatalogSort(value = '') {
+  return ['name-asc', 'name-desc'].includes(String(value)) ? String(value) : 'catalog';
+}
+
+function catalogOrderBy(sort) {
+  if (sort === 'name-asc') {
+    return `COALESCE(NULLIF(p.display_name, ''), p.name) COLLATE NOCASE ASC, p.product_id ASC`;
+  }
+  if (sort === 'name-desc') {
+    return `COALESCE(NULLIF(p.display_name, ''), p.name) COLLATE NOCASE DESC, p.product_id ASC`;
+  }
+  return 'p.sort_order ASC, p.product_id ASC';
+}
+
 function mediaDescriptor(mediaId) {
   if (!mediaId) return null;
   return {
@@ -169,7 +189,9 @@ function productFromRow(row, media = null) {
     category: row.display_category_name || row.category_name,
     categoryId: row.category_id,
     teamId: row.team_id || null,
+    teamName: row.team_name || null,
     leagueId: row.league_id || null,
+    leagueName: row.league_name || null,
     description: row.description || '',
     imageCount: Number(row.image_count || 0),
     images: descriptor ? [descriptor.url] : [],
@@ -195,15 +217,19 @@ async function catalogMeta(env) {
   if (!env.CATALOG_DB) return json({ error: 'catalog_database_unbound' }, 503);
   try {
     const meta = await readMeta(env);
-    return json({
-      store: meta.store || {},
-      generatedAt: meta.generatedAt || null,
-      stats: meta.stats || { products: 0 },
-      storage: meta.storage || {},
-      navigation: meta.navigation || [],
-      normalization: meta.normalization || {},
-      pageSize: DEFAULT_PAGE_SIZE
-    }, 200, { 'cache-control': 'public, max-age=60, s-maxage=300' });
+    return json(
+      {
+        store: meta.store || {},
+        generatedAt: meta.generatedAt || null,
+        stats: meta.stats || { products: 0 },
+        storage: meta.storage || {},
+        navigation: meta.navigation || [],
+        normalization: meta.normalization || {},
+        pageSize: DEFAULT_PAGE_SIZE
+      },
+      200,
+      { 'cache-control': 'public, max-age=60, s-maxage=300' }
+    );
   } catch (error) {
     console.error('catalog_meta_failed', error?.message || error);
     return json({ error: 'catalog_temporarily_unavailable' }, 503);
@@ -212,7 +238,8 @@ async function catalogMeta(env) {
 
 async function listLeagues(url, env) {
   if (!env.CATALOG_DB) return json({ error: 'catalog_database_unbound' }, 503);
-  const entityType = url.searchParams.get('entityType') === 'national_team' ? 'national_team' : 'club';
+  const entityType =
+    url.searchParams.get('entityType') === 'national_team' ? 'national_team' : 'club';
   const country = String(url.searchParams.get('country') || '').slice(0, 12);
   const conditions = ['entity_type = ?'];
   const bindings = [entityType];
@@ -226,8 +253,12 @@ async function listLeagues(url, env) {
          FROM catalog_leagues
         WHERE ${conditions.join(' AND ')} AND product_count > 0
         ORDER BY sort_order, name`
-    ).bind(...bindings).all();
-    return json({ items: result.results || [] }, 200, { 'cache-control': 'public, max-age=120, s-maxage=600' });
+    )
+      .bind(...bindings)
+      .all();
+    return json({ items: result.results || [] }, 200, {
+      'cache-control': 'public, max-age=120, s-maxage=600'
+    });
   } catch (error) {
     console.error('catalog_leagues_failed', error?.message || error);
     return json({ error: 'catalog_temporarily_unavailable' }, 503);
@@ -260,8 +291,12 @@ async function listTeams(url, env) {
         WHERE ${conditions.join(' AND ')}
         ORDER BY product_count DESC, name ASC`
     );
-    const result = bindings.length ? await statement.bind(...bindings).all() : await statement.all();
-    return json({ items: result.results || [] }, 200, { 'cache-control': 'public, max-age=120, s-maxage=600' });
+    const result = bindings.length
+      ? await statement.bind(...bindings).all()
+      : await statement.all();
+    return json({ items: result.results || [] }, 200, {
+      'cache-control': 'public, max-age=120, s-maxage=600'
+    });
   } catch (error) {
     console.error('catalog_teams_failed', error?.message || error);
     return json({ error: 'catalog_temporarily_unavailable' }, 503);
@@ -277,7 +312,9 @@ async function listFacets(env) {
         WHERE product_count > 0
         ORDER BY sort_order, name`
     ).all();
-    return json({ items: result.results || [] }, 200, { 'cache-control': 'public, max-age=120, s-maxage=600' });
+    return json({ items: result.results || [] }, 200, {
+      'cache-control': 'public, max-age=120, s-maxage=600'
+    });
   } catch (error) {
     console.error('catalog_facets_failed', error?.message || error);
     return json({ error: 'catalog_temporarily_unavailable' }, 503);
@@ -292,7 +329,9 @@ async function teamDetail(teamId, env) {
          FROM catalog_teams
         WHERE team_id = ?1
         LIMIT 1`
-    ).bind(teamId).first();
+    )
+      .bind(teamId)
+      .first();
     if (!team) return json({ error: 'team_not_found' }, 404);
     const facets = await env.CATALOG_DB.prepare(
       `SELECT f.facet_id, f.facet_type, f.name, COUNT(DISTINCT p.product_id) AS product_count
@@ -303,8 +342,12 @@ async function teamDetail(teamId, env) {
         GROUP BY f.facet_id, f.facet_type, f.name, f.sort_order
        HAVING product_count > 0
         ORDER BY f.sort_order, f.name`
-    ).bind(teamId).all();
-    return json({ team, facets: facets.results || [] }, 200, { 'cache-control': 'public, max-age=120, s-maxage=600' });
+    )
+      .bind(teamId)
+      .all();
+    return json({ team, facets: facets.results || [] }, 200, {
+      'cache-control': 'public, max-age=120, s-maxage=600'
+    });
   } catch (error) {
     console.error('catalog_team_detail_failed', teamId, error?.message || error);
     return json({ error: 'catalog_temporarily_unavailable' }, 503);
@@ -321,6 +364,7 @@ async function listProducts(url, env) {
   const teamId = safeSlug(url.searchParams.get('teamId') || '');
   const leagueId = safeSlug(url.searchParams.get('leagueId') || '');
   const facetId = safeSlug(url.searchParams.get('facetId') || '');
+  const sort = normalizeCatalogSort(url.searchParams.get('sort') || '');
   const offset = (page - 1) * limit;
   const conditions = [];
   const bindings = [];
@@ -329,7 +373,9 @@ async function listProducts(url, env) {
     bindings.push(`%${query}%`);
   }
   if (categoryId) {
-    conditions.push('EXISTS (SELECT 1 FROM catalog_product_categories pc WHERE pc.product_id = p.product_id AND pc.category_id = ?)');
+    conditions.push(
+      'EXISTS (SELECT 1 FROM catalog_product_categories pc WHERE pc.product_id = p.product_id AND pc.category_id = ?)'
+    );
     bindings.push(categoryId);
   }
   if (teamId) {
@@ -341,37 +387,53 @@ async function listProducts(url, env) {
     bindings.push(leagueId);
   }
   if (facetId) {
-    conditions.push('EXISTS (SELECT 1 FROM catalog_product_facets pf WHERE pf.product_id = p.product_id AND pf.facet_id = ?)');
+    conditions.push(
+      'EXISTS (SELECT 1 FROM catalog_product_facets pf WHERE pf.product_id = p.product_id AND pf.facet_id = ?)'
+    );
     bindings.push(facetId);
   }
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   try {
-    const countStatement = env.CATALOG_DB.prepare(`SELECT COUNT(*) AS total FROM catalog_products p ${where}`);
-    const countRow = await (bindings.length ? countStatement.bind(...bindings) : countStatement).first();
+    const countStatement = env.CATALOG_DB.prepare(
+      `SELECT COUNT(*) AS total FROM catalog_products p ${where}`
+    );
+    const countRow = await (
+      bindings.length ? countStatement.bind(...bindings) : countStatement
+    ).first();
     const total = Number(countRow?.total || 0);
     const totalPages = total ? Math.ceil(total / limit) : 0;
     const result = await env.CATALOG_DB.prepare(
       `SELECT p.product_id, p.name, p.display_name, p.category_id, p.category_name, p.display_category_name,
-              p.description, p.team_id, p.league_id, p.image_count, p.primary_media_id, p.sort_order
+              p.description, p.team_id, t.name AS team_name, p.league_id, l.name AS league_name,
+              p.image_count, p.primary_media_id, p.sort_order
          FROM catalog_products p
+         LEFT JOIN catalog_teams t ON t.team_id = p.team_id
+         LEFT JOIN catalog_leagues l ON l.league_id = p.league_id
          ${where}
-        ORDER BY p.sort_order ASC, p.product_id ASC
+        ORDER BY ${catalogOrderBy(sort)}
         LIMIT ? OFFSET ?`
-    ).bind(...bindings, limit, offset).all();
-    return json({
-      items: (result.results || []).map((row) => productFromRow(row)),
-      page,
-      pageSize: limit,
-      total,
-      totalPages,
-      hasPrevious: page > 1,
-      hasMore: page < totalPages,
-      query,
-      categoryId,
-      teamId,
-      leagueId,
-      facetId
-    }, 200, { 'cache-control': 'public, max-age=30, s-maxage=120' });
+    )
+      .bind(...bindings, limit, offset)
+      .all();
+    return json(
+      {
+        items: (result.results || []).map((row) => productFromRow(row)),
+        page,
+        pageSize: limit,
+        total,
+        totalPages,
+        hasPrevious: page > 1,
+        hasMore: page < totalPages,
+        query,
+        categoryId,
+        teamId,
+        leagueId,
+        facetId,
+        sort
+      },
+      200,
+      { 'cache-control': 'public, max-age=30, s-maxage=120' }
+    );
   } catch (error) {
     console.error('catalog_products_failed', error?.message || error);
     return json({ error: 'catalog_temporarily_unavailable' }, 503);
@@ -383,19 +445,26 @@ async function productDetail(productId, env) {
   if (!PRODUCT_ID_PATTERN.test(productId)) return json({ error: 'product_not_found' }, 404);
   try {
     const row = await env.CATALOG_DB.prepare(
-      `SELECT product_id, name, display_name, category_id, category_name, display_category_name,
-              description, team_id, league_id, image_count, primary_media_id, sort_order
-         FROM catalog_products
-        WHERE product_id = ?1
+      `SELECT p.product_id, p.name, p.display_name, p.category_id, p.category_name,
+              p.display_category_name, p.description, p.team_id, t.name AS team_name,
+              p.league_id, l.name AS league_name, p.image_count, p.primary_media_id, p.sort_order
+         FROM catalog_products p
+         LEFT JOIN catalog_teams t ON t.team_id = p.team_id
+         LEFT JOIN catalog_leagues l ON l.league_id = p.league_id
+        WHERE p.product_id = ?1
         LIMIT 1`
-    ).bind(productId).first();
+    )
+      .bind(productId)
+      .first();
     if (!row) return json({ error: 'product_not_found' }, 404);
     const mediaResult = await env.CATALOG_DB.prepare(
       `SELECT media_id
          FROM product_media
         WHERE product_id = ?1
         ORDER BY position ASC`
-    ).bind(productId).all();
+    )
+      .bind(productId)
+      .all();
     const media = (mediaResult.results || []).map((entry) => mediaDescriptor(entry.media_id));
     const product = productFromRow(row, null);
     product.media = media;

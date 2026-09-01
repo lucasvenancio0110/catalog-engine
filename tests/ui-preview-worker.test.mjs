@@ -5,7 +5,8 @@ const env = {
   ASSETS: {
     fetch(request) {
       const path = new URL(request.url).pathname;
-      if (path === '/app.html') return new Response('<title>Catalog Engine — Portal</title><div id="app"></div>');
+      if (path === '/app.html')
+        return new Response('<title>Catalog Engine — Portal</title><div id="app"></div>');
       return new Response('<title>Catálogo</title><i data-lucide="sun"></i>');
     }
   }
@@ -32,7 +33,9 @@ describe('isolated UI staging worker', () => {
     const leagues = await (await get('/api/leagues')).json();
     const teams = await (await get('/api/teams?leagueId=laliga&entityType=club')).json();
     const team = await (await get('/api/teams/real-madrid')).json();
-    const filtered = await (await get('/api/products?teamId=real-madrid&facetId=retro&page=1&limit=15')).json();
+    const filtered = await (
+      await get('/api/products?teamId=real-madrid&facetId=retro&page=1&limit=15')
+    ).json();
 
     expect(leagues.items.some((entry) => entry.league_id === 'laliga')).toBe(true);
     expect(teams.items.map((entry) => entry.team_id)).toEqual(['real-madrid', 'barcelona']);
@@ -40,8 +43,21 @@ describe('isolated UI staging worker', () => {
     expect(filtered.items.map((entry) => entry.id)).toEqual(['p03']);
   });
 
+  it('applies only bounded storefront sort choices', async () => {
+    const ascending = await (await get('/api/products?sort=name-asc&limit=15')).json();
+    const invalid = await (await get('/api/products?sort=drop-table&limit=15')).json();
+    expect(ascending.sort).toBe('name-asc');
+    expect(ascending.items.map((entry) => entry.name)).toEqual(
+      ascending.items.map((entry) => entry.name).toSorted((a, b) => a.localeCompare(b))
+    );
+    expect(invalid.sort).toBe('catalog');
+  });
+
   it('blocks mutation methods and falls back to static assets for UI routes', async () => {
-    const mutation = await worker.fetch(new Request('https://preview.example/api/products', { method: 'POST' }), env);
+    const mutation = await worker.fetch(
+      new Request('https://preview.example/api/products', { method: 'POST' }),
+      env
+    );
     const storefront = await (await get('/')).text();
     const portal = await (await get('/app.html')).text();
 
