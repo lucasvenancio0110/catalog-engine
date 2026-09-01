@@ -439,16 +439,18 @@ This is a full product-experience redesign, not a CSS facelift.
 
 The owner explicitly authorized M9 execution before the remaining M7 and M8 work on 2026-08-31. This is a sequencing exception only: M7 remains incomplete, M8 remains unproven, M7E activation stays forbidden, and M9 may consume only the existing opaque media boundary without weakening or redesigning it. After M9, execution returns to `M7D11 -> M7E -> M8` unless a later owner decision changes the order.
 
-| Slice                                                      | Status                      | Bounded outcome                                                                                                                                                                            |
-| ---------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| M9A — Commerce Shell and URL State                         | **PRODUCTION GREEN**        | Delivered the premium responsive shell, search/navigation hierarchy, early product visibility, structured loading/empty/error states and browser-restorable catalog query state.           |
-| M9B — Product Discovery and Merchandising                  | **PLANNED — NEXT APPROVED** | Deliver safe filters/facets/sort, category/entity discovery and retail-grade cards; render collections/new/featured only when authoritative public data supports the claim.                |
-| M9C — Product Detail, Share and Deep Links                 | **PLANNED**                 | Deliver an opaque-ID product route, responsive gallery, contact/share actions, direct-load and back/forward semantics, plus accessible focus and scroll behavior.                          |
-| M9D — SEO, Accessibility, Performance and Production Proof | **PLANNED**                 | Close honest canonical/Open Graph delivery, responsive and assistive-input validation, reduced-motion and performance budgets, then prove the exact trusted-main storefront in production. |
+| Slice                                                      | Status               | Bounded outcome                                                                                                                                                                            |
+| ---------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| M9A — Commerce Shell and URL State                         | **PRODUCTION GREEN** | Delivered the premium responsive shell, search/navigation hierarchy, early product visibility, structured loading/empty/error states and browser-restorable catalog query state.           |
+| M9B — Product Discovery and Merchandising                  | **IN PROGRESS**      | Deliver safe filters/facets/sort, category/entity discovery and retail-grade cards; render collections/new/featured only when authoritative public data supports the claim.                |
+| M9C — Product Detail, Share and Deep Links                 | **PLANNED**          | Deliver an opaque-ID product route, responsive gallery, contact/share actions, direct-load and back/forward semantics, plus accessible focus and scroll behavior.                          |
+| M9D — SEO, Accessibility, Performance and Production Proof | **PLANNED**          | Close honest canonical/Open Graph delivery, responsive and assistive-input validation, reduced-motion and performance budgets, then prove the exact trusted-main storefront in production. |
 
 Quick view remains optional: M9C may omit it when the product route provides the clearer, more accessible discovery path. No M9 slice may invent featured/new status or expose supplier-private evidence.
 
-M9A production checkpoint: PRs `#171`/`#172`; application SHA `0b2c4fd8f21db5d86cf6981ba510875a637985ed`; trusted-main proof SHA `f5366ac7b281ce8326ceb74efe051d58ff6758df`; deploy `33408598897`; UI staging `33409329391`. Production search for `Almeria` returned 11 products and browser back/forward restored the root and query states exactly. Recurring tenant sync remained disabled. Next: M9B.
+M9A production checkpoint: PRs `#171`/`#172`; application SHA `0b2c4fd8f21db5d86cf6981ba510875a637985ed`; trusted-main proof SHA `f5366ac7b281ce8326ceb74efe051d58ff6758df`; deploy `33408598897`; UI staging `33409329391`. Production search for `Almeria` returned 11 products and browser back/forward restored the root and query states exactly. Recurring tenant sync remained disabled.
+
+M9B entered execution through PR `#175` at trusted-main SHA `bfad606cf7ef32bb1f1ef7cd4b058b0bfa83f6cb`. Application deploy `33470441060`, frontend quality `33470441092` and UI staging preview completed successfully, and the public catalog smoke remained green without republishing commercial catalog data. Real iPhone screenshots then exposed remaining mobile-shell, safe-area, navigation-state and density defects. Those findings keep M9B **IN PROGRESS**; they do not reopen M9A and do not authorize M9C deep-link/share scope. The current continuation is a bounded mobile-first refinement of the already-approved M9B outcome rather than a new sub-slice.
 
 Deliverables:
 
@@ -893,7 +895,7 @@ If that condition is not true, the product is still assisted service/infrastruct
 
 ## Immediate execution order from this document
 
-1. Execute the approved M9A -> M9D ledger under the 2026-08-31 owner sequencing exception.
+1. Continue the active M9B refinement until the approved Product Discovery and Merchandising outcome is honestly complete; then execute M9C and M9D in order under the 2026-08-31 sequencing exception.
 2. Return to M7D11, resolve its backend/UI scope decision and deliver the approved safe change/review-feed boundary.
 3. Execute M7E only after its activation gates remain satisfied; keep recurring sync off until then.
 4. Decompose M8 in a planning PR immediately before M8 execution. Any names such as M8A/M8B remain **PROPOSED** until that PR merges.

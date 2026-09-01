@@ -1,7 +1,7 @@
 # Catalog Engine — Current State
 
 Status: **Living operational truth**  
-Snapshot: **2026-09-01 after M9A production proof**
+Snapshot: **2026-09-01 after initial M9B production refinement**
 Purpose: record what is implemented/proven now, separate from durable product contracts and future roadmap work.
 
 ## How to use this document
@@ -40,7 +40,7 @@ Milestone state:
 - M5 automatic tenant Queue import: **complete / production-proven**;
 - M6 CEI Core + Sports Knowledge Pack v1: **complete / production-proven**;
 - **M7 Intelligent Sync v2: incomplete; safety/scheduling/delta/staging/schema-fleet/candidate-state foundations plus controlled enrollment, live incremental dispatch/scan, affected-detail completion, affected-only CEI candidate processing, complete private candidate verification, atomic promotion/finalization, safe scoped removal/restoration and recovery/replay through M7D10 are production-proven**.
-- **M9 Storefront UX 2.0: M9A is production-proven at application SHA `0b2c4fd8f21db5d86cf6981ba510875a637985ed`; M9B is the next approved slice under the owner-authorized sequencing exception**.
+- **M9 Storefront UX 2.0: M9A is production-proven; M9B is IN PROGRESS. Its initial visual refinement reached production through PR `#175` at trusted-main SHA `bfad606cf7ef32bb1f1ef7cd4b058b0bfa83f6cb`; real iPhone evidence exposed remaining mobile-shell/navigation/density defects that are being refined before M9B can close.**
 
 ## Final M6 production checkpoint
 
@@ -286,9 +286,9 @@ M6D production canaries found two real issues before closure:
 
 The final canary passed after both were corrected. Verification was not weakened to obtain green status.
 
-## M7 state — M7A through M7D9 production-proven
+## M7 state — M7A through M7D10 production-proven
 
-M7 remains the active milestone. Safety, scheduler, provider-neutral listing delta, private listing stage, additive schema fleet, candidate-state schema, controlled enrollment, live incremental dispatcher-to-private-stage, affected-detail candidate completion, affected-only CEI candidate processing, complete private candidate verification, atomic canonical promotion authority, post-promotion finalization and repeated-miss scoped removal/restoration are now production-proven through M7D9.
+M7 remains incomplete. Safety, scheduler, provider-neutral listing delta, private listing stage, additive schema fleet, candidate-state schema, controlled enrollment, live incremental dispatcher-to-private-stage, affected-detail candidate completion, affected-only CEI candidate processing, complete private candidate verification, atomic canonical promotion authority, post-promotion finalization, repeated-miss scoped removal/restoration and recovery/replay are production-proven through M7D10. M7D11 and M7E remain pending while the owner-authorized M9 sequencing exception is active.
 
 Implemented and proven:
 
@@ -707,25 +707,35 @@ Controlled tests cover own-tenant access, cross-tenant/default isolation and fai
 
 ## Storefront state
 
-Functional now:
+Functional and production-proven now:
 
 - API-backed catalog/search;
+- M9A premium commerce shell and browser-restorable URL query/filter/page state;
+- structured loading/empty/error states;
 - category/product discovery;
 - media gallery;
 - responsive foundation;
 - Lucide/Motion/Swiper integration;
 - CEI-generated public taxonomy/merchandising data;
-- public leak guards.
+- public leak guards;
+- initial M9B luxury/mobile visual refinement from PR `#175`.
 
-Still later roadmap work:
+M9B initial production checkpoint:
 
-- Storefront UX 2.0;
-- premium navigation/cards/detail;
-- deep links/history state;
-- loading/empty/error polish;
-- browser E2E/a11y/performance;
-- SEO/Open Graph/canonical behavior;
-- Theme/Brand Engine.
+- PR `#175 — M9B: mobile-first luxury storefront refinement`;
+- trusted-main SHA `bfad606cf7ef32bb1f1ef7cd4b058b0bfa83f6cb`;
+- application deploy `33470441060` = **SUCCESS**;
+- frontend quality `33470441092` = **SUCCESS**;
+- UI staging preview completed successfully;
+- application smoke passed against the existing catalog without republishing commercial catalog data;
+- owner-supplied iPhone screenshots identified remaining mobile shell, safe-area, navigation-state, hero density, discovery density, facet density and product-card density issues.
+
+Still open under the approved M9 ledger:
+
+- finish M9B Product Discovery and Merchandising at retail-grade mobile quality;
+- M9C product route, share, direct/deep linking and final responsive detail semantics;
+- M9D SEO/Open Graph/canonical, accessibility, responsive proof and performance budgets;
+- later M10 Theme/Brand Engine.
 
 ## Customer portal / billing state
 
@@ -751,6 +761,7 @@ Do not claim without new evidence:
 - production Automotive/Fashion/Dental Knowledge Packs;
 - every real tenant currently running tenant data-plane schema v6;
 - recurring Intelligent Sync end to end;
+- M9B completion or M9C/M9D completion;
 - full browser Core Web Vitals/accessibility quality;
 - production billing integration;
 - public-launch readiness.
@@ -767,22 +778,22 @@ M0 truth/governance
 → M4 Provider Engine ✅
 → M5 automatic tenant Queue import ✅ production-proven
 → M6 CEI Core + Sports Knowledge Pack v1 ✅ production-proven
-→ M7A–M7D9 safety, delta/staging, schema fleet, candidate-state, enrollment, live scan, affected-detail, affected-only CEI, verification, atomic promotion/finalization and safe scoped removal/restoration ✅ production-proven
+→ M7A–M7D10 safety, delta/staging, schema fleet, candidate-state, enrollment, live scan, affected-detail, affected-only CEI, verification, atomic promotion/finalization, safe scoped removal/restoration and recovery/replay ✅ production-proven
+→ M9A Commerce Shell and URL State ✅ production-proven under sequencing exception
+→ M9B Product Discovery and Merchandising 🚧 in progress
 ```
 
-Current milestone:
+Current milestone under the owner-authorized sequencing exception:
 
-**M7 — Intelligent Sync v2**
+**M9 — Storefront UX 2.0**
 
-M7's primary safety goal is that supplier outages, partial scans, malformed scans or implausible complete-scan volume drops cannot silently destroy a healthy published catalog.
+Immediate execution boundary:
 
-Immediate next execution boundary:
+**Continue M9B — Product Discovery and Merchandising.**
 
-**M9A — Commerce Shell and URL State**
+The current bounded refinement uses real iPhone evidence to correct mobile viewport/safe-area behavior, navigation state, discovery density, filters and retail product-card presentation while preserving M9A URL/history semantics. It may not invent merchandising truth, alter the opaque media trust boundary, activate recurring Intelligent Sync or pull M9C route/share/deep-link scope forward.
 
-M9A must deliver a premium responsive storefront shell, a clear search/navigation hierarchy, products visible without traversing an oversized discovery wall, structured loading/empty/error states and URL-backed catalog query state that restores correctly through reload and browser back/forward. It may not invent merchandising truth, alter the media trust boundary or pull M9B–M9D scope into the first feature PR.
-
-The approved M9A–M9D ledger and the sequencing exception live in `DEVELOPMENT-ROADMAP.md`. M7D11 and M7E remain pending; M8 remains undecomposed and unproven. Recurring Intelligent Sync stays disabled.
+After M9D, execution returns to M7D11 -> M7E -> M8 unless the owner deliberately changes the roadmap again. Recurring Intelligent Sync stays disabled.
 
 ### M7D10 recovery/replay — compact production checkpoint
 
@@ -794,12 +805,12 @@ Final trusted-main implementation/proof SHA: `9214094197b010f46f7bf5144e7dbb445a
 
 The later `f03a30ca896c8039ec7be9fc80358f3b04b84f73` commit was emitted by the distinct transitional default-catalog sync and changed only the sanitized compatibility snapshot `data/catalog.json`; it does not replace the M7D9 production implementation identity.
 
-M9 now has an approved A–D decomposition. M8 does not; its future sub-slices must still be proposed and merged through the decomposition protocol immediately before execution.
+M9 has an approved A–D decomposition and M9B is the active slice. M8 does not have approved sub-slices; its future decomposition must still be proposed and merged immediately before M8 execution.
 
 Then:
 
 ```text
-M9A–M9D Storefront UX 2.0
+M9B -> M9C -> M9D Storefront UX 2.0
 → M7D11 Safe Change and Review Feed
 → M7E Deliberate Activation
 → M8 Media Engine hardening
