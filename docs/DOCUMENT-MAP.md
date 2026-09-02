@@ -21,6 +21,14 @@ The state/roadmap documents do not override focused normative contracts. They pr
 
 `DEVELOPMENT-CONTINUITY.md` owns live-GitHub revalidation, evidence labels, milestone decomposition, slice tracking and handoff updates. It is mandatory for human and AI contributors and does not replace the focused owner documents.
 
+### Active bounded sequencing exception
+
+While the owner-authorized first real merchant campaign is active, also read:
+
+- `docs/PORTAL-BETA-EXECUTION.md` — the 2026-09-02 bounded PB0–PB12 sequencing/decomposition contract.
+
+That document is a later explicit sequencing decision permitted by the roadmap. It does not supersede focused architecture/product contracts, does not close the milestone numbers whose work it pulls forward, and does not authorize recurring Intelligent Sync or M7E.
+
 Then read the documents mapped to the affected area below.
 
 ## CEI / classification / learning / research
@@ -64,6 +72,7 @@ Required:
 - `docs/TENANCY.md`
 - `docs/SAAS-ARCHITECTURE.md`
 - `docs/CUSTOMER-PORTAL.md` for customer-facing billing/recovery UX
+- `docs/PORTAL-BETA-EXECUTION.md` when the bounded pilot-grant exception or PB2 beta entitlement is affected
 
 ## Customer portal / `app.catalogoengine.com`
 
@@ -73,6 +82,7 @@ Required:
 - `docs/DESIGN-SYSTEM.md`
 - `docs/TENANCY.md`
 - `docs/SAAS-ARCHITECTURE.md`
+- `docs/PORTAL-BETA-EXECUTION.md` while PB0–PB12 is active
 
 Additionally:
 
@@ -102,6 +112,7 @@ Required:
 - `docs/TENANT-IMPORT-PIPELINE.md`
 - `docs/TENANT-IMPORT-QUEUES.md` when import activation/runtime delivery changes
 - `docs/TENANT-PUBLISH.md`
+- `docs/PORTAL-BETA-EXECUTION.md` while PB0–PB12 is active
 
 If a domain is touched, also read `docs/CUSTOM-DOMAINS.md`.
 
@@ -211,6 +222,7 @@ Required:
 - `docs/SAAS-ARCHITECTURE.md`
 - `docs/TENANCY.md`
 - `docs/CUSTOMER-PORTAL.md`
+- `docs/PORTAL-BETA-EXECUTION.md` while PB authentication/entitlement work is active
 
 ## Dependency / library changes
 
@@ -243,6 +255,7 @@ Required:
 - `docs/DEVELOPMENT-CONTINUITY.md`;
 - `docs/CURRENT-STATE.md`;
 - `docs/DEVELOPMENT-ROADMAP.md`;
+- `docs/PORTAL-BETA-EXECUTION.md` while its bounded campaign is active;
 - every focused owner document for the current or proposed slice.
 
 Handoffs are transfer snapshots, not owner documents. Update state and roadmap before producing a handoff when the execution truth changed.
