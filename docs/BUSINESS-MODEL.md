@@ -85,7 +85,7 @@ Pricing values are hypotheses until commercially validated. Architecture must su
 
 ## Entitlement model
 
-A subscription grants entitlements to an **account**. An account may own/manage one or more stores according to its plan.
+A subscription normally grants entitlements to an **account**. An account may own/manage one or more stores according to its entitlement.
 
 Do not hard-code:
 
@@ -93,23 +93,40 @@ Do not hard-code:
 
 The intended relationship is:
 
-`account -> subscription/entitlements -> stores (tenants)`
+`account -> trusted entitlements -> stores (tenants)`
 
-A store may only be provisioned when the account has a valid entitlement to create it.
+For the public commercial path, trusted entitlements normally derive from normalized subscription/billing state. A store may only be provisioned when the server-side entitlement layer allows it.
+
+Product code consumes normalized entitlement authority rather than treating a payment-provider field, browser state or identity-provider claim as direct store authorization.
 
 ## Payment gate
 
-Current product decision:
+Current default product decision:
 
-> The normal self-service flow requires a successful recurring subscription before the customer can provision their first store.
+> The normal public self-service flow requires a successful recurring subscription before the customer can provision their first store.
 
 The commercial sequence is:
 
 `landing page -> plan -> checkout -> payment/subscription confirmed -> customer account/app access -> create store -> tenant provisioning`
 
-A visitor may have a checkout/customer identity before payment, but **tenant/store provisioning is not unlocked until billing truth says the entitlement is valid**.
+A visitor may have a checkout/customer identity before payment, but **normal public tenant/store provisioning is not unlocked until trusted entitlement truth allows it**.
 
-A future trial strategy, freemium plan or sales-assisted exception requires an explicit product/document change; it is not implicitly allowed by the current flow.
+### Bounded first-merchant beta exception
+
+On 2026-09-02 the owner authorized the PB0–PB12 first real merchant campaign before the billing milestone is implemented. During that bounded campaign, an invited pilot account may receive an **explicit, auditable, server-side beta entitlement grant**.
+
+This exception:
+
+- is not a public free trial or freemium launch;
+- does not change recurring subscription revenue as the primary business model;
+- does not allow anonymous/self-asserted store provisioning;
+- must not be implemented as a hard-coded customer email/name/identity-provider subject bypass;
+- may initially allow exactly one store/source/private preview;
+- must be represented through the normalized entitlement boundary so future billing can become another trusted entitlement source;
+- does not authorize recurring Intelligent Sync while the M7E activation authority remains off;
+- does not itself authorize public custom-domain publication or claim a paid subscription exists.
+
+The implementation sequence/proof belongs to `PORTAL-BETA-EXECUTION.md`. Broad/public trial strategy remains a separate future commercial decision.
 
 ## Automation-first business model
 
@@ -130,6 +147,8 @@ The Catalog Engine owner should not need to perform a recurring manual action fo
 - monitor normal background jobs.
 
 Manual owner intervention is acceptable for rare incidents, support or temporary early-stage gaps, but should be visible as technical debt rather than treated as the permanent product workflow.
+
+Creating/revoking an explicit pilot entitlement is a bounded commercial admission decision, not permission to manually provision that pilot's tenant infrastructure.
 
 ## White-label contract
 
@@ -201,7 +220,7 @@ Catalog Engine owns responsibility for the SaaS service it provides, including:
 - sync orchestration;
 - controlled storefront software/themes;
 - customer portal;
-- billing entitlement enforcement;
+- billing/entitlement enforcement;
 - domain routing integration;
 - platform observability/reliability;
 - product updates.
@@ -225,19 +244,19 @@ Recurring value must remain visible every month. Retention should be driven by o
 
 Persistent value includes:
 
-- new products discovered automatically;
-- supplier changes synchronized;
+- new products discovered automatically when the applicable sync authority is active;
+- supplier changes synchronized under the applicable safe sync contract;
 - CEI categorization/merchandising updates;
 - domain/storefront operation;
 - catalog health;
 - review exceptions;
 - future analytics and integrations.
 
-The product should make it obvious that Catalog Engine continues working after launch.
+The product should make it obvious that Catalog Engine continues working after launch, but customer-facing copy must not claim recurring sync is active for a tenant when the operational authority is disabled.
 
 ## Commercial hypotheses
 
-Plan names, price points, trial length, discounts and onboarding fees remain hypotheses until validated.
+Plan names, price points, public trial length, discounts and onboarding fees remain hypotheses until validated.
 
 These may change without changing the fundamental business model provided that:
 
@@ -245,6 +264,8 @@ These may change without changing the fundamental business model provided that:
 - tenant provisioning remains controlled;
 - recurring service remains the primary model;
 - tenant isolation and white-label rules remain intact.
+
+The bounded PB pilot grant is an explicitly authorized test mechanism, not evidence that a broad trial policy has been adopted.
 
 ## Legal readiness
 
