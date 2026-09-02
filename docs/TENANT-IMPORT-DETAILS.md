@@ -1,18 +1,21 @@
 # Tenant detail import and finalize barrier
 
+Status: **Normative implementation contract**  
+Scope: initial tenant detail Queue processing, finalize barrier and progression into CEI/classification.
+
 The initial tenant import has two queue stages after the complete listing scan.
 
 ## Detail stage
 
 The scan Worker writes the supplier listing index and raw source taxonomy only to the isolated tenant D1, then emits opaque detail messages to the private detail queue. A detail message contains only `importId`, `tenantId`, `sourceKey`, and the private v1 source-item field `albumSourceId`.
 
-The detail consumer resolves the private item URL, provider and tenant D1 through control-plane state at runtime. It then resolves the registered ingestion provider and validates the normalized detail evidence before public catalog persistence.
+The detail consumer resolves the private item URL, provider and tenant data-plane runtime through server-owned state at runtime. It then resolves the registered ingestion provider and validates the normalized detail evidence before catalog persistence. Merchant browsers never receive the source locator, D1 UUID or tenant Worker locator.
 
 Each source item is claimed in `supplier_album_detail_state` with a short lease and an opaque claim token. Duplicate deliveries are safe: terminal items are skipped and an active claim cannot be stolen until its lease expires.
 
-Provider-specific network and parsing rules live behind the Provider Engine adapter. The Yupoo launch adapter currently enforces manual redirects restricted to the original Yupoo host and accepts product images only from `photo.yupoo.com`. Public names/descriptions are sanitized before normalization. Source image URLs and item URLs are written only to private media/source tables; public catalog rows contain opaque product/category/media identifiers.
+Provider-specific network and parsing rules live behind the Provider Engine adapter. The Yupoo launch adapter currently enforces manual redirects restricted to the original Yupoo host and accepts product images only from the allowed provider media boundary. Public names/descriptions are sanitized before normalization. Source image URLs and item URLs are written only to private media/source tables; public catalog rows contain opaque product/category/media identifiers.
 
-Transient failures remain retryable. After the bounded detail attempt limit, an incomplete item becomes `deferred` for this initial import instead of blocking an entire merchant catalog. Its source detail fingerprint remains incomplete so a later intelligent sync can retry it.
+Transient failures remain retryable. After the bounded detail attempt limit, an incomplete item becomes `deferred` for this initial import instead of blocking an entire merchant catalog. Its source detail fingerprint remains incomplete so a later safe synchronization/recovery path can retry it under its own authority.
 
 ## Provider-neutral persistence
 
@@ -28,7 +31,7 @@ The provider adapter owns:
 
 The core owns catalog/CEI normalization and tenant-safe persistence.
 
-Existing Yupoo category/media IDs are preserved exactly by the Yupoo adapter so M4 does not rotate an already-published catalog's opaque identifiers.
+Existing Yupoo category/media IDs are preserved exactly by the Yupoo adapter so provider-neutral refactors do not rotate already-published opaque identifiers.
 
 ## Finalize stage
 
@@ -36,14 +39,18 @@ The platform cron periodically emits an opaque finalize message after the listin
 
 Finalization recomputes category, league, team and facet counts from the isolated tenant D1, removes unreferenced private media, writes public catalog metadata and runs a white-label check over public product text.
 
-The white-label check is provider-neutral: generic URL leakage is rejected and provider-specific source signatures are supplied by the active provider adapter. The finalizer does not contain Yupoo host literals.
+The white-label check is provider-neutral: generic URL leakage is rejected and provider-specific source signatures are supplied by the active provider adapter. The finalizer does not make the supplier hostname part of the public contract.
 
 Control-plane import counters are then written as absolute aggregates rather than incremented per queue message.
 
-A successful initial import completes only the `import` provisioning checkpoint and advances onboarding to `classify`. It does not publish the tenant, activate a custom domain, or enable dynamic Workers for Platforms dispatch.
+A successful initial import completes only the `import` provisioning checkpoint and advances onboarding to `classify`. It does not publish the tenant, activate a custom domain, or authorize recurring Intelligent Sync.
 
-## Activation boundary
+## Production activation boundary
 
-The repository contains separate scan/detail Worker entrypoints, provider-neutral central consumers and Yupoo as the first provider adapter, but production Queue bindings remain intentionally disabled until the ingestion runtime is activated deliberately in M5.
+The scan/detail Queue topology is **production-activated and production-proven** under M5. The repository and production environment contain the dedicated scan/detail Worker entrypoints, Queue bindings, DLQs, provider-neutral consumers and Yupoo launch adapter, with automatic initial-import discovery controlled by `TENANT_IMPORT_AUTOMATION_ENABLED` and currently enabled in the production configuration.
 
-Dedicated `CLOUDFLARE_PLATFORM_*` runtime credentials remain required and fail closed when absent. M5 must prove the full two-tenant end-to-end queue/D1 separation before automatic imports are enabled.
+Initial-import activation does not activate recurring tenant Intelligent Sync. `TENANT_SYNC_AUTOMATION_ENABLED=0`, the empty active cohort and the bounded per-tick sync cap remain separate M7 safety authorities.
+
+Current Queue topology/retry/rollback proof belongs to `TENANT-IMPORT-QUEUES.md`, `TENANT-IMPORT-PIPELINE.md`, `CURRENT-STATE.md` and the focused M5 closure evidence.
+
+Dedicated `CLOUDFLARE_PLATFORM_*` runtime credentials remain server/trusted-CI secrets and fail closed when absent. Ordinary customer import work must use the isolated tenant dispatch/data-plane boundaries and must not expose those credentials or provider locators to the portal.

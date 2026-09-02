@@ -1,10 +1,13 @@
 # Tenant import listing scan
 
+Status: **Normative implementation contract**  
+Scope: complete initial tenant listing scan, isolated persistence and resume-safe Queue fan-out.
+
 ## Runtime separation
 
 Initial merchant imports use separate queue roles:
 
-- the platform Worker only discovers eligible imports and sends a small `scan` message to the scan queue;
+- the platform Worker discovers eligible imports and sends a small `scan` message to the scan queue;
 - a dedicated ingestion Worker resolves the tenant-private provider and runs that adapter's listing/source crawl;
 - the scan Worker writes private listing state directly into the tenant's isolated D1;
 - it fans out one `detail` message per discovered source item to a separate detail queue;
@@ -40,11 +43,11 @@ Source category remains private evidence, not the public store taxonomy.
 
 ## Isolated D1 persistence
 
-The scan consumer resolves the tenant's private source, provider and D1 UUID from the control plane only after receiving the opaque scan message. It resolves the registered ingestion provider, validates its normalized scan result and writes the source index through the Cloudflare D1 Query API in bounded batches.
+The scan consumer resolves the tenant's private source/provider and server-owned data-plane runtime only after receiving the opaque scan message. Production Queue ingestion uses the tenant dispatch/native D1 command boundary documented in `TENANT-IMPORT-QUEUES.md` and `TENANT-DATA-PLANES.md`; the browser never supplies a D1 UUID or Worker script name.
 
 A new initial scan clears only that tenant/source index before writing the complete authoritative listing. It never touches another tenant D1.
 
-The current private table names (`supplier_album_index`, `supplier_category_index`) are retained for schema/ID compatibility during M4 even though orchestration is provider-neutral. A second provider does not justify a destructive rename by itself; schema generalization can happen through a deliberate migration when required.
+The current private table names (`supplier_album_index`, `supplier_category_index`) are retained for schema/ID compatibility during provider-neutral orchestration. A second provider does not justify a destructive rename by itself; schema generalization can happen through a deliberate migration when required.
 
 ## Resume-safe detail fan-out
 
@@ -78,18 +81,25 @@ It may depend on:
 
 Provider-specific transport/DOM parsing/fingerprinting belongs behind the adapter.
 
-## Queue activation boundary
+## Production activation boundary
 
-The code does **not** configure a production scan consumer or detail queue yet.
+The initial tenant Queue path is **production-activated and production-proven** under M5.
 
-The scan handler fails before reading tenant/control-plane state unless a `TENANT_IMPORT_DETAIL_QUEUE` producer binding is present. The dedicated scan Worker must not be deployed until scan/detail queue resources and recovery behavior are deliberately configured.
+Current production topology includes:
 
-M5 activation sequence:
+- `catalog-engine-import-scan` with a dedicated scan consumer;
+- `catalog-engine-import-detail` with a dedicated detail/finalize consumer;
+- separate scan/detail DLQs;
+- platform producer bindings for scan/detail orchestration;
+- five-minute cron discovery;
+- `TENANT_IMPORT_AUTOMATION_ENABLED="1"` for automatic initial-import discovery.
 
-1. create separate scan and detail queues plus DLQ/recovery policy;
-2. bind the platform producer to the scan queue;
-3. bind the dedicated scan consumer and its detail producer;
-4. bind the detail consumer with controlled concurrency/retry;
-5. prove one isolated test tenant;
-6. prove two simultaneous tenants cannot cross D1/source state;
-7. only then enable automatic import discovery.
+The trusted M5 proof established one-tenant and simultaneous two-tenant isolation, retry/DLQ containment and a scheduler-discovered canary completing the ordinary initial Queue pipeline without a manually produced initial Queue message.
+
+This activation is separate from recurring tenant Intelligent Sync. `TENANT_SYNC_AUTOMATION_ENABLED` remains `0` until the explicit M7E activation decision and proof. Initial import activation must never be used as an argument to self-enroll a tenant into recurring sync.
+
+`TENANT-IMPORT-QUEUES.md`, `TENANT-IMPORT-PIPELINE.md`, `CURRENT-STATE.md` and the focused M5 closure evidence own the detailed production proof.
+
+## Fail-closed rule
+
+The scan handler must fail before reading/mutating tenant state when required Queue/dispatch/provider boundaries are unavailable or mismatched. A malformed/incomplete initial provider scan cannot become authoritative catalog baseline state.
