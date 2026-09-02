@@ -8,34 +8,30 @@ This document records what is implemented/proven now and the current execution p
 
 ## Live GitHub baseline
 
-PB0 live revalidation started from:
+The first-merchant PB campaign was formalized from the production-proven M9B baseline:
 
-- `main`: `3221c92945750596a3b52ae29dcb51bfcb687cea`;
+- pre-PB0 `main`: `3221c92945750596a3b52ae29dcb51bfcb687cea`;
 - commit: `M9B: make club discovery copy truthful (#187)`;
-- PR `#187`: merged;
-- open PRs at the PB0 revalidation point: **none**;
-- trusted application deploy `33537313254`: **SUCCESS** on exact SHA `3221c92945750596a3b52ae29dcb51bfcb687cea`.
+- trusted application deploy `33537313254`: **SUCCESS** on that exact SHA;
+- exact-SHA Queue/fleet/affected-detail/CEI/verification/promotion/finalization/removal/automatic-import/recovery regressions: **SUCCESS**.
 
-The combined exact-SHA production status also reports success for:
+PB0 planning/governance integration:
 
-- application deploy — `33537313254`;
-- Queue consumer activation — `33539276291`;
-- tenant data-plane fleet canary — `33539276002`;
-- incremental affected-detail / CEI candidate / verification / promotion authority — `33539275616`;
-- incremental finalization — `33539275627`;
-- safe removal/restoration — `33539275624`;
-- automatic tenant initial import — `33539275587`;
-- sync recovery/replay regression — `33539275446`.
+- PR `#188 — PB0: formalize first real merchant beta sequencing`;
+- tested PR head: `c88ee4b66176873561d6814ace7bba4bd5970be0`;
+- `Validate SaaS control plane` run `33588925793`: **SUCCESS**;
+- `Validate tenant ingestion` run `33588925775`: **SUCCESS**;
+- squash-integrated `main` SHA: `75afe81880a856bb44493daf8b61e1578cd68451`.
 
-Therefore the handoff snapshot for `#187` is reconciled with live GitHub: the exact application SHA is Production Green for the currently applicable production regression graph.
+PB0 was documentation/governance-only and changed no runtime/application code, migration, Cloudflare resource, customer data or activation flag. Therefore it is classified **GOVERNANCE GREEN / COMPLETE**, not as a new runtime Production Green deployment. Detailed proof: `PB0-CLOSURE-2026-09-02.md`.
 
-GitHub branch inventory contains many historical `agent/*` branches. They are not execution authority. There was no open PR competing with PB0 when the sequencing branch was created.
+Historical branch names or closure snapshots are not current execution authority.
 
 ## Production platform boundary
 
 Current production/application configuration includes:
 
-- Cloudflare Workers Paid / Workers for Platforms architecture;
+- Cloudflare Workers Paid / Workers for Platforms;
 - platform Worker `catalog-engine`;
 - production dispatch namespace `catalog-engine-production`;
 - control-plane D1 binding `CATALOG_DB`;
@@ -45,7 +41,7 @@ Current production/application configuration includes:
 - `app.catalogoengine.com` as the customer-admin host;
 - `catalogoengine.com`, `edge.catalogoengine.com` and `origin.catalogoengine.com` in their documented platform roles.
 
-Current `wrangler.jsonc` activation values:
+Current activation values remain:
 
 ```text
 TENANT_IMPORT_AUTOMATION_ENABLED=1
@@ -54,9 +50,7 @@ TENANT_SYNC_ACTIVE_COHORT=""
 TENANT_SYNC_MAX_JOBS_PER_TICK=1
 ```
 
-These are distinct authorities. Automatic **initial tenant import is enabled**; recurring tenant Intelligent Sync is still **disabled**.
-
-M7E is not authorized by the PB campaign.
+Automatic **initial tenant import is enabled**. Recurring tenant Intelligent Sync is still **disabled**. M7E remains outside the PB campaign and requires separate owner authorization.
 
 ## Default production catalog
 
@@ -85,23 +79,17 @@ Production-proven foundations include:
 - final publication gate;
 - cross-tenant custom-hostname isolation proof.
 
-The retained custom-hostname smoke proved tenant A could read its own product while default/other-tenant sentinel reads failed in both directions.
+The retained custom-hostname smoke proved the smoke tenant could read its own product while default/other-tenant sentinel reads failed in both directions.
 
 ## Provider / import state
 
 Yupoo is the only production-targeted v1 provider adapter. Provider-specific source recognition/crawl/detail/media rules live behind Provider Engine contracts.
 
-Supplier/source data remains private evidence:
+Supplier/source data remains private evidence, including source URL/hostname, raw provider IDs, source media locators, provider-private taxonomy, credentials and runtime locators.
 
-- source URL/hostname;
-- raw provider IDs;
-- source media locators;
-- provider-private taxonomy;
-- credentials/runtime locators.
+Initial tenant import is production-activated through scan/detail Queues. PB0 reconciled stale pre-M5 wording in `TENANT-IMPORT-SCAN.md` and `TENANT-IMPORT-DETAILS.md` with the already-proven production topology.
 
-Initial tenant import is production-activated through scan/detail Queues. `TENANT-IMPORT-SCAN.md` and `TENANT-IMPORT-DETAILS.md` had stale pre-M5 activation wording at the 2026-09-02 baseline; PB0 corrects that documentation drift.
-
-Recurring sync is a separate M7 authority and remains off despite the initial-import path being enabled.
+Recurring sync is a separate M7 authority and remains off despite initial-import automation being enabled.
 
 ## CEI state
 
@@ -116,7 +104,7 @@ Current durable behavior includes:
 - verification of public/source/media/catalog invariants;
 - review/research/conflict represented as exceptions rather than guessed truth.
 
-Do not claim universal autonomous research or production Knowledge Packs for Automotive/Fashion/Dental without new proof.
+Do not claim universal autonomous research or production Automotive/Fashion/Dental Knowledge Packs without new proof.
 
 ## M7 state
 
@@ -134,13 +122,11 @@ Compact latest M7D10 proof:
 - automatic initial-import/CEI regression `33343603183`: success;
 - dedicated M7D10 recovery/replay canary `33343603219`: success.
 
-Recurring sync remained off with empty active cohort and cap `1` throughout that proof.
-
 M7D11 — Safe Change and Review Feed remains unfinished. M7E deliberate activation remains decision-gated and unfinished.
 
 ## M8 state
 
-M8 Media Engine hardening remains future/unproven work. Existing opaque media proxy behavior is not equivalent to M8 completion.
+M8 Media Engine hardening remains future/unproven work. Existing opaque media-proxy behavior is not equivalent to M8 completion.
 
 The PB campaign may use the existing safe media boundary but may not silently declare M8 complete or weaken its security requirements.
 
@@ -152,17 +138,9 @@ Owner-authorized 2026-08-31 sequencing moved M9 ahead of remaining M7D11/M7E/M8.
 
 **PRODUCTION GREEN**.
 
-Delivered/proven:
-
-- premium responsive storefront shell;
-- search/navigation hierarchy;
-- structured loading/empty/error states;
-- browser-restorable catalog query state;
-- existing catalog compatibility.
-
 ### M9B — Product Discovery and Merchandising
 
-**IN PROGRESS — temporarily paused by the later 2026-09-02 first-merchant PB sequencing decision.**
+**IN PROGRESS — PAUSED by the later 2026-09-02 first-merchant PB sequencing decision.**
 
 Recent Production Green increments include:
 
@@ -176,9 +154,7 @@ Recent Production Green increments include:
 - `#186` incremental catalog infinite scroll;
 - `#187` truthful club-discovery copy.
 
-`#186` introduced API-preserving incremental feed behavior with 15 products per lot, IntersectionObserver/prefetch, single in-flight incremental load, dedupe, retry/end/loading state and filter/search/sort reset semantics.
-
-`#187` exact live SHA `3221c92945750596a3b52ae29dcb51bfcb687cea` is Production Green under the combined status listed above.
+`#187` exact production baseline SHA `3221c92945750596a3b52ae29dcb51bfcb687cea` remains runtime Production Green.
 
 Known M9B visual debt retained for later audit:
 
@@ -190,18 +166,9 @@ M9B is **not complete**. M9C and M9D remain planned/unproven.
 
 ## Customer portal baseline
 
-`app.html` and `src/app/main.js` already provide a responsive portal shell for:
+`app.html` and `src/app/main.js` already provide a responsive portal shell for authentication state, Minhas lojas, Catálogo, Aparência, Domínio, Plano e cobrança, Conta and loading/empty/error presentation.
 
-- authentication state;
-- Minhas lojas;
-- Catálogo;
-- Aparência;
-- Domínio;
-- Plano e cobrança;
-- Conta;
-- loading/empty/error presentation.
-
-However the merchant journey is not yet real end to end.
+The merchant journey is not yet real end to end.
 
 Current concrete implementation facts:
 
@@ -213,38 +180,25 @@ Current concrete implementation facts:
 - `GET /api/admin/session` returns principal expiry and membership-scoped stores;
 - `GET /api/admin/stores` returns membership-scoped stores;
 - `POST /api/admin/stores` already persists a real tenant/profile/catalog instance/owner membership/provisioning run;
-- at the 2026-09-02 baseline, `POST /api/admin/stores` **does not evaluate entitlement before provisioning**;
-- `src/app/portal-model.js` already expects `session.entitlements`, but the session API does not yet return that projection;
+- at the PB0 baseline, `POST /api/admin/stores` **does not evaluate entitlement before provisioning**;
+- `src/app/portal-model.js` expects `session.entitlements`, but the session API does not yet return that projection;
 - `GET /api/admin/stores/:tenantId/onboarding` returns durable onboarding/source/domain/provisioning state with bounded public errors;
-- `POST /api/admin/stores/:tenantId/source` already validates mutation membership/role and private source connection;
+- `POST /api/admin/stores/:tenantId/source` validates mutation membership/role and private source connection;
 - changing an imported source without explicit reset fails with a safe conflict.
 
 Therefore the portal is a scaffold over real control-plane foundations, not yet a sellable onboarding product.
 
-## First real merchant PB sequencing exception — 2026-09-02
+## First real merchant PB sequencing exception — ACTIVE
 
 The owner explicitly authorized pulling forward the minimum customer portal/onboarding work required to become the **first real beta merchant**.
 
-This is a sequencing exception only.
-
-It does **not**:
-
-- complete M9B;
-- complete M10/M11/M13/M14/M15/M16/M22;
-- introduce a public free trial;
-- implement public billing;
-- activate M7E;
-- enable recurring tenant Intelligent Sync;
-- reuse the default tenant;
-- permit frontend-only authorization shortcuts.
-
 Detailed execution contract: `docs/PORTAL-BETA-EXECUTION.md`.
 
-Approved campaign sequence after PB0 is merged:
+Formalized campaign order:
 
 ```text
-PB0 Live Truth + Sequencing Decision
--> PB1 Authentication Foundation
+PB0 Live Truth + Sequencing Decision ✅ GOVERNANCE GREEN
+-> PB1 Authentication Foundation 🚧 NEXT
 -> PB2 Account + Beta Entitlement
 -> PB3 Create Store
 -> PB4 Branding
@@ -258,7 +212,9 @@ PB0 Live Truth + Sequencing Decision
 -> PB12 Production Proof
 ```
 
-Default return point after PB12: the exact paused **M9B** state above, unless a later owner decision changes sequencing again.
+Default return point after PB12 is the exact paused **M9B** state unless a later owner decision changes sequencing again.
+
+This exception does **not** complete M9B, M10/M11/M13/M14/M15/M16/M22; introduce a public free trial; implement public billing; activate M7E; enable recurring tenant Intelligent Sync; reuse the default tenant; or permit frontend-only authorization shortcuts.
 
 ## Beta entitlement decision
 
@@ -277,24 +233,23 @@ The grant is not a client flag and must not be a hard-coded email/name/provider-
 
 Future billing becomes another entitlement source without changing tenant authorization semantics.
 
-At the PB0 baseline this evaluator/grant implementation does not yet exist; PB2 owns it.
+The evaluator/grant implementation does not yet exist; PB2 owns it.
 
-## PB0 current execution state
+## PB0 closure
 
-Active branch:
+**PB0 — Live Truth + Sequencing Decision = GOVERNANCE GREEN / COMPLETE.**
 
-`agent/portal-beta-0-sequencing`
+Evidence:
 
-PB0 goal:
+- owner sequencing decision formalized in `PORTAL-BETA-EXECUTION.md`;
+- focused business/portal/tenancy/SaaS contracts aligned;
+- initial-import Queue documentation reconciled;
+- PR `#188` exact head `c88ee4b66176873561d6814ace7bba4bd5970be0` passed both applicable secret-free CI workflows;
+- integrated as `75afe81880a856bb44493daf8b61e1578cd68451`;
+- no privileged Cloudflare canary applies because PB0 changed no executable or production runtime state;
+- full proof is retained in `PB0-CLOSURE-2026-09-02.md`.
 
-- revalidate live truth;
-- formalize the PB ledger;
-- align focused product/architecture contracts;
-- reconcile stale Queue import documentation;
-- preserve M9B as incomplete/paused;
-- make no runtime/customer-data/Cloudflare activation mutation.
-
-PB0 remains **IN PROGRESS** until its planning/documentation PR passes applicable CI and is merged. No PB1 code is authorized before PB0 integration.
+The next approved slice is **PB1 — Authentication Foundation**.
 
 ## Explicitly not confirmed / not Green
 
@@ -319,8 +274,10 @@ Do not claim without later evidence:
 
 ## Current execution rule
 
-Until PB0 merges, the previous integrated product execution point remains M9B and the PB plan is a branch-level proposal implementing the owner's later sequencing decision.
+PB0 is integrated and closed. The active bounded execution point is now:
 
-After PB0 integration, the active bounded execution order is the PB0–PB12 contract in `PORTAL-BETA-EXECUTION.md`. Each slice must reach its own evidence gate before the next begins.
+**PB1 — Authentication Foundation.**
 
-Recurring tenant sync stays disabled throughout unless the owner separately authorizes M7E.
+Before PB1 changes code, revalidate live `main`, open PRs and current deployment state; preserve provider-neutral OIDC/JWT authentication, no password storage, tenant isolation and the recurring-sync-off boundary.
+
+Recurring tenant sync stays disabled throughout the PB campaign unless the owner separately authorizes M7E.
