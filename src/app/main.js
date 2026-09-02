@@ -1,4 +1,5 @@
 import './styles.css';
+import './auth-styles.css';
 import {
   portalApiErrorMessage,
   portalCanCreateStore,
@@ -8,9 +9,12 @@ import {
   portalStoreCountLabel,
   portalStoreStatus
 } from './portal-model.js';
+import { createPortalAuthAdapter, PortalAuthError } from './auth/auth0-adapter.js';
 import { hydratePortalIcons } from '../ui/portal-icons.js';
 
 const root = document.querySelector('#app');
+const portalAuth = createPortalAuthAdapter();
+window.__CATALOG_ENGINE_AUTH__ = portalAuth;
 
 function element(tag, options = {}, children = []) {
   const node = document.createElement(tag);
@@ -73,7 +77,21 @@ function topbar({ compact = false } = {}) {
   ]);
 }
 
-function authState() {
+function runAuthAction(action) {
+  return async () => {
+    try {
+      await action();
+    } catch (error) {
+      const message =
+        error instanceof PortalAuthError
+          ? portalAuthMessage(error.code)
+          : 'Não conseguimos abrir o acesso seguro agora. Tente novamente.';
+      render(errorState(message));
+    }
+  };
+}
+
+function authState({ configured = false } = {}) {
   const shell = element('div', { className: 'auth-shell' });
   shell.append(topbar({ compact: true }));
 
@@ -85,27 +103,60 @@ function authState() {
       text: 'Crie lojas, acompanhe o catálogo, conecte suas fontes e deixe o Catalog Engine cuidar do trabalho repetitivo.'
     }),
     element('div', { className: 'auth-points' }, [
-      element('div', { className: 'auth-point' }, [element('b', { text: '01' }), element('span', { text: 'Catálogo organizado automaticamente' })]),
-      element('div', { className: 'auth-point' }, [element('b', { text: '02' }), element('span', { text: 'Cada loja isolada e independente' })]),
-      element('div', { className: 'auth-point' }, [element('b', { text: '03' }), element('span', { text: 'Sincronização contínua e automática' })])
+      element('div', { className: 'auth-point' }, [
+        element('b', { text: '01' }),
+        element('span', { text: 'Catálogo organizado automaticamente' })
+      ]),
+      element('div', { className: 'auth-point' }, [
+        element('b', { text: '02' }),
+        element('span', { text: 'Cada loja isolada e independente' })
+      ]),
+      element('div', { className: 'auth-point' }, [
+        element('b', { text: '03' }),
+        element('span', { text: 'Atualizações controladas e seguras' })
+      ])
     ])
   ]);
+
+  const createAccount = element('button', {
+    className: 'primary-button primary-button--full',
+    text: 'Criar conta',
+    type: 'button',
+    disabled: !configured,
+    title: configured ? 'Criar sua conta' : 'A autenticação segura ainda não foi configurada.'
+  });
+  const login = element('button', {
+    className: 'secondary-button secondary-button--full',
+    text: 'Entrar',
+    type: 'button',
+    disabled: !configured,
+    title: configured ? 'Entrar na sua conta' : 'A autenticação segura ainda não foi configurada.'
+  });
+
+  if (configured) {
+    createAccount.addEventListener('click', runAuthAction(() => portalAuth.login({ signup: true })));
+    login.addEventListener('click', runAuthAction(() => portalAuth.login()));
+  }
 
   const accessCard = element('section', { className: 'access-card' }, [
     element('div', { className: 'access-mark' }, [icon('shield')]),
     element('span', { className: 'eyebrow eyebrow--muted', text: 'Acesso seguro' }),
-    element('h2', { text: 'Entre no Catalog Engine' }),
-    element('p', { text: 'Use sua conta para acessar suas lojas e continuar de onde parou.' }),
-    element('button', {
-      className: 'primary-button primary-button--full',
-      text: 'Entrar',
-      type: 'button',
-      disabled: true,
-      title: 'A autenticação do portal será conectada na próxima etapa.'
+    element('h2', { text: configured ? 'Comece pelo seu acesso' : 'Acesso protegido' }),
+    element('p', {
+      text: configured
+        ? 'Crie sua conta ou entre para acessar suas lojas e continuar de onde parou.'
+        : 'O portal está pronto para autenticação OIDC, mas o provedor de identidade ainda não foi configurado.'
+    }),
+    element('div', { className: 'access-actions' }, [createAccount, login]),
+    element('div', {
+      className: configured ? 'auth-status' : 'auth-status auth-status--waiting',
+      text: configured
+        ? 'Autenticação OIDC ativa. O Catalog Engine não armazena sua senha.'
+        : 'Configuração externa necessária antes de liberar contas.'
     }),
     element('small', {
       className: 'access-note',
-      text: 'O acesso está sendo ativado com autenticação segura. Nenhuma credencial de cliente é armazenada pelo Catalog Engine.'
+      text: 'A senha e a recuperação da conta ficam no provedor de identidade. O Catalog Engine recebe apenas tokens OIDC assinados.'
     })
   ]);
 
@@ -176,7 +227,7 @@ function storeCard(store) {
 
   const meta = element('div', { className: 'store-card-meta' }, [
     element('div', {}, [element('small', { text: 'Catálogo' }), element('strong', { text: 'Acompanhar no painel' })]),
-    element('div', {}, [element('small', { text: 'Sincronização' }), element('strong', { text: 'Automática' })])
+    element('div', {}, [element('small', { text: 'Atualização' }), element('strong', { text: 'Sob controle' })])
   ]);
 
   const action = element('button', { className: 'store-card-action', type: 'button', disabled: true }, [
@@ -205,10 +256,13 @@ function emptyState(canCreate) {
       type: 'button',
       disabled: !canCreate,
       text: 'Criar minha primeira loja',
-      title: canCreate ? 'Criar loja' : 'A criação será liberada pela assinatura ativa.'
+      title: canCreate ? 'Criar loja' : 'A criação será liberada pelo seu acesso à plataforma.'
     }),
     !canCreate
-      ? element('small', { className: 'empty-helper', text: 'A criação será liberada quando a assinatura da conta estiver ativa.' })
+      ? element('small', {
+          className: 'empty-helper',
+          text: 'A criação será liberada quando sua conta receber autorização para criar uma loja.'
+        })
       : null
   ]);
 }
@@ -221,6 +275,14 @@ function authenticatedPortal(session) {
   const layout = element('div', { className: 'portal-layout' });
   layout.append(sidebar());
 
+  const logout = element('button', {
+    className: 'secondary-button logout-button',
+    type: 'button',
+    text: 'Sair',
+    ariaLabel: 'Sair da conta'
+  });
+  logout.addEventListener('click', runAuthAction(() => portalAuth.logout()));
+
   const content = element('main', { className: 'portal-main' });
   const pageHeader = element('header', { className: 'page-header' }, [
     element('div', {}, [
@@ -229,12 +291,12 @@ function authenticatedPortal(session) {
       element('p', {
         text: stores.length
           ? 'Acompanhe suas lojas e continue exatamente de onde parou.'
-          : 'Sua conta está pronta. O próximo passo é criar sua primeira loja.'
+          : 'Seu acesso está confirmado. O próximo passo é liberar e criar sua primeira loja.'
       })
     ]),
     element('div', { className: 'page-header-actions' }, [
       element('div', { className: 'account-summary' }, [
-        element('small', { text: allowance ? `Plano · ${allowance.used}/${allowance.maximum} lojas` : 'Sua conta' }),
+        element('small', { text: allowance ? `Acesso · ${allowance.used}/${allowance.maximum} lojas` : 'Sua conta' }),
         element('strong', { text: portalStoreCountLabel(stores) })
       ]),
       stores.length
@@ -243,9 +305,10 @@ function authenticatedPortal(session) {
             type: 'button',
             disabled: !canCreate,
             text: 'Nova loja',
-            title: canCreate ? 'Criar nova loja' : 'Seu plano não possui uma loja disponível.'
+            title: canCreate ? 'Criar nova loja' : 'Sua conta não possui uma loja disponível.'
           })
-        : null
+        : null,
+      logout
     ])
   ]);
 
@@ -260,7 +323,7 @@ function authenticatedPortal(session) {
   }
 
   const valueStrip = element('section', { className: 'value-strip' }, [
-    element('div', {}, [element('small', { text: 'Automação' }), element('strong', { text: 'Sincronização contínua' })]),
+    element('div', {}, [element('small', { text: 'Automação' }), element('strong', { text: 'Importação automatizada' })]),
     element('div', {}, [element('small', { text: 'Organização' }), element('strong', { text: 'Catalog Engine Intelligence' })]),
     element('div', {}, [element('small', { text: 'Publicação' }), element('strong', { text: 'Seu próprio domínio' })])
   ]);
@@ -298,14 +361,27 @@ function errorState(message) {
   return shell;
 }
 
+function portalAuthMessage(code) {
+  const messages = {
+    portal_auth_unconfigured: 'A autenticação segura ainda precisa ser configurada para este ambiente.',
+    portal_auth_config_unavailable: 'Não conseguimos consultar a configuração de acesso agora.',
+    portal_auth_misconfigured: 'A configuração de acesso está incompleta. O portal permaneceu bloqueado por segurança.',
+    authentication_failed: 'O provedor não concluiu o acesso. Tente entrar novamente.',
+    authentication_state_invalid: 'A tentativa de acesso expirou ou não corresponde a esta sessão. Comece novamente.',
+    identity_provider_unavailable: 'O provedor de identidade está indisponível no momento.',
+    identity_provider_invalid_token_response: 'O provedor retornou uma sessão inválida.',
+    identity_provider_refresh_token_missing: 'A renovação segura da sessão não está habilitada no provedor.',
+    identity_provider_refresh_rotation_required: 'A rotação segura da sessão não está habilitada no provedor.'
+  };
+  return messages[code] || 'Não conseguimos concluir o acesso seguro. Tente novamente.';
+}
+
 function render(node) {
   root.replaceChildren(node);
   hydratePortalIcons(root);
 }
 
 async function accessToken() {
-  // Authentication remains provider-neutral. A future OIDC adapter owns token
-  // acquisition and exposes it to the portal without persisting customer passwords.
   const provider = window.__CATALOG_ENGINE_AUTH__;
   if (!provider || typeof provider.getAccessToken !== 'function') return null;
   return provider.getAccessToken();
@@ -333,9 +409,33 @@ async function loadSession(token) {
 
 async function start() {
   render(loadingState());
-  const token = await accessToken();
+
+  let authStatus;
+  try {
+    authStatus = await portalAuth.initialize();
+  } catch (error) {
+    const message =
+      error instanceof PortalAuthError
+        ? portalAuthMessage(error.code)
+        : 'Não conseguimos iniciar o acesso seguro agora.';
+    render(errorState(message));
+    return;
+  }
+
+  let token;
+  try {
+    token = await accessToken();
+  } catch (error) {
+    const message =
+      error instanceof PortalAuthError
+        ? portalAuthMessage(error.code)
+        : 'Não conseguimos renovar seu acesso agora.';
+    render(errorState(message));
+    return;
+  }
+
   if (!token) {
-    render(authState());
+    render(authState({ configured: authStatus.configured }));
     return;
   }
 
@@ -344,7 +444,8 @@ async function start() {
     render(authenticatedPortal(session));
   } catch (error) {
     if (error.status === 401) {
-      render(authState());
+      await portalAuth.handleUnauthorized();
+      render(authState({ configured: authStatus.configured }));
       return;
     }
     render(errorState(portalApiErrorMessage(error.code)));
