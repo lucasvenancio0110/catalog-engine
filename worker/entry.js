@@ -3,6 +3,7 @@ import { runDueDataPlaneMigrations } from './data-plane-migration-runner.js';
 import { runDueDataPlaneJobs } from './data-plane-provider-runner.js';
 import { dispatchTenantRequest } from './tenant-dispatch.js';
 import { runDueDomainJobs } from './domain-job-scheduler.js';
+import { handlePortalAuthConfig } from './portal-auth-config.js';
 import { runDueTenantClassifications } from './tenant-classification-runner.js';
 import { runDueTenantIncrementalClassifications } from './ingestion/incremental-classification-runner.js';
 import { runDueTenantIncrementalVerifications } from './ingestion/incremental-verification-runner.js';
@@ -96,6 +97,12 @@ export default {
     // Health remains available for infrastructure probes. Admin APIs only exist on
     // Catalog Engine platform/admin hosts, never on a merchant storefront domain.
     if (url.pathname === '/api/health') return app.fetch(request, env, ctx);
+    if (url.pathname === '/api/auth/config') {
+      if (!isCatalogAdminHost(request, env)) {
+        return storefrontRoutingError({ reason: 'not_found', status: 404 });
+      }
+      return handlePortalAuthConfig(request, env);
+    }
     if (url.pathname.startsWith('/api/admin/')) {
       if (!isCatalogPlatformHost(request, env)) {
         return storefrontRoutingError({ reason: 'not_found', status: 404 });
