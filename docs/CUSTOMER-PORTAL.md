@@ -2,7 +2,7 @@
 
 Status: **Normative product/UX contract**  
 Primary surface: `https://app.catalogoengine.com`  
-Scope: authenticated customer experience after subscription entitlement is valid.
+Scope: authenticated customer experience after the account has a trusted entitlement to use the applicable portal capability.
 
 ## Purpose
 
@@ -39,20 +39,35 @@ Use merchant language:
 
 ## Entry condition
 
-Current self-service contract:
+The normal public self-service contract remains:
 
 `recurring checkout -> trusted billing confirmation -> app entitlement -> first-store onboarding`
 
-A customer can authenticate into account/billing recovery flows when necessary, but store provisioning is gated by valid entitlements.
+A customer can authenticate into account/billing recovery flows when necessary, but store provisioning is gated by trusted server-side entitlements.
+
+### First real merchant beta exception
+
+The owner-authorized PB0–PB12 campaign may admit an invited pilot account through an **explicit, auditable, server-side beta entitlement grant** instead of a completed recurring subscription. This is a bounded sales-assisted exception, not a public free trial and not a browser claim.
+
+For the initial beta policy:
+
+- the grant may permit one store;
+- the portal consumes only the evaluated entitlement projection;
+- `POST /api/admin/stores` must enforce the allowance server-side;
+- the grant must not be implemented as a hard-coded email/name/provider-subject bypass;
+- grant expiry/revocation restricts future capability but must not silently destroy tenant data;
+- billing remains the default entitlement source for the future public funnel.
+
+The detailed temporary execution order and proof gates are owned by `PORTAL-BETA-EXECUTION.md`.
 
 ## First-login experience
 
-A newly paid customer should not land in a dense empty dashboard.
+A newly entitled customer should not land in a dense empty dashboard.
 
 Preferred first state:
 
 - welcome message;
-- plan/store allowance summary;
+- plan/store allowance summary appropriate to the current entitlement source;
 - one clear CTA: **Criar minha primeira loja**.
 
 The shortest path to first value is more important than exposing every setting immediately.
@@ -73,6 +88,8 @@ Suggested stages:
 8. **Publicação** — only after health/domain checks pass.
 
 The exact screen count can evolve, but the durable provisioning state must remain resumable.
+
+The PB campaign may place bounded branding inputs before source connection when that improves the first merchant flow, provided the durable backend lifecycle and publication gates are unchanged.
 
 ## Source-selection UX
 
@@ -109,6 +126,8 @@ Use real durable stages/checkpoints such as:
 - aguardando domínio;
 - publicando.
 
+A label is permitted only when the backend state/counter used to support it has been explicitly mapped. If the current backend can prove only a coarser step, show the coarser truth rather than inventing an intermediate state.
+
 If a stage is long-running, the customer can leave the page and return without losing progress.
 
 ## CEI explanation
@@ -144,10 +163,13 @@ Before a custom domain is active, the merchant can view the store through an aut
 
 The preview:
 
+- must require authorized app context;
+- must resolve membership and the effective tenant server-side;
+- must not accept a client-supplied Worker/runtime locator as authority;
 - must not accidentally become the permanent public merchant URL;
-- must not expose another tenant;
 - should use the same effective tenant catalog/theme behavior that will be published;
-- should clearly show publication/domain status.
+- should clearly show publication/domain status;
+- must fail closed rather than falling back to the default tenant when preview authority is missing or invalid.
 
 ## Main portal information architecture
 
@@ -165,6 +187,8 @@ Recommended primary areas:
 
 As capabilities grow, navigation can evolve without exposing infrastructure.
 
+The first real merchant beta is allowed to implement only the minimum creation/import/progress/preview/home surfaces. That bounded work does not declare the full Customer Portal milestone complete.
+
 ## Multi-store behavior
 
 An account may own/manage more than one store according to entitlements.
@@ -179,6 +203,8 @@ The portal should therefore have:
 
 Do not implement client-only tenant switching where the server trusts the UI's selected tenant without membership checks.
 
+The initial pilot grant can deliberately limit `maxStores=1`; that beta policy does not change the multi-store architecture.
+
 ## Visão geral
 
 The overview should quickly answer:
@@ -190,13 +216,15 @@ Useful information:
 - store status (`configurando`, `pronta`, `online`, `atenção`, `suspensa`);
 - product count;
 - catalog/domain health;
-- last successful sync;
-- new/updated/removed counts;
+- last successful sync when recurring sync is actually active for that tenant;
+- new/updated/removed counts only when a production-safe activity authority exists;
 - items needing review;
 - domain status;
 - major onboarding blockers.
 
 Avoid decorative charts that do not help a merchant take action.
+
+Do not describe recurring Intelligent Sync as active for a beta tenant while the global recurring-sync authority remains disabled.
 
 ## Activity/feed
 
@@ -212,6 +240,8 @@ A high-value recurring feature is a simple activity feed:
 - billing action required.
 
 This helps the merchant see monthly recurring value.
+
+The UI must not fabricate this feed before the safe tenant-scoped event/review-feed authority is delivered.
 
 ## Catálogo
 
@@ -244,6 +274,8 @@ Customers may configure supported items such as:
 
 Do not allow arbitrary uploaded JS/HTML in the storefront.
 
+Uploaded tenant assets require validated ownership/storage, MIME/size/decoding boundaries and safe public identifiers. Large base64 assets do not belong in D1. SVG upload must remain disabled until an explicit active-content sanitization/security decision exists.
+
 ## Domínio
 
 The domain experience should simplify Cloudflare for SaaS behavior into merchant steps.
@@ -268,25 +300,31 @@ Customer-facing statuses can include:
 
 Technical target such as `edge.catalogoengine.com` may appear only when it is genuinely needed as the DNS value the merchant must copy.
 
+Custom-domain publication is not required for the first PB private-preview acceptance test.
+
 ## Plano e cobrança
 
 Follow `BILLING-PAYMENTS.md`.
 
 The customer should be able to understand:
 
-- current plan;
+- current plan/entitlement state in merchant language;
 - status;
-- next renewal;
-- store allowance;
-- payment recovery;
+- next renewal when billing exists;
+- store allowance/usage;
+- payment recovery when billing exists;
 - invoice/receipt access when supported;
-- upgrade/downgrade/cancel entry points.
+- upgrade/downgrade/cancel entry points when implemented.
+
+Do not expose raw webhook IDs, provider status codes or Cloudflare costs to ordinary customers.
+
+A pilot grant must not be presented as a paid subscription or a fabricated renewal date.
 
 ## Authentication and roles
 
 Identity/authentication is external/provider-neutral according to `SAAS-ARCHITECTURE.md`.
 
-Catalog Engine authorizes access using account/tenant memberships and roles.
+Catalog Engine authorizes access using opaque principals/account entitlements and tenant memberships/roles.
 
 Potential roles:
 
@@ -304,6 +342,8 @@ The portal must remain useful for recovery when a subscription has a payment iss
 Do not lock the merchant out of the only screen where they can fix billing.
 
 Past-due/suspended accounts should receive clear explanation and recovery CTA according to `BILLING-PAYMENTS.md`.
+
+A beta grant may be expired/revoked without deleting the merchant's tenant; exact restricted behavior is governed by the entitlement implementation and later billing policy.
 
 ## Mobile UX
 
@@ -332,13 +372,15 @@ Customer-facing errors should answer:
 - whether the customer needs to do anything;
 - what action is required when there is one.
 
-Do not surface raw stack traces/provider responses.
+Do not surface raw stack traces/provider responses, supplier URLs, D1 UUIDs, Worker locators or Cloudflare IDs.
 
 ## Automation-first rule
 
 The portal should orchestrate self-service automation.
 
 A successful customer journey should not require the Catalog Engine owner to manually create a tenant, D1 database, Worker, source import, domain route or recurring sync.
+
+A bounded operator-created beta entitlement grant is a commercial access decision, not a per-tenant infrastructure shortcut. After the grant exists, the normal tenant lifecycle must still be automated.
 
 Admin/operator intervention is for exceptions.
 
