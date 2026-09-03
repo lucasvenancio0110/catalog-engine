@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
 const migrationUrl = new URL('../migrations/0023_create_account_entitlements.sql', import.meta.url);
+const attributesUrl = new URL('../.gitattributes', import.meta.url);
 const workflowUrl = new URL('../.github/workflows/manage-pilot-entitlement.yml', import.meta.url);
 const commandUrl = new URL('../scripts/manage-pilot-entitlement.mjs', import.meta.url);
 const entryUrl = new URL('../worker/entry.js', import.meta.url);
@@ -25,6 +26,19 @@ describe('PB2 pilot entitlement production boundary', () => {
     expect(sql).not.toMatch(/@|auth0\||gmail|yupoo/i);
   });
 
+  it('keeps D1 trigger migrations compatible with the remote statement splitter', async () => {
+    const [sql, attributes] = await Promise.all([
+      readFile(migrationUrl, 'utf8'),
+      readFile(attributesUrl, 'utf8')
+    ]);
+    expect(sql).not.toContain('\r');
+    expect(sql).not.toMatch(/SELECT\s+CASE/i);
+    const triggerBlocks = [...sql.matchAll(/CREATE TRIGGER[\s\S]*?END;/g)].map((match) => match[0]);
+    expect(triggerBlocks).toHaveLength(4);
+    for (const trigger of triggerBlocks) expect(trigger).toMatch(/\nBEGIN\n/);
+    expect(attributes).toContain('migrations/*.sql text eol=lf');
+  });
+
   it('keeps production grant/revoke manual, confirmed, trusted-main-only and serialized with D1 mutations', async () => {
     const workflow = await readFile(workflowUrl, 'utf8');
     expect(workflow).toContain('workflow_dispatch:');
@@ -33,6 +47,8 @@ describe('PB2 pilot entitlement production boundary', () => {
     expect(workflow).toContain("github.ref == 'refs/heads/main'");
     expect(workflow).toContain('catalog-engine-production-d1');
     expect(workflow).toContain('test "$CONFIRMATION" = "PILOT"');
+    expect(workflow).toContain('Require checkout to remain current main');
+    expect(workflow).toContain('CURRENT_MAIN_SHA');
     expect(workflow).toContain('secrets.CLOUDFLARE_API_TOKEN');
     expect(workflow).toContain('node scripts/manage-pilot-entitlement.mjs');
   });
