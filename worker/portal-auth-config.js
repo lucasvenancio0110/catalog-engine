@@ -10,6 +10,16 @@ function boundedText(value, maximum) {
   return normalized;
 }
 
+function normalizePortalAuthAudience(value) {
+  const audiences = String(value || '')
+    .split(',')
+    .map((candidate) => candidate.trim())
+    .filter(Boolean);
+
+  if (audiences.length !== 1) return '';
+  return boundedText(audiences[0], MAX_AUDIENCE_LENGTH);
+}
+
 export function normalizePortalAuthIssuer(value) {
   const raw = String(value || '').trim();
   if (!raw || raw.length > 512) return '';
@@ -37,7 +47,7 @@ export function normalizePortalAuthIssuer(value) {
 
 export function buildPortalAuthConfig(env = {}) {
   const issuer = normalizePortalAuthIssuer(env.ADMIN_AUTH_ISSUER);
-  const audience = boundedText(env.ADMIN_AUTH_AUDIENCE, MAX_AUDIENCE_LENGTH);
+  const audience = normalizePortalAuthAudience(env.ADMIN_AUTH_AUDIENCE);
   const clientId = boundedText(env.PORTAL_AUTH_CLIENT_ID, MAX_CLIENT_ID_LENGTH);
 
   if (!issuer || !audience || !clientId) return null;
