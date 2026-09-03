@@ -1,4 +1,6 @@
 import app from './index.js';
+import { readStoreEntitlements, requireStoreCreationEntitlement, touchAccountPrincipal } from './account-entitlements.js';
+import { authenticateAdminRequest } from './admin-auth.js';
 import { runDueDataPlaneMigrations } from './data-plane-migration-runner.js';
 import { runDueDataPlaneJobs } from './data-plane-provider-runner.js';
 import { dispatchTenantRequest } from './tenant-dispatch.js';
@@ -76,6 +78,57 @@ function adminShellRequest(request) {
   return new Request(url.toString(), request);
 }
 
+function portalAdminJson(payload, status = 200) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store',
+      'x-content-type-options': 'nosniff',
+      'referrer-policy': 'no-referrer'
+    }
+  });
+}
+
+function portalAccountError(error) {
+  if (error?.status && error?.code) return portalAdminJson({ error: error.code }, error.status);
+  console.error('portal_account_boundary_failed', String(error?.message || error).slice(0, 120));
+  return portalAdminJson({ error: 'admin_temporarily_unavailable' }, 503);
+}
+
+async function handlePortalAccountBoundary(request, env, ctx) {
+  try {
+    if (!env.CATALOG_DB) {
+      return portalAdminJson({ error: 'control_plane_database_unbound' }, 503);
+    }
+    const auth = await authenticateAdminRequest(request, env);
+    await touchAccountPrincipal(env.CATALOG_DB, auth.principalId);
+    const url = new URL(request.url);
+
+    if (url.pathname === '/api/admin/session' && request.method === 'GET') {
+      const [response, entitlements] = await Promise.all([
+        app.fetch(request, env, ctx),
+        readStoreEntitlements(env.CATALOG_DB, auth.principalId)
+      ]);
+      if (!response.ok) return response;
+      const payload = await response.json();
+      return portalAdminJson({ ...payload, entitlements }, response.status);
+    }
+
+    if (url.pathname === '/api/admin/stores' && request.method === 'POST') {
+      // This read gate prevents unnecessary plan construction. Migration 0023 also enforces the
+      // same decision transactionally at owner-membership insert time, so a concurrent request
+      // cannot bypass the one-store beta quota after this check succeeds.
+      await requireStoreCreationEntitlement(env.CATALOG_DB, auth.principalId);
+      return app.fetch(request, env, ctx);
+    }
+
+    return app.fetch(request, env, ctx);
+  } catch (error) {
+    return portalAccountError(error);
+  }
+}
+
 async function serveAdminSurface(request, env, ctx) {
   const url = new URL(request.url);
   if (request.method !== 'GET' && request.method !== 'HEAD') {
@@ -106,6 +159,12 @@ export default {
     if (url.pathname.startsWith('/api/admin/')) {
       if (!isCatalogPlatformHost(request, env)) {
         return storefrontRoutingError({ reason: 'not_found', status: 404 });
+      }
+      if (
+        (url.pathname === '/api/admin/session' && request.method === 'GET') ||
+        (url.pathname === '/api/admin/stores' && request.method === 'POST')
+      ) {
+        return handlePortalAccountBoundary(request, env, ctx);
       }
       return app.fetch(request, env, ctx);
     }
