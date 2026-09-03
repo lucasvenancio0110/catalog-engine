@@ -69,6 +69,9 @@ export function portalApiErrorMessage(code = '') {
     admin_auth_unavailable: 'O acesso seguro do portal ainda não está configurado.',
     control_plane_database_unbound: 'O portal está temporariamente indisponível.',
     admin_temporarily_unavailable: 'Não foi possível carregar sua conta agora. Tente novamente em instantes.',
+    store_creation_not_entitled: 'Seu acesso beta ainda não está liberado para criar uma loja.',
+    store_limit_reached: 'Sua conta já usou a quantidade de lojas disponível neste acesso.',
+    store_entitlement_misconfigured: 'Seu acesso precisa de uma revisão antes de criar a loja.',
     store_not_found: 'Essa loja não está disponível para sua conta.',
     insufficient_role: 'Seu acesso não permite fazer essa alteração.'
   };
