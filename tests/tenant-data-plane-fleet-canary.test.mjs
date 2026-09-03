@@ -275,7 +275,9 @@ describe('tenant data-plane fleet maintenance production canary', () => {
 
   it('requires trusted deploy to bind the infrastructure-only fleet migration runtime', () => {
     expect(deployWorkflow).toContain('--secrets-file "$RUNTIME_SECRETS"');
-    expect(deployWorkflow).toContain('Verify main Worker infrastructure secret bindings');
+    expect(deployWorkflow).toContain(
+      'Verify main Worker infrastructure and portal-auth secret bindings'
+    );
     expect(deployWorkflow).toContain('/workers/scripts/catalog-engine/settings');
     expect(deployWorkflow).toContain(
       'verify-worker-platform-bindings.mjs "$WORKER_SETTINGS" --require'

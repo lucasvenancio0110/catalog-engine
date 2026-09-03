@@ -15,24 +15,40 @@ Owned by `.github/workflows/deploy-catalog-api.yml`.
 
 Target flow:
 
-`checkout exact main SHA -> install -> quality -> build -> build:verify -> schema migrations -> Worker/assets + infrastructure secrets in one deploy -> verify secret names -> prepare eligible tenant migration-command capability from trusted CI -> smoke existing catalog`
+`checkout exact main SHA -> install -> quality -> build -> build:verify -> schema migrations -> build bounded runtime-secret bundle -> Worker/assets deploy -> verify binding names -> prepare eligible tenant migration-command capability from trusted CI -> smoke existing catalog`
 
 Rules:
 
 - build and public-artifact verification happen before the first production mutation;
 - trusted-main deploy and post-deploy canaries check out the exact triggering/deployed SHA rather than a moving `main`, because catalog-data automation may advance the branch concurrently;
 - the workflow may apply required D1 **schema migrations** while that remains the current release model;
-- the same trusted-main deployment uploads the infrastructure-only `CLOUDFLARE_PLATFORM_ACCOUNT_ID` and `CLOUDFLARE_PLATFORM_API_TOKEN` secret bindings alongside the Worker code by using Wrangler's `--secrets-file` boundary; the temporary file is permission-restricted and deleted by an exit trap;
-- only secret binding names/types are read back after deploy through Cloudflare's read-only Worker Script Settings API. Secret values and unrelated binding identifiers are never emitted, committed or exposed to pull-request validation;
+- the same trusted-main deployment uploads required Worker `secret_text` bindings alongside code by using Wrangler's `--secrets-file` boundary; the temporary file is permission-restricted and deleted by an exit trap;
+- Workers for Platforms always requires `CLOUDFLARE_PLATFORM_ACCOUNT_ID` and `CLOUDFLARE_PLATFORM_API_TOKEN` in that bundle;
+- portal OIDC runtime configuration is represented by exactly four deployment bindings: `ADMIN_AUTH_ISSUER`, `ADMIN_AUTH_AUDIENCE`, `ADMIN_AUTH_JWKS_URL` and `PORTAL_AUTH_CLIENT_ID`;
+- those four portal-auth bindings are **all-or-none**: zero keeps the portal authentication path deliberately fail-closed, four enables the configured path, and a partial one-to-three binding configuration fails before Worker deployment;
+- the deployment source for those values is trusted GitHub Actions secrets. No client secret or customer password is part of the portal-auth bundle;
+- `scripts/build-worker-runtime-secrets.mjs` constructs the temporary bundle without printing values and reports only safe binding names/configured state;
+- after deploy, only binding names/types are read through Cloudflare's read-only Worker Script Settings API. Secret values and unrelated binding identifiers are never emitted, committed or exposed to pull-request validation;
+- post-deploy verification requires the two Workers for Platforms names and also proves either zero portal-auth names when fail-closed or all four names when auth configuration was supplied;
 - existing-tenant Workers for Platforms script preparation runs from trusted CI after the exact main Worker SHA is deployed. It is bounded, idempotent, excludes active imports and retained fleet fixtures, persists only safe capability errors, and promotes the durable command marker only after upload succeeds;
 - account-level Worker bindings belong only to physical tenant provisioning and fresh-provisioning schema work. Maintenance schema inspection/application/verification, tenant import, CEI classification and verification use the isolated `TENANT_DISPATCH` path;
-- it does not generate public catalog SQL;
-- it does not replace catalog product/category/team/league/facet data;
-- it does not run supplier crawling/sync;
+- application deployment does not generate public catalog SQL, replace catalog product/category/team/league/facet data or run supplier crawling/sync;
 - it smoke-tests the already-published catalog for application compatibility after deploy;
 - it verifies the M7 activation boundary keeps `TENANT_SYNC_AUTOMATION_ENABLED=0`, `TENANT_SYNC_ACTIVE_COHORT` empty and the technical per-tick cap at `1` until recurring sync is deliberately proven and enabled;
 - after applying the additive M7D2 control-plane migration, it performs a read-only bounded D1 aggregate proving that no tenant/source is enrolled. It emits counts only, never tenant/source IDs or supplier evidence;
 - because schema migrations share the production D1, the workflow remains serialized with other production D1 mutation jobs.
+
+### Portal-auth runtime configuration boundary
+
+The Portal Beta authentication implementation is intentionally fail-closed until an external OIDC application/API exists and all four required runtime bindings are supplied through trusted Actions secrets.
+
+The deployment workflow must never manufacture placeholders or fall back to browser-provided identity configuration. It must never write an IdP client secret into the SPA. `PORTAL_AUTH_CLIENT_ID` is the public SPA client identifier; backend token validation remains owned by issuer/audience/JWKS configuration and `worker/admin-auth.js`.
+
+Removing one or more of the trusted configuration secrets causes the next trusted deployment to either deploy with **zero** portal-auth bindings when all four are absent, or fail before deployment when configuration is partial. This prevents stale or half-configured identity authority from surviving unnoticed.
+
+A successful application deployment with four binding names proves only that runtime configuration was delivered. PB1/PB3 still require real browser identity/session and merchant tenant-creation evidence before their customer-facing Definition of Done can be marked Production Green.
+
+### Tenant fleet and canary boundaries
 
 After a trusted-main deploy that changes the tenant fleet schema target, preparation boundary or fleet-proof implementation, `.github/workflows/cloudflare-tenant-data-plane-fleet-canary.yml` owns the production maintenance proof. The current target is schema v8: isolated v7 fixtures are prepared with migration-command capability v4 and upgraded through scheduler-owned binding-native v7→v8 maintenance while LKG, merchant overrides, existing stage evidence and unrelated-tenant isolation remain safe. Recurring tenant Intelligent Sync remains disabled throughout the fleet proof. The canary does not enqueue tenant import work manually or replace catalog data. On unexpected failure it reports only bounded migration evidence and retains isolated fixtures. Changes to the fleet-canary workflow, script or tests are owned by the application-deploy path filter and reach the proof only through the successful deploy's `workflow_run`; the fleet workflow must not start a competing direct-push run in the shared production-D1 concurrency group.
 
@@ -111,18 +127,20 @@ As tenant-isolated Queue processing becomes primary, per-tenant concurrency/lock
 
 ## Regression protection
 
-`tests/deployment-pipeline-boundary.test.mjs` protects the key separation:
+`tests/deployment-pipeline-boundary.test.mjs`, `tests/worker-runtime-secrets.test.mjs` and `tests/worker-platform-bindings.test.mjs` protect the key separation:
 
 - application deploy cannot call `sync-public-catalog-d1.mjs` or own the public catalog SQL directory;
 - application build/verify occurs before remote migrations/deploy;
-- the exact Worker code deployment includes and then verifies the two infrastructure migration secret names without printing their values;
-- default snapshot publication remains manual;
-- default snapshot publication cannot deploy the Worker or apply remote migrations.
+- default snapshot publication remains manual and cannot deploy the Worker or apply remote migrations;
+- runtime secret bundling requires both Workers for Platforms values;
+- portal auth is zero-or-four and any partial OIDC configuration fails before deploy;
+- post-deploy verification observes binding names/types only and never secret values;
+- the deployment workflow does not use ad-hoc `wrangler secret put/list/bulk` mutation paths.
 
 ## Final decision rule
 
 For every production workflow change ask:
 
-> Is this changing application code/schema, or is it changing commercial catalog data?
+> Is this changing application code/schema/runtime configuration, or is it changing commercial catalog data?
 
 If both happen only because one workflow historically did both, split the responsibilities unless an explicit transactional release requirement proves they must remain coupled.

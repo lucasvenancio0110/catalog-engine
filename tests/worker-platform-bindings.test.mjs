@@ -8,56 +8,80 @@ const diagnosticWorkflow = fs.readFileSync(
   'utf8'
 );
 
+const platformBindings = [
+  { name: 'CLOUDFLARE_PLATFORM_ACCOUNT_ID', type: 'secret_text', text: 'account-id' },
+  { name: 'CLOUDFLARE_PLATFORM_API_TOKEN', type: 'secret_text', text: 'must-never-be-returned' }
+];
+const portalAuthBindings = [
+  { name: 'ADMIN_AUTH_ISSUER', type: 'secret_text', text: 'issuer' },
+  { name: 'ADMIN_AUTH_AUDIENCE', type: 'secret_text', text: 'audience' },
+  { name: 'ADMIN_AUTH_JWKS_URL', type: 'secret_text', text: 'jwks' },
+  { name: 'PORTAL_AUTH_CLIENT_ID', type: 'secret_text', text: 'client-id' }
+];
+
 describe('main Worker infrastructure binding verification', () => {
-  it('accepts only both secret_text binding names and never returns secret values', () => {
-    const token = 'must-never-be-returned';
+  it('accepts infrastructure-only secret names and reports portal auth absent without values', () => {
     const evidence = inspectWorkerPlatformBindings({
       success: true,
       result: {
-        bindings: [
-          {
-            name: 'CLOUDFLARE_PLATFORM_ACCOUNT_ID',
-            type: 'secret_text',
-            text: 'account-id'
-          },
-          {
-            name: 'CLOUDFLARE_PLATFORM_API_TOKEN',
-            type: 'secret_text',
-            text: token
-          },
-          { name: 'CATALOG_DB', type: 'd1', database_id: 'private-id' }
-        ]
+        bindings: [...platformBindings, { name: 'CATALOG_DB', type: 'd1', database_id: 'private-id' }]
       }
     });
 
     expect(evidence).toEqual({
       workerPlatformBindingsVerified: true,
       bindings: { accountIdPresent: true, apiTokenPresent: true },
+      portalAuth: {
+        configured: false,
+        bindingCount: 0,
+        bindings: {
+          ADMIN_AUTH_ISSUER: false,
+          ADMIN_AUTH_AUDIENCE: false,
+          ADMIN_AUTH_JWKS_URL: false,
+          PORTAL_AUTH_CLIENT_ID: false
+        }
+      },
       secretValuesExposed: false
     });
-    expect(JSON.stringify(evidence)).not.toContain(token);
+    expect(JSON.stringify(evidence)).not.toContain('must-never-be-returned');
     expect(JSON.stringify(evidence)).not.toContain('private-id');
   });
 
-  it('fails closed on an invalid API response and reports a missing binding safely', () => {
+  it('recognizes the complete portal-auth binding set without reading secret values', () => {
+    const evidence = inspectWorkerPlatformBindings({
+      success: true,
+      result: { bindings: [...platformBindings, ...portalAuthBindings] }
+    });
+    expect(evidence.portalAuth).toEqual({
+      configured: true,
+      bindingCount: 4,
+      bindings: {
+        ADMIN_AUTH_ISSUER: true,
+        ADMIN_AUTH_AUDIENCE: true,
+        ADMIN_AUTH_JWKS_URL: true,
+        PORTAL_AUTH_CLIENT_ID: true
+      }
+    });
+    expect(JSON.stringify(evidence)).not.toMatch(/issuer|audience|jwks|client-id/);
+  });
+
+  it('fails closed on an invalid API response and reports a missing platform binding safely', () => {
     expect(() => inspectWorkerPlatformBindings({ success: false })).toThrow(
       'worker_platform_settings_invalid'
     );
-    expect(
-      inspectWorkerPlatformBindings({
-        success: true,
-        result: {
-          bindings: [
-            { name: 'CLOUDFLARE_PLATFORM_ACCOUNT_ID', type: 'secret_text' },
-            { name: 'CLOUDFLARE_PLATFORM_API_TOKEN', type: 'plain_text' }
-          ]
-        }
-      })
-    ).toEqual({
-      workerPlatformBindingsVerified: false,
-      bindings: { accountIdPresent: true, apiTokenPresent: false },
-      secretValuesExposed: false
+    const evidence = inspectWorkerPlatformBindings({
+      success: true,
+      result: {
+        bindings: [
+          { name: 'CLOUDFLARE_PLATFORM_ACCOUNT_ID', type: 'secret_text' },
+          { name: 'CLOUDFLARE_PLATFORM_API_TOKEN', type: 'plain_text' }
+        ]
+      }
     });
+    expect(evidence.workerPlatformBindingsVerified).toBe(false);
+    expect(evidence.bindings).toEqual({ accountIdPresent: true, apiTokenPresent: false });
+    expect(evidence.portalAuth.configured).toBe(false);
+    expect(evidence.secretValuesExposed).toBe(false);
   });
 
   it('uses the read-only Worker settings API in trusted workflows', () => {
@@ -66,11 +90,8 @@ describe('main Worker infrastructure binding verification', () => {
       expect(workflow).toContain('verify-worker-platform-bindings.mjs');
       expect(workflow).not.toContain('wrangler secret list');
     }
-    expect(deployWorkflow).toContain(
-      'verify-worker-platform-bindings.mjs "$WORKER_SETTINGS" --require'
-    );
-    expect(diagnosticWorkflow).not.toContain(
-      'verify-worker-platform-bindings.mjs "$WORKER_SETTINGS" --require'
-    );
+    expect(deployWorkflow).toContain('--forbid-portal-auth');
+    expect(deployWorkflow).toContain('--require-portal-auth');
+    expect(diagnosticWorkflow).not.toContain('--require-portal-auth');
   });
 });

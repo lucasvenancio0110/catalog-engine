@@ -40,10 +40,12 @@ describe('production deployment pipeline boundary', () => {
     expect(workflow).not.toContain('d1 migrations apply CATALOG_DB --remote');
   });
 
-  it('deploys and verifies infrastructure-only migration secrets without exposing their values', async () => {
+  it('deploys and verifies runtime secrets without exposing their values', async () => {
     const workflow = await readWorkflow('deploy-catalog-api.yml');
     const deployIndex = workflow.indexOf('Deploy Worker and static application assets');
-    const verifyIndex = workflow.indexOf('Verify main Worker infrastructure secret bindings');
+    const verifyIndex = workflow.indexOf(
+      'Verify main Worker infrastructure and portal-auth secret bindings'
+    );
 
     expect(workflow).toContain(
       'CLOUDFLARE_PLATFORM_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_PLATFORM_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}'
@@ -51,12 +53,21 @@ describe('production deployment pipeline boundary', () => {
     expect(workflow).toContain(
       'CLOUDFLARE_PLATFORM_API_TOKEN: ${{ secrets.CLOUDFLARE_PLATFORM_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}'
     );
+    for (const name of [
+      'ADMIN_AUTH_ISSUER',
+      'ADMIN_AUTH_AUDIENCE',
+      'ADMIN_AUTH_JWKS_URL',
+      'PORTAL_AUTH_CLIENT_ID'
+    ]) {
+      expect(workflow).toContain(`${name}: \${{ secrets.${name} }}`);
+    }
     expect(workflow).toContain('RUNTIME_SECRETS="$(mktemp)"');
-    expect(workflow).toContain('trap \'rm -f "$RUNTIME_SECRETS"\' EXIT');
-    expect(workflow).toContain('chmod 600 "$RUNTIME_SECRETS"');
+    expect(workflow).toContain('node scripts/build-worker-runtime-secrets.mjs "$RUNTIME_SECRETS"');
     expect(workflow).toContain('--secrets-file "$RUNTIME_SECRETS"');
     expect(workflow).toContain('/workers/scripts/catalog-engine/settings');
-    expect(workflow).toContain('verify-worker-platform-bindings.mjs "$WORKER_SETTINGS" --require');
+    expect(workflow).toContain('--forbid-portal-auth');
+    expect(workflow).toContain('--require-portal-auth');
+    expect(workflow).toContain("'scripts/build-worker-runtime-secrets.mjs'");
     expect(workflow).toContain("'scripts/verify-worker-platform-bindings.mjs'");
     expect(workflow).not.toContain('wrangler secret put');
     expect(workflow).not.toContain('wrangler secret bulk');
