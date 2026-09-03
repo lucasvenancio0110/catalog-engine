@@ -1,0 +1,95 @@
+.beta-account-code {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: center;
+  margin: 0 0 18px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.beta-account-code-copyblock h2 {
+  margin: 5px 0 7px;
+  font-size: 18px;
+}
+
+.beta-account-code-copyblock p {
+  max-width: 560px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.beta-account-code-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-width: min(100%, 390px);
+}
+
+.beta-account-code-value {
+  display: block;
+  min-width: 230px;
+  overflow-x: auto;
+  padding: 12px 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.22);
+  font: 600 12px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  user-select: all;
+  -webkit-user-select: all;
+}
+
+.beta-account-code-value:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+.beta-account-code-copy {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.beta-account-code-status {
+  grid-column: 1 / -1;
+  min-height: 16px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+@media (max-width: 720px) {
+  .beta-account-code {
+    grid-template-columns: 1fr;
+    gap: 15px;
+    padding: 16px;
+  }
+
+  .beta-account-code-action {
+    grid-template-columns: 1fr;
+    min-width: 0;
+  }
+
+  .beta-account-code-value {
+    min-width: 0;
+    width: 100%;
+    padding: 14px;
+    font-size: 13px;
+  }
+
+  .beta-account-code-copy {
+    min-height: 50px;
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .beta-account-code-copy {
+    transition: none;
+  }
+}
