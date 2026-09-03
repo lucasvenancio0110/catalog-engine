@@ -40,7 +40,7 @@ describe('portal store creation client', () => {
   });
 
   it('posts the authenticated minimal payload and accepts a new 201 store', async () => {
-    const fetchImpl = vi.fn(async (_url, init) =>
+    const fetchImpl = vi.fn(async () =>
       new Response(
         JSON.stringify({
           store: {
