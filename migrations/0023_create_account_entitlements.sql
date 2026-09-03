@@ -58,6 +58,18 @@ CREATE TABLE IF NOT EXISTS account_entitlement_events (
 CREATE INDEX IF NOT EXISTS idx_account_entitlement_events_principal
   ON account_entitlement_events (principal_id, created_at DESC);
 
+CREATE TRIGGER IF NOT EXISTS trg_account_entitlement_events_no_update
+BEFORE UPDATE ON account_entitlement_events
+BEGIN
+  SELECT RAISE(ABORT, 'entitlement_event_append_only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_account_entitlement_events_no_delete
+BEFORE DELETE ON account_entitlement_events
+BEGIN
+  SELECT RAISE(ABORT, 'entitlement_event_append_only');
+END;
+
 CREATE TABLE IF NOT EXISTS account_store_creation_slots (
   principal_id TEXT NOT NULL,
   slot_number INTEGER NOT NULL CHECK (slot_number = 1),
