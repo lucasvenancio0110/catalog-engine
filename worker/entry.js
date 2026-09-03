@@ -1,11 +1,12 @@
 import app from './index.js';
-import { readStoreEntitlements, requireStoreCreationEntitlement, touchAccountPrincipal } from './account-entitlements.js';
+import { readStoreEntitlements, touchAccountPrincipal } from './account-entitlements.js';
 import { authenticateAdminRequest } from './admin-auth.js';
 import { runDueDataPlaneMigrations } from './data-plane-migration-runner.js';
 import { runDueDataPlaneJobs } from './data-plane-provider-runner.js';
 import { dispatchTenantRequest } from './tenant-dispatch.js';
 import { runDueDomainJobs } from './domain-job-scheduler.js';
 import { handlePortalAuthConfig } from './portal-auth-config.js';
+import { handlePortalStoreCreation } from './portal-store-creation.js';
 import { runDueTenantClassifications } from './tenant-classification-runner.js';
 import { runDueTenantIncrementalClassifications } from './ingestion/incremental-classification-runner.js';
 import { runDueTenantIncrementalVerifications } from './ingestion/incremental-verification-runner.js';
@@ -116,11 +117,13 @@ async function handlePortalAccountBoundary(request, env, ctx) {
     }
 
     if (url.pathname === '/api/admin/stores' && request.method === 'POST') {
-      // This read gate prevents unnecessary plan construction. Migration 0023 also enforces the
-      // same decision transactionally at owner-membership insert time, so a concurrent request
-      // cannot bypass the one-store beta quota after this check succeeds.
-      await requireStoreCreationEntitlement(env.CATALOG_DB, auth.principalId);
-      return app.fetch(request, env, ctx);
+      return handlePortalStoreCreation({
+        request,
+        env,
+        ctx,
+        principalId: auth.principalId,
+        delegate: (nextRequest, nextEnv, nextCtx) => app.fetch(nextRequest, nextEnv, nextCtx)
+      });
     }
 
     return app.fetch(request, env, ctx);
