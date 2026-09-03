@@ -1,7 +1,7 @@
 -- PB2 account + first-beta provisioning entitlement.
 -- This remains in the transitional control plane and is portable to a future CONTROL_DB.
 -- The first beta deliberately supports one owned store per account. A later billing slice may
--- broaden the quota model with a forward-only migration; historical migrations stay immutable.
+-- broaden the quota model with a forward-only migration; historical applied migrations stay immutable.
 
 CREATE TABLE IF NOT EXISTS account_principals (
   principal_id TEXT PRIMARY KEY CHECK (
@@ -91,29 +91,25 @@ WHEN NEW.role = 'owner'
  AND NEW.status = 'active'
  AND EXISTS (SELECT 1 FROM account_principals WHERE principal_id = NEW.principal_id)
 BEGIN
-  SELECT CASE
-    WHEN NOT EXISTS (
-      SELECT 1
-        FROM account_entitlements e
-       WHERE e.principal_id = NEW.principal_id
-         AND e.entitlement_type = 'store_provisioning'
-         AND e.status = 'active'
-         AND e.max_stores = 1
-         AND datetime(e.expires_at) > CURRENT_TIMESTAMP
-    )
-    THEN RAISE(ABORT, 'store_creation_not_entitled')
-  END;
+  SELECT RAISE(ABORT, 'store_creation_not_entitled')
+   WHERE NOT EXISTS (
+     SELECT 1
+       FROM account_entitlements e
+      WHERE e.principal_id = NEW.principal_id
+        AND e.entitlement_type = 'store_provisioning'
+        AND e.status = 'active'
+        AND e.max_stores = 1
+        AND datetime(e.expires_at) > CURRENT_TIMESTAMP
+   );
 
-  SELECT CASE
-    WHEN (
-      SELECT COUNT(*)
-        FROM tenant_memberships m
-       WHERE m.principal_id = NEW.principal_id
-         AND m.role = 'owner'
-         AND m.status = 'active'
-    ) >= 1
-    THEN RAISE(ABORT, 'store_limit_reached')
-  END;
+  SELECT RAISE(ABORT, 'store_limit_reached')
+   WHERE (
+     SELECT COUNT(*)
+       FROM tenant_memberships m
+      WHERE m.principal_id = NEW.principal_id
+        AND m.role = 'owner'
+        AND m.status = 'active'
+   ) >= 1;
 END;
 
 -- The slot is written inside the same D1 transaction as tenant/profile/membership creation.
