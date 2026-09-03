@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { buildWorkerTenantProvisioningPlan } from '../worker/control-plane-plan.js';
 import {
   handlePortalStoreCreation,
   merchantCreatedStoreFromDelegate
@@ -6,6 +7,7 @@ import {
 
 const principalId = 'prn_0123456789abcdefabcd';
 const futureExpiry = '2099-01-01T00:00:00Z';
+const defaultTenantId = 't_00000000000000000001';
 
 function jsonResponse(payload, status) {
   return new Response(JSON.stringify(payload), {
@@ -87,6 +89,18 @@ function delegatedStore(slug = 'loja-beta') {
 }
 
 describe('PB3 portal store creation boundary', () => {
+  it('derives a real opaque tenant identity distinct from the historical default tenant', async () => {
+    const plan = await buildWorkerTenantProvisioningPlan({
+      storeName: 'Loja Beta',
+      slug: 'loja-beta',
+      currency: 'BRL',
+      ownerPrincipalId: principalId
+    });
+
+    expect(plan.tenant.tenantId).toMatch(/^t_[a-f0-9]{20}$/);
+    expect(plan.tenant.tenantId).not.toBe(defaultTenantId);
+  });
+
   it('projects only merchant-safe store creation fields', () => {
     const store = merchantCreatedStoreFromDelegate(delegatedStore());
     expect(store).toMatchObject({
