@@ -30,7 +30,7 @@ async function activeEntitlementRow(db, principalId) {
   const principal = assertPrincipalId(principalId);
   return db
     .prepare(
-      `SELECT entitlement_id, source, max_stores, expires_at
+      `SELECT entitlement_id, max_stores, expires_at
          FROM account_entitlements
         WHERE principal_id=?1
           AND entitlement_type=?2
@@ -84,37 +84,4 @@ export async function requireStoreCreationEntitlement(db, principalId) {
     entitlementId: entitlement.entitlement_id,
     maxStores: FIRST_BETA_MAX_STORES
   };
-}
-
-export function storeCreationSlotStatement(db, { principalId, entitlementId, tenantId }) {
-  const principal = assertPrincipalId(principalId);
-  const entitlement = String(entitlementId || '').trim();
-  const tenant = String(tenantId || '').trim();
-  if (!/^ent_[a-f0-9]{20}$/.test(entitlement) || !/^t_[a-f0-9]{20}$/.test(tenant)) {
-    throw entitlementError('store_entitlement_misconfigured', 503);
-  }
-
-  return db
-    .prepare(
-      `INSERT INTO account_store_creation_slots
-        (principal_id, slot_number, entitlement_id, tenant_id, reserved_at)
-       VALUES (
-         ?1,
-         1,
-         (
-           SELECT entitlement_id
-             FROM account_entitlements
-            WHERE entitlement_id=?2
-              AND principal_id=?1
-              AND entitlement_type='store_provisioning'
-              AND status='active'
-              AND max_stores=1
-              AND datetime(expires_at) > CURRENT_TIMESTAMP
-            LIMIT 1
-         ),
-         ?3,
-         CURRENT_TIMESTAMP
-       )`
-    )
-    .bind(principal, entitlement, tenant);
 }
