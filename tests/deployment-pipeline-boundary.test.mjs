@@ -59,7 +59,7 @@ describe('production deployment pipeline boundary', () => {
       'ADMIN_AUTH_JWKS_URL',
       'PORTAL_AUTH_CLIENT_ID'
     ]) {
-      expect(workflow).toContain(`${name}: ${{ secrets.${name} }}`);
+      expect(workflow).toContain(`${name}: \${{ secrets.${name} }}`);
     }
     expect(workflow).toContain('RUNTIME_SECRETS="$(mktemp)"');
     expect(workflow).toContain('node scripts/build-worker-runtime-secrets.mjs "$RUNTIME_SECRETS"');
