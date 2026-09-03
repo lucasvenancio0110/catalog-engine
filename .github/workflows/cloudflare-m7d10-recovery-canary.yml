@@ -34,10 +34,6 @@ permissions:
   contents: read
   statuses: write
 
-concurrency:
-  group: catalog-engine-m7d10-recovery-canary
-  cancel-in-progress: false
-
 jobs:
   validate:
     if: github.event_name == 'pull_request'
@@ -125,6 +121,9 @@ jobs:
     if: needs.prerequisites.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    concurrency:
+      group: catalog-engine-production-d1
+      cancel-in-progress: false
     env:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
