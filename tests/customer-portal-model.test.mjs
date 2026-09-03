@@ -53,6 +53,8 @@ describe('customer portal view model', () => {
 
   it('translates control-plane errors into customer-facing copy', () => {
     expect(portalApiErrorMessage('insufficient_role')).toContain('acesso');
+    expect(portalApiErrorMessage('store_creation_not_entitled')).toContain('beta');
+    expect(portalApiErrorMessage('store_limit_reached')).toContain('quantidade de lojas');
     expect(portalApiErrorMessage('admin_temporarily_unavailable')).not.toContain('D1');
   });
 });
