@@ -7,11 +7,14 @@ const commandUrl = new URL('../scripts/manage-pilot-entitlement.mjs', import.met
 const entryUrl = new URL('../worker/entry.js', import.meta.url);
 
 describe('PB2 pilot entitlement production boundary', () => {
-  it('uses forward-only account tables and transaction-local owner guards', async () => {
+  it('uses forward-only account tables, append-only events and transaction-local owner guards', async () => {
     const sql = await readFile(migrationUrl, 'utf8');
     expect(sql).toContain('CREATE TABLE IF NOT EXISTS account_principals');
     expect(sql).toContain('CREATE TABLE IF NOT EXISTS account_entitlements');
     expect(sql).toContain('CREATE TABLE IF NOT EXISTS account_entitlement_events');
+    expect(sql).toContain('trg_account_entitlement_events_no_update');
+    expect(sql).toContain('trg_account_entitlement_events_no_delete');
+    expect(sql).toContain("RAISE(ABORT, 'entitlement_event_append_only')");
     expect(sql).toContain('CREATE TABLE IF NOT EXISTS account_store_creation_slots');
     expect(sql).toContain('trg_portal_owner_entitlement_guard');
     expect(sql).toContain("RAISE(ABORT, 'store_creation_not_entitled')");
@@ -41,7 +44,7 @@ describe('PB2 pilot entitlement production boundary', () => {
     expect(command).toContain('pilot_entitlement_principal_not_registered');
     expect(command).toContain('account_entitlement_events');
     expect(command).toContain("'pilot_grant'");
-    expect(command).toContain("max_stores=1");
+    expect(command).toContain('max_stores=1');
     expect(command).not.toMatch(/password|client_secret|refresh_token/i);
   });
 
