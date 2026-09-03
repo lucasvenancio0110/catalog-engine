@@ -41,6 +41,15 @@ describe('portal public auth configuration', () => {
     await expect(response.json()).resolves.toEqual({ error: 'portal_auth_unconfigured' });
   });
 
+  it('fails closed when the backend audience list is not a single browser API audience', () => {
+    expect(
+      buildPortalAuthConfig(
+        env({ ADMIN_AUTH_AUDIENCE: 'https://api.catalogoengine.com,https://admin.catalogoengine.com' })
+      )
+    ).toBeNull();
+    expect(buildPortalAuthConfig(env({ ADMIN_AUTH_AUDIENCE: 'one.example, two.example' }))).toBeNull();
+  });
+
   it('rejects non-HTTPS, credentialed and path-bearing issuers', () => {
     expect(normalizePortalAuthIssuer('http://identity.example.com')).toBe('');
     expect(normalizePortalAuthIssuer('https://user:pass@identity.example.com')).toBe('');
