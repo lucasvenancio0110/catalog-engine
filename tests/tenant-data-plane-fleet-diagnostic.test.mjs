@@ -103,10 +103,15 @@ describe('retained tenant fleet canary diagnosis', () => {
     ).toBe('trusted_preparation_not_committed');
   });
 
-  it('is a trusted-main read-only workflow and cannot create jobs, enqueue or purge', () => {
-    expect(workflow).toContain("default: 't_bbd0a31ebb9924fd5e0d'");
-    expect(workflow).toContain("default: 't_35633dac7b86302d566b'");
-    expect(workflow).toContain("default: 't_b4ac85a21b382cbeaea6'");
+  it('keeps retained-fixture diagnosis explicit and read-only', () => {
+    expect(workflow).not.toMatch(/^  push:/m);
+    expect(workflow).toContain('success_tenant_id:');
+    expect(workflow).toContain('failure_tenant_id:');
+    expect(workflow).toContain('blocked_tenant_id:');
+    expect(workflow.match(/required: true/g)?.length).toBe(3);
+    expect(workflow).not.toContain("default: 't_bbd0a31ebb9924fd5e0d'");
+    expect(workflow).not.toContain("default: 't_35633dac7b86302d566b'");
+    expect(workflow).not.toContain("default: 't_b4ac85a21b382cbeaea6'");
     expect(script).toContain('migrationCommandSafeError');
     expect(workflow).toContain(
       "github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'"
