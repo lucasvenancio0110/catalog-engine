@@ -6,6 +6,7 @@ const attributesUrl = new URL('../.gitattributes', import.meta.url);
 const workflowUrl = new URL('../.github/workflows/manage-pilot-entitlement.yml', import.meta.url);
 const commandUrl = new URL('../scripts/manage-pilot-entitlement.mjs', import.meta.url);
 const entryUrl = new URL('../worker/entry.js', import.meta.url);
+const storeCreationBoundaryUrl = new URL('../worker/portal-store-creation.js', import.meta.url);
 
 describe('PB2 pilot entitlement production boundary', () => {
   it('uses forward-only account tables, append-only events and transaction-local owner guards', async () => {
@@ -64,13 +65,27 @@ describe('PB2 pilot entitlement production boundary', () => {
     expect(command).not.toMatch(/password|client_secret|refresh_token/i);
   });
 
-  it('touches the account and checks entitlement before delegating portal store creation', async () => {
-    const entry = await readFile(entryUrl, 'utf8');
+  it('touches the account before store creation and keeps entitlement ahead of the canonical mutation', async () => {
+    const [entry, boundary] = await Promise.all([
+      readFile(entryUrl, 'utf8'),
+      readFile(storeCreationBoundaryUrl, 'utf8')
+    ]);
+
     const touch = entry.indexOf('await touchAccountPrincipal(env.CATALOG_DB, auth.principalId)');
-    const gate = entry.indexOf('await requireStoreCreationEntitlement(env.CATALOG_DB, auth.principalId)');
-    const delegate = entry.indexOf('return app.fetch(request, env, ctx);', gate);
+    const handler = entry.indexOf('return handlePortalStoreCreation({', touch);
+    const delegatedControlPlane = entry.indexOf(
+      'delegate: (nextRequest, nextEnv, nextCtx) => app.fetch(nextRequest, nextEnv, nextCtx)',
+      handler
+    );
     expect(touch).toBeGreaterThan(-1);
-    expect(gate).toBeGreaterThan(touch);
-    expect(delegate).toBeGreaterThan(gate);
+    expect(handler).toBeGreaterThan(touch);
+    expect(delegatedControlPlane).toBeGreaterThan(handler);
+
+    const replay = boundary.indexOf('const replay = await loadExactCreatedStore');
+    const gate = boundary.indexOf('await requireStoreCreationEntitlement(env.CATALOG_DB, principalId)');
+    const mutation = boundary.indexOf('const response = await delegate(request, env, ctx)', gate);
+    expect(replay).toBeGreaterThan(-1);
+    expect(gate).toBeGreaterThan(replay);
+    expect(mutation).toBeGreaterThan(gate);
   });
 });
