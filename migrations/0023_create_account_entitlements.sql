@@ -4,13 +4,21 @@
 -- broaden the quota model with a forward-only migration; historical migrations stay immutable.
 
 CREATE TABLE IF NOT EXISTS account_principals (
-  principal_id TEXT PRIMARY KEY CHECK (principal_id GLOB 'prn_[0-9a-f]*' AND length(principal_id) = 24),
+  principal_id TEXT PRIMARY KEY CHECK (
+    length(principal_id) = 24
+    AND substr(principal_id, 1, 4) = 'prn_'
+    AND substr(principal_id, 5) NOT GLOB '*[^0-9a-f]*'
+  ),
   first_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS account_entitlements (
-  entitlement_id TEXT PRIMARY KEY CHECK (entitlement_id GLOB 'ent_[0-9a-f]*' AND length(entitlement_id) = 24),
+  entitlement_id TEXT PRIMARY KEY CHECK (
+    length(entitlement_id) = 24
+    AND substr(entitlement_id, 1, 4) = 'ent_'
+    AND substr(entitlement_id, 5) NOT GLOB '*[^0-9a-f]*'
+  ),
   principal_id TEXT NOT NULL,
   entitlement_type TEXT NOT NULL DEFAULT 'store_provisioning' CHECK (entitlement_type = 'store_provisioning'),
   source TEXT NOT NULL CHECK (source IN ('pilot_grant', 'billing')),
@@ -30,7 +38,11 @@ CREATE INDEX IF NOT EXISTS idx_account_entitlements_active
   ON account_entitlements (principal_id, status, expires_at);
 
 CREATE TABLE IF NOT EXISTS account_entitlement_events (
-  event_id TEXT PRIMARY KEY CHECK (event_id GLOB 'eev_[0-9a-f]*' AND length(event_id) = 24),
+  event_id TEXT PRIMARY KEY CHECK (
+    length(event_id) = 24
+    AND substr(event_id, 1, 4) = 'eev_'
+    AND substr(event_id, 5) NOT GLOB '*[^0-9a-f]*'
+  ),
   entitlement_id TEXT NOT NULL,
   principal_id TEXT NOT NULL,
   action TEXT NOT NULL CHECK (action IN ('granted', 'renewed', 'revoked')),
@@ -57,3 +69,58 @@ CREATE TABLE IF NOT EXISTS account_store_creation_slots (
   FOREIGN KEY (entitlement_id) REFERENCES account_entitlements(entitlement_id) ON DELETE RESTRICT,
   FOREIGN KEY (tenant_id) REFERENCES catalog_tenants(tenant_id) ON DELETE RESTRICT
 );
+
+-- Only principals that have been authenticated through the portal are subject to this gate.
+-- Internal fixture/canary principals that never enter account_principals keep their existing
+-- control-plane path. Portal POST /api/admin/stores touches account_principals before delegating.
+CREATE TRIGGER IF NOT EXISTS trg_portal_owner_entitlement_guard
+BEFORE INSERT ON tenant_memberships
+WHEN NEW.role = 'owner'
+ AND NEW.status = 'active'
+ AND EXISTS (SELECT 1 FROM account_principals WHERE principal_id = NEW.principal_id)
+BEGIN
+  SELECT CASE
+    WHEN NOT EXISTS (
+      SELECT 1
+        FROM account_entitlements e
+       WHERE e.principal_id = NEW.principal_id
+         AND e.entitlement_type = 'store_provisioning'
+         AND e.status = 'active'
+         AND e.max_stores = 1
+         AND datetime(e.expires_at) > CURRENT_TIMESTAMP
+    )
+    THEN RAISE(ABORT, 'store_creation_not_entitled')
+  END;
+
+  SELECT CASE
+    WHEN (
+      SELECT COUNT(*)
+        FROM tenant_memberships m
+       WHERE m.principal_id = NEW.principal_id
+         AND m.role = 'owner'
+         AND m.status = 'active'
+    ) >= 1
+    THEN RAISE(ABORT, 'store_limit_reached')
+  END;
+END;
+
+-- The slot is written inside the same D1 transaction as tenant/profile/membership creation.
+-- Its primary key is a second concurrency barrier: two simultaneous first-store attempts cannot
+-- both consume the one-store pilot allowance even if they both passed an earlier read check.
+CREATE TRIGGER IF NOT EXISTS trg_portal_owner_entitlement_slot
+AFTER INSERT ON tenant_memberships
+WHEN NEW.role = 'owner'
+ AND NEW.status = 'active'
+ AND EXISTS (SELECT 1 FROM account_principals WHERE principal_id = NEW.principal_id)
+BEGIN
+  INSERT INTO account_store_creation_slots
+    (principal_id, slot_number, entitlement_id, tenant_id, reserved_at)
+  SELECT NEW.principal_id, 1, e.entitlement_id, NEW.tenant_id, CURRENT_TIMESTAMP
+    FROM account_entitlements e
+   WHERE e.principal_id = NEW.principal_id
+     AND e.entitlement_type = 'store_provisioning'
+     AND e.status = 'active'
+     AND e.max_stores = 1
+     AND datetime(e.expires_at) > CURRENT_TIMESTAMP
+   LIMIT 1;
+END;
