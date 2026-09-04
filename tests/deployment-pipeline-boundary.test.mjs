@@ -40,6 +40,18 @@ describe('production deployment pipeline boundary', () => {
     expect(workflow).not.toContain('d1 migrations apply CATALOG_DB --remote');
   });
 
+  it('keeps a manual application redeploy entrypoint for trusted runtime-secret changes', async () => {
+    const workflow = await readWorkflow('deploy-catalog-api.yml');
+
+    expect(workflow).toContain('workflow_dispatch:');
+    expect(workflow).toContain('Checkout triggering main SHA');
+    expect(workflow).toContain('ref: ${{ github.sha }}');
+    expect(workflow).toContain('ADMIN_AUTH_ISSUER: ${{ secrets.ADMIN_AUTH_ISSUER }}');
+    expect(workflow).toContain('ADMIN_AUTH_AUDIENCE: ${{ secrets.ADMIN_AUTH_AUDIENCE }}');
+    expect(workflow).toContain('ADMIN_AUTH_JWKS_URL: ${{ secrets.ADMIN_AUTH_JWKS_URL }}');
+    expect(workflow).toContain('PORTAL_AUTH_CLIENT_ID: ${{ secrets.PORTAL_AUTH_CLIENT_ID }}');
+  });
+
   it('deploys and verifies runtime secrets without exposing their values', async () => {
     const workflow = await readWorkflow('deploy-catalog-api.yml');
     const deployIndex = workflow.indexOf('Deploy Worker and static application assets');
