@@ -8,21 +8,21 @@ This document records the implementation/proof level that is true now. Focused n
 
 ## Live GitHub / production baseline
 
-Current proven PB4 production runtime baseline:
+Current proven PB5 production runtime baseline:
 
-- SHA: `dfff6204e42a862c42cc091b70fc06243016e155`;
-- commit: `PB4: recover logo storage with private R2 (#205)`;
-- trusted application deploy: run `33952906777`, deployment **#127**, successful on rerun against that exact SHA;
+- SHA: `5f01b679804c45246077eb292ad2648ab6b20b48`;
+- commit: `PB5: connect real merchant catalog source (#209)`;
+- trusted application deploy: run `33955408377`, successful on that exact SHA;
 - application deploy status: `catalog-engine/application-deploy = success`;
-- deploy quality/build/migrations/Worker/static assets/binding verification/automation-boundary checks/catalog smoke: success;
-- repository deploy quality proof: 145 test files / 714 tests green;
-- private R2 brand-asset bucket `catalog-engine-brand-assets` provisioned by trusted deployment and bound to the Worker as `BRAND_ASSETS`;
-- Images binding remains available for bounded image inspection/normalization;
-- the real CROCCODILOS merchant saved branding/logo successfully and later re-entered/reloaded the Appearance flow with the saved logo and branding state still rendered.
+- deploy quality/build/D1/Worker/static assets/binding verification/automation-boundary checks/catalog smoke: success;
+- repository deploy quality proof: 146 test files / 726 tests green;
+- private R2 brand-asset binding `BRAND_ASSETS` remains present;
+- Images binding remains present;
+- the real CROCCODILOS merchant connected a Yupoo source, then reloaded/re-entered and recovered only safe connected state without re-entering or rendering the private supplier URL.
 
-PB4 is **PRODUCTION GREEN**. Detailed closure evidence is recorded in `PB4-CLOSURE-2026-09-05.md`; the earlier runtime-only checkpoint remains historical evidence in `PB4-PRODUCTION-CHECKPOINT-2026-09-05.md`.
+PB5 is **PRODUCTION GREEN**. Detailed evidence is recorded in `PB5-CLOSURE-2026-09-05.md`.
 
-PB5 source-connection UI/client work is now **IN PROGRESS**. Its code review, trusted-main deployment and first-real-merchant production connection proof remain required before PB5 can become Production Green.
+PB6 — Source Scope / Import Decision is **PLANNED — NEXT**. Live-code audit shows the decision must become real server-side import authority rather than a cosmetic selector because automatic initial-import discovery is enabled.
 
 Current production activation boundary remains:
 
@@ -88,8 +88,9 @@ Detailed order and per-slice contracts remain owned by `PORTAL-BETA-EXECUTION.md
 | PB2 — Account + Beta Entitlement | **PRODUCTION GREEN** | PR #192 + migration repair #193; production migration `0023`; audited pilot entitlement granted to the authenticated opaque principal; portal showed `0/1` before store creation. |
 | PB3 — Create Store | **PRODUCTION GREEN** | Real merchant created **CROCCODILOS** through `app.catalogoengine.com`; final integrated SHA `c42e9a5e2d67920678b998d64c6a0923546a7289`; deploy #125/run `33947883746` success; reload returned the persisted store and `1/1` allowance. Detailed evidence: `PB3-CLOSURE-2026-09-05.md`. |
 | PB4 — Branding | **PRODUCTION GREEN** | PR #204 shipped branding/profile/validation; PR #205 recovered logo storage to private R2. Exact runtime SHA `dfff6204e42a862c42cc091b70fc06243016e155`; deploy #127/run `33952906777` success; real CROCCODILOS save + reload/re-entry rendered the persisted logo and branding state. Detailed evidence: `PB4-CLOSURE-2026-09-05.md`. |
-| PB5 — Source Connection | **IN PROGRESS** | Merchant-facing Yupoo connection client/UX now binds the existing authenticated `POST /api/admin/stores/:tenantId/source` authority and safe onboarding projection. Remaining gates: PR quality, trusted-main deploy, then real CROCCODILOS source connection + reload/re-entry proof with no private locator leakage. |
-| PB6–PB12 | **PLANNED** | Preserve approved order and per-slice gates. PB6 remains blocked until PB5 is honestly Production Green. |
+| PB5 — Source Connection | **PRODUCTION GREEN** | PR #209; exact runtime SHA `5f01b679804c45246077eb292ad2648ab6b20b48`; deploy run `33955408377` success; 146 test files / 726 tests green; real CROCCODILOS source connection persisted across reload/re-entry with safe connected-state projection and no private locator rendering. Detailed evidence: `PB5-CLOSURE-2026-09-05.md`. |
+| PB6 — Source Scope / Import Decision | **PLANNED — NEXT** | Must expose one truthful merchant import decision and make initial-import discovery honor the durable decision. Provider-safe discovery may be used only if it can avoid raw supplier IDs/URLs; otherwise beta uses explicit full-catalog import. |
+| PB7–PB12 | **PLANNED** | Preserve approved order and per-slice gates. |
 
 ## PB1 authentication authority
 
@@ -175,9 +176,9 @@ The deployed PB4 path provides:
 
 The first real CROCCODILOS PB4 attempt exposed a production-only Cloudflare Images storage mismatch after validation/transformation had already succeeded. PR #205 recovered storage to private R2. Deployment #127 provisioned `catalog-engine-brand-assets`, bound `BRAND_ASSETS`, deployed the Worker and passed smoke. The owner then retried the real production flow: save succeeded, and a later reload/re-entry showed the crocodile logo and saved branding state again. PB4's final persistence gate is therefore satisfied.
 
-## PB5 — active execution point
+## PB5 production proof
 
-The existing production backend already owns the sensitive part of PB5:
+The deployed PB5 path provides:
 
 - authenticated `POST /api/admin/stores/:tenantId/source`;
 - active membership and owner/admin mutation-role enforcement;
@@ -186,28 +187,29 @@ The existing production backend already owns the sensitive part of PB5:
 - private canonical source storage;
 - opaque source locator/public-safe response projection;
 - destructive source-change guard once imported private state exists;
-- source provisioning checkpoint/audit update without source URL leakage.
-
-The PB5 implementation adds only the missing merchant-facing bridge:
-
-- mobile-first Yupoo URL form;
+- source provisioning checkpoint/audit update without source URL leakage;
+- mobile-first Yupoo URL form and Catalog navigation;
 - safe client payload limited to `sourceUrl`, `sourceKey=primary`, `syncStrategy=incremental`;
-- authenticated source mutation through the existing server authority;
-- safe connected-state recovery through the existing onboarding endpoint;
+- safe connected-state recovery through the onboarding endpoint;
 - explicit loading/error/retry/focus/touch/reduced-motion behavior;
-- store-card and Catalog navigation entry points;
-- mobile keeps both Appearance and Catalog reachable while unreleased Domain navigation remains deferred;
-- source URL remains only in the immediate controlled form/request and is never rendered back after connection;
-- no fake scope selector, fake import completion or second provider;
-- no recurring Intelligent Sync enrollment.
+- source URL restricted to the immediate controlled form/request and never rendered back after connection;
+- no fake import completion, fake scope selector, second provider or recurring Intelligent Sync enrollment.
 
-PB5 remains **IN PROGRESS** until the exact integrated implementation passes its trusted-main deployment and the real CROCCODILOS merchant connects a Yupoo source in production, reloads/re-enters, and sees only safe connected state recovered by the portal.
+The real CROCCODILOS merchant connected its Yupoo source in production. The source screen returned a verified/connected state. After reload/re-entry, `Minhas lojas` recovered `Fonte conectada` with `Próximo passo: Definir importação`, and reopening the Catalog source screen still showed the source connected without displaying or requesting the private supplier URL again. PB5's persistence and privacy acceptance gates are satisfied.
+
+## PB6 execution finding
+
+Before starting PB6, live code was audited against the approved slice contract. The current chain can automatically progress a connected source through data-plane provisioning and migrations toward initial-import discovery while `TENANT_IMPORT_AUTOMATION_ENABLED=1`.
+
+Therefore PB6 must not be a client-only selector. The next implementation must introduce/identify durable provider-neutral import-decision authority and make automatic initial-import candidate discovery honor it. The first-beta fallback remains explicit **full-catalog** import if safe merchant-level scope discovery cannot be exposed without raw provider-private category identifiers/URLs.
+
+Already-running or completed import evidence must not be destructively reset merely to add this gate.
 
 ## Explicitly not confirmed / not Green
 
 Do not claim without later evidence:
 
-- PB5 **PRODUCTION GREEN** or real CROCCODILOS source persistence/reload;
+- PB6 **PRODUCTION GREEN** or a merchant decision that demonstrably gates/controls initial import;
 - first real beta isolated import/CEI/verification completion;
 - authenticated private preview;
 - PB end-to-end browser proof;
@@ -220,6 +222,8 @@ Do not claim without later evidence:
 
 ## Current execution rule
 
-Complete **PB5 — Source Connection** review, trusted-main deployment and first-real-merchant connection proof next.
+Execute **PB6 — Source Scope / Import Decision** next.
 
-Do not begin PB6 until PB5 reaches the evidence level required by its Definition of Done and this living state is updated again. Recurring tenant Intelligent Sync remains disabled throughout the PB campaign unless the owner separately authorizes M7E.
+The merchant must receive one truthful import-decision path. That decision must be durable and must match what initial import actually consumes. If safe scope discovery is not contractually available, use explicit full-catalog import for beta rather than exposing raw Yupoo category IDs/URLs or a fake selector.
+
+Recurring tenant Intelligent Sync remains disabled throughout the PB campaign unless the owner separately authorizes M7E.
