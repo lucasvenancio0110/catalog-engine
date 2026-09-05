@@ -14,6 +14,9 @@ export function inspectWorkerPlatformBindings(payload) {
   if (payload?.success !== true || !Array.isArray(payload?.result?.bindings)) {
     throw new Error('worker_platform_settings_invalid');
   }
+  const allNames = new Set(
+    payload.result.bindings.map((binding) => String(binding?.name || '')).filter(Boolean)
+  );
   const secretNames = new Set(
     payload.result.bindings
       .filter((binding) => binding?.type === 'secret_text')
@@ -21,7 +24,8 @@ export function inspectWorkerPlatformBindings(payload) {
   );
   const bindings = {
     accountIdPresent: secretNames.has(REQUIRED_BINDINGS[0]),
-    apiTokenPresent: secretNames.has(REQUIRED_BINDINGS[1])
+    apiTokenPresent: secretNames.has(REQUIRED_BINDINGS[1]),
+    imagesPresent: allNames.has('IMAGES')
   };
   const portalAuthBindings = Object.fromEntries(
     PORTAL_AUTH_BINDINGS.map((name) => [name, secretNames.has(name)])
@@ -47,6 +51,9 @@ async function main() {
   console.log(JSON.stringify(evidence));
   if (process.argv.includes('--require') && !evidence.workerPlatformBindingsVerified) {
     throw new Error('worker_platform_bindings_missing');
+  }
+  if (process.argv.includes('--require-images') && !evidence.bindings.imagesPresent) {
+    throw new Error('worker_images_binding_missing');
   }
   if (process.argv.includes('--require-portal-auth') && !evidence.portalAuth.configured) {
     throw new Error('portal_auth_bindings_missing');
