@@ -31,6 +31,26 @@ export function tenantImportQueueConfigured(env) {
   );
 }
 
+async function recordPreexistingImportDecisions(db) {
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO tenant_import_decisions
+        (tenant_id, source_key, source_locator_ref, decision_kind, status, authority,
+         decided_by_principal_id, confirmed_at, created_at, updated_at)
+       SELECT j.tenant_id, j.source_key, c.source_locator_ref,
+              'full_connected_source', 'confirmed', 'preexisting_import', NULL,
+              COALESCE(j.created_at,CURRENT_TIMESTAMP),
+              COALESCE(j.created_at,CURRENT_TIMESTAMP), CURRENT_TIMESTAMP
+         FROM tenant_import_jobs j
+         JOIN tenant_source_connections c
+           ON c.tenant_id=j.tenant_id
+          AND c.source_key=j.source_key
+          AND c.status='active'
+        WHERE j.mode='initial'`
+    )
+    .run();
+}
+
 async function discoverImportCandidates(db, limit) {
   const result = await db
     .prepare(
@@ -39,6 +59,16 @@ async function discoverImportCandidates(db, limit) {
          JOIN tenant_catalog_instances i ON i.tenant_id=r.tenant_id
          JOIN tenant_data_plane_provider_state p ON p.tenant_id=r.tenant_id
          JOIN supplier_sources s ON s.tenant_id=r.tenant_id AND s.status='active'
+         JOIN tenant_source_connections c
+           ON c.tenant_id=r.tenant_id
+          AND c.source_key=s.source_key
+          AND c.status='active'
+         JOIN tenant_import_decisions d
+           ON d.tenant_id=r.tenant_id
+          AND d.source_key=s.source_key
+          AND d.source_locator_ref=c.source_locator_ref
+          AND d.status='confirmed'
+          AND d.decision_kind='full_connected_source'
          LEFT JOIN tenant_import_jobs j ON j.tenant_id=r.tenant_id
            AND j.source_key=s.source_key
            AND j.status IN ('pending','queued','scanning','details','finalizing')
@@ -281,6 +311,7 @@ export async function runDueTenantImportDispatches(
   const jobLimit = boundedLimit(limit);
   await reclaimExpiredTenantSyncPhaseLeases(db);
   await reclaimStaleScans(db);
+  await recordPreexistingImportDecisions(db);
   const discovered = await discoverImportCandidates(db, jobLimit);
   const due = await dueImportJobs(db, jobLimit);
   const outcomes = [];
