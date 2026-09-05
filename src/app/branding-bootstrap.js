@@ -54,52 +54,16 @@ function strategicPortalCopy(root, session) {
   setText(values[2], 'Sua marca no seu próprio domínio');
 }
 
-function wireStoreCards(root, stores) {
-  const cards = [...root.querySelectorAll('.store-card')];
-  cards.forEach((card, index) => {
-    const store = stores[index];
-    if (!store?.tenantId) return;
-    setText(
-      card.querySelector('.store-card-body p'),
-      'Estrutura criada. Agora refine sua identidade e prepare o próximo passo.'
-    );
-    const meta = card.querySelectorAll('.store-card-meta > div');
-    if (meta[0]) {
-      setText(meta[0].querySelector('small'), 'Próximo passo');
-      setText(meta[0].querySelector('strong'), 'Definir identidade');
-    }
-    if (meta[1]) {
-      setText(meta[1].querySelector('small'), 'Jornada');
-      setText(meta[1].querySelector('strong'), 'Marca → catálogo → preview');
-    }
-    const action = card.querySelector('.store-card-action');
-    if (!action) return;
-    action.disabled = false;
-    action.title = `Personalizar ${store.storeName || 'loja'}`;
-    setText(action.querySelector('span'), 'Personalizar loja');
-    if (action.dataset.brandingWired !== '1') {
-      action.dataset.brandingWired = '1';
-      action.addEventListener('click', () => openAppearance(store));
-    }
-  });
-}
-
 function wireAppearanceNavigation(root, store) {
   if (!store?.tenantId) return;
-  for (const button of root.querySelectorAll('.sidebar .nav-item')) {
-    if (button.querySelector('span')?.textContent.trim() !== 'Aparência') continue;
-    button.disabled = false;
-    button.title = 'Personalizar aparência da loja';
-    if (button.dataset.brandingWired !== '1') {
-      button.dataset.brandingWired = '1';
-      button.addEventListener('click', () => openAppearance(store));
-    }
-  }
+  const navigationButtons = [
+    ...root.querySelectorAll('.sidebar .nav-item'),
+    ...root.querySelectorAll('.mobile-nav .nav-item')
+  ];
 
-  for (const button of root.querySelectorAll('.mobile-nav .nav-item')) {
+  for (const button of navigationButtons) {
     const label = button.querySelector('span');
-    if (label?.textContent.trim() !== 'Catálogo' && label?.textContent.trim() !== 'Aparência') continue;
-    label.textContent = 'Aparência';
+    if (label?.textContent.trim() !== 'Aparência') continue;
     const icon = button.querySelector('[data-lucide]');
     if (icon) icon.dataset.lucide = 'palette';
     button.disabled = false;
@@ -116,14 +80,13 @@ let enhancementInFlight = false;
 
 export async function enhancePortalBranding(root = document.querySelector('#app')) {
   if (!root || enhancementInFlight || !root.querySelector('.store-card')) return 0;
-  if (root.querySelector('.store-card-action[data-branding-wired="1"]')) return 0;
+  if (root.querySelector('.nav-item[data-branding-wired="1"]')) return 0;
   enhancementInFlight = true;
   try {
     const session = await portalSession();
     const stores = Array.isArray(session?.stores) ? session.stores : [];
     if (!stores.length) return 0;
     strategicPortalCopy(root, session);
-    wireStoreCards(root, stores);
     wireAppearanceNavigation(root, stores[0]);
     return stores.length;
   } finally {
