@@ -6,6 +6,7 @@ import { runDueDataPlaneJobs } from './data-plane-provider-runner.js';
 import { dispatchTenantRequest } from './tenant-dispatch.js';
 import { runDueDomainJobs } from './domain-job-scheduler.js';
 import { handlePortalAuthConfig } from './portal-auth-config.js';
+import { handlePortalBrandingRequest, servePublicBrandAsset } from './portal-branding.js';
 import { handlePortalStoreCreation } from './portal-store-creation.js';
 import { runDueTenantClassifications } from './tenant-classification-runner.js';
 import { runDueTenantIncrementalClassifications } from './ingestion/incremental-classification-runner.js';
@@ -150,6 +151,13 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
+    // Brand assets use Catalog Engine-owned opaque paths. The Cloudflare Images
+    // provider identifier remains private and is resolved server-side from D1.
+    if (url.pathname.startsWith('/brand-assets/')) {
+      const response = await servePublicBrandAsset(request, env);
+      if (response) return response;
+    }
+
     // Health remains available for infrastructure probes. Admin APIs only exist on
     // Catalog Engine platform/admin hosts, never on a merchant storefront domain.
     if (url.pathname === '/api/health') return app.fetch(request, env, ctx);
@@ -162,6 +170,9 @@ export default {
     if (url.pathname.startsWith('/api/admin/')) {
       if (!isCatalogPlatformHost(request, env)) {
         return storefrontRoutingError({ reason: 'not_found', status: 404 });
+      }
+      if (/^\/api\/admin\/stores\/t_[a-f0-9]{20}\/branding(?:\/logo)?$/.test(url.pathname)) {
+        return handlePortalBrandingRequest(request, env);
       }
       if (
         (url.pathname === '/api/admin/session' && request.method === 'GET') ||
