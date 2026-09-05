@@ -24,12 +24,19 @@ function setText(node, text) {
 }
 
 function navButtons(root) {
-  return [...root.querySelectorAll('.sidebar .nav-item'), ...root.querySelectorAll('.mobile-nav .nav-item')];
+  return [
+    ...root.querySelectorAll('.sidebar .nav-item'),
+    ...root.querySelectorAll('.mobile-nav .nav-item')
+  ];
 }
 
 function ensureMobileAppearanceTarget(root) {
   const mobileButtons = [...root.querySelectorAll('.mobile-nav .nav-item')];
-  if (mobileButtons.some((button) => button.querySelector('span')?.textContent.trim() === 'Aparência')) return;
+  if (
+    mobileButtons.some((button) => button.querySelector('span')?.textContent.trim() === 'Aparência')
+  ) {
+    return;
+  }
 
   const futureDomain = mobileButtons.find(
     (button) => button.querySelector('span')?.textContent.trim() === 'Domínio'
@@ -64,16 +71,34 @@ function wireCatalogNavigation(root, store) {
   }
 }
 
-function storeCardCopy(card, store, source) {
+function storeCardCopy(card, store, { source = null, stateKnown = true } = {}) {
   if (!card || !store?.tenantId) return;
   const bodyCopy = card.querySelector('.store-card-body p');
   const meta = card.querySelectorAll('.store-card-meta > div');
   const action = card.querySelector('.store-card-action');
+  const connected = source?.status === 'active';
 
-  if (source) {
+  if (!stateKnown) {
     setText(
       bodyCopy,
-      'Fonte conectada. O Catalog Engine já reconheceu seu catálogo e está preparando os próximos passos.'
+      'Não foi possível confirmar a fonte agora. Abra o catálogo para tentar novamente sem alterar sua loja.'
+    );
+    if (meta[0]) {
+      setText(meta[0].querySelector('small'), 'Próximo passo');
+      setText(meta[0].querySelector('strong'), 'Consultar fonte');
+    }
+    if (meta[1]) {
+      setText(meta[1].querySelector('small'), 'Jornada');
+      setText(meta[1].querySelector('strong'), 'Marca ✓ → fonte → preview');
+    }
+    if (action) {
+      setText(action.querySelector('span'), 'Abrir catálogo');
+      action.title = `Consultar fonte de ${store.storeName || 'sua loja'}`;
+    }
+  } else if (connected) {
+    setText(
+      bodyCopy,
+      'Fonte conectada. O Catalog Engine reconheceu a origem dos produtos e está pronto para a próxima decisão.'
     );
     if (meta[0]) {
       setText(meta[0].querySelector('small'), 'Próximo passo');
@@ -81,7 +106,7 @@ function storeCardCopy(card, store, source) {
     }
     if (meta[1]) {
       setText(meta[1].querySelector('small'), 'Jornada');
-      setText(meta[1].querySelector('strong'), 'Marca ✓ → catálogo ✓ → preview');
+      setText(meta[1].querySelector('strong'), 'Marca ✓ → fonte ✓ → preview');
     }
     if (action) {
       setText(action.querySelector('span'), 'Ver conexão');
@@ -98,7 +123,7 @@ function storeCardCopy(card, store, source) {
     }
     if (meta[1]) {
       setText(meta[1].querySelector('small'), 'Jornada');
-      setText(meta[1].querySelector('strong'), 'Marca ✓ → catálogo → preview');
+      setText(meta[1].querySelector('strong'), 'Marca ✓ → fonte → preview');
     }
     if (action) {
       setText(action.querySelector('span'), 'Conectar catálogo');
@@ -113,7 +138,7 @@ function storeCardCopy(card, store, source) {
       action.addEventListener('click', () => openSource(store));
     }
   }
-  card.dataset.sourceState = source ? 'connected' : 'empty';
+  card.dataset.sourceState = !stateKnown ? 'unknown' : connected ? 'connected' : 'empty';
 }
 
 let enhancementInFlight = false;
@@ -136,14 +161,14 @@ export async function enhancePortalSourceConnection(root = document.querySelecto
       cards.map(async (card, index) => {
         const store = stores[index];
         if (!store?.tenantId) return;
-        let source = null;
         try {
-          source = await requestPortalSourceState({ tenantId: store.tenantId, token });
+          const source = await requestPortalSourceState({ tenantId: store.tenantId, token });
+          storeCardCopy(card, store, { source, stateKnown: true });
         } catch {
-          // The dialog owns the customer-facing retry/error state. Keep the card actionable
-          // without exposing transport/provider detail from the background enhancement.
+          // Background refresh failure is not equivalent to "no source". Keep the card
+          // actionable and let the explicit dialog own the safe retry/error message.
+          storeCardCopy(card, store, { source: null, stateKnown: false });
         }
-        storeCardCopy(card, store, source);
         card.dataset.sourceWired = '1';
       })
     );
