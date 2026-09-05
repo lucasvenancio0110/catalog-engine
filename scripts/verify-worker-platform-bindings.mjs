@@ -25,7 +25,8 @@ export function inspectWorkerPlatformBindings(payload) {
   const bindings = {
     accountIdPresent: secretNames.has(REQUIRED_BINDINGS[0]),
     apiTokenPresent: secretNames.has(REQUIRED_BINDINGS[1]),
-    imagesPresent: allNames.has('IMAGES')
+    imagesPresent: allNames.has('IMAGES'),
+    brandAssetsR2Present: allNames.has('BRAND_ASSETS')
   };
   const portalAuthBindings = Object.fromEntries(
     PORTAL_AUTH_BINDINGS.map((name) => [name, secretNames.has(name)])
@@ -54,6 +55,9 @@ async function main() {
   }
   if (process.argv.includes('--require-images') && !evidence.bindings.imagesPresent) {
     throw new Error('worker_images_binding_missing');
+  }
+  if (process.argv.includes('--require-brand-assets') && !evidence.bindings.brandAssetsR2Present) {
+    throw new Error('worker_brand_assets_r2_binding_missing');
   }
   if (process.argv.includes('--require-portal-auth') && !evidence.portalAuth.configured) {
     throw new Error('portal_auth_bindings_missing');
