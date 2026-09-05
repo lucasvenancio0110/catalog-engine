@@ -10,13 +10,13 @@ import {
 } from '../src/app/portal-model.js';
 
 describe('customer portal view model', () => {
-  it('maps store lifecycle states to merchant-facing labels', () => {
+  it('maps store lifecycle states to action-oriented merchant labels', () => {
     expect(portalStoreStatus({ setupStatus: 'published' })).toMatchObject({
       label: 'Online',
       tone: 'success'
     });
     expect(portalStoreStatus({ setupStatus: 'configuring' })).toMatchObject({
-      label: 'Configurando',
+      label: 'Preparando loja',
       tone: 'progress'
     });
     expect(portalStoreStatus({ setupStatus: 'suspended' })).toMatchObject({
@@ -25,8 +25,8 @@ describe('customer portal view model', () => {
     });
   });
 
-  it('uses safe merchant-facing domain labels', () => {
-    expect(portalDomainLabel({})).toBe('Domínio ainda não conectado');
+  it('uses safe merchant-facing domain labels without making absence sound like failure', () => {
+    expect(portalDomainLabel({})).toBe('Domínio será configurado antes da publicação');
     expect(
       portalDomainLabel({ domain: { hostname: 'loja.example.com', status: 'pending' } })
     ).toBe('loja.example.com · verificando');
@@ -51,10 +51,13 @@ describe('customer portal view model', () => {
     expect(portalInitials('Fut Store')).toBe('FS');
   });
 
-  it('translates control-plane errors into customer-facing copy', () => {
+  it('translates control-plane and branding errors into customer-facing copy', () => {
     expect(portalApiErrorMessage('insufficient_role')).toContain('acesso');
     expect(portalApiErrorMessage('store_creation_not_entitled')).toContain('beta');
     expect(portalApiErrorMessage('store_limit_reached')).toContain('quantidade de lojas');
+    expect(portalApiErrorMessage('brand_asset_type_unsupported')).toContain('PNG');
+    expect(portalApiErrorMessage('brand_asset_too_large')).toContain('2 MB');
     expect(portalApiErrorMessage('admin_temporarily_unavailable')).not.toContain('D1');
+    expect(portalApiErrorMessage('branding_temporarily_unavailable')).not.toContain('Cloudflare');
   });
 });
