@@ -254,7 +254,7 @@ async function logoBytes(request) {
 
 async function inspectAndNormalizeLogo(env, request) {
   const input = await logoBytes(request);
-  if (!env.IMAGES?.info || !env.IMAGES?.input || !env.IMAGES?.hosted?.upload) {
+  if (!env.IMAGES?.info || !env.IMAGES?.input) {
     throw brandingError('brand_assets_unavailable', 503);
   }
   let info;
@@ -309,13 +309,68 @@ async function inspectAndNormalizeLogo(env, request) {
   };
 }
 
+function r2ObjectKey(tenantId, assetId) {
+  return `branding/${tenantId}/${assetId}.webp`;
+}
+
+async function storeNormalizedLogo(env, tenantId, assetId, normalized) {
+  if (env.BRAND_ASSETS?.put) {
+    const objectKey = r2ObjectKey(tenantId, assetId);
+    try {
+      await env.BRAND_ASSETS.put(objectKey, normalized.bytes, {
+        httpMetadata: {
+          contentType: 'image/webp',
+          cacheControl: 'public, max-age=31536000, immutable'
+        },
+        customMetadata: {
+          catalogEngineAsset: assetId,
+          tenantId,
+          kind: 'logo'
+        }
+      });
+    } catch {
+      throw brandingError('brand_asset_storage_failed', 503);
+    }
+    return { provider: 'cloudflare_r2', providerAssetId: objectKey };
+  }
+
+  if (env.IMAGES?.hosted?.upload) {
+    let hosted;
+    try {
+      hosted = await env.IMAGES.hosted.upload(new Blob([normalized.bytes]).stream(), {
+        filename: `${assetId}.webp`,
+        metadata: { catalogEngineAsset: assetId, tenantId, kind: 'logo' },
+        requireSignedURLs: false
+      });
+    } catch {
+      throw brandingError('brand_asset_storage_failed', 503);
+    }
+    const providerAssetId = String(hosted?.id || '').trim();
+    if (!providerAssetId) throw brandingError('brand_asset_storage_failed', 503);
+    return { provider: 'cloudflare_images', providerAssetId };
+  }
+
+  throw brandingError('brand_assets_unavailable', 503);
+}
+
+async function deleteStoredLogo(env, provider, providerAssetId) {
+  if (!providerAssetId) return;
+  if (provider === 'cloudflare_r2') {
+    await env.BRAND_ASSETS?.delete?.(providerAssetId);
+    return;
+  }
+  if (provider === 'cloudflare_images') {
+    await env.IMAGES?.hosted?.image?.(providerAssetId)?.delete?.();
+  }
+}
+
 async function uploadLogo(db, env, tenantId, principalId, request) {
   const normalized = await inspectAndNormalizeLogo(env, request);
   const assetId = randomAssetId();
   const publicPath = `/brand-assets/${assetId}.webp`;
   const previous = await db
     .prepare(
-      `SELECT asset_id, provider_asset_id
+      `SELECT asset_id, provider, provider_asset_id
          FROM tenant_brand_assets
         WHERE tenant_id=?1 AND asset_kind='logo' AND status='active'
         LIMIT 1`
@@ -323,18 +378,7 @@ async function uploadLogo(db, env, tenantId, principalId, request) {
     .bind(tenantId)
     .first();
 
-  let hosted;
-  try {
-    hosted = await env.IMAGES.hosted.upload(new Blob([normalized.bytes]).stream(), {
-      filename: `${assetId}.webp`,
-      metadata: { catalogEngineAsset: assetId, tenantId, kind: 'logo' },
-      requireSignedURLs: false
-    });
-  } catch {
-    throw brandingError('brand_asset_storage_failed', 503);
-  }
-  const providerAssetId = String(hosted?.id || '').trim();
-  if (!providerAssetId) throw brandingError('brand_asset_storage_failed', 503);
+  const stored = await storeNormalizedLogo(env, tenantId, assetId, normalized);
 
   try {
     const statements = [];
@@ -355,13 +399,14 @@ async function uploadLogo(db, env, tenantId, principalId, request) {
           `INSERT INTO tenant_brand_assets
             (asset_id, tenant_id, asset_kind, provider, provider_asset_id, public_path,
              mime_type, width, height, byte_size, status, created_by_principal_id, created_at, updated_at)
-           VALUES (?1, ?2, 'logo', 'cloudflare_images', ?3, ?4,
-                   'image/webp', ?5, ?6, ?7, 'active', ?8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+           VALUES (?1, ?2, 'logo', ?3, ?4, ?5,
+                   'image/webp', ?6, ?7, ?8, 'active', ?9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
         )
         .bind(
           assetId,
           tenantId,
-          providerAssetId,
+          stored.provider,
+          stored.providerAssetId,
           publicPath,
           normalized.width,
           normalized.height,
@@ -389,13 +434,18 @@ async function uploadLogo(db, env, tenantId, principalId, request) {
           tenantId,
           principalId,
           assetId,
-          JSON.stringify({ mimeType: 'image/webp', width: normalized.width, height: normalized.height })
+          JSON.stringify({
+            mimeType: 'image/webp',
+            width: normalized.width,
+            height: normalized.height,
+            storageBackend: stored.provider
+          })
         )
     );
     await db.batch(statements);
   } catch (error) {
     try {
-      await env.IMAGES.hosted.image(providerAssetId).delete();
+      await deleteStoredLogo(env, stored.provider, stored.providerAssetId);
     } catch {
       // The DB remains authoritative. Orphan cleanup is operational follow-up only.
     }
@@ -404,7 +454,7 @@ async function uploadLogo(db, env, tenantId, principalId, request) {
 
   if (previous?.provider_asset_id) {
     try {
-      await env.IMAGES.hosted.image(previous.provider_asset_id).delete();
+      await deleteStoredLogo(env, previous.provider, previous.provider_asset_id);
     } catch {
       // Replaced provider bytes are no longer addressable through Catalog Engine.
     }
@@ -421,7 +471,7 @@ async function uploadLogo(db, env, tenantId, principalId, request) {
 async function deleteLogo(db, env, tenantId, principalId) {
   const current = await db
     .prepare(
-      `SELECT asset_id, provider_asset_id
+      `SELECT asset_id, provider, provider_asset_id
          FROM tenant_brand_assets
         WHERE tenant_id=?1 AND asset_kind='logo' AND status='active'
         LIMIT 1`
@@ -455,7 +505,7 @@ async function deleteLogo(db, env, tenantId, principalId) {
   ]);
 
   try {
-    await env.IMAGES?.hosted?.image(current.provider_asset_id).delete();
+    await deleteStoredLogo(env, current.provider, current.provider_asset_id);
   } catch {
     // Public access is already revoked by D1 status/profile state.
   }
@@ -509,7 +559,7 @@ export async function servePublicBrandAsset(request, env) {
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     return new Response('method_not_allowed', { status: 405 });
   }
-  if (!env.CATALOG_DB || !env.IMAGES?.hosted?.image) {
+  if (!env.CATALOG_DB) {
     return new Response('brand_asset_unavailable', { status: 503 });
   }
   const assetId = match[1];
@@ -517,7 +567,7 @@ export async function servePublicBrandAsset(request, env) {
   let row;
   try {
     row = await env.CATALOG_DB.prepare(
-      `SELECT provider_asset_id, mime_type, byte_size
+      `SELECT provider, provider_asset_id, mime_type, byte_size
          FROM tenant_brand_assets
         WHERE asset_id=?1 AND status='active'
         LIMIT 1`
@@ -536,14 +586,32 @@ export async function servePublicBrandAsset(request, env) {
   });
   if (Number(row.byte_size) > 0) headers.set('content-length', String(Number(row.byte_size)));
   if (request.method === 'HEAD') return new Response(null, { status: 200, headers });
-  let bytes;
-  try {
-    bytes = await env.IMAGES.hosted.image(row.provider_asset_id).bytes();
-  } catch {
-    return new Response('brand_asset_unavailable', { status: 503 });
+
+  if (row.provider === 'cloudflare_r2') {
+    if (!env.BRAND_ASSETS?.get) return new Response('brand_asset_unavailable', { status: 503 });
+    let object;
+    try {
+      object = await env.BRAND_ASSETS.get(row.provider_asset_id);
+    } catch {
+      return new Response('brand_asset_unavailable', { status: 503 });
+    }
+    if (!object?.body) return new Response('not_found', { status: 404 });
+    return new Response(object.body, { status: 200, headers });
   }
-  if (!bytes) return new Response('not_found', { status: 404 });
-  return new Response(bytes, { status: 200, headers });
+
+  if (row.provider === 'cloudflare_images') {
+    if (!env.IMAGES?.hosted?.image) return new Response('brand_asset_unavailable', { status: 503 });
+    let bytes;
+    try {
+      bytes = await env.IMAGES.hosted.image(row.provider_asset_id).bytes();
+    } catch {
+      return new Response('brand_asset_unavailable', { status: 503 });
+    }
+    if (!bytes) return new Response('not_found', { status: 404 });
+    return new Response(bytes, { status: 200, headers });
+  }
+
+  return new Response('brand_asset_unavailable', { status: 503 });
 }
 
 export const BRANDING_LIMITS = Object.freeze({
