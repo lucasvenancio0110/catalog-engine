@@ -144,10 +144,11 @@ function fakeDb({ allowTenant = tenantId } = {}) {
         if (statement.sql.includes('INSERT INTO tenant_brand_assets')) {
           state.assets.push({
             asset_id: statement.args[0],
-            provider_asset_id: statement.args[2],
-            public_path: statement.args[3],
+            provider: statement.args[2],
+            provider_asset_id: statement.args[3],
+            public_path: statement.args[4],
             mime_type: 'image/webp',
-            byte_size: statement.args[6],
+            byte_size: statement.args[7],
             status: 'active'
           });
         }
@@ -159,10 +160,11 @@ function fakeDb({ allowTenant = tenantId } = {}) {
   return { db, state };
 }
 
-function env(db, images) {
+function env(db, images, brandAssets) {
   return {
     CATALOG_DB: db,
     IMAGES: images,
+    BRAND_ASSETS: brandAssets,
     ADMIN_AUTH_ISSUER: issuer,
     ADMIN_AUTH_AUDIENCE: audience,
     ADMIN_AUTH_JWKS_URL: jwksUrl
@@ -329,14 +331,43 @@ describe('PB4 tenant branding boundary', () => {
     expect(service.info).toHaveBeenCalledTimes(2);
     expect(service.upload).toHaveBeenCalledTimes(1);
     expect(state.assets).toHaveLength(1);
+    expect(state.assets[0].provider).toBe('cloudflare_images');
     expect(state.assets[0].provider_asset_id).toBe('private-cloudflare-image-id');
     expect(state.profile.logo_path).toBe(payload.logo.path);
   });
 
-  it('serves only active opaque public assets without exposing the provider locator', async () => {
+  it('prefers private R2 storage while keeping Images only for validation and normalization', async () => {
+    const { db, state } = fakeDb();
+    const service = acceptedImageService();
+    const put = vi.fn(async () => undefined);
+    const brandAssets = { put, delete: vi.fn() };
+    const response = await handlePortalBrandingRequest(
+      await authenticatedRequest(`/api/admin/stores/${tenantId}/branding/logo`, auth.token, {
+        method: 'POST',
+        headers: { 'content-type': 'image/png' },
+        body: new Uint8Array([137, 80, 78, 71, 1, 2, 3, 4])
+      }),
+      env(db, service.images, brandAssets)
+    );
+    expect(response.status).toBe(201);
+    const payload = await response.json();
+    expect(service.upload).not.toHaveBeenCalled();
+    expect(put).toHaveBeenCalledTimes(1);
+    expect(String(put.mock.calls[0][0])).toMatch(
+      /^branding\/t_0123456789abcdefabcd\/bas_[a-f0-9]{20}\.webp$/
+    );
+    expect(state.assets).toHaveLength(1);
+    expect(state.assets[0].provider).toBe('cloudflare_r2');
+    expect(state.assets[0].provider_asset_id).toBe(put.mock.calls[0][0]);
+    expect(state.profile.logo_path).toBe(payload.logo.path);
+    expect(JSON.stringify(payload)).not.toContain(String(put.mock.calls[0][0]));
+  });
+
+  it('serves active legacy Images assets without exposing the provider locator', async () => {
     const { db, state } = fakeDb();
     state.assets.push({
       asset_id: 'bas_0123456789abcdefabcd',
+      provider: 'cloudflare_images',
       provider_asset_id: 'private-cloudflare-image-id',
       mime_type: 'image/webp',
       byte_size: 4,
@@ -351,6 +382,29 @@ describe('PB4 tenant branding boundary', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toBe('image/webp');
     expect(response.headers.get('cache-control')).toContain('immutable');
+    expect((await response.arrayBuffer()).byteLength).toBe(4);
+    expect(response.headers.get('location')).toBeNull();
+  });
+
+  it('serves active private R2 assets only through the opaque Catalog Engine path', async () => {
+    const { db, state } = fakeDb();
+    state.assets.push({
+      asset_id: 'bas_0123456789abcdefabcd',
+      provider: 'cloudflare_r2',
+      provider_asset_id: 'branding/t_0123456789abcdefabcd/bas_0123456789abcdefabcd.webp',
+      mime_type: 'image/webp',
+      byte_size: 4,
+      status: 'active'
+    });
+    const get = vi.fn(async () => ({ body: new Blob([new Uint8Array([1, 2, 3, 4])]).stream() }));
+    const response = await servePublicBrandAsset(
+      new Request('https://loja.example.com/brand-assets/bas_0123456789abcdefabcd.webp'),
+      env(db, undefined, { get })
+    );
+    expect(response.status).toBe(200);
+    expect(get).toHaveBeenCalledWith(
+      'branding/t_0123456789abcdefabcd/bas_0123456789abcdefabcd.webp'
+    );
     expect((await response.arrayBuffer()).byteLength).toBe(4);
     expect(response.headers.get('location')).toBeNull();
   });
