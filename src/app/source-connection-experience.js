@@ -29,18 +29,39 @@ function sourceErrorMessage(error) {
   return portalApiErrorMessage(code);
 }
 
-function providerCard() {
+function providerCard({ connected = false } = {}) {
   return el('div', { className: 'source-provider-card' }, [
     el('div', { className: 'source-provider-mark', text: 'Y' }),
     el('div', { className: 'source-provider-copy' }, [
-      el('strong', { text: 'Yupoo' }),
-      el('span', { text: 'Conector disponível no beta' })
+      el('strong', { text: connected ? 'Yupoo conectado' : 'Yupoo' }),
+      el('span', { text: connected ? 'Fonte verificada e protegida' : 'Conector disponível no beta' })
     ]),
-    el('span', { className: 'source-provider-state', text: 'Disponível' })
+    el('span', { className: 'source-provider-state', text: connected ? 'Ativo' : 'Disponível' })
   ]);
 }
 
-function connectedView({ close }) {
+function connectedView({ close, onDefineImport }) {
+  const actions = [];
+  if (typeof onDefineImport === 'function') {
+    const define = el('button', {
+      className: 'source-primary-button',
+      text: 'Definir importação',
+      type: 'button'
+    });
+    define.addEventListener('click', async () => {
+      await close({ notify: false });
+      onDefineImport();
+    });
+    actions.push(define);
+  }
+  const back = el('button', {
+    className: 'source-secondary-button',
+    text: 'Voltar para minhas lojas',
+    type: 'button'
+  });
+  back.addEventListener('click', () => close());
+  actions.push(back);
+
   return el('div', { className: 'source-content source-content--success' }, [
     el('div', { className: 'source-success-mark', text: '✓' }),
     el('span', { className: 'source-kicker', text: 'Fonte verificada' }),
@@ -48,25 +69,17 @@ function connectedView({ close }) {
     el('p', {
       text: 'O Yupoo foi reconhecido e salvo com segurança. O endereço real fica protegido dentro do Catalog Engine.'
     }),
-    providerCard(),
+    providerCard({ connected: true }),
     el('div', { className: 'source-next-step' }, [
       el('small', { text: 'Próximo passo' }),
       el('strong', { text: 'Definir o que será importado' }),
-      el('span', { text: 'A próxima etapa usa apenas decisões e estados reais do catálogo, sem fingir que a importação já terminou.' })
+      el('span', { text: 'A próxima etapa registra uma decisão real antes de autorizar uma nova importação inicial.' })
     ]),
-    (() => {
-      const button = el('button', {
-        className: 'source-secondary-button',
-        text: 'Voltar para minhas lojas',
-        type: 'button'
-      });
-      button.addEventListener('click', close);
-      return button;
-    })()
+    ...actions
   ]);
 }
 
-function formView({ store, getAccessToken, setBody, close }) {
+function formView({ store, getAccessToken, setBody, close, onDefineImport }) {
   const form = el('form', { className: 'source-form' });
   const label = el('label', { className: 'source-field' }, [
     el('span', { text: 'Link do catálogo Yupoo' })
@@ -128,7 +141,7 @@ function formView({ store, getAccessToken, setBody, close }) {
         token,
         sourceUrl: input.value
       });
-      setBody(connectedView({ close }));
+      setBody(connectedView({ close, onDefineImport }));
     } catch (error) {
       errorBox.textContent = sourceErrorMessage(error);
       errorBox.hidden = false;
@@ -149,7 +162,7 @@ function focusableElements(panel) {
   );
 }
 
-export async function openSourceConnectionExperience({ store, getAccessToken, onDone }) {
+export async function openSourceConnectionExperience({ store, getAccessToken, onDone, onDefineImport }) {
   if (!store?.tenantId || typeof getAccessToken !== 'function') return;
   const previousFocus = document.activeElement;
   const overlay = el('div', { className: 'source-overlay' });
@@ -171,14 +184,14 @@ export async function openSourceConnectionExperience({ store, getAccessToken, on
   }
 
   let closed = false;
-  async function close() {
+  async function close({ notify = true } = {}) {
     if (closed) return;
     closed = true;
     document.removeEventListener('keydown', onKeydown);
     overlay.remove();
     document.documentElement.classList.remove('source-dialog-open');
     if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
-    if (typeof onDone === 'function') await onDone();
+    if (notify && typeof onDone === 'function') await onDone();
   }
 
   function onKeydown(event) {
@@ -201,7 +214,7 @@ export async function openSourceConnectionExperience({ store, getAccessToken, on
     }
   }
 
-  closeButton.addEventListener('click', close);
+  closeButton.addEventListener('click', () => close());
   overlay.addEventListener('mousedown', (event) => {
     if (event.target === overlay) close();
   });
@@ -234,9 +247,9 @@ export async function openSourceConnectionExperience({ store, getAccessToken, on
     const token = await getAccessToken();
     const source = await requestPortalSourceState({ tenantId: store.tenantId, token });
     if (source) {
-      setBody(connectedView({ close }));
+      setBody(connectedView({ close, onDefineImport }));
     } else {
-      setBody(formView({ store, getAccessToken, setBody, close }));
+      setBody(formView({ store, getAccessToken, setBody, close, onDefineImport }));
     }
   } catch (error) {
     const retry = el('button', {
