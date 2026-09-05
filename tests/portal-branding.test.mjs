@@ -39,7 +39,13 @@ async function authFixture() {
   Object.assign(publicJwk, { kid: 'pb4-test-key', alg: 'RS256', use: 'sig' });
   const now = Math.floor(Date.now() / 1000);
   const header = { alg: 'RS256', typ: 'JWT', kid: 'pb4-test-key' };
-  const payload = { iss: issuer, aud: audience, sub: 'merchant-private-subject', iat: now - 5, exp: now + 3600 };
+  const payload = {
+    iss: issuer,
+    aud: audience,
+    sub: 'merchant-private-subject',
+    iat: now - 5,
+    exp: now + 3600
+  };
   const signingInput = `${base64UrlJson(header)}.${base64UrlJson(payload)}`;
   const signature = await crypto.subtle.sign(
     'RSASSA-PKCS1-v1_5',
@@ -95,7 +101,11 @@ function fakeDb({ allowTenant = tenantId } = {}) {
             return state.assets.find((asset) => asset.status === 'active') || null;
           }
           if (sql.includes('FROM tenant_brand_assets') && sql.includes('asset_id=?1')) {
-            return state.assets.find((asset) => asset.asset_id === statement.args[0] && asset.status === 'active') || null;
+            return (
+              state.assets.find(
+                (asset) => asset.asset_id === statement.args[0] && asset.status === 'active'
+              ) || null
+            );
           }
           throw new Error(`unexpected_first:${sql}`);
         },
@@ -117,7 +127,10 @@ function fakeDb({ allowTenant = tenantId } = {}) {
     async batch(statements) {
       state.batches.push(statements);
       for (const statement of statements) {
-        if (statement.sql.includes('UPDATE tenant_store_profiles') && statement.sql.includes('store_name=')) {
+        if (
+          statement.sql.includes('UPDATE tenant_store_profiles') &&
+          statement.sql.includes('store_name=')
+        ) {
           state.profile = {
             ...state.profile,
             store_name: statement.args[0],
@@ -163,14 +176,34 @@ async function authenticatedRequest(path, token, options = {}) {
   });
 }
 
+function acceptedImageService() {
+  const upload = vi.fn(async () => ({ id: 'private-cloudflare-image-id' }));
+  const outputResponse = () =>
+    new Response(new Uint8Array([82, 73, 70, 70]), {
+      status: 200,
+      headers: { 'content-type': 'image/webp' }
+    });
+  const output = vi.fn(() => ({ response: outputResponse }));
+  const transform = vi.fn(() => ({ output }));
+  const input = vi.fn(() => ({ transform }));
+  const info = vi
+    .fn()
+    .mockResolvedValueOnce({ format: 'png', width: 512, height: 256 })
+    .mockResolvedValueOnce({ format: 'webp', width: 512, height: 256 });
+  return { images: { info, input, hosted: { upload } }, upload, info, input, transform, output };
+}
+
 let auth;
 beforeEach(async () => {
   clearAdminAuthJwksCacheForTests();
   auth = await authFixture();
-  vi.stubGlobal('fetch', vi.fn(async (url) => {
-    if (String(url) === jwksUrl) return auth.jwks.clone();
-    throw new Error('unexpected_fetch');
-  }));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url) => {
+      if (String(url) === jwksUrl) return auth.jwks.clone();
+      throw new Error('unexpected_fetch');
+    })
+  );
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -191,7 +224,11 @@ describe('PB4 tenant branding boundary', () => {
       primaryColor: '#8A7DFF',
       primaryTextColor: '#000000'
     });
-    expect(payload.themes.map((theme) => theme.key)).toEqual(['premium-dark', 'stadium', 'clean']);
+    expect(payload.themes.map((theme) => theme.key)).toEqual([
+      'premium-dark',
+      'stadium',
+      'clean'
+    ]);
     expect(JSON.stringify(payload)).not.toMatch(/provider_asset_id|cloudflare|database_id|runtime/i);
   });
 
@@ -250,8 +287,50 @@ describe('PB4 tenant branding boundary', () => {
     expect(await svg.json()).toEqual({ error: 'brand_asset_type_unsupported' });
     expect(upload).not.toHaveBeenCalled();
 
+    const oversized = await handlePortalBrandingRequest(
+      await authenticatedRequest(`/api/admin/stores/${tenantId}/branding/logo`, auth.token, {
+        method: 'POST',
+        headers: {
+          'content-type': 'image/png',
+          'content-length': String(BRANDING_LIMITS.maxLogoBytes + 1)
+        },
+        body: new Uint8Array([137, 80, 78, 71])
+      }),
+      env(db, images)
+    );
+    expect(oversized.status).toBe(413);
+    expect(await oversized.json()).toEqual({ error: 'brand_asset_too_large' });
+    expect(upload).not.toHaveBeenCalled();
+
     expect(BRANDING_LIMITS.acceptedLogoTypes).not.toContain('image/svg+xml');
     expect(BRANDING_LIMITS.maxLogoBytes).toBe(2_097_152);
+  });
+
+  it('normalizes and stores an accepted logo behind an opaque Catalog Engine path', async () => {
+    const { db, state } = fakeDb();
+    const service = acceptedImageService();
+    const response = await handlePortalBrandingRequest(
+      await authenticatedRequest(`/api/admin/stores/${tenantId}/branding/logo`, auth.token, {
+        method: 'POST',
+        headers: { 'content-type': 'image/png' },
+        body: new Uint8Array([137, 80, 78, 71, 1, 2, 3, 4])
+      }),
+      env(db, service.images)
+    );
+    expect(response.status).toBe(201);
+    const payload = await response.json();
+    expect(payload.logo).toMatchObject({
+      width: 512,
+      height: 256,
+      mimeType: 'image/webp'
+    });
+    expect(payload.logo.path).toMatch(/^\/brand-assets\/bas_[a-f0-9]{20}\.webp$/);
+    expect(JSON.stringify(payload)).not.toContain('private-cloudflare-image-id');
+    expect(service.info).toHaveBeenCalledTimes(2);
+    expect(service.upload).toHaveBeenCalledTimes(1);
+    expect(state.assets).toHaveLength(1);
+    expect(state.assets[0].provider_asset_id).toBe('private-cloudflare-image-id');
+    expect(state.profile.logo_path).toBe(payload.logo.path);
   });
 
   it('serves only active opaque public assets without exposing the provider locator', async () => {
@@ -272,7 +351,7 @@ describe('PB4 tenant branding boundary', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toBe('image/webp');
     expect(response.headers.get('cache-control')).toContain('immutable');
-    expect(await response.arrayBuffer()).toHaveLength(4);
+    expect((await response.arrayBuffer()).byteLength).toBe(4);
     expect(response.headers.get('location')).toBeNull();
   });
 
