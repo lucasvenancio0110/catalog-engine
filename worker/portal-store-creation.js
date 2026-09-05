@@ -127,6 +127,23 @@ async function planPortalStoreRequest(request, principalId) {
   }
 }
 
+function canonicalStoreCreationRequest(request, plan) {
+  const headers = new Headers(request.headers);
+  headers.set('content-type', 'application/json');
+  headers.delete('content-length');
+  return new Request(request.url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      storeName: plan.profile.storeName,
+      slug: plan.tenant.slug,
+      themeKey: plan.profile.themeKey,
+      currency: plan.profile.currency,
+      customDomain: plan.domain?.hostname || null
+    })
+  });
+}
+
 async function responseErrorCode(response) {
   try {
     const payload = await response.clone().json();
@@ -146,7 +163,7 @@ export async function handlePortalStoreCreation({ request, env, ctx, principalId
   }
 
   await requireStoreCreationEntitlement(env.CATALOG_DB, principalId);
-  const response = await delegate(request, env, ctx);
+  const response = await delegate(canonicalStoreCreationRequest(request, plan), env, ctx);
 
   if (response.status === 201) {
     try {
