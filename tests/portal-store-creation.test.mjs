@@ -44,6 +44,9 @@ function storedRow(slug = 'loja-beta') {
 function fakeDb(state) {
   return {
     prepare(sql) {
+      if (/\btenant_profiles\b/.test(sql)) {
+        throw new Error('unknown_table:tenant_profiles');
+      }
       return {
         bind() {
           return {
