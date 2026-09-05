@@ -88,7 +88,7 @@ async function loadExactCreatedStore(db, plan, principalId) {
         AND m.principal_id=?1
         AND m.role='owner'
         AND m.status='active'
-       JOIN tenant_profiles p ON p.tenant_id=t.tenant_id
+       JOIN tenant_store_profiles p ON p.tenant_id=t.tenant_id
        LEFT JOIN tenant_provisioning_runs pr
          ON pr.tenant_id=t.tenant_id
         AND pr.provisioning_id=?2
