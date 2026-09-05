@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS tenant_import_decisions (
   source_locator_ref TEXT NOT NULL,
   decision_kind TEXT NOT NULL CHECK (decision_kind = 'full_connected_source'),
   status TEXT NOT NULL DEFAULT 'confirmed' CHECK (status = 'confirmed'),
-  authority TEXT NOT NULL CHECK (authority IN ('merchant', 'preexisting_import')),
+  authority TEXT NOT NULL CHECK (authority IN ('merchant', 'preexisting_import', 'system_canary')),
   decided_by_principal_id TEXT,
   confirmed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS tenant_import_decisions (
   FOREIGN KEY (tenant_id) REFERENCES catalog_tenants(tenant_id) ON DELETE CASCADE,
   CHECK (
     (authority = 'merchant' AND decided_by_principal_id IS NOT NULL)
-    OR (authority = 'preexisting_import' AND decided_by_principal_id IS NULL)
+    OR (authority IN ('preexisting_import', 'system_canary') AND decided_by_principal_id IS NULL)
   )
 );
 
@@ -27,8 +27,9 @@ CREATE INDEX IF NOT EXISTS idx_tenant_import_decisions_confirmed
 
 -- Preserve already-running/completed initial-import reality without inventing a
 -- merchant click. Existing initial jobs remain authoritative and are labeled as a
--- compatibility decision. Fresh sources without an initial job remain blocked
--- until an explicit PB6 merchant decision is recorded.
+-- compatibility decision. Fresh merchant sources without an initial job remain
+-- blocked until an explicit PB6 merchant decision is recorded. `system_canary` is
+-- reserved for the isolated automatic-import production canary fixture.
 INSERT OR IGNORE INTO tenant_import_decisions (
   tenant_id,
   source_key,
