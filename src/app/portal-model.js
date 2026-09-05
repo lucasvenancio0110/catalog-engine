@@ -92,7 +92,20 @@ export function portalApiErrorMessage(code = '') {
     brand_asset_too_large: 'A logo deve ter no máximo 2 MB.',
     brand_asset_invalid_image: 'Não conseguimos validar essa imagem. Escolha outro arquivo.',
     brand_asset_dimensions_invalid: 'Use uma logo entre 32 e 4096 pixels por lado.',
-    brand_asset_storage_failed: 'Não foi possível salvar a logo agora. Sua configuração anterior foi preservada.'
+    brand_asset_storage_failed: 'Não foi possível salvar a logo agora. Sua configuração anterior foi preservada.',
+    invalid_supplier_url: 'Cole um link HTTPS válido do seu catálogo Yupoo.',
+    unsupported_supplier_host: 'Neste beta, conecte um catálogo no formato sualoja.x.yupoo.com.',
+    unsupported_supplier_scope: 'Esse link do Yupoo não representa um catálogo ou categoria compatível. Use o link principal de álbuns.',
+    supplier_source_unreachable: 'Não conseguimos acessar esse catálogo agora. Confira o link e tente novamente.',
+    supplier_redirect_rejected: 'Esse link redirecionou para um endereço não permitido. Use o link original do catálogo Yupoo.',
+    supplier_redirect_limit: 'Esse catálogo redirecionou muitas vezes. Tente usar o endereço principal do Yupoo.',
+    supplier_source_not_found: 'O catálogo não foi encontrado nesse endereço. Confira o link antes de continuar.',
+    supplier_source_unavailable: 'O catálogo respondeu com uma indisponibilidade temporária. Tente novamente em instantes.',
+    source_change_requires_reset: 'Esse catálogo já possui dados importados. Trocar a fonte exige uma redefinição segura antes de continuar.',
+    source_state_unavailable: 'Não foi possível consultar a fonte da loja agora. Tente novamente em instantes.',
+    source_state_invalid: 'A fonte salva não pôde ser confirmada com segurança. Nenhuma alteração foi feita.',
+    source_connection_failed: 'Não foi possível conectar o catálogo agora. Tente novamente em instantes.',
+    source_connection_response_invalid: 'A fonte foi processada, mas o portal não conseguiu confirmar o resultado com segurança. Atualize a página antes de tentar novamente.'
   };
   return messages[key] || 'Não foi possível concluir essa ação agora.';
 }
