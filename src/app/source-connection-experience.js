@@ -36,24 +36,23 @@ function providerCard() {
       el('strong', { text: 'Yupoo' }),
       el('span', { text: 'Conector disponível no beta' })
     ]),
-    el('span', { className: 'source-provider-state', text: 'Ativo' })
+    el('span', { className: 'source-provider-state', text: 'Disponível' })
   ]);
 }
 
-function connectedView({ source, close }) {
-  const scopeText = source?.scopeKind === 'category' ? 'Categoria conectada' : 'Catálogo conectado';
+function connectedView({ close }) {
   return el('div', { className: 'source-content source-content--success' }, [
     el('div', { className: 'source-success-mark', text: '✓' }),
     el('span', { className: 'source-kicker', text: 'Fonte verificada' }),
-    el('h2', { text: scopeText }),
+    el('h2', { text: 'Fonte conectada.' }),
     el('p', {
-      text: 'A fonte foi reconhecida e salva com segurança. O endereço real fica protegido dentro do Catalog Engine.'
+      text: 'O Yupoo foi reconhecido e salvo com segurança. O endereço real fica protegido dentro do Catalog Engine.'
     }),
     providerCard(),
     el('div', { className: 'source-next-step' }, [
       el('small', { text: 'Próximo passo' }),
       el('strong', { text: 'Definir o que será importado' }),
-      el('span', { text: 'O Catalog Engine vai usar apenas estados reais do catálogo nas próximas etapas.' })
+      el('span', { text: 'A próxima etapa usa apenas decisões e estados reais do catálogo, sem fingir que a importação já terminou.' })
     ]),
     (() => {
       const button = el('button', {
@@ -92,6 +91,7 @@ function formView({ store, getAccessToken, setBody, close }) {
 
   const errorBox = el('div', { className: 'source-form-error' });
   errorBox.hidden = true;
+  errorBox.setAttribute('role', 'alert');
 
   const submit = el('button', {
     className: 'source-primary-button',
@@ -123,12 +123,12 @@ function formView({ store, getAccessToken, setBody, close }) {
     input.disabled = true;
     try {
       const token = await getAccessToken();
-      const source = await requestPortalSourceConnection({
+      await requestPortalSourceConnection({
         tenantId: store.tenantId,
         token,
         sourceUrl: input.value
       });
-      setBody(connectedView({ source, close }));
+      setBody(connectedView({ close }));
     } catch (error) {
       errorBox.textContent = sourceErrorMessage(error);
       errorBox.hidden = false;
@@ -141,6 +141,12 @@ function formView({ store, getAccessToken, setBody, close }) {
 
   queueMicrotask(() => input.focus());
   return form;
+}
+
+function focusableElements(panel) {
+  return [...panel.querySelectorAll('button:not([disabled]), input:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])')].filter(
+    (node) => !node.hidden
+  );
 }
 
 export async function openSourceConnectionExperience({ store, getAccessToken, onDone }) {
@@ -171,12 +177,28 @@ export async function openSourceConnectionExperience({ store, getAccessToken, on
     document.removeEventListener('keydown', onKeydown);
     overlay.remove();
     document.documentElement.classList.remove('source-dialog-open');
-    if (typeof onDone === 'function') await onDone();
     if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
+    if (typeof onDone === 'function') await onDone();
   }
 
   function onKeydown(event) {
-    if (event.key === 'Escape') close();
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = focusableElements(panel);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   }
 
   closeButton.addEventListener('click', close);
@@ -212,7 +234,7 @@ export async function openSourceConnectionExperience({ store, getAccessToken, on
     const token = await getAccessToken();
     const source = await requestPortalSourceState({ tenantId: store.tenantId, token });
     if (source) {
-      setBody(connectedView({ source, close }));
+      setBody(connectedView({ close }));
     } else {
       setBody(formView({ store, getAccessToken, setBody, close }));
     }
@@ -222,9 +244,7 @@ export async function openSourceConnectionExperience({ store, getAccessToken, on
       text: 'Tentar novamente',
       type: 'button'
     });
-    retry.addEventListener('click', () => {
-      close().then(() => openSourceConnectionExperience({ store, getAccessToken, onDone }));
-    });
+    retry.addEventListener('click', () => window.location.reload());
     setBody(
       el('div', { className: 'source-content source-content--error' }, [
         el('span', { className: 'source-kicker', text: 'Não foi possível carregar' }),
