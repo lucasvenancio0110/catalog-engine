@@ -179,8 +179,9 @@ describe('PB5 portal source connection client', () => {
 
     expect(appHtml).toContain('/src/app/source-connection-bootstrap.js');
     expect(brandingBootstrap).not.toContain("label.textContent = 'Aparência'");
-    expect(sourceBootstrap).toContain("=== 'Catálogo'");
+    expect(sourceBootstrap).toContain("!== 'Catálogo'");
     expect(sourceBootstrap).toContain("=== 'Aparência'");
+    expect(sourceBootstrap).toContain("setText(futureDomain.querySelector('span'), 'Aparência')");
     expect(sourceBootstrap).not.toMatch(/sourceUrl|canonicalUrl|sourceLocatorRef/);
   });
 });
