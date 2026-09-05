@@ -54,16 +54,16 @@ function strategicPortalCopy(root, session) {
   setText(values[2], 'Sua marca no seu próprio domínio');
 }
 
-function wireAppearanceNavigation(root, store) {
-  if (!store?.tenantId) return;
-  const navigationButtons = [
+function appearanceButtons(root) {
+  return [
     ...root.querySelectorAll('.sidebar .nav-item'),
     ...root.querySelectorAll('.mobile-nav .nav-item')
-  ];
+  ].filter((button) => button.querySelector('span')?.textContent.trim() === 'Aparência');
+}
 
-  for (const button of navigationButtons) {
-    const label = button.querySelector('span');
-    if (label?.textContent.trim() !== 'Aparência') continue;
+function wireAppearanceNavigation(root, store) {
+  if (!store?.tenantId) return;
+  for (const button of appearanceButtons(root)) {
     const icon = button.querySelector('[data-lucide]');
     if (icon) icon.dataset.lucide = 'palette';
     button.disabled = false;
@@ -80,7 +80,8 @@ let enhancementInFlight = false;
 
 export async function enhancePortalBranding(root = document.querySelector('#app')) {
   if (!root || enhancementInFlight || !root.querySelector('.store-card')) return 0;
-  if (root.querySelector('.nav-item[data-branding-wired="1"]')) return 0;
+  const targets = appearanceButtons(root);
+  if (targets.length && targets.every((button) => button.dataset.brandingWired === '1')) return 0;
   enhancementInFlight = true;
   try {
     const session = await portalSession();
