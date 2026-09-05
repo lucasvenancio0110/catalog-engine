@@ -8,14 +8,19 @@ This document records the implementation/proof level that is true now. Focused n
 
 ## Live GitHub / production baseline
 
-Current integrated production baseline before the PB3 closure documentation PR:
+Current integrated production baseline:
 
-- SHA: `c42e9a5e2d67920678b998d64c6a0923546a7289`;
-- commit: `PB3: fix replay currency schema lookup (#202)`;
-- trusted application deploy: run `33947883746`, deployment **#125**, **SUCCESS** on that exact SHA;
+- SHA: `dfff6204e42a862c42cc091b70fc06243016e155`;
+- commit: `PB4: recover logo storage with private R2 (#205)`;
+- trusted application deploy: run `33952906777`, deployment **#127**, successful on rerun against that exact SHA;
 - application deploy status: `catalog-engine/application-deploy = success`;
 - deploy quality/build/migrations/Worker/static assets/binding verification/automation-boundary checks/catalog smoke: success;
-- applicable tenant import/data-plane/incremental/verification/promotion/finalization/removal/recovery canary status contexts on the exact SHA are green.
+- repository deploy quality proof: 145 test files / 714 tests green;
+- private R2 brand-asset bucket `catalog-engine-brand-assets` provisioned by trusted deployment and bound to the Worker as `BRAND_ASSETS`;
+- Images binding remains available for bounded image inspection/normalization;
+- PB4 remains **IN PROGRESS** because its real-merchant logo persistence/reload acceptance proof is still pending.
+
+Detailed PB4 runtime evidence and the remaining acceptance gate are recorded in `PB4-PRODUCTION-CHECKPOINT-2026-09-05.md`.
 
 Current production activation boundary remains:
 
@@ -36,6 +41,8 @@ Current production foundations include:
 - platform Worker `catalog-engine`;
 - production dispatch namespace `catalog-engine-production`;
 - control-plane D1 binding `CATALOG_DB`;
+- private R2 `BRAND_ASSETS` binding for tenant-owned normalized branding assets;
+- Images binding for bounded image inspection/normalization;
 - per-tenant isolated D1 + User Worker model for non-default tenants;
 - scan/detail Queues and DLQs for initial tenant import;
 - five-minute scheduler;
@@ -44,7 +51,7 @@ Current production foundations include:
 - membership/role checks for tenant-scoped authority;
 - tenant provisioning checkpoints, isolated runtime provisioning, Queue initial import, CEI/classification, verification, custom-domain path and publication gate.
 
-Supplier URLs, raw provider IDs, source media locators, runtime locators, D1/Cloudflare identifiers, credentials and private CEI evidence remain private.
+Supplier URLs, raw provider IDs, source media locators, runtime locators, D1/Cloudflare identifiers, R2 object keys, credentials and private CEI evidence remain private.
 
 ## Default production tenant
 
@@ -66,7 +73,7 @@ The first real merchant beta tenant is separate from this compatibility tenant. 
 - M9B: **IN PROGRESS — PAUSED** by the owner-authorized first-merchant PB sequencing decision.
 - M9C/M9D: planned/unproven.
 
-Known M9B visual debt remains deferred unless it directly blocks the PB customer journey.
+Known M9B visual debt remains deferred unless it directly blocks the PB customer journey. The active PB0–PB12 sequencing exception in `PORTAL-BETA-EXECUTION.md` remains the temporary execution order; after PB12 the default return point is the paused M9B work unless the owner makes another explicit sequencing decision.
 
 ## First real merchant PB campaign — current truth
 
@@ -78,8 +85,8 @@ Detailed order and per-slice contracts remain owned by `PORTAL-BETA-EXECUTION.md
 | PB1 — Authentication Foundation | **PRODUCTION GREEN** | Auth0 SPA/API configured; all four production OIDC runtime values deployed; real signup/login/callback/session/logout path reached the production portal. Blank deep-callback asset bug was repaired before final proof. |
 | PB2 — Account + Beta Entitlement | **PRODUCTION GREEN** | PR #192 + migration repair #193; production migration `0023`; audited pilot entitlement granted to the authenticated opaque principal; portal showed `0/1` before store creation. |
 | PB3 — Create Store | **PRODUCTION GREEN** | Real merchant created **CROCCODILOS** through `app.catalogoengine.com`; final integrated SHA `c42e9a5e2d67920678b998d64c6a0923546a7289`; deploy #125/run `33947883746` success; reload returned the persisted store and `1/1` allowance. Detailed evidence: `PB3-CLOSURE-2026-09-05.md`. |
-| PB4 — Branding | **PLANNED — NEXT** | Implement validated tenant-owned profile/theme/colors/contacts plus safe logo asset ownership/storage. |
-| PB5–PB12 | **PLANNED** | Preserve approved order and per-slice gates. |
+| PB4 — Branding | **IN PROGRESS — production runtime proven, merchant acceptance pending** | PR #204 shipped branding/profile/validation; PR #205 recovered logo storage to private R2. Exact main `dfff6204e42a862c42cc091b70fc06243016e155`; deploy #127/run `33952906777` success; R2 `BRAND_ASSETS` + Images bindings verified. Remaining gate: CROCCODILOS must save a real logo, reload and recover it through the opaque asset path. |
+| PB5–PB12 | **PLANNED** | Preserve approved order and per-slice gates. PB5 must not begin until PB4 reaches its Definition of Done and this state is updated again. |
 
 ## PB1 authentication authority
 
@@ -143,33 +150,49 @@ The first-real-user proof exposed and repaired four integration defects before P
 
 The final merchant attempt succeeded only after all four repairs were integrated and deployment #125 was green.
 
-## PB4 — next approved execution point
+## PB4 — active execution point
 
-The active next slice is **PB4 — Branding**.
+PB4 implementation is now integrated and its production infrastructure boundary is proven, but PB4 is **not PRODUCTION GREEN yet**.
 
-PB4 must provide:
+The deployed PB4 path provides:
 
 - validated store/profile name editing;
 - supported theme preset selection;
-- primary/secondary semantic colors with deterministic accessible fallback/rejection;
+- primary/secondary semantic colors with deterministic accessible text fallback;
 - optional WhatsApp/Instagram fields;
 - safe merchant logo upload restricted to approved raster formats for beta;
 - MIME, byte-size, decoded-image and dimension validation;
+- bounded WebP normalization through the Images binding;
+- private R2 persistence through `BRAND_ASSETS`;
 - tenant ownership/isolation for uploaded assets;
-- public profile state containing only a safe tenant-owned logo identity/path;
+- public profile state containing only a safe tenant-owned opaque logo path;
 - mobile-first Appearance/branding UX with loading, success, error, disabled, focus and touch states;
 - no arbitrary merchant HTML/JavaScript/CSS;
 - no SVG upload until a separate sanitization contract exists;
 - no base64 image blob in D1;
 - no supplier-hosted logo dependency.
 
-The repository currently has `tenant_store_profiles.logo_path`, theme/color/contact fields and runtime projection support, but no runtime-writable tenant asset store is bound to the main Worker. PB4 must therefore make an explicit safe storage implementation decision and document it in the same PR that activates uploads.
+The first real CROCCODILOS PB4 attempt proved the profile boundary and exposed a production-only storage mismatch: hosted Cloudflare Images storage was unavailable even though image validation/transformation succeeded. PR #205 recovered the implementation to private R2. Deployment #127 then provisioned `catalog-engine-brand-assets`, bound `BRAND_ASSETS`, deployed the Worker and passed smoke.
+
+Remaining PB4 acceptance proof:
+
+```text
+CROCCODILOS Appearance
+-> upload same valid raster logo
+-> save identity succeeds
+-> reload/re-enter portal
+-> branding values + logo persist
+-> opaque /brand-assets/bas_<id>.webp loads
+-> no private R2/provider locator leaks
+```
+
+Only after that real merchant proof may PB4 be labeled **PRODUCTION GREEN** and PB5 start.
 
 ## Explicitly not confirmed / not Green
 
 Do not claim without later evidence:
 
-- PB4 tenant branding/logo pipeline;
+- PB4 **PRODUCTION GREEN** or real CROCCODILOS logo persistence/reload;
 - real beta source connected through portal UX;
 - first real beta isolated import/CEI/verification completion;
 - authenticated private preview;
@@ -183,6 +206,6 @@ Do not claim without later evidence:
 
 ## Current execution rule
 
-Execute **PB4 — Branding** next under the owner-authorized PB0–PB12 sequencing exception.
+Complete the final **PB4 — Branding** real-merchant persistence proof on CROCCODILOS next.
 
-Do not begin PB5 until PB4 reaches the evidence level required by its Definition of Done and this living state is updated again. Recurring tenant Intelligent Sync remains disabled throughout the PB campaign unless the owner separately authorizes M7E.
+Do not begin PB5 until the real logo save/reload proof satisfies PB4's Definition of Done and this living state is updated again. Recurring tenant Intelligent Sync remains disabled throughout the PB campaign unless the owner separately authorizes M7E.
