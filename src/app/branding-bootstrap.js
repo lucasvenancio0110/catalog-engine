@@ -113,20 +113,18 @@ function wireAppearanceNavigation(root, store) {
 }
 
 let enhancementInFlight = false;
-let lastStoreKey = '';
 
 export async function enhancePortalBranding(root = document.querySelector('#app')) {
   if (!root || enhancementInFlight || !root.querySelector('.store-card')) return 0;
+  if (root.querySelector('.store-card-action[data-branding-wired="1"]')) return 0;
   enhancementInFlight = true;
   try {
     const session = await portalSession();
     const stores = Array.isArray(session?.stores) ? session.stores : [];
     if (!stores.length) return 0;
-    const key = stores.map((store) => store.tenantId).join(',');
     strategicPortalCopy(root, session);
     wireStoreCards(root, stores);
     wireAppearanceNavigation(root, stores[0]);
-    lastStoreKey = key;
     return stores.length;
   } finally {
     enhancementInFlight = false;
@@ -136,10 +134,6 @@ export async function enhancePortalBranding(root = document.querySelector('#app'
 const root = document.querySelector('#app');
 if (root) {
   enhancePortalBranding(root);
-  const observer = new MutationObserver(() => {
-    if (!root.querySelector('.store-card')) return;
-    const current = [...root.querySelectorAll('.store-card h3')].map((node) => node.textContent).join(',');
-    if (!lastStoreKey || current) enhancePortalBranding(root);
-  });
+  const observer = new MutationObserver(() => enhancePortalBranding(root));
   observer.observe(root, { childList: true, subtree: true });
 }
