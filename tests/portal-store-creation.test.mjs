@@ -127,11 +127,18 @@ describe('PB3 portal store creation boundary', () => {
     expect(serialized).not.toMatch(/dataPlaneKey|catalogInstanceId|ownerMembershipId|themeKey|hostname|internal_locator/i);
   });
 
-  it('creates once and replays the durable result without consuming entitlement twice', async () => {
+  it('creates once, delegates the canonical payload, and replays without consuming entitlement twice', async () => {
     const state = { row: null, entitlementReads: 0, storeCountReads: 0, delegateCalls: 0 };
     const env = { CATALOG_DB: fakeDb(state) };
-    const delegate = async () => {
+    const delegate = async (request) => {
       state.delegateCalls += 1;
+      expect(await request.json()).toEqual({
+        storeName: 'Loja Beta',
+        slug: 'loja-beta',
+        themeKey: 'premium-dark',
+        currency: 'BRL',
+        customDomain: null
+      });
       state.row = storedRow();
       return jsonResponse({ store: delegatedStore() }, 201);
     };

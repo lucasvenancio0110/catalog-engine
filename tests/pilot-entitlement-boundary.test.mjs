@@ -83,9 +83,11 @@ describe('PB2 pilot entitlement production boundary', () => {
 
     const replay = boundary.indexOf('const replay = await loadExactCreatedStore');
     const gate = boundary.indexOf('await requireStoreCreationEntitlement(env.CATALOG_DB, principalId)');
-    const mutation = boundary.indexOf('const response = await delegate(request, env, ctx)', gate);
+    const canonicalization = boundary.indexOf('canonicalStoreCreationRequest(request, plan)', gate);
+    const mutation = boundary.indexOf('const response = await delegate(', gate);
     expect(replay).toBeGreaterThan(-1);
     expect(gate).toBeGreaterThan(replay);
+    expect(canonicalization).toBeGreaterThan(gate);
     expect(mutation).toBeGreaterThan(gate);
   });
 });
