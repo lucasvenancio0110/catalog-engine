@@ -253,10 +253,10 @@ async function logoBytes(request) {
 }
 
 async function inspectAndNormalizeLogo(env, request) {
+  const input = await logoBytes(request);
   if (!env.IMAGES?.info || !env.IMAGES?.input || !env.IMAGES?.hosted?.upload) {
     throw brandingError('brand_assets_unavailable', 503);
   }
-  const input = await logoBytes(request);
   let info;
   try {
     info = await env.IMAGES.info(new Blob([input.bytes]).stream());
@@ -532,7 +532,7 @@ export async function servePublicBrandAsset(request, env) {
     'content-type': row.mime_type || 'image/webp',
     'cache-control': 'public, max-age=31536000, immutable',
     'x-content-type-options': 'nosniff',
-    etag: `"${assetId}"`
+    etag: `\"${assetId}\"`
   });
   if (Number(row.byte_size) > 0) headers.set('content-length', String(Number(row.byte_size)));
   if (request.method === 'HEAD') return new Response(null, { status: 200, headers });
