@@ -20,7 +20,7 @@ const portalAuthBindings = [
 ];
 
 describe('main Worker infrastructure binding verification', () => {
-  it('accepts infrastructure-only secret names and reports portal auth absent without values', () => {
+  it('accepts infrastructure-only secret names and reports optional bindings safely', () => {
     const evidence = inspectWorkerPlatformBindings({
       success: true,
       result: {
@@ -30,7 +30,7 @@ describe('main Worker infrastructure binding verification', () => {
 
     expect(evidence).toEqual({
       workerPlatformBindingsVerified: true,
-      bindings: { accountIdPresent: true, apiTokenPresent: true },
+      bindings: { accountIdPresent: true, apiTokenPresent: true, imagesPresent: false },
       portalAuth: {
         configured: false,
         bindingCount: 0,
@@ -47,10 +47,12 @@ describe('main Worker infrastructure binding verification', () => {
     expect(JSON.stringify(evidence)).not.toContain('private-id');
   });
 
-  it('recognizes the complete portal-auth binding set without reading secret values', () => {
+  it('recognizes the complete portal-auth and Images binding set without reading private values', () => {
     const evidence = inspectWorkerPlatformBindings({
       success: true,
-      result: { bindings: [...platformBindings, ...portalAuthBindings] }
+      result: {
+        bindings: [...platformBindings, ...portalAuthBindings, { name: 'IMAGES', type: 'images' }]
+      }
     });
     expect(evidence.portalAuth).toEqual({
       configured: true,
@@ -62,6 +64,7 @@ describe('main Worker infrastructure binding verification', () => {
         PORTAL_AUTH_CLIENT_ID: true
       }
     });
+    expect(evidence.bindings.imagesPresent).toBe(true);
     expect(JSON.stringify(evidence)).not.toMatch(/issuer|audience|jwks|client-id/);
   });
 
@@ -79,7 +82,11 @@ describe('main Worker infrastructure binding verification', () => {
       }
     });
     expect(evidence.workerPlatformBindingsVerified).toBe(false);
-    expect(evidence.bindings).toEqual({ accountIdPresent: true, apiTokenPresent: false });
+    expect(evidence.bindings).toEqual({
+      accountIdPresent: true,
+      apiTokenPresent: false,
+      imagesPresent: false
+    });
     expect(evidence.portalAuth.configured).toBe(false);
     expect(evidence.secretValuesExposed).toBe(false);
   });
