@@ -105,7 +105,14 @@ export function portalApiErrorMessage(code = '') {
     source_state_unavailable: 'Não foi possível consultar a fonte da loja agora. Tente novamente em instantes.',
     source_state_invalid: 'A fonte salva não pôde ser confirmada com segurança. Nenhuma alteração foi feita.',
     source_connection_failed: 'Não foi possível conectar o catálogo agora. Tente novamente em instantes.',
-    source_connection_response_invalid: 'A fonte foi processada, mas o portal não conseguiu confirmar o resultado com segurança. Atualize a página antes de tentar novamente.'
+    source_connection_response_invalid: 'A fonte foi processada, mas o portal não conseguiu confirmar o resultado com segurança. Atualize a página antes de tentar novamente.',
+    import_decision_temporarily_unavailable: 'Não foi possível consultar a decisão de importação agora. Sua loja continua preservada.',
+    import_decision_state_unavailable: 'Não foi possível consultar a importação agora. Tente novamente em instantes.',
+    import_decision_state_invalid: 'O estado da importação não pôde ser confirmado com segurança. Nenhuma alteração foi feita.',
+    import_decision_source_required: 'Conecte uma fonte válida antes de definir a importação.',
+    import_decision_source_invalid: 'A fonte conectada não pôde ser usada com segurança para esta importação.',
+    import_decision_invalid: 'Essa opção de importação não está disponível neste beta.',
+    import_decision_failed: 'Não foi possível confirmar a importação agora. Tente novamente em instantes.'
   };
   return messages[key] || 'Não foi possível concluir essa ação agora.';
 }
