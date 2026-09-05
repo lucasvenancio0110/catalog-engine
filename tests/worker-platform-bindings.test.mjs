@@ -30,7 +30,12 @@ describe('main Worker infrastructure binding verification', () => {
 
     expect(evidence).toEqual({
       workerPlatformBindingsVerified: true,
-      bindings: { accountIdPresent: true, apiTokenPresent: true, imagesPresent: false },
+      bindings: {
+        accountIdPresent: true,
+        apiTokenPresent: true,
+        imagesPresent: false,
+        brandAssetsR2Present: false
+      },
       portalAuth: {
         configured: false,
         bindingCount: 0,
@@ -47,11 +52,16 @@ describe('main Worker infrastructure binding verification', () => {
     expect(JSON.stringify(evidence)).not.toContain('private-id');
   });
 
-  it('recognizes the complete portal-auth and Images binding set without reading private values', () => {
+  it('recognizes portal-auth, Images and private R2 brand-asset bindings without reading private values', () => {
     const evidence = inspectWorkerPlatformBindings({
       success: true,
       result: {
-        bindings: [...platformBindings, ...portalAuthBindings, { name: 'IMAGES', type: 'images' }]
+        bindings: [
+          ...platformBindings,
+          ...portalAuthBindings,
+          { name: 'IMAGES', type: 'images' },
+          { name: 'BRAND_ASSETS', type: 'r2_bucket', bucket_name: 'private-brand-assets' }
+        ]
       }
     });
     expect(evidence.portalAuth).toEqual({
@@ -65,7 +75,8 @@ describe('main Worker infrastructure binding verification', () => {
       }
     });
     expect(evidence.bindings.imagesPresent).toBe(true);
-    expect(JSON.stringify(evidence)).not.toMatch(/issuer|audience|jwks|client-id/);
+    expect(evidence.bindings.brandAssetsR2Present).toBe(true);
+    expect(JSON.stringify(evidence)).not.toMatch(/issuer|audience|jwks|client-id|private-brand-assets/);
   });
 
   it('fails closed on an invalid API response and reports a missing platform binding safely', () => {
@@ -85,7 +96,8 @@ describe('main Worker infrastructure binding verification', () => {
     expect(evidence.bindings).toEqual({
       accountIdPresent: true,
       apiTokenPresent: false,
-      imagesPresent: false
+      imagesPresent: false,
+      brandAssetsR2Present: false
     });
     expect(evidence.portalAuth.configured).toBe(false);
     expect(evidence.secretValuesExposed).toBe(false);
