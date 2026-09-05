@@ -1,10 +1,10 @@
 const STORE_STATUS = {
   published: { label: 'Online', tone: 'success' },
-  ready: { label: 'Pronta', tone: 'success' },
-  configuring: { label: 'Configurando', tone: 'progress' },
-  provisioning: { label: 'Configurando', tone: 'progress' },
-  draft: { label: 'Rascunho', tone: 'neutral' },
-  attention: { label: 'Atenção', tone: 'warning' },
+  ready: { label: 'Pronta para preview', tone: 'success' },
+  configuring: { label: 'Preparando loja', tone: 'progress' },
+  provisioning: { label: 'Preparando loja', tone: 'progress' },
+  draft: { label: 'Em preparação', tone: 'neutral' },
+  attention: { label: 'Precisa de atenção', tone: 'warning' },
   suspended: { label: 'Suspensa', tone: 'danger' }
 };
 
@@ -26,7 +26,7 @@ export function portalStoreStatus(store = {}) {
 
 export function portalDomainLabel(store = {}) {
   const hostname = clean(store.domain?.hostname);
-  if (!hostname) return 'Domínio ainda não conectado';
+  if (!hostname) return 'Domínio será configurado antes da publicação';
   if (store.domain?.status === 'active') return hostname;
   return `${hostname} · verificando`;
 }
@@ -69,6 +69,7 @@ export function portalApiErrorMessage(code = '') {
     admin_auth_unavailable: 'O acesso seguro do portal ainda não está configurado.',
     control_plane_database_unbound: 'O portal está temporariamente indisponível.',
     admin_temporarily_unavailable: 'Não foi possível carregar sua conta agora. Tente novamente em instantes.',
+    branding_temporarily_unavailable: 'Não foi possível carregar a aparência da loja agora. Tente novamente em instantes.',
     invalid_request: 'Revise os dados da loja antes de continuar.',
     invalid_store_name: 'Informe um nome de loja com pelo menos 2 caracteres.',
     invalid_store_slug: 'Escolha um endereço curto com pelo menos 3 caracteres, usando letras, números e hífens.',
@@ -79,7 +80,19 @@ export function portalApiErrorMessage(code = '') {
     store_limit_reached: 'Sua conta já usou a quantidade de lojas disponível neste acesso.',
     store_entitlement_misconfigured: 'Seu acesso precisa de uma revisão antes de criar a loja.',
     store_not_found: 'Essa loja não está disponível para sua conta.',
-    insufficient_role: 'Seu acesso não permite fazer essa alteração.'
+    insufficient_role: 'Seu acesso não permite fazer essa alteração.',
+    branding_invalid_store_name: 'Use um nome de loja entre 2 e 80 caracteres.',
+    branding_theme_unavailable: 'Esse estilo não está disponível para a loja.',
+    branding_invalid_primary_color: 'Revise a cor principal da marca.',
+    branding_invalid_secondary_color: 'Revise a cor de apoio da marca.',
+    branding_invalid_whatsapp: 'Informe o WhatsApp com código do país, por exemplo +55.',
+    branding_invalid_instagram: 'Revise o perfil do Instagram.',
+    brand_assets_unavailable: 'O envio de logo está temporariamente indisponível.',
+    brand_asset_type_unsupported: 'Use uma logo em PNG, JPEG ou WebP.',
+    brand_asset_too_large: 'A logo deve ter no máximo 2 MB.',
+    brand_asset_invalid_image: 'Não conseguimos validar essa imagem. Escolha outro arquivo.',
+    brand_asset_dimensions_invalid: 'Use uma logo entre 32 e 4096 pixels por lado.',
+    brand_asset_storage_failed: 'Não foi possível salvar a logo agora. Sua configuração anterior foi preservada.'
   };
   return messages[key] || 'Não foi possível concluir essa ação agora.';
 }
