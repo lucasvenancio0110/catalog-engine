@@ -20,6 +20,11 @@
   "images": {
     "binding": "IMAGES"
   },
+  "r2_buckets": [
+    {
+      "binding": "BRAND_ASSETS"
+    }
+  ],
   "triggers": {
     "crons": ["*/5 * * * *"]
   },
