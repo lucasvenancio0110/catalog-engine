@@ -76,7 +76,7 @@ async function loadExactCreatedStore(db, plan, principalId) {
       `SELECT
          t.tenant_id,
          t.slug,
-         t.currency,
+         p.currency,
          t.status,
          p.store_name,
          pr.provisioning_id,

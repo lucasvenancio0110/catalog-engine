@@ -47,6 +47,9 @@ function fakeDb(state) {
       if (/\btenant_profiles\b/.test(sql)) {
         throw new Error('unknown_table:tenant_profiles');
       }
+      if (/\bt\.currency\b/.test(sql)) {
+        throw new Error('unknown_column:catalog_tenants.currency');
+      }
       return {
         bind() {
           return {
