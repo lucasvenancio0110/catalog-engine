@@ -1,6 +1,7 @@
 import { handleTenantImportDetailMessage } from './ingestion/detail-consumer.js';
 import { handleTenantImportFinalizeMessage } from './ingestion/finalize-consumer.js';
 import { handleTenantIncrementalDetailMessage } from './ingestion/incremental-detail-consumer.js';
+import { recoverExhaustedInitialDetailLeases } from './ingestion/initial-detail-recovery.js';
 import {
   initialTenantImportId,
   parseTenantImportMessage,
@@ -64,6 +65,11 @@ export default {
         if (parsed.type === 'detail') {
           result = await handleDetail(parsed, env);
         } else {
+          // Finalize delivery is also the liveness barrier for initial detail work:
+          // expired claims that already exhausted the bounded detail attempt budget
+          // become deferred before terminal-count evaluation. This is tenant/import
+          // scoped and idempotent, so a DLQ-exhausted detail cannot strand onboarding.
+          await recoverExhaustedInitialDetailLeases(parsed, env);
           result = await handleTenantImportFinalizeMessage(parsed, env);
         }
       } catch {
