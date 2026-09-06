@@ -74,6 +74,10 @@ export function evaluateRuntimeDiscovery(row = {}) {
       selectionRank: discoverable ? candidatesAhead + 1 : 0,
       exhaustedEligibleJobs: integer(row.exhausted_eligible_jobs),
       oldestCandidateExhausted: integer(row.oldest_candidate_exhausted) === 1,
+      oldestCandidateJobStatus: safeCode(row.oldest_candidate_job_status),
+      oldestCandidateJobAttemptCount: integer(row.oldest_candidate_job_attempt_count),
+      oldestCandidateJobLastErrorCode: safeCode(row.oldest_candidate_job_last_error_code),
+      oldestCandidateJobDue: integer(row.oldest_candidate_job_due) === 1,
       dueRuntimeJobs: integer(row.due_runtime_jobs)
     }
   };
@@ -194,6 +198,33 @@ export async function runRuntimeDiscoveryDiagnosis() {
                      AND j.attempt_count >= ?3
                      AND j.status!='success'
                 ) THEN 1 ELSE 0 END AS oldest_candidate_exhausted,
+                (SELECT j.status
+                   FROM tenant_runtime_jobs j
+                  WHERE j.tenant_id=(SELECT tenant_id FROM oldest_eligible)
+                    AND j.target_runtime_version=?2
+                  ORDER BY j.updated_at DESC, j.created_at DESC
+                  LIMIT 1) AS oldest_candidate_job_status,
+                (SELECT j.attempt_count
+                   FROM tenant_runtime_jobs j
+                  WHERE j.tenant_id=(SELECT tenant_id FROM oldest_eligible)
+                    AND j.target_runtime_version=?2
+                  ORDER BY j.updated_at DESC, j.created_at DESC
+                  LIMIT 1) AS oldest_candidate_job_attempt_count,
+                (SELECT j.last_error_code
+                   FROM tenant_runtime_jobs j
+                  WHERE j.tenant_id=(SELECT tenant_id FROM oldest_eligible)
+                    AND j.target_runtime_version=?2
+                  ORDER BY j.updated_at DESC, j.created_at DESC
+                  LIMIT 1) AS oldest_candidate_job_last_error_code,
+                CASE WHEN EXISTS(
+                  SELECT 1
+                    FROM tenant_runtime_jobs j
+                   WHERE j.tenant_id=(SELECT tenant_id FROM oldest_eligible)
+                     AND j.target_runtime_version=?2
+                     AND j.status IN ('pending','failed','staged')
+                     AND j.attempt_count < ?3
+                     AND (j.next_attempt_at IS NULL OR j.next_attempt_at <= CURRENT_TIMESTAMP)
+                ) THEN 1 ELSE 0 END AS oldest_candidate_job_due,
                 (SELECT COUNT(*)
                    FROM tenant_runtime_jobs j
                   WHERE j.target_runtime_version=?2
