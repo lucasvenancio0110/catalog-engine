@@ -7,20 +7,19 @@ const API_TOKEN = String(process.env.CLOUDFLARE_API_TOKEN || '').trim();
 const DISPATCH_NAMESPACE = String(
   process.env.CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE || 'catalog-engine-production'
 ).trim();
-const QUEUES = [
-  'catalog-engine-import-scan',
-  'catalog-engine-import-detail',
-  'catalog-engine-import-scan-dlq',
-  'catalog-engine-import-detail-dlq'
-];
+const WORK_QUEUES = ['catalog-engine-import-scan', 'catalog-engine-import-detail'];
+const DLQ_QUEUES = ['catalog-engine-import-scan-dlq', 'catalog-engine-import-detail-dlq'];
+const QUEUES = [...WORK_QUEUES, ...DLQ_QUEUES];
 
 if (!/^[a-f0-9]{32}$/i.test(ACCOUNT_ID)) throw new Error('tenant_import_preflight_account_unconfigured');
 if (API_TOKEN.length < 20) throw new Error('tenant_import_preflight_token_unconfigured');
 
 const wrangler = JSON.parse(await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8'));
-if (String(wrangler.vars?.TENANT_IMPORT_AUTOMATION_ENABLED || '') !== '0') {
-  throw new Error('tenant_import_preflight_requires_automation_off');
+const automationState = String(wrangler.vars?.TENANT_IMPORT_AUTOMATION_ENABLED || '');
+if (!['0', '1'].includes(automationState)) {
+  throw new Error('tenant_import_preflight_automation_state_invalid');
 }
+const automationEnabled = automationState === '1';
 const CONTROL_DB_ID = String(
   wrangler.d1_databases?.find((entry) => entry.binding === 'CATALOG_DB')?.database_id || ''
 ).trim();
@@ -139,7 +138,8 @@ const counts = await controlBatch([
 ]);
 
 const summary = {
-  automationEnabled: false,
+  automationEnabled,
+  preflightMode: automationEnabled ? 'enabled_hygiene' : 'activation_readiness',
   undispatchedCandidates: Number(counts[0]?.results?.[0]?.total || 0),
   dueScanOrRetryJobs: Number(counts[1]?.results?.[0]?.total || 0),
   dueFinalizeJobs: Number(counts[2]?.results?.[0]?.total || 0),
@@ -151,13 +151,23 @@ const summary = {
 const queues = await queueMap();
 for (const name of QUEUES) summary.queueBacklogs[name] = await queueBacklog(queues.get(name));
 
-const unsafe =
+const activationUnsafe =
   summary.undispatchedCandidates !== 0 ||
   summary.dueScanOrRetryJobs !== 0 ||
   summary.dueFinalizeJobs !== 0 ||
   summary.activeImportJobs !== 0 ||
   summary.leftoverDisposableTenants !== 0 ||
   Object.values(summary.queueBacklogs).some((count) => count !== 0);
+
+// Once INITIAL TENANT IMPORT is deliberately enabled, pending work and normal
+// scan/detail backlog are expected transient states. The trusted preflight then
+// becomes a hygiene guard: disposable canary tenants and either DLQ must remain
+// clean. This does not alter or authorize RECURRING TENANT INTELLIGENT SYNC.
+const enabledHygieneUnsafe =
+  summary.leftoverDisposableTenants !== 0 ||
+  DLQ_QUEUES.some((name) => Number(summary.queueBacklogs[name] || 0) !== 0);
+
+const unsafe = automationEnabled ? enabledHygieneUnsafe : activationUnsafe;
 
 console.log(JSON.stringify({ tenantImportAutoPreflightPassed: !unsafe, ...summary }, null, 2));
 if (unsafe) throw new Error('tenant_import_preflight_not_clean');
