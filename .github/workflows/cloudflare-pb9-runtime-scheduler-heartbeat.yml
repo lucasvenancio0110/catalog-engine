@@ -1,0 +1,73 @@
+name: Cloudflare PB9 runtime scheduler heartbeat
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/cloudflare-pb9-runtime-scheduler-heartbeat.yml"
+      - "migrations/0027_tenant_runtime_scheduler_state.sql"
+      - "worker/entry.js"
+      - "scripts/cloudflare-pb9-runtime-scheduler-heartbeat.mjs"
+      - "tests/pb9-runtime-scheduler-heartbeat.test.mjs"
+      - "tests/entry-runtime-scheduler.test.mjs"
+  workflow_run:
+    workflows: ["Deploy Catalog Engine application"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Test safe heartbeat contract
+        run: npx vitest run tests/pb9-runtime-scheduler-heartbeat.test.mjs tests/entry-runtime-scheduler.test.mjs
+
+  diagnose:
+    if: >-
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - name: Checkout exact deployed or dispatched SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Test safe heartbeat contract
+        run: npx vitest run tests/pb9-runtime-scheduler-heartbeat.test.mjs tests/entry-runtime-scheduler.test.mjs
+      - name: Validate trusted Cloudflare credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
+      - name: Read safe runtime scheduler heartbeat
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/cloudflare-pb9-runtime-scheduler-heartbeat.mjs | tee /tmp/pb9-runtime-scheduler-heartbeat.json
+          cat /tmp/pb9-runtime-scheduler-heartbeat.json >> "$GITHUB_STEP_SUMMARY"
