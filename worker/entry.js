@@ -19,6 +19,7 @@ import { runDueTenantIncrementalVerifications } from './ingestion/incremental-ve
 import { runDueTenantIncrementalFinalizations } from './ingestion/incremental-finalization-runner.js';
 import { runDueTenantIncrementalRecoveries } from './ingestion/incremental-recovery-runner.js';
 import { runDueTenantImportDispatches } from './tenant-import-dispatcher.js';
+import { runDueTenantRuntimes } from './tenant-runtime-runner.js';
 import { runDueTenantSyncScheduling } from './tenant-sync-scheduler.js';
 import { runDueTenantSyncReplays } from './tenant-sync-replay.js';
 import { runDueTenantVerifications } from './tenant-verification-runner.js';
@@ -243,6 +244,7 @@ export default {
         runDueTenantIncrementalFinalizations(env),
         runDueTenantClassifications(env),
         runDueTenantVerifications(env),
+        runDueTenantRuntimes(env),
         runDueDomainJobs(env)
       ]).then((results) => {
         const labels = [
@@ -257,6 +259,7 @@ export default {
           'tenant_incremental_finalization_schedule',
           'tenant_classification_schedule',
           'tenant_verification_schedule',
+          'tenant_runtime_schedule',
           'domain_job_schedule'
         ];
         for (let index = 0; index < results.length; index += 1) {
