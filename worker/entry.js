@@ -9,6 +9,10 @@ import { handlePortalAuthConfig } from './portal-auth-config.js';
 import { handlePortalBrandingRequest, servePublicBrandAsset } from './portal-branding.js';
 import { handlePortalImportDecisionRequest } from './portal-import-decision.js';
 import { handlePortalStoreCreation } from './portal-store-creation.js';
+import {
+  handlePrivatePreviewAdminRequest,
+  handlePrivatePreviewSurfaceRequest
+} from './private-preview-routing.js';
 import { runDueTenantClassifications } from './tenant-classification-runner.js';
 import { runDueTenantIncrementalClassifications } from './ingestion/incremental-classification-runner.js';
 import { runDueTenantIncrementalVerifications } from './ingestion/incremental-verification-runner.js';
@@ -172,6 +176,8 @@ export default {
       if (!isCatalogPlatformHost(request, env)) {
         return storefrontRoutingError({ reason: 'not_found', status: 404 });
       }
+      const previewAdminResponse = await handlePrivatePreviewAdminRequest(request, env);
+      if (previewAdminResponse) return previewAdminResponse;
       if (/^\/api\/admin\/stores\/t_[a-f0-9]{20}\/branding(?:\/logo)?$/.test(url.pathname)) {
         return handlePortalBrandingRequest(request, env);
       }
@@ -187,6 +193,12 @@ export default {
       }
       return app.fetch(request, env, ctx);
     }
+
+    // The authenticated preview lives only on the admin host. A short-lived host-only
+    // HttpOnly capability resolves membership + verified runtime server-side on every
+    // catalog/media request, while the browser receives the same storefront shell.
+    const privatePreviewResponse = await handlePrivatePreviewSurfaceRequest(request, env);
+    if (privatePreviewResponse) return privatePreviewResponse;
 
     // app.catalogoengine.com is a first-party product surface, not a storefront
     // preview of tenant #0001. Its navigation always resolves to the portal entry.
