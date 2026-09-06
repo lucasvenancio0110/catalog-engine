@@ -254,3 +254,57 @@ export function buildMerchantProvisioningProgress({
     { updatedAt }
   );
 }
+
+export async function readMerchantProvisioningProgress(db, tenantId) {
+  const provisioning = await db
+    .prepare(
+      `SELECT status,current_step,started_at,finished_at,updated_at
+         FROM tenant_provisioning_runs
+        WHERE tenant_id=?1
+        ORDER BY created_at DESC
+        LIMIT 1`
+    )
+    .bind(tenantId)
+    .first();
+  const importJob = await db
+    .prepare(
+      `SELECT status,phase,discovered_count,queued_detail_count,completed_detail_count,
+              failed_detail_count,deferred_detail_count,published_product_count,
+              next_attempt_at,started_at,finished_at,updated_at
+         FROM tenant_import_jobs
+        WHERE tenant_id=?1 AND mode='initial'
+        ORDER BY created_at DESC
+        LIMIT 1`
+    )
+    .bind(tenantId)
+    .first();
+  const classificationJob = await db
+    .prepare(
+      `SELECT status,product_count,automatic_count,review_count,unknown_count,
+              next_attempt_at,started_at,finished_at,updated_at
+         FROM tenant_classification_jobs
+        WHERE tenant_id=?1
+        ORDER BY created_at DESC
+        LIMIT 1`
+    )
+    .bind(tenantId)
+    .first();
+  const verificationJob = await db
+    .prepare(
+      `SELECT status,product_count,finding_count,next_attempt_at,
+              started_at,finished_at,updated_at
+         FROM tenant_verification_jobs
+        WHERE tenant_id=?1
+        ORDER BY created_at DESC
+        LIMIT 1`
+    )
+    .bind(tenantId)
+    .first();
+
+  return buildMerchantProvisioningProgress({
+    provisioning,
+    importJob,
+    classificationJob,
+    verificationJob
+  });
+}
