@@ -206,7 +206,7 @@ export function normalizePrivatePreviewPath(pathname) {
 export function privatePreviewHeaders(input = undefined) {
   const headers = new Headers(input);
   headers.set('cache-control', 'private, no-store');
-  headers.set('x-robots-tag', 'noindex, nofollow,noarchive');
+  headers.set('x-robots-tag', 'noindex, nofollow, noarchive');
   headers.set('referrer-policy', 'no-referrer');
   headers.set('x-content-type-options', 'nosniff');
   headers.delete('server');
