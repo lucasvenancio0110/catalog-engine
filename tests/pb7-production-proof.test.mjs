@@ -42,7 +42,7 @@ describe('PB7 real-merchant production proof', () => {
     expect(evaluation.progress).not.toHaveProperty('eta');
   });
 
-  it('fails closed when merchant authority, recurring-sync boundary or privacy is not proven', () => {
+  it('fails closed when merchant authority or recurring-sync boundary is not proven', () => {
     expect(
       evaluatePb7ProductionProof(
         liveState({ prerequisites: { tenant_count: 1, active_source: 1, merchant_decision: 0 } }),
@@ -50,8 +50,10 @@ describe('PB7 real-merchant production proof', () => {
       ).passed
     ).toBe(false);
     expect(evaluatePb7ProductionProof(liveState(), { ...runtime, recurringSyncEnabled: true }).passed).toBe(false);
+  });
 
-    const unsafe = evaluatePb7ProductionProof(
+  it('keeps private internal retry data out of the merchant-safe projection', () => {
+    const evaluation = evaluatePb7ProductionProof(
       liveState({
         importJob: {
           ...liveState().importJob,
@@ -62,7 +64,9 @@ describe('PB7 real-merchant production proof', () => {
       }),
       runtime
     );
-    expect(unsafe.passed).toBe(false);
+    expect(evaluation.passed).toBe(true);
+    expect(evaluation.progress.retry).toEqual({ kind: 'automatic' });
+    expect(JSON.stringify(evaluation.progress)).not.toMatch(/private\.example|https?:\/\//i);
   });
 
   it('publishes only bounded merchant-safe evidence', () => {
