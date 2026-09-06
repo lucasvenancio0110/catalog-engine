@@ -1,6 +1,10 @@
 import { hydratePortalIcons } from '../ui/portal-icons.js';
 import { openImportDecisionExperience } from './import-decision-experience.js';
 import { requestPortalImportDecisionState } from './import-decision.js';
+import {
+  requestPortalPrivatePreviewStatus,
+  startPortalPrivatePreview
+} from './private-preview.js';
 import { openProvisioningProgressExperience } from './provisioning-progress-experience.js';
 import { openSourceConnectionExperience } from './source-connection-experience.js';
 import { requestPortalSourceState } from './source-connection.js';
@@ -79,6 +83,27 @@ function openSource(store) {
   });
 }
 
+async function openPreview(store, card) {
+  if (!store?.tenantId) return;
+  const action = card?.querySelector('.store-card-action');
+  const bodyCopy = card?.querySelector('.store-card-body p');
+  if (action) action.disabled = true;
+  setText(action?.querySelector('span'), 'Abrindo preview…');
+  try {
+    const token = await portalToken();
+    if (!token) throw new Error('preview_auth_required');
+    const session = await startPortalPrivatePreview({ tenantId: store.tenantId, token });
+    window.location.assign(session.previewUrl);
+  } catch {
+    setText(
+      bodyCopy,
+      'O preview está pronto, mas não conseguimos abrir a visualização privada agora. Tente novamente.'
+    );
+    setText(action?.querySelector('span'), 'Tentar preview');
+    if (action) action.disabled = false;
+  }
+}
+
 function wireCatalogNavigation(root, store) {
   if (!store?.tenantId) return;
   for (const button of navButtons(root)) {
@@ -95,7 +120,7 @@ function wireCatalogNavigation(root, store) {
 function storeCardCopy(
   card,
   store,
-  { source = null, decisionState = null, stateKnown = true } = {}
+  { source = null, decisionState = null, previewReady = false, stateKnown = true } = {}
 ) {
   if (!card || !store?.tenantId) return;
   const bodyCopy = card.querySelector('.store-card-body p');
@@ -122,6 +147,24 @@ function storeCardCopy(
       action.title = `Consultar catálogo de ${store.storeName || 'sua loja'}`;
     }
     card.dataset.catalogAction = 'source';
+  } else if (connected && decision && previewReady) {
+    setText(
+      bodyCopy,
+      'Seu catálogo foi preparado e verificado. Você já pode abrir uma visualização privada da loja antes de configurar o domínio.'
+    );
+    if (meta[0]) {
+      setText(meta[0].querySelector('small'), 'Catálogo');
+      setText(meta[0].querySelector('strong'), 'Preview pronto');
+    }
+    if (meta[1]) {
+      setText(meta[1].querySelector('small'), 'Jornada');
+      setText(meta[1].querySelector('strong'), 'Marca ✓ → catálogo ✓ → preview ✓ → domínio');
+    }
+    if (action) {
+      setText(action.querySelector('span'), 'Visualizar loja');
+      action.title = `Visualizar ${store.storeName || 'sua loja'} de forma privada`;
+    }
+    card.dataset.catalogAction = 'preview';
   } else if (connected && decision) {
     setText(
       bodyCopy,
@@ -183,7 +226,8 @@ function storeCardCopy(
     if (action.dataset.sourceWired !== '1') {
       action.dataset.sourceWired = '1';
       action.addEventListener('click', () => {
-        if (card.dataset.catalogAction === 'progress') openProgress(store);
+        if (card.dataset.catalogAction === 'preview') void openPreview(store, card);
+        else if (card.dataset.catalogAction === 'progress') openProgress(store);
         else if (card.dataset.catalogAction === 'import') openImport(store);
         else openSource(store);
       });
@@ -191,6 +235,7 @@ function storeCardCopy(
   }
   card.dataset.sourceState = !stateKnown ? 'unknown' : connected ? 'connected' : 'empty';
   card.dataset.importDecisionState = decision ? 'confirmed' : 'pending';
+  card.dataset.previewState = previewReady ? 'ready' : 'pending';
 }
 
 let enhancementInFlight = false;
@@ -215,14 +260,37 @@ export async function enhancePortalSourceConnection(root = document.querySelecto
         if (!store?.tenantId) return;
         try {
           const source = await requestPortalSourceState({ tenantId: store.tenantId, token });
-          const decisionState = source?.status === 'active'
-            ? await requestPortalImportDecisionState({ tenantId: store.tenantId, token })
-            : null;
-          storeCardCopy(card, store, { source, decisionState, stateKnown: true });
+          const decisionState =
+            source?.status === 'active'
+              ? await requestPortalImportDecisionState({ tenantId: store.tenantId, token })
+              : null;
+          let previewReady = false;
+          if (source?.status === 'active' && decisionState?.decision) {
+            try {
+              const preview = await requestPortalPrivatePreviewStatus({
+                tenantId: store.tenantId,
+                token
+              });
+              previewReady = preview.available;
+            } catch {
+              previewReady = false;
+            }
+          }
+          storeCardCopy(card, store, {
+            source,
+            decisionState,
+            previewReady,
+            stateKnown: true
+          });
         } catch {
           // Background refresh failure is not equivalent to "no source" or
           // "no decision". Keep the card actionable and let the explicit flow own retry.
-          storeCardCopy(card, store, { source: null, decisionState: null, stateKnown: false });
+          storeCardCopy(card, store, {
+            source: null,
+            decisionState: null,
+            previewReady: false,
+            stateKnown: false
+          });
         }
         card.dataset.sourceWired = '1';
       })

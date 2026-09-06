@@ -40,15 +40,35 @@ Media source URLs stay private in the tenant D1. The runtime validates image ups
 
 API/media traffic is then sent only to that resolved tenant script. Static assets remain on the platform Worker. An unbound/missing dispatch namespace fails with a 503 and never falls through to tenant #0001.
 
+## Authenticated private preview
+
+Private preview is a separate pre-publication dispatch authority on `app.catalogoengine.com`; it does not reuse the public custom-domain gate and does not make a tenant publicly routable.
+
+The portal may create a private preview session only after the authenticated principal's active tenant membership, tenant storefront state, verified catalog runtime and latest current-classifier verification with zero blocking findings are revalidated server-side. The browser never supplies or receives a Worker script name, D1 identifier or runtime locator as routing authority.
+
+The session contract is intentionally bounded:
+
+- the browser receives only the fixed path `/preview`;
+- a cryptographically random capability is stored only in a host-only `__Host-` cookie with `HttpOnly`, `Secure` and `SameSite=Strict`;
+- only the SHA-256 hash of that capability plus opaque tenant/principal ownership and expiry is persisted in the control plane;
+- the initial PB9 lifetime is 30 minutes and logout explicitly revokes the principal's preview sessions;
+- every preview catalog/media request revalidates the still-active membership, runtime and verification authority before dispatch;
+- expired, missing, revoked or regressed authority fails closed and never falls back to the default tenant;
+- only read-only storefront catalog/media paths are allowlisted; admin, health and internal runtime commands are not preview resources.
+
+`/preview` serves the same shared storefront HTML/CSS/JS used for publication. Its root `/api/*` and `/media/*` requests are intercepted only while the valid private capability exists and are dispatched to the exact server-resolved isolated tenant runtime. This preserves the effective tenant catalog, brand and media behavior instead of maintaining a second simulated preview storefront.
+
+Private preview responses are `private, no-store`, non-indexable and no-referrer. Internal dispatch/cache request identity is tenant-scoped so one tenant's preview media cannot collide with another tenant's cache authority. These preview controls do not modify custom hostname state, `tenant_catalog_instances.status`, `tenant_store_profiles.setup_status`, or the final publish checkpoint.
+
 ## Publish gate
 
 Custom-domain SSL readiness alone can no longer advance onboarding to `publish`. `tenant-publish-gate.js` requires **both** an active provider/SSL custom domain and a verified full tenant runtime. Whichever prerequisite completes last re-evaluates the shared gate.
 
-The final publish action remains a separate milestone. Runtime verification does not mark a merchant profile published or a catalog instance ready automatically.
+The final publish action remains a separate milestone. Runtime verification or private preview availability does not mark a merchant profile published or a catalog instance ready automatically.
 
 ## Production activation state
 
-The production dispatch boundary is active and proven:
+The production public dispatch boundary is active and proven:
 
 - `wrangler.jsonc` binds `TENANT_DISPATCH` to `catalog-engine-production`;
 - the platform resolves the Worker script name from trusted control-plane provider state;
@@ -58,3 +78,5 @@ The production dispatch boundary is active and proven:
 - missing or invalid tenant routing still fails closed.
 
 The retained smoke tenant is validation infrastructure, not a shortcut for future merchant publication. Every real tenant must pass the same runtime/domain/publish gates independently.
+
+PB9's authenticated private-preview implementation is repository/PR-proven until its trusted production deploy and tenant-isolation canary complete. Do not treat PR preview deployment as production activation evidence.

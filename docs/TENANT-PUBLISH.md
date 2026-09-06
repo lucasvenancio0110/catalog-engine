@@ -2,7 +2,7 @@
 
 Status: **Normative implementation contract**
 
-The tenant is not exposed to customers when import, classification, verification, runtime staging, or custom-domain SSL complete independently. The final `publish` checkpoint is the only place that flips the storefront from provisioning to live.
+The tenant is not exposed to customers when import, classification, verification, runtime staging, private preview readiness, or custom-domain SSL complete independently. The final `publish` checkpoint is the only place that flips the storefront from provisioning to live.
 
 ## Preconditions
 
@@ -16,6 +16,14 @@ A publish job is created only after the provisioning run reaches `publish` and a
 - logical tenant catalog instance is still `provisioning`.
 
 The publish runner reloads those prerequisites immediately before activation. A stale job therefore cannot publish a tenant after a domain, runtime, or verification regression.
+
+## Private preview is not publication
+
+Authenticated private preview may use the verified tenant runtime before the custom domain/publication checkpoint, but it is a separate read-only authority on the Catalog Engine admin host.
+
+Preview availability does not mutate custom hostname state, mark the catalog instance `ready`, mark the store profile `published`, complete the provisioning run, or create a public Catalog Engine-branded merchant URL. The private capability is short-lived, membership-bound, server-resolved and fail-closed. Losing preview authority or letting it expire does not alter the tenant's durable catalog/publication state.
+
+The storefront becomes public only through the atomic publish path below.
 
 ## Last-mile smoke
 
@@ -54,4 +62,4 @@ This activation does not weaken the publish gate. A future merchant still requir
 
 ## Next productization step
 
-The remaining product milestone is not provider activation. It is the authenticated, billing-entitled `app.catalogoengine.com` journey that invokes tenant creation/provisioning/import/domain/publication automatically and exposes only merchant-facing progress and exceptions.
+The current productization campaign is building the authenticated/entitled `app.catalogoengine.com` journey that invokes tenant creation, branding, source connection, initial import, preparation and authenticated private preview before later domain/publication slices. Public domain activation remains a distinct downstream checkpoint.

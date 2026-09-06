@@ -1,0 +1,135 @@
+name: Cloudflare PB9 private preview proof
+
+on:
+  pull_request:
+    branches: ['main']
+    paths:
+      - '.github/workflows/cloudflare-pb9-private-preview-proof.yml'
+      - 'scripts/cloudflare-pb9-private-preview-proof.mjs'
+      - 'tests/pb9-private-preview-proof.test.mjs'
+      - 'worker/private-preview.js'
+      - 'worker/private-preview-routing.js'
+      - 'worker/entry.js'
+      - 'src/app/private-preview.js'
+      - 'src/app/source-connection-bootstrap.js'
+      - 'src/storefront/private-preview.js'
+      - 'src/storefront/private-preview.css'
+      - 'migrations/0024_tenant_private_preview_sessions.sql'
+  workflow_run:
+    workflows: ['Deploy Catalog Engine application']
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      merchant_display_name:
+        description: Merchant display name to verify without exposing private tenant/runtime identifiers
+        required: false
+        default: CROCCODILOS
+        type: string
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: PB9 proof tests
+        run: npx vitest run tests/private-preview.test.mjs tests/private-preview-session.test.mjs tests/portal-private-preview.test.mjs tests/pb9-private-preview-proof.test.mjs
+      - name: Secret-free quality gate
+        run: npm run quality
+
+  prove:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      PB9_MERCHANT_DISPLAY_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.merchant_display_name || 'CROCCODILOS' }}
+      TARGET_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+      STATUS_CONTEXT: catalog-engine/pb9-production-proof
+    steps:
+      - name: Checkout exact trusted-main SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify PB9 proof contract
+        run: npx vitest run tests/private-preview.test.mjs tests/private-preview-session.test.mjs tests/portal-private-preview.test.mjs tests/pb9-private-preview-proof.test.mjs
+      - name: Validate trusted Cloudflare credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
+          test -n "$TARGET_SHA" || { echo "TARGET_SHA is missing"; exit 1; }
+      - name: Prove real merchant private preview isolation
+        id: evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/cloudflare-pb9-private-preview-proof.mjs | tee /tmp/pb9-production-proof.json
+          cat /tmp/pb9-production-proof.json >> "$GITHUB_STEP_SUMMARY"
+          RESULT="$(jq -r '.pb9ProductionProof' /tmp/pb9-production-proof.json)"
+          echo "result=$RESULT" >> "$GITHUB_OUTPUT"
+      - name: Publish PB9 production evidence status
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PROOF_RESULT: ${{ steps.evidence.outputs.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$PROOF_RESULT" = "passed" || { echo "PB9 proof did not pass"; exit 1; }
+          jq -n --arg state success --arg context "$STATUS_CONTEXT" \
+            --arg description "Authenticated real-tenant preview + isolation proven" \
+            --arg target_url "$RUN_URL" \
+            '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
+          curl --fail --silent --show-error -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/statuses/$TARGET_SHA" -d @/tmp/status.json
+      - name: Publish failed PB9 diagnostic evidence
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$TARGET_SHA" || exit 0
+          jq -n --arg state failure --arg context "$STATUS_CONTEXT" \
+            --arg description "PB9 production proof failed; inspect trusted run" \
+            --arg target_url "$RUN_URL" \
+            '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
+          curl --fail --silent --show-error -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/statuses/$TARGET_SHA" -d @/tmp/status.json
