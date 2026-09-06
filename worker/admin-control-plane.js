@@ -12,6 +12,7 @@ import {
   publicWorkerProvisioningSummary,
   publicWorkerTenantSourceSummary
 } from './control-plane-plan.js';
+import { readMerchantProvisioningProgress } from './portal-provisioning-progress.js';
 import {
   createTenantSyncReplayRequest,
   readTenantSyncOperations
@@ -585,7 +586,8 @@ export async function handleAdminApi(request, env, { fetchImpl = fetch } = {}) {
       const membership = await requireMembership(db, tenantId, auth.principalId);
       const state = await onboardingState(db, tenantId);
       if (!state) return adminJson({ error: 'store_not_found' }, 404);
-      return adminJson({ ...state, role: membership.role });
+      const progress = await readMerchantProvisioningProgress(db, tenantId);
+      return adminJson({ ...state, role: membership.role, progress });
     }
 
     const sourceMatch = url.pathname.match(/^\/api\/admin\/stores\/(t_[a-f0-9]{20})\/source$/);
