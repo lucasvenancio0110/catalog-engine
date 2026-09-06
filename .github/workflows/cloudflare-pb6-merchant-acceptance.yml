@@ -35,7 +35,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: PB6 merchant proof tests
-        run: node --test tests/pb6-merchant-acceptance.test.mjs
+        run: npx vitest run tests/pb6-merchant-acceptance.test.mjs
       - name: Secret-free quality gate
         run: npm run quality
 
@@ -61,7 +61,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Verify PB6 proof contract
-        run: node --test tests/pb6-merchant-acceptance.test.mjs
+        run: npx vitest run tests/pb6-merchant-acceptance.test.mjs
       - name: Validate trusted Cloudflare credentials
         shell: bash
         run: |
