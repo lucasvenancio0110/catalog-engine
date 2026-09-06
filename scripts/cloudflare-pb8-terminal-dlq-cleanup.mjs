@@ -9,6 +9,7 @@ const DISPATCH_NAMESPACE = 'catalog-engine-production';
 const MAX_PURGED_PER_RUN = 10;
 const PEEK_BATCH_SIZE = 20;
 const MAX_ROUNDS = 10;
+const CLEANABLE_MESSAGE_TYPES = new Set(['detail', 'finalize']);
 
 function requiredEnv(name) {
   const value = String(process.env[name] || '').trim();
@@ -67,24 +68,28 @@ function validIdentity(body) {
 export function cleanupCandidates(messages = []) {
   const candidates = [];
   let malformed = 0;
+  const messageTypes = { detail: 0, finalize: 0 };
   for (const message of messages) {
     const body = decodeBody(message?.body);
     const ref = String(message?.ref || '').trim();
+    const type = String(body?.type || '');
     if (
-      !body || typeof body !== 'object' || String(body.type || '') !== 'detail' ||
+      !body || typeof body !== 'object' || !CLEANABLE_MESSAGE_TYPES.has(type) ||
       !validIdentity(body) || !ref
     ) {
       malformed += 1;
       continue;
     }
+    messageTypes[type] += 1;
     candidates.push({
       tenantId: String(body.tenantId),
       importId: String(body.importId),
       sourceKey: String(body.sourceKey),
+      type,
       ref
     });
   }
-  return { candidates, malformed };
+  return { candidates, malformed, messageTypes };
 }
 
 export function selectTerminalSuccessRefs(candidates = [], rows = [], limit = MAX_PURGED_PER_RUN) {
@@ -148,6 +153,8 @@ export async function runPb8TerminalDlqCleanup() {
   let rounds = 0;
   let peeked = 0;
   let malformed = 0;
+  let detailSeen = 0;
+  let finalizeSeen = 0;
   let terminalSuccessSeen = 0;
   let activeOrOtherSeen = 0;
   let missingAuthoritySeen = 0;
@@ -167,6 +174,8 @@ export async function runPb8TerminalDlqCleanup() {
 
     const parsed = cleanupCandidates(messages);
     malformed += parsed.malformed;
+    detailSeen += parsed.messageTypes.detail;
+    finalizeSeen += parsed.messageTypes.finalize;
     const rows = await authorityRows({ accountId, apiToken, databaseId, candidates: parsed.candidates });
     const selected = selectTerminalSuccessRefs(
       parsed.candidates,
@@ -206,6 +215,8 @@ export async function runPb8TerminalDlqCleanup() {
     peeked,
     purged,
     maxPurgedPerRun: MAX_PURGED_PER_RUN,
+    detailSeen,
+    finalizeSeen,
     terminalSuccessSeen,
     activeOrOtherSeen,
     missingAuthoritySeen,
