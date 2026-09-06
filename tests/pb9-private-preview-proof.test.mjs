@@ -20,6 +20,7 @@ function readyFixture(overrides = {}) {
       finding_count: 0
     },
     tenantCatalog: { productCount: 6097 },
+    defaultCatalog: { productCount: 250, merchantProductCount: 0 },
     shell: {
       status: 200,
       cacheControl: 'private, no-store',
@@ -31,7 +32,6 @@ function readyFixture(overrides = {}) {
     media: { status: 200, contentType: 'image/webp' },
     anonymousStatus: 404,
     crossTenantStatus: 404,
-    defaultSentinelStatus: 404,
     privateLeak: false,
     recurringSyncEnabled: false,
     ...overrides
@@ -50,7 +50,8 @@ describe('PB9 trusted private preview proof', () => {
     for (const override of [
       { anonymousStatus: 200 },
       { crossTenantStatus: 200 },
-      { defaultSentinelStatus: 200 },
+      { defaultCatalog: { productCount: 250, merchantProductCount: 1 } },
+      { defaultCatalog: { productCount: 0, merchantProductCount: 0 } },
       { privateLeak: true },
       { recurringSyncEnabled: true }
     ]) {
@@ -80,7 +81,7 @@ describe('PB9 trusted private preview proof', () => {
     );
   });
 
-  it('keeps production mutation bounded to disposable preview sessions and cleanup', async () => {
+  it('keeps production mutation bounded and proves default isolation on the real data plane', async () => {
     const script = await readFile(
       new URL('../scripts/cloudflare-pb9-private-preview-proof.mjs', import.meta.url),
       'utf8'
@@ -91,7 +92,10 @@ describe('PB9 trusted private preview proof', () => {
     expect(script).not.toMatch(
       /UPDATE\s+tenant_store_profiles|UPDATE\s+tenant_catalog_instances|INSERT\s+INTO\s+tenant_domains/i
     );
-    expect(script).toContain("const DEFAULT_ORIGIN = 'https://catalogoengine.com'");
     expect(script).toContain("const APP_ORIGIN = 'https://app.catalogoengine.com'");
+    expect(script).not.toContain("const DEFAULT_ORIGIN = 'https://catalogoengine.com'");
+    expect(script).toContain('readDefaultCatalogIsolation');
+    expect(script).toContain('WHERE product_id=?1');
+    expect(script).toContain('p.worker_script_name');
   });
 });
