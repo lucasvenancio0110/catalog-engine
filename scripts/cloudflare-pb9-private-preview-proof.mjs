@@ -26,6 +26,11 @@ function firstRow(result, index) {
   return result?.[index]?.results?.[0] || null;
 }
 
+function safeDiagnosticCode(value, fallback = 'none') {
+  const code = String(value || '').trim().toLowerCase();
+  return /^[a-z0-9][a-z0-9_:-]{0,79}$/.test(code) ? code : fallback;
+}
+
 async function loadRuntimeConfig() {
   const raw = await fs.readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8');
   const config = JSON.parse(raw);
@@ -71,6 +76,22 @@ async function readControlState({ accountId, apiToken, databaseId, merchant }) {
                 p.runtime_kind,
                 p.runtime_status,
                 p.runtime_version,
+                p.runtime_last_error_code,
+                (SELECT j.status
+                   FROM tenant_runtime_jobs j
+                  WHERE j.tenant_id=t.tenant_id
+                  ORDER BY j.updated_at DESC, j.created_at DESC
+                  LIMIT 1) AS runtime_job_status,
+                (SELECT j.attempt_count
+                   FROM tenant_runtime_jobs j
+                  WHERE j.tenant_id=t.tenant_id
+                  ORDER BY j.updated_at DESC, j.created_at DESC
+                  LIMIT 1) AS runtime_job_attempt_count,
+                (SELECT j.last_error_code
+                   FROM tenant_runtime_jobs j
+                  WHERE j.tenant_id=t.tenant_id
+                  ORDER BY j.updated_at DESC, j.created_at DESC
+                  LIMIT 1) AS runtime_job_error_code,
                 v.status AS verification_status,
                 v.finding_count,
                 v.classifier_version,
@@ -252,7 +273,15 @@ export function evaluatePb9PrivatePreview({
     passed: Object.values(checks).every(Boolean),
     checks,
     merchantCatalogProducts: integer(tenantCatalog?.productCount),
-    previewProductsReturned: Array.isArray(products?.body?.items) ? products.body.items.length : 0
+    previewProductsReturned: Array.isArray(products?.body?.items) ? products.body.items.length : 0,
+    runtimeDiagnostic: {
+      runtimeStatus: safeDiagnosticCode(target?.runtime_status),
+      runtimeVersion: integer(target?.runtime_version),
+      runtimeLastErrorCode: safeDiagnosticCode(target?.runtime_last_error_code),
+      jobStatus: safeDiagnosticCode(target?.runtime_job_status),
+      jobAttemptCount: integer(target?.runtime_job_attempt_count),
+      jobLastErrorCode: safeDiagnosticCode(target?.runtime_job_error_code)
+    }
   };
 }
 
@@ -263,6 +292,7 @@ export function safePb9Evidence(merchant, evaluation) {
     checks: evaluation.checks,
     merchantCatalogProducts: evaluation.merchantCatalogProducts,
     previewProductsReturned: evaluation.previewProductsReturned,
+    runtimeDiagnostic: evaluation.runtimeDiagnostic,
     privateIdentifiersExposed: !evaluation.checks.privateIdentifiersHidden,
     recurringIntelligentSyncEnabled: !evaluation.checks.recurringSyncStillOff
   };
