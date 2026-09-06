@@ -37,6 +37,15 @@ describe('trusted fresh tenant provisioning boundary', () => {
     expect(workflow).not.toContain('TENANT_SYNC_AUTOMATION_ENABLED=1');
   });
 
+  it('does not compete with the immediate application deploy for the same production mutation slot', () => {
+    expect(workflow).not.toMatch(/^\s*push:\s*$/m);
+    expect(workflow).not.toContain("github.event_name == 'push'");
+    expect(workflow).toContain("github.event_name == 'schedule'");
+    expect(workflow).toContain("github.event_name == 'workflow_dispatch'");
+    expect(workflow).toContain('group: catalog-engine-production-d1');
+    expect(workflow).toContain('cancel-in-progress: false');
+  });
+
   it('keeps physical provider identifiers out of the emitted outcome summary', () => {
     expect(script).toContain("outcomes.push({ outcome: 'ready_for_import' })");
     expect(script).not.toContain('outcomes.push({ tenantId');
