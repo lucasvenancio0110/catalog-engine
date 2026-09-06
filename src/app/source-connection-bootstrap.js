@@ -238,6 +238,31 @@ function storeCardCopy(
   card.dataset.previewState = previewReady ? 'ready' : 'pending';
 }
 
+function markCardsLoading(cards) {
+  for (const card of cards) {
+    if (!card || card.dataset.sourceWired === '1') continue;
+    const bodyCopy = card.querySelector('.store-card-body p');
+    const meta = card.querySelectorAll('.store-card-meta > div');
+    const action = card.querySelector('.store-card-action');
+
+    setText(bodyCopy, 'Consultando o estado real da sua loja…');
+    if (meta[0]) {
+      setText(meta[0].querySelector('small'), 'Catálogo');
+      setText(meta[0].querySelector('strong'), 'Consultando…');
+    }
+    if (meta[1]) {
+      setText(meta[1].querySelector('small'), 'Status');
+      setText(meta[1].querySelector('strong'), 'Atualizando…');
+    }
+    if (action) {
+      setText(action.querySelector('span'), 'Carregando estado…');
+      action.title = 'Aguarde enquanto confirmamos o estado real da loja';
+      action.disabled = true;
+    }
+    card.dataset.catalogAction = 'loading';
+  }
+}
+
 let enhancementInFlight = false;
 
 export async function enhancePortalSourceConnection(root = document.querySelector('#app')) {
@@ -245,6 +270,7 @@ export async function enhancePortalSourceConnection(root = document.querySelecto
   const cards = [...root.querySelectorAll('.store-card')];
   if (cards.length && cards.every((card) => card.dataset.sourceWired === '1')) return 0;
 
+  markCardsLoading(cards);
   enhancementInFlight = true;
   try {
     const [session, token] = await Promise.all([portalSession(), portalToken()]);

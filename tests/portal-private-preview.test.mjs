@@ -29,6 +29,14 @@ describe('PB9 portal private preview experience', () => {
     expect(bootstrap).not.toMatch(/\bETA\b|estimad[oa]|\bpercent\b/i);
   });
 
+  it('uses a neutral disabled state while the real store status is loading', async () => {
+    const [, bootstrap] = await files;
+    expect(bootstrap).toContain('Carregando estado…');
+    expect(bootstrap).toContain('Consultando o estado real da sua loja…');
+    expect(bootstrap).toContain("card.dataset.catalogAction = 'loading'");
+    expect(bootstrap).toMatch(/markCardsLoading\(cards\);[\s\S]*Promise\.all\(\[portalSession\(\), portalToken\(\)\]\)/);
+  });
+
   it('labels preview as private on desktop and phone without exposing infrastructure language', async () => {
     const [, , notice, css] = await files;
     expect(notice).toContain('VISUALIZAÇÃO PRIVADA');
