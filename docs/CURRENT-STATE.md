@@ -8,25 +8,30 @@ This document records the implementation/proof level that is true now. Focused n
 
 ## Live GitHub / production baseline
 
-Current proven PB6 production runtime baseline:
+Current proven PB7 production baseline:
 
-- SHA: `5ec6f5e7159bfee6650da901f90d03ed16bf11f9`;
-- commit: `Merge pull request #224 ... PB6: chain merchant proof after trusted provisioning`;
-- trusted application deploy: run `34037208532`, successful on that exact SHA;
-- application deploy status: `catalog-engine/application-deploy = success`;
-- PB6 real-merchant acceptance proof: run `34037260274`, successful on that exact SHA;
-- PB6 status: `catalog-engine/pb6-merchant-acceptance = success`;
+- PB7 runtime implementation SHA: `ccd69520607329acf764d3d5d29ddaaf29d0aa98`;
+- implementation PR: **#226 — PB7: expose truthful resumable provisioning progress**;
+- trusted application deploy: run `34038969797`, successful on that exact runtime SHA;
 - deploy quality/build/D1/Worker/static assets/binding verification/automation-boundary checks/catalog smoke: success;
-- trusted fresh tenant provisioning run `34036884111`: one eligible tenant advanced to `readyForImport`, zero failures;
-- real CROCCODILOS decision persisted as `full_connected_source` with authority `merchant`, exact private-source binding and audit evidence;
-- scheduler-owned initial-import discovery consumed the merchant decision without manual Queue injection;
-- final PB6 proof observed the initial import active in `details` phase;
+- PB7 production-proof tooling: PR **#227**;
+- trusted-main proof trigger: PR **#228**;
+- latest proof/main SHA: `705d7b91ed295cc9a6d62e61fa2144ec56276152`;
+- real-merchant production proof: run `34039346993`, successful;
+- PB7 status: `catalog-engine/pb7-production-proof = success`;
+- real CROCCODILOS durable state observed as `stage=importing`, `status=running`;
+- real import counters observed: `discovered=6104`, `queued=6104`, `completed=0`, `failed=0`, `deferred=0`, `published=0`;
+- bounded merchant polling projected as `8000ms`;
+- a second independent durable read succeeded, proving re-entry is not dependent on browser memory;
+- no tenant/source/runtime/private provider identifiers were exposed by the proof;
+- automatic initial tenant import remains enabled;
+- recurring tenant Intelligent Sync remains disabled;
 - private R2 brand-asset binding `BRAND_ASSETS` remains present;
 - Images binding remains present.
 
-PB6 — Source Scope / Import Decision is **PRODUCTION GREEN**. Detailed evidence is recorded in `PB6-CLOSURE-2026-09-06.md`.
+PB7 — Provisioning Progress is **PRODUCTION GREEN**. Detailed evidence is recorded in `PB7-CLOSURE-2026-09-06.md`.
 
-PB7 — Provisioning Progress is **PLANNED — NEXT**. It must project truthful resume-safe onboarding/import progress from durable backend state with bounded polling and honest retry/error UX. PB7 must not claim the still-running real import is complete.
+PB8 — Real Tenant Import is **PLANNED — NEXT**. It must prove the real newly created merchant tenant completes the isolated scheduler/Queue-owned initial import, CEI/classification and verification path to verified catalog readiness. The PB7 proof deliberately observed an import still in progress and does not claim PB8 completion.
 
 Current production activation boundary remains:
 
@@ -95,8 +100,9 @@ Detailed order and per-slice contracts remain owned by `PORTAL-BETA-EXECUTION.md
 | PB4 — Branding | **PRODUCTION GREEN** | PR #204 shipped branding/profile/validation; PR #205 recovered logo storage to private R2. Exact runtime SHA `dfff6204e42a862c42cc091b70fc06243016e155`; deploy #127/run `33952906777` success; real CROCCODILOS save + reload/re-entry rendered the persisted logo and branding state. Detailed evidence: `PB4-CLOSURE-2026-09-05.md`. |
 | PB5 — Source Connection | **PRODUCTION GREEN** | PR #209; exact runtime SHA `5f01b679804c45246077eb292ad2648ab6b20b48`; deploy run `33955408377` success; real CROCCODILOS source connection persisted across reload/re-entry with safe connected-state projection and no private locator rendering. Detailed evidence: `PB5-CLOSURE-2026-09-05.md`. |
 | PB6 — Source Scope / Import Decision | **PRODUCTION GREEN** | Durable `full_connected_source` authority is `merchant`; private-source binding and audit proven; trusted physical provisioning recovered the real tenant; exact SHA `5ec6f5e7159bfee6650da901f90d03ed16bf11f9` deploy run `34037208532` green; post-deploy merchant proof run `34037260274` observed scheduler-owned initial import in `details` with recurring sync still OFF. Detailed evidence: `PB6-CLOSURE-2026-09-06.md`. |
-| PB7 — Provisioning Progress | **PLANNED — NEXT** | Project truthful, resume-safe progress from durable onboarding/import state; bounded polling; honest retry/error UX; no fake percentages and no claim that PB8 real-import completion is already proven. |
-| PB8–PB12 | **PLANNED** | Preserve approved order and per-slice gates. |
+| PB7 — Provisioning Progress | **PRODUCTION GREEN** | PR #226; runtime SHA `ccd69520607329acf764d3d5d29ddaaf29d0aa98`; deploy run `34038969797` green. Read-only real-merchant proof run `34039346993` observed CROCCODILOS at `importing/running` with 6,104 discovered/queued items, 8s bounded polling, two independent durable reads, no private identifier leak and recurring sync OFF. Detailed evidence: `PB7-CLOSURE-2026-09-06.md`. |
+| PB8 — Real Tenant Import | **PLANNED — NEXT** | Prove the same real isolated tenant completes scheduler/Queue-owned scan/details/finalize → CEI/classification → verification to verified catalog readiness, with default tenant unchanged and Queue/DLQ state understood. |
+| PB9–PB12 | **PLANNED** | Preserve approved order and per-slice gates. |
 
 ## PB1 authentication authority
 
@@ -235,12 +241,49 @@ After that recovery, the production scheduler created the real initial-import jo
 
 This satisfies PB6's first-real-merchant acceptance gate. Completion of the full import/CEI/verification chain is deliberately not claimed here; that belongs to PB8.
 
+## PB7 production proof
+
+PB7 projects the durable real-tenant preparation state into a merchant-readable progress surface rather than creating a parallel progress model.
+
+The production portal now provides:
+
+- durable stages for `preparing`, `discovering`, `importing`, `finalizing`, `organizing`, `checking` and `ready`;
+- real persisted counters only;
+- no synthetic percentage or ETA;
+- bounded polling/backoff between 5 and 30 seconds;
+- polling pause while the page is hidden and immediate refresh when visible again;
+- last-valid-state preservation during transient refresh failures;
+- automatic retry messaging only when durable retry state exists;
+- mobile-first dialog behavior with touch, focus trap, Escape, loading/error and reduced-motion support;
+- safe `Ver andamento` routing after the merchant's PB6 decision is confirmed.
+
+PR #226 was deployed through trusted application run `34038969797` at exact runtime SHA `ccd69520607329acf764d3d5d29ddaaf29d0aa98`.
+
+The read-only trusted-main production proof run `34039346993` selected CROCCODILOS without publishing private tenant/source/runtime identities and observed:
+
+```text
+stage = importing
+status = running
+discovered = 6104
+queued = 6104
+completed = 0
+failed = 0
+deferred = 0
+published = 0
+pollAfterMs = 8000
+second durable read = true
+private identifiers exposed = false
+```
+
+The second independent durable read proves reload/re-entry truth is server-backed rather than browser-memory-backed. No D1 mutation or manual Queue injection was used by the proof. The status `catalog-engine/pb7-production-proof = success` was published on trusted main. Recurring Intelligent Sync remained off.
+
+PB7 is therefore Production Green while PB8 remains responsible for proving that the still-running real import actually completes through CEI/classification and verification.
+
 ## Explicitly not confirmed / not Green
 
 Do not claim without later evidence:
 
-- PB7 **PRODUCTION GREEN** or complete merchant-facing provisioning-progress UX;
-- first real beta isolated import/CEI/verification completion;
+- PB8 real isolated import/CEI/verification completion;
 - authenticated private preview;
 - PB end-to-end browser proof;
 - M7D11 completion;
@@ -252,10 +295,8 @@ Do not claim without later evidence:
 
 ## Current execution rule
 
-Execute **PB7 — Provisioning Progress** next.
+Execute **PB8 — Real Tenant Import** next.
 
-PB7 must project only durable backend truth from the onboarding/import state that now exists for the real tenant. It must use bounded polling and truthful retry/error UX, avoid fake percentage progress, preserve mobile-first behavior, and avoid exposing tenant/runtime/source identifiers.
+PB8 must prove the real CROCCODILOS tenant completes the scheduler/Queue-owned initial scan/details/finalize path, CEI/classification and verification to verified catalog readiness. The tenant data plane and product counts must remain isolated, the default tenant must remain unchanged, Queue/DLQ health must return to an understood state, and no manual Queue injection may substitute for the normal automatic path.
 
-PB7 does not own full import completion; PB8 remains the exact slice that must prove the real tenant traverses isolated data-plane import, CEI and verification end to end.
-
-Recurring tenant Intelligent Sync remains disabled throughout the PB campaign unless the owner separately authorizes M7E.
+PB8 does not activate recurring tenant Intelligent Sync or M7E. It does not require public custom-domain publication.
