@@ -233,20 +233,33 @@ export default {
 
   async scheduled(_controller, env, ctx) {
     ctx.waitUntil(
-      Promise.allSettled([
-        runDueDataPlaneJobs(env),
-        runDueDataPlaneMigrations(env),
-        runDueTenantImportDispatches(env),
-        runDueTenantSyncScheduling(env),
-        runDueTenantSyncReplays(env),
-        runDueTenantIncrementalRecoveries(env),
-        runDueTenantIncrementalClassifications(env),
-        runDueTenantIncrementalVerifications(env),
-        runDueTenantIncrementalFinalizations(env),
-        runDueTenantClassifications(env),
-        runDueTenantVerifications(env),
-        runDueDomainJobs(env)
-      ]).then(async (results) => {
+      (async () => {
+        // Runtime activation is intentionally first. Its own discovery query already
+        // requires a verified, active tenant data plane. Running it behind the entire
+        // scheduler batch allowed unrelated long-running work to starve already-due
+        // runtime jobs before they could even be claimed. A tenant that becomes newly
+        // eligible later in this tick can safely wait for the next five-minute cron.
+        try {
+          const runtimeSummary = await runDueTenantRuntimes(env);
+          console.log('tenant_runtime_schedule', JSON.stringify(safeScheduleSummary(runtimeSummary)));
+        } catch (error) {
+          console.error('tenant_runtime_schedule_failed', safeScheduleError(error));
+        }
+
+        const results = await Promise.allSettled([
+          runDueDataPlaneJobs(env),
+          runDueDataPlaneMigrations(env),
+          runDueTenantImportDispatches(env),
+          runDueTenantSyncScheduling(env),
+          runDueTenantSyncReplays(env),
+          runDueTenantIncrementalRecoveries(env),
+          runDueTenantIncrementalClassifications(env),
+          runDueTenantIncrementalVerifications(env),
+          runDueTenantIncrementalFinalizations(env),
+          runDueTenantClassifications(env),
+          runDueTenantVerifications(env),
+          runDueDomainJobs(env)
+        ]);
         const labels = [
           'data_plane_job_schedule',
           'data_plane_migration_schedule',
@@ -270,14 +283,7 @@ export default {
             console.error(`${label}_failed`, safeScheduleError(result.reason));
           }
         }
-
-        try {
-          const runtimeSummary = await runDueTenantRuntimes(env);
-          console.log('tenant_runtime_schedule', JSON.stringify(safeScheduleSummary(runtimeSummary)));
-        } catch (error) {
-          console.error('tenant_runtime_schedule_failed', safeScheduleError(error));
-        }
-      })
+      })()
     );
   }
 };
