@@ -20,13 +20,13 @@ This checkpoint records the live proof level for PB6 — Source Scope / Import D
 
 The first post-merge `Tenant import automation preflight` run failed because the ephemeral validation database did not materialize the new PB6 decision table in the enabled automation path.
 
-PR #213 (`PB6: make tenant import preflight mode-aware`) repaired the preflight. Main is now `457f69f7df6f6a1d5aa94d5d075100d393804543`, and the main preflight is green.
+PR #213 (`PB6: make tenant import preflight mode-aware`) repaired the preflight. Main then advanced to `457f69f7df6f6a1d5aa94d5d075100d393804543`, and the main preflight completed green.
 
-This repair changes validation infrastructure, not the deployed PB6 application runtime. The last exact application runtime proven in production remains SHA `666258073f2f20e759e2cbe228c5588d2ac2a48b`.
+This repair changes validation infrastructure, not the PB6 authority contract.
 
 ## Trusted production proof
 
-Trusted application deploy run `34016789511` completed successfully on exact SHA `666258073f2f20e759e2cbe228c5588d2ac2a48b`.
+Trusted application deploy run `34016789511` completed successfully on exact PB6 runtime SHA `666258073f2f20e759e2cbe228c5588d2ac2a48b`.
 
 Automatic tenant-import canary run `34016832322` also completed successfully against that exact deployed SHA and proved:
 
@@ -42,6 +42,8 @@ Automatic tenant-import canary run `34016832322` also completed successfully aga
 - source scope matched the expected bounded canary item count.
 
 The canary published success status `catalog-engine/tenant-import-auto-canary` for the deployed SHA.
+
+After PR #214 merged this checkpoint to main, Cloudflare Workers Build `7e740a4c-10a4-46ba-9dc2-28b3f7db66c8` completed successfully for main SHA `b23745add33bfc0103ffd7630d83daab7f8fc12b`, producing Worker version `91bc7842-c43b-460c-b5ab-c9262477bf11`. This is a documentation-only successor to the already-proven PB6 runtime and is now the latest deployed main SHA. It does not replace the merchant acceptance gate or require a new PB6 mechanism canary because the application authority implementation is unchanged from the runtime already proven by `34016832322`.
 
 ## Activation boundary
 
