@@ -1,5 +1,4 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
+import { expect, it } from 'vitest';
 import {
   evaluateMerchantAcceptance,
   safeEvidence
@@ -22,10 +21,10 @@ const runtime = {
   recurringSyncEnabled: false
 };
 
-test('PB6 merchant acceptance passes only with durable merchant authority and initial import evidence', () => {
+it('PB6 merchant acceptance passes only with durable merchant authority and initial import evidence', () => {
   const evaluation = evaluateMerchantAcceptance(completeRow, runtime);
-  assert.equal(evaluation.passed, true);
-  assert.deepEqual(evaluation.checks, {
+  expect(evaluation.passed).toBe(true);
+  expect(evaluation.checks).toEqual({
     uniqueMerchant: true,
     activeSource: true,
     decisionConfirmed: true,
@@ -38,28 +37,28 @@ test('PB6 merchant acceptance passes only with durable merchant authority and in
   });
 });
 
-test('system canary authority cannot close the real merchant gate', () => {
+it('system canary authority cannot close the real merchant gate', () => {
   const evaluation = evaluateMerchantAcceptance(
     { ...completeRow, authority: 'system_canary' },
     runtime
   );
-  assert.equal(evaluation.passed, false);
-  assert.equal(evaluation.checks.merchantAuthority, false);
+  expect(evaluation.passed).toBe(false);
+  expect(evaluation.checks.merchantAuthority).toBe(false);
 });
 
-test('recurring Intelligent Sync must remain disabled during PB6 acceptance', () => {
+it('recurring Intelligent Sync must remain disabled during PB6 acceptance', () => {
   const evaluation = evaluateMerchantAcceptance(completeRow, {
     ...runtime,
     recurringSyncEnabled: true
   });
-  assert.equal(evaluation.passed, false);
-  assert.equal(evaluation.checks.recurringSyncDisabled, false);
+  expect(evaluation.passed).toBe(false);
+  expect(evaluation.checks.recurringSyncDisabled).toBe(false);
 });
 
-test('safe evidence does not expose tenant, source, database, principal or Cloudflare identifiers', () => {
+it('safe evidence does not expose tenant, source, database, principal or Cloudflare identifiers', () => {
   const evaluation = evaluateMerchantAcceptance(completeRow, runtime);
   const evidence = safeEvidence('CROCCODILOS', evaluation);
-  const encoded = JSON.stringify(evidence);
+  const encoded = JSON.stringify(evidence).toLowerCase();
   for (const forbidden of [
     'tenantId',
     'tenant_id',
@@ -71,9 +70,9 @@ test('safe evidence does not expose tenant, source, database, principal or Cloud
     'principal_id',
     'cloudflare'
   ]) {
-    assert.equal(encoded.toLowerCase().includes(forbidden.toLowerCase()), false);
+    expect(encoded).not.toContain(forbidden.toLowerCase());
   }
-  assert.deepEqual(evidence, {
+  expect(evidence).toEqual({
     pb6MerchantAcceptance: 'passed',
     merchant: 'CROCCODILOS',
     decisionKind: 'full_connected_source',
