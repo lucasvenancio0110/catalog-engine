@@ -1,0 +1,65 @@
+name: Cloudflare PB8 terminal-success detail DLQ cleanup
+
+on:
+  pull_request:
+    branches: ['main']
+    paths:
+      - '.github/workflows/cloudflare-pb8-terminal-dlq-cleanup.yml'
+      - 'scripts/cloudflare-pb8-terminal-dlq-cleanup.mjs'
+      - 'tests/pb8-terminal-dlq-cleanup.test.mjs'
+  push:
+    branches: ['main']
+    paths:
+      - '.github/workflows/cloudflare-pb8-terminal-dlq-cleanup.yml'
+      - 'scripts/cloudflare-pb8-terminal-dlq-cleanup.mjs'
+      - 'tests/pb8-terminal-dlq-cleanup.test.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run tests/pb8-terminal-dlq-cleanup.test.mjs
+      - run: npm run quality
+
+  cleanup:
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - name: Checkout trusted main
+        uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run tests/pb8-terminal-dlq-cleanup.test.mjs
+      - name: Validate trusted Cloudflare credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$CLOUDFLARE_API_TOKEN"
+      - name: Purge only terminal-success peek refs
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/cloudflare-pb8-terminal-dlq-cleanup.mjs | tee /tmp/pb8-terminal-dlq-cleanup.json
+          cat /tmp/pb8-terminal-dlq-cleanup.json >> "$GITHUB_STEP_SUMMARY"
