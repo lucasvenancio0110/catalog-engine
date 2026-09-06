@@ -17,6 +17,7 @@ describe('production scheduler tenant runtime activation', () => {
     expect(verificationCall).toBeLessThan(batchEnd);
     expect(runtimeCall).toBeGreaterThan(batchEnd);
     expect(entry.slice(batchStart, batchEnd)).not.toContain('runDueTenantRuntimes(env)');
+    expect(entry).toContain('staged: summary.staged || 0');
     expect(entry).toContain("console.log('tenant_runtime_schedule'");
     expect(entry).toContain("console.error('tenant_runtime_schedule_failed'");
   });
