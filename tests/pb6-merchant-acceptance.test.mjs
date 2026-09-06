@@ -1,8 +1,14 @@
+import fs from 'node:fs';
 import { expect, it } from 'vitest';
 import {
   evaluateMerchantAcceptance,
   safeEvidence
 } from '../scripts/cloudflare-pb6-merchant-acceptance.mjs';
+
+const workflow = fs.readFileSync(
+  '.github/workflows/cloudflare-pb6-merchant-acceptance.yml',
+  'utf8'
+);
 
 const completeRow = {
   tenant_count: 1,
@@ -167,4 +173,13 @@ it('safe evidence does not expose tenant, source, database, principal or Cloudfl
       dataPlaneRetryExhausted: false
     }
   });
+});
+
+it('chains PB6 proof to trusted fresh provisioning with a bounded scheduler wait', () => {
+  expect(workflow).toContain("- 'Cloudflare trusted fresh tenant provisioning'");
+  expect(workflow).toContain('Wait for scheduled initial-import consumption');
+  expect(workflow).toContain('for attempt in $(seq 1 20)');
+  expect(workflow).toContain('sleep 20');
+  expect(workflow).toContain('PB6 initial-import evidence did not arrive within bounded scheduler wait');
+  expect(workflow).not.toContain('TENANT_SYNC_AUTOMATION_ENABLED=1');
 });

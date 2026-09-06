@@ -87,10 +87,11 @@ describe('production deployment pipeline boundary', () => {
     expect(verifyIndex).toBeGreaterThan(deployIndex);
   });
 
-  it('runs the PB6 merchant acceptance proof only after a successful trusted-main deploy', async () => {
+  it('runs the PB6 merchant acceptance proof only after successful trusted-main evidence', async () => {
     const workflow = await readWorkflow('cloudflare-pb6-merchant-acceptance.yml');
 
-    expect(workflow).toContain("workflows: ['Deploy Catalog Engine application']");
+    expect(workflow).toContain("- 'Deploy Catalog Engine application'");
+    expect(workflow).toContain("- 'Cloudflare trusted fresh tenant provisioning'");
     expect(workflow).toContain("github.event.workflow_run.conclusion == 'success'");
     expect(workflow).toContain("github.event.workflow_run.head_branch == 'main'");
     expect(workflow).toContain('github.event.workflow_run.head_sha');
