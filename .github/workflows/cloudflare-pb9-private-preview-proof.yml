@@ -6,8 +6,10 @@ on:
     paths:
       - '.github/workflows/cloudflare-pb9-private-preview-proof.yml'
       - 'scripts/cloudflare-pb9-private-preview-proof.mjs'
+      - 'scripts/cloudflare-pb9-runtime-diagnostic.mjs'
       - 'scripts/pb9-fetch-diagnostic-hook.mjs'
       - 'tests/pb9-private-preview-proof.test.mjs'
+      - 'tests/pb9-runtime-diagnostic.test.mjs'
       - 'worker/private-preview.js'
       - 'worker/private-preview-routing.js'
       - 'worker/entry.js'
@@ -21,8 +23,10 @@ on:
     paths:
       - '.github/workflows/cloudflare-pb9-private-preview-proof.yml'
       - 'scripts/cloudflare-pb9-private-preview-proof.mjs'
+      - 'scripts/cloudflare-pb9-runtime-diagnostic.mjs'
       - 'scripts/pb9-fetch-diagnostic-hook.mjs'
       - 'tests/pb9-private-preview-proof.test.mjs'
+      - 'tests/pb9-runtime-diagnostic.test.mjs'
   workflow_run:
     workflows: ['Deploy Catalog Engine application']
     types: [completed]
@@ -54,7 +58,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: PB9 proof tests
-        run: npx vitest run tests/private-preview.test.mjs tests/private-preview-session.test.mjs tests/portal-private-preview.test.mjs tests/pb9-private-preview-proof.test.mjs
+        run: npx vitest run tests/private-preview.test.mjs tests/private-preview-session.test.mjs tests/portal-private-preview.test.mjs tests/pb9-private-preview-proof.test.mjs tests/pb9-runtime-diagnostic.test.mjs
       - name: Secret-free quality gate
         run: npm run quality
 
@@ -86,7 +90,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Verify PB9 proof contract
-        run: npx vitest run tests/private-preview.test.mjs tests/private-preview-session.test.mjs tests/portal-private-preview.test.mjs tests/pb9-private-preview-proof.test.mjs
+        run: npx vitest run tests/private-preview.test.mjs tests/private-preview-session.test.mjs tests/portal-private-preview.test.mjs tests/pb9-private-preview-proof.test.mjs tests/pb9-runtime-diagnostic.test.mjs
       - name: Validate trusted Cloudflare credentials
         shell: bash
         run: |
@@ -158,6 +162,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          set +e
+          node scripts/cloudflare-pb9-runtime-diagnostic.mjs | tee /tmp/pb9-runtime-diagnostic.json
+          DIAGNOSTIC_RC=${PIPESTATUS[0]}
+          set -e
+          if test -s /tmp/pb9-runtime-diagnostic.json; then
+            cat /tmp/pb9-runtime-diagnostic.json >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'pb9_runtime_diagnostic=unavailable' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "pb9_runtime_diagnostic_exit=$DIAGNOSTIC_RC"
           test -n "$TARGET_SHA" || exit 0
           jq -n --arg state failure --arg context "$STATUS_CONTEXT" \
             --arg description "PB9 production proof failed; inspect trusted run" \
