@@ -40,9 +40,21 @@ export function evaluateMerchantAcceptance(row, runtime) {
     initialImportEnabled: runtime?.initialImportEnabled === true,
     recurringSyncDisabled: runtime?.recurringSyncEnabled === false
   };
+  const diagnostics = {
+    provisioningStep: String(state.provisioning_current_step || 'missing'),
+    provisioningStatus: String(state.provisioning_status || 'missing'),
+    catalogStatus: String(state.catalog_status || 'missing'),
+    catalogSchemaReady: Number(state.catalog_schema_ready || 0) === 1,
+    providerDatabaseReady: Number(state.provider_database_ready || 0) === 1,
+    providerWorkerReady: Number(state.provider_worker_ready || 0) === 1,
+    supplierSourceActive: Number(state.supplier_source_active || 0) === 1,
+    activeInitialJob: Number(state.active_initial_job || 0) === 1,
+    schedulerCandidateReady: Number(state.scheduler_candidate_ready || 0) === 1
+  };
   return {
     passed: Object.values(checks).every(Boolean),
     checks,
+    diagnostics,
     initialImportStatus: String(state.initial_import_status || 'missing')
   };
 }
@@ -58,7 +70,8 @@ export function safeEvidence(merchant, evaluation) {
     initialImportObserved: evaluation.checks.initialImportObserved,
     initialImportStatus: evaluation.initialImportStatus,
     initialImportEnabled: evaluation.checks.initialImportEnabled,
-    recurringIntelligentSyncEnabled: !evaluation.checks.recurringSyncDisabled
+    recurringIntelligentSyncEnabled: !evaluation.checks.recurringSyncDisabled,
+    diagnostics: evaluation.diagnostics
   };
 }
 
@@ -83,12 +96,47 @@ async function queryMerchantState({ accountId, apiToken, databaseId, merchant })
                   JOIN target t ON t.tenant_id=c.tenant_id
                  WHERE c.source_key=?2 AND c.status='active'
               ),
+              active_supplier AS (
+                SELECT s.tenant_id,s.source_key
+                  FROM supplier_sources s
+                  JOIN target t ON t.tenant_id=s.tenant_id
+                 WHERE s.source_key=?2 AND s.status='active'
+                 LIMIT 1
+              ),
               decision AS (
                 SELECT d.tenant_id,d.source_key,d.source_locator_ref,d.decision_kind,
                        d.status AS decision_status,d.authority,d.confirmed_at
                   FROM tenant_import_decisions d
                   JOIN target t ON t.tenant_id=d.tenant_id
                  WHERE d.source_key=?2
+              ),
+              latest_provisioning AS (
+                SELECT r.tenant_id,r.current_step,r.status
+                  FROM tenant_provisioning_runs r
+                  JOIN target t ON t.tenant_id=r.tenant_id
+                 ORDER BY r.created_at DESC
+                 LIMIT 1
+              ),
+              catalog_instance AS (
+                SELECT i.tenant_id,i.status,i.schema_version
+                  FROM tenant_catalog_instances i
+                  JOIN target t ON t.tenant_id=i.tenant_id
+                 LIMIT 1
+              ),
+              provider_state AS (
+                SELECT p.tenant_id,p.database_status,p.worker_status,p.d1_database_id
+                  FROM tenant_data_plane_provider_state p
+                  JOIN target t ON t.tenant_id=p.tenant_id
+                 LIMIT 1
+              ),
+              active_initial AS (
+                SELECT j.tenant_id,j.source_key
+                  FROM tenant_import_jobs j
+                  JOIN target t ON t.tenant_id=j.tenant_id
+                 WHERE j.source_key=?2
+                   AND j.mode='initial'
+                   AND j.status IN ('pending','queued','scanning','details','finalizing')
+                 LIMIT 1
               ),
               latest_initial AS (
                 SELECT j.tenant_id,j.source_key,j.import_id,j.status,j.created_at
@@ -119,10 +167,37 @@ async function queryMerchantState({ accountId, apiToken, databaseId, merchant })
                            AND d.confirmed_at IS NOT NULL
                            AND datetime(j.created_at) >= datetime(d.confirmed_at)
                      THEN 1 ELSE 0 END AS initial_import_observed,
-                COALESCE(j.status,'missing') AS initial_import_status
+                COALESCE(j.status,'missing') AS initial_import_status,
+                COALESCE(r.current_step,'missing') AS provisioning_current_step,
+                COALESCE(r.status,'missing') AS provisioning_status,
+                COALESCE(i.status,'missing') AS catalog_status,
+                CASE WHEN COALESCE(i.schema_version,0) >= 3 THEN 1 ELSE 0 END AS catalog_schema_ready,
+                CASE WHEN p.database_status='active' AND p.d1_database_id IS NOT NULL THEN 1 ELSE 0 END AS provider_database_ready,
+                CASE WHEN p.worker_status='active' THEN 1 ELSE 0 END AS provider_worker_ready,
+                CASE WHEN ss.source_key IS NOT NULL THEN 1 ELSE 0 END AS supplier_source_active,
+                CASE WHEN ai.source_key IS NOT NULL THEN 1 ELSE 0 END AS active_initial_job,
+                CASE WHEN r.current_step='import'
+                           AND r.status IN ('running','failed','blocked')
+                           AND i.status='provisioning'
+                           AND COALESCE(i.schema_version,0) >= 3
+                           AND p.database_status='active'
+                           AND p.worker_status='active'
+                           AND p.d1_database_id IS NOT NULL
+                           AND ss.source_key IS NOT NULL
+                           AND s.source_locator_ref IS NOT NULL
+                           AND d.source_locator_ref=s.source_locator_ref
+                           AND d.status='confirmed'
+                           AND d.decision_kind='full_connected_source'
+                           AND ai.source_key IS NULL
+                     THEN 1 ELSE 0 END AS scheduler_candidate_ready
               FROM target t
               LEFT JOIN active_source s ON s.tenant_id=t.tenant_id
+              LEFT JOIN active_supplier ss ON ss.tenant_id=t.tenant_id
               LEFT JOIN decision d ON d.tenant_id=t.tenant_id AND d.source_key=?2
+              LEFT JOIN latest_provisioning r ON r.tenant_id=t.tenant_id
+              LEFT JOIN catalog_instance i ON i.tenant_id=t.tenant_id
+              LEFT JOIN provider_state p ON p.tenant_id=t.tenant_id
+              LEFT JOIN active_initial ai ON ai.tenant_id=t.tenant_id AND ai.source_key=?2
               LEFT JOIN latest_initial j ON j.tenant_id=t.tenant_id AND j.source_key=?2
               LIMIT 1`,
         params: [merchant, SOURCE_KEY, metadata]
