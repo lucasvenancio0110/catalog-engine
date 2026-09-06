@@ -21,7 +21,8 @@ describe('PB9 runtime scheduler heartbeat', () => {
       data_plane_locator_present: 1,
       worker_locator_present: 1,
       dispatch_namespace_matches: 1,
-      schema_ready: 1
+      schema_ready: 1,
+      store_profile_present: 1
     });
     expect(evaluation).toEqual({
       observed: true,
@@ -39,7 +40,8 @@ describe('PB9 runtime scheduler heartbeat', () => {
         dataPlaneLocatorPresent: true,
         workerLocatorPresent: true,
         dispatchNamespaceMatches: true,
-        schemaReady: true
+        schemaReady: true,
+        storeProfilePresent: true
       }
     });
     expect(safeRuntimeSchedulerHeartbeatEvidence(evaluation, preclaim)).toEqual({
@@ -57,15 +59,16 @@ describe('PB9 runtime scheduler heartbeat', () => {
     const preclaim = evaluateOldestCandidatePreclaim({
       data_plane_active: 1,
       data_plane_locator_present: 1,
-      worker_locator_present: 0,
+      worker_locator_present: 1,
       dispatch_namespace_matches: 1,
-      schema_ready: 1
+      schema_ready: 1,
+      store_profile_present: 0
     });
     expect(evaluation.stage).toBe('unknown');
     expect(evaluation.observed).toBe(false);
     expect(evaluation.lastErrorCode).toBe('none');
     expect(preclaim.ready).toBe(false);
-    expect(preclaim.gates.workerLocatorPresent).toBe(false);
+    expect(preclaim.gates.storeProfilePresent).toBe(false);
   });
 
   it('wires a best-effort heartbeat around runtime activation without changing tenant authority', async () => {
@@ -91,5 +94,7 @@ describe('PB9 runtime scheduler heartbeat', () => {
     expect(diagnostic).toContain("p.dispatch_namespace='catalog-engine-production'");
     expect(diagnostic).toContain('p.worker_script_name IS NOT NULL');
     expect(diagnostic).toContain('p.d1_database_id IS NOT NULL');
+    expect(diagnostic).toContain('LEFT JOIN tenant_store_profiles s ON s.tenant_id=o.tenant_id');
+    expect(diagnostic).toContain('AS store_profile_present');
   });
 });

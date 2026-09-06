@@ -63,7 +63,8 @@ export function evaluateOldestCandidatePreclaim(row = {}) {
     dataPlaneLocatorPresent: boolean(row.data_plane_locator_present),
     workerLocatorPresent: boolean(row.worker_locator_present),
     dispatchNamespaceMatches: boolean(row.dispatch_namespace_matches),
-    schemaReady: boolean(row.schema_ready)
+    schemaReady: boolean(row.schema_ready),
+    storeProfilePresent: boolean(row.store_profile_present)
   };
   return {
     ready: Object.values(gates).every(Boolean),
@@ -139,10 +140,12 @@ export async function runRuntimeSchedulerHeartbeatDiagnosis() {
                 CASE WHEN p.d1_database_id IS NOT NULL AND LENGTH(TRIM(p.d1_database_id)) > 0 THEN 1 ELSE 0 END AS data_plane_locator_present,
                 CASE WHEN p.worker_script_name IS NOT NULL AND LENGTH(TRIM(p.worker_script_name)) > 0 THEN 1 ELSE 0 END AS worker_locator_present,
                 CASE WHEN p.dispatch_namespace='catalog-engine-production' THEN 1 ELSE 0 END AS dispatch_namespace_matches,
-                CASE WHEN i.schema_version >= 3 THEN 1 ELSE 0 END AS schema_ready
+                CASE WHEN i.schema_version >= 3 THEN 1 ELSE 0 END AS schema_ready,
+                CASE WHEN s.tenant_id IS NOT NULL THEN 1 ELSE 0 END AS store_profile_present
                 FROM oldest o
                 LEFT JOIN tenant_data_plane_provider_state p ON p.tenant_id=o.tenant_id
                 LEFT JOIN tenant_catalog_instances i ON i.tenant_id=o.tenant_id
+                LEFT JOIN tenant_store_profiles s ON s.tenant_id=o.tenant_id
                LIMIT 1`,
         params: [TENANT_CATALOG_RUNTIME_VERSION]
       }
