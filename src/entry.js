@@ -10,5 +10,7 @@ import './storefront/catalog-mobile-density.css';
 import './storefront/team-page-filter-density.css';
 import './storefront/mobile-quick-view.css';
 import './storefront/catalog-infinite-scroll.css';
+import './storefront/private-preview.css';
+import './storefront/private-preview.js';
 import './storefront/luxury-mobile.js';
 import './storefront/mobile-shell.js';
