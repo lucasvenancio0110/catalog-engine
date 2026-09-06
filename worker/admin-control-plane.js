@@ -168,7 +168,7 @@ async function persistNewStore(db, plan) {
       .prepare(
         `INSERT INTO tenant_store_profiles
           (tenant_id, store_name, currency, theme_key, setup_status, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         VALUES (?1, ?2, ?3, ?4, ?5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
          ON CONFLICT(tenant_id) DO UPDATE SET
            store_name=excluded.store_name,
            currency=excluded.currency,
