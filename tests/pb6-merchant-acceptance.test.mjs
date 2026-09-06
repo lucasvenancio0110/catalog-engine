@@ -22,7 +22,12 @@ const completeRow = {
   provider_worker_ready: 1,
   supplier_source_active: 1,
   active_initial_job: 0,
-  scheduler_candidate_ready: 1
+  scheduler_candidate_ready: 1,
+  data_plane_job_status: 'success',
+  data_plane_attempt_count: 1,
+  data_plane_job_error_code: null,
+  provider_error_code: null,
+  data_plane_retry_due: 0
 };
 
 const runtime = {
@@ -64,29 +69,56 @@ it('recurring Intelligent Sync must remain disabled during PB6 acceptance', () =
   expect(evaluation.checks.recurringSyncDisabled).toBe(false);
 });
 
-it('safe diagnostics explain scheduler readiness without exposing private identifiers', () => {
+it('safe diagnostics explain scheduler and data-plane readiness without private identifiers', () => {
   const evaluation = evaluateMerchantAcceptance(
     {
       ...completeRow,
       initial_import_observed: 0,
       initial_import_status: 'missing',
-      provisioning_current_step: 'source',
-      scheduler_candidate_ready: 0
+      provisioning_current_step: 'data_plane',
+      catalog_schema_ready: 0,
+      provider_database_ready: 0,
+      provider_worker_ready: 0,
+      scheduler_candidate_ready: 0,
+      data_plane_job_status: 'failed',
+      data_plane_attempt_count: 6,
+      data_plane_job_error_code: 'cloudflare_platform_operation_failed',
+      provider_error_code: 'cloudflare_platform_operation_failed',
+      data_plane_retry_due: 0
     },
     runtime
   );
   expect(evaluation.passed).toBe(false);
   expect(evaluation.diagnostics).toEqual({
-    provisioningStep: 'source',
+    provisioningStep: 'data_plane',
     provisioningStatus: 'running',
     catalogStatus: 'provisioning',
-    catalogSchemaReady: true,
-    providerDatabaseReady: true,
-    providerWorkerReady: true,
+    catalogSchemaReady: false,
+    providerDatabaseReady: false,
+    providerWorkerReady: false,
     supplierSourceActive: true,
     activeInitialJob: false,
-    schedulerCandidateReady: false
+    schedulerCandidateReady: false,
+    dataPlaneJobStatus: 'failed',
+    dataPlaneAttempts: 6,
+    dataPlaneErrorCode: 'cloudflare_platform_operation_failed',
+    providerErrorCode: 'cloudflare_platform_operation_failed',
+    dataPlaneRetryDue: false,
+    dataPlaneRetryExhausted: true
   });
+});
+
+it('diagnostic error fields redact unexpected text', () => {
+  const evaluation = evaluateMerchantAcceptance(
+    {
+      ...completeRow,
+      data_plane_job_error_code: 'token=secret value',
+      provider_error_code: 'unexpected private value'
+    },
+    runtime
+  );
+  expect(evaluation.diagnostics.dataPlaneErrorCode).toBe('redacted');
+  expect(evaluation.diagnostics.providerErrorCode).toBe('redacted');
 });
 
 it('safe evidence does not expose tenant, source, database, principal or Cloudflare identifiers', () => {
@@ -126,7 +158,13 @@ it('safe evidence does not expose tenant, source, database, principal or Cloudfl
       providerWorkerReady: true,
       supplierSourceActive: true,
       activeInitialJob: false,
-      schedulerCandidateReady: true
+      schedulerCandidateReady: true,
+      dataPlaneJobStatus: 'success',
+      dataPlaneAttempts: 1,
+      dataPlaneErrorCode: 'none',
+      providerErrorCode: 'none',
+      dataPlaneRetryDue: false,
+      dataPlaneRetryExhausted: false
     }
   });
 });
