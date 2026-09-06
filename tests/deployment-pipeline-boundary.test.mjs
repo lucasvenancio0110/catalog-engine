@@ -86,4 +86,17 @@ describe('production deployment pipeline boundary', () => {
     expect(workflow).not.toContain('wrangler secret list');
     expect(verifyIndex).toBeGreaterThan(deployIndex);
   });
+
+  it('runs the PB6 merchant acceptance proof only after a successful trusted-main deploy', async () => {
+    const workflow = await readWorkflow('cloudflare-pb6-merchant-acceptance.yml');
+
+    expect(workflow).toContain("workflows: ['Deploy Catalog Engine application']");
+    expect(workflow).toContain("github.event.workflow_run.conclusion == 'success'");
+    expect(workflow).toContain("github.event.workflow_run.head_branch == 'main'");
+    expect(workflow).toContain('github.event.workflow_run.head_sha');
+    expect(workflow).toContain('catalog-engine/pb6-merchant-acceptance');
+    expect(workflow).toContain('PB6 real merchant acceptance is still pending or invalid');
+    expect(workflow).not.toContain('system_canary');
+    expect(workflow).not.toContain('TENANT_SYNC_AUTOMATION_ENABLED=1');
+  });
 });
