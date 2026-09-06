@@ -2,8 +2,10 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { queryD1Batch } from '../worker/cloudflare-platform.js';
+import { TENANT_CATALOG_RUNTIME_VERSION } from '../worker/tenant-catalog-runtime.js';
 
 const DEFAULT_MERCHANT = 'CROCCODILOS';
+const RUNTIME_MAX_AUTOMATIC_ATTEMPTS = 6;
 
 function requiredEnv(name) {
   const value = String(process.env[name] || '').trim();
@@ -46,9 +48,11 @@ export function evaluateRuntimeDiscovery(row = {}) {
       integer(row.runtime_version) < integer(row.target_runtime_version || 1),
     noBlockingJob: !['pending', 'running'].includes(safeCode(row.runtime_job_status))
   };
+  const discoverable = Object.values(predicates).every(Boolean);
+  const candidatesAhead = integer(row.eligible_candidates_ahead);
 
   return {
-    discoverable: Object.values(predicates).every(Boolean),
+    discoverable,
     predicates,
     state: {
       provisioningStatus: safeCode(row.provisioning_status),
@@ -63,6 +67,14 @@ export function evaluateRuntimeDiscovery(row = {}) {
       runtimeVersion: integer(row.runtime_version),
       targetRuntimeVersion: integer(row.target_runtime_version || 1),
       runtimeJobStatus: safeCode(row.runtime_job_status)
+    },
+    scheduling: {
+      eligibleCandidates: integer(row.eligible_candidates_total),
+      candidatesAhead,
+      selectionRank: discoverable ? candidatesAhead + 1 : 0,
+      exhaustedEligibleJobs: integer(row.exhausted_eligible_jobs),
+      oldestCandidateExhausted: integer(row.oldest_candidate_exhausted) === 1,
+      dueRuntimeJobs: integer(row.due_runtime_jobs)
     }
   };
 }
@@ -72,10 +84,11 @@ export function safeRuntimeDiscoveryEvidence(merchant, evaluation) {
     pb9RuntimeDiscovery: evaluation.discoverable ? 'discoverable' : 'not_discoverable',
     merchant: String(merchant || DEFAULT_MERCHANT).slice(0, 80),
     predicates: evaluation.predicates,
-    state: evaluation.state
+    state: evaluation.state,
+    scheduling: evaluation.scheduling
   };
   const serialized = JSON.stringify(evidence);
-  if (/t_[a-f0-9]{20}|prn_[a-f0-9]{20}|[a-f0-9]{8}-[a-f0-9-]{27,}|worker_script|yupoo\.com|d1_database_id/i.test(serialized)) {
+  if (/t_[a-f0-9]{20}|prn_[a-f0-9]{20}|rtjob_[a-f0-9]{20}|[a-f0-9]{8}-[a-f0-9-]{27,}|worker_script|workers\.dev|yupoo\.com|d1_database_id/i.test(serialized)) {
     throw new Error('pb9_runtime_discovery_private_leak');
   }
   return evidence;
@@ -99,6 +112,46 @@ export async function runRuntimeDiscoveryDiagnosis() {
                   FROM catalog_tenants
                  WHERE UPPER(display_name)=UPPER(?1)
                    AND status='active'
+              ),
+              target_run AS (
+                SELECT r.*
+                  FROM tenant_provisioning_runs r
+                  JOIN target t ON t.tenant_id=r.tenant_id
+                 ORDER BY r.updated_at DESC, r.created_at DESC
+                 LIMIT 1
+              ),
+              eligible AS (
+                SELECT r.tenant_id, MIN(r.created_at) AS candidate_created_at
+                  FROM tenant_provisioning_runs r
+                  JOIN tenant_catalog_instances i ON i.tenant_id=r.tenant_id
+                  JOIN tenant_data_plane_provider_state p ON p.tenant_id=r.tenant_id
+                  JOIN tenant_verification_jobs v ON v.tenant_id=r.tenant_id
+                    AND v.status='success'
+                 WHERE r.current_step='domain'
+                   AND r.status IN ('running','failed','blocked')
+                   AND i.status='provisioning'
+                   AND i.schema_version >= 3
+                   AND p.database_status='active'
+                   AND p.worker_status='active'
+                   AND p.d1_database_id IS NOT NULL
+                   AND (
+                     p.runtime_kind!='catalog' OR
+                     p.runtime_status!='verified' OR
+                     p.runtime_version < ?2
+                   )
+                 GROUP BY r.tenant_id
+              ),
+              target_eligible AS (
+                SELECT e.candidate_created_at
+                  FROM eligible e
+                  JOIN target t ON t.tenant_id=e.tenant_id
+                 LIMIT 1
+              ),
+              oldest_eligible AS (
+                SELECT tenant_id
+                  FROM eligible
+                 ORDER BY candidate_created_at ASC
+                 LIMIT 1
               )
               SELECT
                 (SELECT COUNT(*) FROM target) AS tenant_count,
@@ -110,22 +163,45 @@ export async function runRuntimeDiscoveryDiagnosis() {
                 p.worker_status,
                 p.runtime_status,
                 p.runtime_version,
-                1 AS target_runtime_version,
+                ?2 AS target_runtime_version,
                 v.status AS verification_status,
                 v.finding_count,
                 (SELECT j.status
                    FROM tenant_runtime_jobs j
                   WHERE j.tenant_id=t.tenant_id
+                    AND j.target_runtime_version=?2
                   ORDER BY j.updated_at DESC, j.created_at DESC
-                  LIMIT 1) AS runtime_job_status
+                  LIMIT 1) AS runtime_job_status,
+                (SELECT COUNT(*) FROM eligible) AS eligible_candidates_total,
+                (SELECT COUNT(*)
+                   FROM eligible e
+                  WHERE e.tenant_id NOT IN (SELECT tenant_id FROM target)
+                    AND e.candidate_created_at < COALESCE(
+                      (SELECT candidate_created_at FROM target_eligible),
+                      '9999-12-31 23:59:59'
+                    )) AS eligible_candidates_ahead,
+                (SELECT COUNT(DISTINCT e.tenant_id)
+                   FROM eligible e
+                   JOIN tenant_runtime_jobs j ON j.tenant_id=e.tenant_id
+                  WHERE j.target_runtime_version=?2
+                    AND j.attempt_count >= ?3
+                    AND j.status!='success') AS exhausted_eligible_jobs,
+                CASE WHEN EXISTS(
+                  SELECT 1
+                    FROM tenant_runtime_jobs j
+                   WHERE j.tenant_id=(SELECT tenant_id FROM oldest_eligible)
+                     AND j.target_runtime_version=?2
+                     AND j.attempt_count >= ?3
+                     AND j.status!='success'
+                ) THEN 1 ELSE 0 END AS oldest_candidate_exhausted,
+                (SELECT COUNT(*)
+                   FROM tenant_runtime_jobs j
+                  WHERE j.target_runtime_version=?2
+                    AND j.status IN ('pending','failed','staged')
+                    AND j.attempt_count < ?3
+                    AND (j.next_attempt_at IS NULL OR j.next_attempt_at <= CURRENT_TIMESTAMP)) AS due_runtime_jobs
               FROM target t
-              LEFT JOIN tenant_provisioning_runs r ON r.provisioning_id=(
-                SELECT r2.provisioning_id
-                  FROM tenant_provisioning_runs r2
-                 WHERE r2.tenant_id=t.tenant_id
-                 ORDER BY r2.updated_at DESC, r2.created_at DESC
-                 LIMIT 1
-              )
+              LEFT JOIN target_run r ON r.tenant_id=t.tenant_id
               LEFT JOIN tenant_catalog_instances i ON i.tenant_id=t.tenant_id
               LEFT JOIN tenant_data_plane_provider_state p ON p.tenant_id=t.tenant_id
               LEFT JOIN tenant_verification_jobs v ON v.job_id=(
@@ -136,7 +212,7 @@ export async function runRuntimeDiscoveryDiagnosis() {
                  LIMIT 1
               )
               LIMIT 1`,
-        params: [merchant]
+        params: [merchant, TENANT_CATALOG_RUNTIME_VERSION, RUNTIME_MAX_AUTOMATIC_ATTEMPTS]
       }
     ]
   });
