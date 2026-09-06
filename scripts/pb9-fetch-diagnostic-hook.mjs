@@ -12,12 +12,27 @@ function classifyFetchError(error) {
   return code ? `network_${code.replace(/[^a-z0-9_]+/g, '_').slice(0, 40)}` : 'network_unknown';
 }
 
+function classifyFetchTarget(input) {
+  try {
+    const raw = typeof input === 'string' || input instanceof URL ? input : input?.url;
+    const host = new URL(String(raw || '')).hostname.toLowerCase();
+    if (host === 'app.catalogoengine.com') return 'app';
+    if (host === 'catalogoengine.com') return 'default';
+    if (host === 'api.cloudflare.com') return 'cloudflare';
+    return 'other';
+  } catch {
+    return 'unknown';
+  }
+}
+
 if (typeof nativeFetch === 'function') {
   globalThis.fetch = async (...args) => {
     try {
       return await nativeFetch(...args);
     } catch (error) {
-      console.error(`pb9_node_fetch_failure=${classifyFetchError(error)}`);
+      console.error(
+        `pb9_node_fetch_failure=${classifyFetchError(error)} target=${classifyFetchTarget(args[0])}`
+      );
       throw error;
     }
   };
