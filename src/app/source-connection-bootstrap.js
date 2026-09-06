@@ -1,4 +1,6 @@
 import { hydratePortalIcons } from '../ui/portal-icons.js';
+import { openImportDecisionExperience } from './import-decision-experience.js';
+import { requestPortalImportDecisionState } from './import-decision.js';
 import { openSourceConnectionExperience } from './source-connection-experience.js';
 import { requestPortalSourceState } from './source-connection.js';
 
@@ -49,11 +51,21 @@ function ensureMobileAppearanceTarget(root) {
   hydratePortalIcons(root);
 }
 
+function openImport(store) {
+  if (!store?.tenantId) return;
+  openImportDecisionExperience({
+    store,
+    getAccessToken: portalToken,
+    onDone: async () => window.location.reload()
+  });
+}
+
 function openSource(store) {
   if (!store?.tenantId) return;
   openSourceConnectionExperience({
     store,
     getAccessToken: portalToken,
+    onDefineImport: () => openImport(store),
     onDone: async () => window.location.reload()
   });
 }
@@ -71,34 +83,60 @@ function wireCatalogNavigation(root, store) {
   }
 }
 
-function storeCardCopy(card, store, { source = null, stateKnown = true } = {}) {
+function storeCardCopy(
+  card,
+  store,
+  { source = null, decisionState = null, stateKnown = true } = {}
+) {
   if (!card || !store?.tenantId) return;
   const bodyCopy = card.querySelector('.store-card-body p');
   const meta = card.querySelectorAll('.store-card-meta > div');
   const action = card.querySelector('.store-card-action');
   const connected = source?.status === 'active';
+  const decision = decisionState?.decision || null;
 
   if (!stateKnown) {
     setText(
       bodyCopy,
-      'Não foi possível confirmar a fonte agora. Abra o catálogo para tentar novamente sem alterar sua loja.'
+      'Não foi possível confirmar o catálogo agora. Abra esta etapa para tentar novamente sem alterar sua loja.'
     );
     if (meta[0]) {
       setText(meta[0].querySelector('small'), 'Próximo passo');
-      setText(meta[0].querySelector('strong'), 'Consultar fonte');
+      setText(meta[0].querySelector('strong'), 'Consultar catálogo');
     }
     if (meta[1]) {
       setText(meta[1].querySelector('small'), 'Jornada');
-      setText(meta[1].querySelector('strong'), 'Marca ✓ → fonte → preview');
+      setText(meta[1].querySelector('strong'), 'Marca ✓ → fonte → importação → preview');
     }
     if (action) {
       setText(action.querySelector('span'), 'Abrir catálogo');
-      action.title = `Consultar fonte de ${store.storeName || 'sua loja'}`;
+      action.title = `Consultar catálogo de ${store.storeName || 'sua loja'}`;
     }
+    card.dataset.catalogAction = 'source';
+  } else if (connected && decision) {
+    setText(
+      bodyCopy,
+      decision.authority === 'preexisting_import'
+        ? 'Fonte conectada e catálogo já em preparação. O Catalog Engine preservou o trabalho iniciado e segue para as próximas etapas.'
+        : 'Fonte conectada e importação definida. O Catalog Engine já tem autorização para preparar todo o conteúdo desta fonte.'
+    );
+    if (meta[0]) {
+      setText(meta[0].querySelector('small'), 'Próximo passo');
+      setText(meta[0].querySelector('strong'), 'Preparar catálogo');
+    }
+    if (meta[1]) {
+      setText(meta[1].querySelector('small'), 'Jornada');
+      setText(meta[1].querySelector('strong'), 'Marca ✓ → fonte ✓ → importação ✓ → preview');
+    }
+    if (action) {
+      setText(action.querySelector('span'), 'Ver importação');
+      action.title = `Ver decisão de importação de ${store.storeName || 'sua loja'}`;
+    }
+    card.dataset.catalogAction = 'import';
   } else if (connected) {
     setText(
       bodyCopy,
-      'Fonte conectada. O Catalog Engine reconheceu a origem dos produtos e está pronto para a próxima decisão.'
+      'Fonte conectada. Agora escolha como a primeira importação deve usar esse catálogo.'
     );
     if (meta[0]) {
       setText(meta[0].querySelector('small'), 'Próximo passo');
@@ -106,12 +144,13 @@ function storeCardCopy(card, store, { source = null, stateKnown = true } = {}) {
     }
     if (meta[1]) {
       setText(meta[1].querySelector('small'), 'Jornada');
-      setText(meta[1].querySelector('strong'), 'Marca ✓ → fonte ✓ → preview');
+      setText(meta[1].querySelector('strong'), 'Marca ✓ → fonte ✓ → importação → preview');
     }
     if (action) {
-      setText(action.querySelector('span'), 'Ver conexão');
-      action.title = `Ver fonte do catálogo de ${store.storeName || 'sua loja'}`;
+      setText(action.querySelector('span'), 'Definir importação');
+      action.title = `Definir importação de ${store.storeName || 'sua loja'}`;
     }
+    card.dataset.catalogAction = 'import';
   } else {
     setText(
       bodyCopy,
@@ -123,22 +162,27 @@ function storeCardCopy(card, store, { source = null, stateKnown = true } = {}) {
     }
     if (meta[1]) {
       setText(meta[1].querySelector('small'), 'Jornada');
-      setText(meta[1].querySelector('strong'), 'Marca ✓ → fonte → preview');
+      setText(meta[1].querySelector('strong'), 'Marca ✓ → fonte → importação → preview');
     }
     if (action) {
       setText(action.querySelector('span'), 'Conectar catálogo');
       action.title = `Conectar catálogo de ${store.storeName || 'sua loja'}`;
     }
+    card.dataset.catalogAction = 'source';
   }
 
   if (action) {
     action.disabled = false;
     if (action.dataset.sourceWired !== '1') {
       action.dataset.sourceWired = '1';
-      action.addEventListener('click', () => openSource(store));
+      action.addEventListener('click', () => {
+        if (card.dataset.catalogAction === 'import') openImport(store);
+        else openSource(store);
+      });
     }
   }
   card.dataset.sourceState = !stateKnown ? 'unknown' : connected ? 'connected' : 'empty';
+  card.dataset.importDecisionState = decision ? 'confirmed' : 'pending';
 }
 
 let enhancementInFlight = false;
@@ -163,11 +207,14 @@ export async function enhancePortalSourceConnection(root = document.querySelecto
         if (!store?.tenantId) return;
         try {
           const source = await requestPortalSourceState({ tenantId: store.tenantId, token });
-          storeCardCopy(card, store, { source, stateKnown: true });
+          const decisionState = source?.status === 'active'
+            ? await requestPortalImportDecisionState({ tenantId: store.tenantId, token })
+            : null;
+          storeCardCopy(card, store, { source, decisionState, stateKnown: true });
         } catch {
-          // Background refresh failure is not equivalent to "no source". Keep the card
-          // actionable and let the explicit dialog own the safe retry/error message.
-          storeCardCopy(card, store, { source: null, stateKnown: false });
+          // Background refresh failure is not equivalent to "no source" or
+          // "no decision". Keep the card actionable and let the explicit flow own retry.
+          storeCardCopy(card, store, { source: null, decisionState: null, stateKnown: false });
         }
         card.dataset.sourceWired = '1';
       })

@@ -79,6 +79,8 @@ function fixtureIdentity() {
   return {
     tenantId: `t_${suffix}`,
     sourceKey: 'auto-canary',
+    connectionId: `src_${suffix}`,
+    sourceLocatorRef: `loc_${suffix}`,
     workerScriptName: `ce-${suffix}`,
     databaseName: `ceac-${suffix}`,
     dataPlaneKey: `auto-canary-${suffix}`,
@@ -296,6 +298,27 @@ async function setupFixture(scope) {
             VALUES (?1, ?2, 'yupoo', ?3, 'active', 'incremental', 3,
                     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
       params: [fixture.tenantId, fixture.sourceKey, fixture.sourceUrl]
+    },
+    {
+      sql: `INSERT INTO tenant_source_connections
+              (connection_id, tenant_id, provider, source_key, source_locator_ref, status,
+               sync_strategy, last_health_at, created_at, updated_at)
+            VALUES (?1, ?2, 'yupoo', ?3, ?4, 'active', 'incremental', CURRENT_TIMESTAMP,
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      params: [
+        fixture.connectionId,
+        fixture.tenantId,
+        fixture.sourceKey,
+        fixture.sourceLocatorRef
+      ]
+    },
+    {
+      sql: `INSERT INTO tenant_import_decisions
+              (tenant_id, source_key, source_locator_ref, decision_kind, status, authority,
+               decided_by_principal_id, confirmed_at, created_at, updated_at)
+            VALUES (?1, ?2, ?3, 'full_connected_source', 'confirmed', 'system_canary', NULL,
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      params: [fixture.tenantId, fixture.sourceKey, fixture.sourceLocatorRef]
     },
     {
       sql: `INSERT INTO tenant_data_plane_provider_state
@@ -683,6 +706,7 @@ async function main() {
           automaticTenantImportCanaryPassed: true,
           ceiPipelineVerified: true,
           automationEnabled: true,
+          importDecisionAuthority: 'system_canary',
           manualQueueMessagesProduced: false,
           schedulerDiscovered: true,
           schedulerJobCreatedAt: discovery.created_at || null,

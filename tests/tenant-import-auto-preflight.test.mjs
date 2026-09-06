@@ -28,11 +28,15 @@ describe('tenant import automation production preflight', () => {
     expectScript('tenant_import_preflight_requires_automation_off');
   });
 
-  it('mirrors the dispatcher eligibility and due-job predicates read-only', () => {
+  it('mirrors the dispatcher eligibility, import-decision and due-job predicates read-only', () => {
     expectScript("r.current_step='import'");
     expectScript("r.status IN ('running','failed','blocked')");
     expectScript("i.status='provisioning'");
     expectScript('i.schema_version >= 3');
+    expectScript('JOIN tenant_import_decisions d');
+    expectScript('d.source_locator_ref=c.source_locator_ref');
+    expectScript("d.status='confirmed'");
+    expectScript("d.decision_kind='full_connected_source'");
     expectScript("p.database_status='active'");
     expectScript("p.worker_status='active'");
     expectScript("j.status IN ('pending','queued','scanning','details','finalizing')");

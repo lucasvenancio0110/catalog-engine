@@ -7,6 +7,7 @@ import { dispatchTenantRequest } from './tenant-dispatch.js';
 import { runDueDomainJobs } from './domain-job-scheduler.js';
 import { handlePortalAuthConfig } from './portal-auth-config.js';
 import { handlePortalBrandingRequest, servePublicBrandAsset } from './portal-branding.js';
+import { handlePortalImportDecisionRequest } from './portal-import-decision.js';
 import { handlePortalStoreCreation } from './portal-store-creation.js';
 import { runDueTenantClassifications } from './tenant-classification-runner.js';
 import { runDueTenantIncrementalClassifications } from './ingestion/incremental-classification-runner.js';
@@ -173,6 +174,10 @@ export default {
       }
       if (/^\/api\/admin\/stores\/t_[a-f0-9]{20}\/branding(?:\/logo)?$/.test(url.pathname)) {
         return handlePortalBrandingRequest(request, env);
+      }
+      if (/^\/api\/admin\/stores\/t_[a-f0-9]{20}\/import-decision$/.test(url.pathname)) {
+        const response = await handlePortalImportDecisionRequest(request, env);
+        if (response) return response;
       }
       if (
         (url.pathname === '/api/admin/session' && request.method === 'GET') ||

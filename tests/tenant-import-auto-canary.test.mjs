@@ -80,6 +80,14 @@ describe('automatic tenant import production canary', () => {
     expect(script).not.toContain('runDueTenantVerifications');
   });
 
+  it('passes the PB6 gate with explicit isolated canary authority rather than a merchant bypass', () => {
+    expectScript('INSERT INTO tenant_source_connections');
+    expectScript('INSERT INTO tenant_import_decisions');
+    expectScript("'full_connected_source', 'confirmed', 'system_canary'");
+    expectScript("importDecisionAuthority: 'system_canary'");
+    expect(script).not.toContain("'merchant', NULL");
+  });
+
   it('creates the isolated fixture on the current tenant schema and proves CEI persistence', () => {
     expectScript("from '../worker/tenant-data-plane-schema-v8.js'");
     expect(script).not.toContain("from '../worker/tenant-data-plane-schema-v7.js'");
