@@ -244,9 +244,8 @@ export default {
         runDueTenantIncrementalFinalizations(env),
         runDueTenantClassifications(env),
         runDueTenantVerifications(env),
-        runDueTenantRuntimes(env),
         runDueDomainJobs(env)
-      ]).then((results) => {
+      ]).then(async (results) => {
         const labels = [
           'data_plane_job_schedule',
           'data_plane_migration_schedule',
@@ -259,7 +258,6 @@ export default {
           'tenant_incremental_finalization_schedule',
           'tenant_classification_schedule',
           'tenant_verification_schedule',
-          'tenant_runtime_schedule',
           'domain_job_schedule'
         ];
         for (let index = 0; index < results.length; index += 1) {
@@ -270,6 +268,13 @@ export default {
           } else {
             console.error(`${label}_failed`, safeScheduleError(result.reason));
           }
+        }
+
+        try {
+          const runtimeSummary = await runDueTenantRuntimes(env);
+          console.log('tenant_runtime_schedule', JSON.stringify(safeScheduleSummary(runtimeSummary)));
+        } catch (error) {
+          console.error('tenant_runtime_schedule_failed', safeScheduleError(error));
         }
       })
     );
