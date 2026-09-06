@@ -86,8 +86,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          DESCRIPTION="Control plane + 4 Queue backlogs clean; safe to consider initial-import activation"
+          if jq -e '.automationEnabled == true' /tmp/tenant-import-preflight.json >/dev/null; then
+            DESCRIPTION="Initial import enabled; DLQs + disposable-canary hygiene clean"
+          fi
           jq -n --arg state success --arg context "$STATUS_CONTEXT" \
-            --arg description "Control plane + 4 Queue backlogs clean; safe to consider automation activation" \
+            --arg description "$DESCRIPTION" \
             --arg target_url "$RUN_URL" \
             '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
           curl --fail --silent --show-error -X POST \
@@ -107,7 +111,7 @@ jobs:
         run: |
           set -euo pipefail
           jq -n --arg state failure --arg context "$STATUS_CONTEXT" \
-            --arg description "Automation preflight not clean; leave tenant import automation OFF" \
+            --arg description "Tenant import preflight not clean; no automation state changed" \
             --arg target_url "$RUN_URL" \
             '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
           curl --fail --silent --show-error -X POST \
