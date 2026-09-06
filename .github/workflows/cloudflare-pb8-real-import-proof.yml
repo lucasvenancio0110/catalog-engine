@@ -14,7 +14,10 @@ on:
       - 'scripts/cloudflare-pb8-real-import-proof.mjs'
       - 'tests/pb8-real-import-proof.test.mjs'
   workflow_run:
-    workflows: ['Deploy Catalog Engine application', 'Activate tenant import Queue consumers']
+    workflows:
+      - 'Deploy Catalog Engine application'
+      - 'Activate tenant import Queue consumers'
+      - 'Cloudflare PB8 durable DLQ diagnosis'
     types: [completed]
   workflow_dispatch:
     inputs:
