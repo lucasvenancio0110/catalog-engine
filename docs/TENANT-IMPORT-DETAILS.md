@@ -17,6 +17,8 @@ Provider-specific network and parsing rules live behind the Provider Engine adap
 
 Transient failures remain retryable. After the bounded detail attempt limit, an incomplete item becomes `deferred` for this initial import instead of blocking an entire merchant catalog. Its source detail fingerprint remains incomplete so a later safe synchronization/recovery path can retry it under its own authority.
 
+If a detail delivery dies after acquiring a claim, the lease protects that work until expiry. Once an initial-import claim is both expired and already at or above the bounded detail attempt limit, the periodic finalize delivery terminalizes that exact tenant/source/import claim as `deferred` before evaluating the barrier. This recovery is idempotent, never steals an active lease and prevents Queue retry exhaustion or a DLQ transition from stranding onboarding in `details` forever.
+
 ## Provider-neutral persistence
 
 Central detail orchestration must not hard-code provider names in media persistence or identity generation.
@@ -36,6 +38,8 @@ Existing Yupoo category/media IDs are preserved exactly by the Yupoo adapter so 
 ## Finalize stage
 
 The platform cron periodically emits an opaque finalize message after the listing fan-out cursor reaches the discovered item count. Finalization is a barrier, not a timer: it succeeds only when every discovered item is terminal (`success`, `skipped`, or `deferred`).
+
+Before counting terminal rows, the finalize delivery performs the bounded expired-claim recovery described above. It may only terminalize initial-import rows owned by the same `tenantId`/`sourceKey`/`importId`, with `state='processing'`, an expired non-null lease and an already-exhausted detail attempt budget. Pending work, active leases and retryable claims are left untouched.
 
 Finalization recomputes category, league, team and facet counts from the isolated tenant D1, removes unreferenced private media, writes public catalog metadata and runs a white-label check over public product text.
 
