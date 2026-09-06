@@ -1,0 +1,72 @@
+name: Cloudflare PB8 stuck detail lease diagnosis
+
+on:
+  pull_request:
+    branches: ['main']
+    paths:
+      - '.github/workflows/cloudflare-pb8-stuck-detail-lease-diagnosis.yml'
+      - 'scripts/cloudflare-pb8-stuck-detail-lease-diagnosis.mjs'
+      - 'tests/pb8-stuck-detail-lease-diagnosis.test.mjs'
+  push:
+    branches: ['main']
+    paths:
+      - '.github/workflows/cloudflare-pb8-stuck-detail-lease-diagnosis.yml'
+      - 'scripts/cloudflare-pb8-stuck-detail-lease-diagnosis.mjs'
+      - 'tests/pb8-stuck-detail-lease-diagnosis.test.mjs'
+  workflow_dispatch:
+    inputs:
+      merchant_display_name:
+        description: Merchant display name to diagnose without exposing private identifiers
+        required: false
+        default: CROCCODILOS
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run tests/pb8-stuck-detail-lease-diagnosis.test.mjs
+      - run: npm run quality
+
+  diagnose:
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      PB8_MERCHANT_DISPLAY_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.merchant_display_name || 'CROCCODILOS' }}
+    steps:
+      - name: Checkout trusted main
+        uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run tests/pb8-stuck-detail-lease-diagnosis.test.mjs
+      - name: Validate trusted Cloudflare credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$CLOUDFLARE_API_TOKEN"
+      - name: Diagnose nonterminal detail lease state
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/cloudflare-pb8-stuck-detail-lease-diagnosis.mjs | tee /tmp/pb8-stuck-detail.json
+          cat /tmp/pb8-stuck-detail.json >> "$GITHUB_STEP_SUMMARY"
