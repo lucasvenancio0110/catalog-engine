@@ -48,7 +48,7 @@ function stageIndex(stage) {
 function timeline(progress) {
   const current = stageIndex(progress.stage);
   const list = el('ol', { className: 'progress-timeline' });
-  STAGE_ORDER.forEach(([key, label], index) => {
+  STAGE_ORDER.forEach(([, label], index) => {
     const state = progress.stage === 'ready' || index < current ? 'done' : index === current ? 'current' : 'future';
     const item = el('li', { className: `progress-timeline-item progress-timeline-item--${state}` }, [
       el('span', { className: 'progress-timeline-mark', text: state === 'done' ? '✓' : String(index + 1) }),
