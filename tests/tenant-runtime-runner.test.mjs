@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { describe, expect, it, vi } from 'vitest';
 import { runDueTenantRuntimes } from '../worker/tenant-runtime-runner.js';
 
@@ -27,5 +28,15 @@ describe('tenant runtime activation scheduler', () => {
     );
     expect(result).toEqual({ enabled: false, reason: 'database_unbound', processed: 0 });
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('wires runtime activation into the production cron entrypoint', async () => {
+    const entry = await readFile(new URL('../worker/entry.js', import.meta.url), 'utf8');
+    expect(entry).toContain("import { runDueTenantRuntimes } from './tenant-runtime-runner.js';");
+    expect(entry).toContain('runDueTenantRuntimes(env)');
+    expect(entry).toContain("'tenant_runtime_schedule'");
+
+    const calls = [...entry.matchAll(/runDueTenantRuntimes\(env\)/g)];
+    expect(calls).toHaveLength(1);
   });
 });
