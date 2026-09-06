@@ -1,6 +1,7 @@
 import { hydratePortalIcons } from '../ui/portal-icons.js';
 import { openImportDecisionExperience } from './import-decision-experience.js';
 import { requestPortalImportDecisionState } from './import-decision.js';
+import { openProvisioningProgressExperience } from './provisioning-progress-experience.js';
 import { openSourceConnectionExperience } from './source-connection-experience.js';
 import { requestPortalSourceState } from './source-connection.js';
 
@@ -49,6 +50,14 @@ function ensureMobileAppearanceTarget(root) {
   if (icon) icon.dataset.lucide = 'palette';
   futureDomain.title = 'Personalizar aparência da loja';
   hydratePortalIcons(root);
+}
+
+function openProgress(store) {
+  if (!store?.tenantId) return;
+  openProvisioningProgressExperience({
+    store,
+    getAccessToken: portalToken
+  });
 }
 
 function openImport(store) {
@@ -116,23 +125,21 @@ function storeCardCopy(
   } else if (connected && decision) {
     setText(
       bodyCopy,
-      decision.authority === 'preexisting_import'
-        ? 'Fonte conectada e catálogo já em preparação. O Catalog Engine preservou o trabalho iniciado e segue para as próximas etapas.'
-        : 'Fonte conectada e importação definida. O Catalog Engine já tem autorização para preparar todo o conteúdo desta fonte.'
+      'Fonte conectada e importação confirmada. A preparação continua em segundo plano e você pode acompanhar o estado real sem manter esta tela aberta.'
     );
     if (meta[0]) {
-      setText(meta[0].querySelector('small'), 'Próximo passo');
-      setText(meta[0].querySelector('strong'), 'Preparar catálogo');
+      setText(meta[0].querySelector('small'), 'Andamento');
+      setText(meta[0].querySelector('strong'), 'Preparando catálogo');
     }
     if (meta[1]) {
       setText(meta[1].querySelector('small'), 'Jornada');
-      setText(meta[1].querySelector('strong'), 'Marca ✓ → fonte ✓ → importação ✓ → preview');
+      setText(meta[1].querySelector('strong'), 'Marca ✓ → fonte ✓ → importação ✓ → preparação → preview');
     }
     if (action) {
-      setText(action.querySelector('span'), 'Ver importação');
-      action.title = `Ver decisão de importação de ${store.storeName || 'sua loja'}`;
+      setText(action.querySelector('span'), 'Ver andamento');
+      action.title = `Ver andamento do catálogo de ${store.storeName || 'sua loja'}`;
     }
-    card.dataset.catalogAction = 'import';
+    card.dataset.catalogAction = 'progress';
   } else if (connected) {
     setText(
       bodyCopy,
@@ -176,7 +183,8 @@ function storeCardCopy(
     if (action.dataset.sourceWired !== '1') {
       action.dataset.sourceWired = '1';
       action.addEventListener('click', () => {
-        if (card.dataset.catalogAction === 'import') openImport(store);
+        if (card.dataset.catalogAction === 'progress') openProgress(store);
+        else if (card.dataset.catalogAction === 'import') openImport(store);
         else openSource(store);
       });
     }
