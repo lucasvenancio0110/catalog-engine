@@ -8,7 +8,7 @@ const DEFAULT_MERCHANT = 'CROCCODILOS';
 const DEFAULT_TENANT_ID = 't_00000000000000000001';
 const DISPATCH_NAMESPACE = 'catalog-engine-production';
 const APP_ORIGIN = 'https://app.catalogoengine.com';
-const DEFAULT_ORIGIN = 'https://catalogoengine.com';
+const DEFAULT_ORIGIN = 'https://catalog-engine.lucassantanals0110.workers.dev';
 const PREVIEW_TTL_MS = 10 * 60 * 1000;
 
 function requiredEnv(name) {
