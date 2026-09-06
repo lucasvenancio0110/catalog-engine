@@ -23,9 +23,13 @@ describe('tenant import automation production preflight', () => {
     expect(workflow.slice(preflightStart)).toContain('secrets.CLOUDFLARE_API_TOKEN');
   });
 
-  it('refuses to run after automation is already enabled', () => {
-    expectScript("TENANT_IMPORT_AUTOMATION_ENABLED || '') !== '0'");
-    expectScript('tenant_import_preflight_requires_automation_off');
+  it('supports both pre-activation readiness and already-enabled initial-import hygiene', () => {
+    expectScript("['0', '1'].includes(automationState)");
+    expectScript('tenant_import_preflight_automation_state_invalid');
+    expectScript("automationState === '1'");
+    expectScript("'enabled_hygiene'");
+    expectScript("'activation_readiness'");
+    expect(script).not.toContain('tenant_import_preflight_requires_automation_off');
   });
 
   it('mirrors the dispatcher eligibility, import-decision and due-job predicates read-only', () => {
@@ -44,16 +48,25 @@ describe('tenant import automation production preflight', () => {
     expectScript("status IN ('details','finalizing')");
   });
 
-  it('requires no active import work, no leftover smoke tenants and zero Queue/DLQ backlog', () => {
-    expectScript('undispatchedCandidates');
-    expectScript('dueScanOrRetryJobs');
-    expectScript('dueFinalizeJobs');
-    expectScript('activeImportJobs');
-    expectScript('leftoverDisposableTenants');
-    expectScript('catalog-engine-import-scan-dlq');
-    expectScript('catalog-engine-import-detail-dlq');
+  it('keeps activation readiness strict while treating normal work as transient after enablement', () => {
+    expectScript('const activationUnsafe =');
+    expectScript('summary.undispatchedCandidates !== 0');
+    expectScript('summary.dueScanOrRetryJobs !== 0');
+    expectScript('summary.dueFinalizeJobs !== 0');
+    expectScript('summary.activeImportJobs !== 0');
     expectScript('Object.values(summary.queueBacklogs).some');
+    expectScript('const enabledHygieneUnsafe =');
+    expectScript('summary.leftoverDisposableTenants !== 0');
+    expectScript('DLQ_QUEUES.some');
+    expectScript('automationEnabled ? enabledHygieneUnsafe : activationUnsafe');
     expectScript('tenant_import_preflight_not_clean');
+  });
+
+  it('publishes mode-aware evidence without claiming an enabled system must be switched off', () => {
+    expectWorkflow("jq -e '.automationEnabled == true'");
+    expectWorkflow('Initial import enabled; DLQs + disposable-canary hygiene clean');
+    expectWorkflow('no automation state changed');
+    expect(workflow).not.toContain('leave tenant import automation OFF');
   });
 
   it('publishes only aggregate operational counts, not tenant or supplier identifiers', () => {
