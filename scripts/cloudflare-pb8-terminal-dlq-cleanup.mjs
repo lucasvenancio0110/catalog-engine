@@ -66,15 +66,29 @@ function validIdentity(body) {
 
 export function cleanupCandidates(messages = []) {
   const candidates = [];
-  let malformed = 0;
+  const rejected = {
+    malformedBody: 0,
+    otherMessageType: 0,
+    malformedIdentity: 0,
+    missingRef: 0
+  };
   for (const message of messages) {
     const body = decodeBody(message?.body);
     const ref = String(message?.ref || '').trim();
-    if (
-      !body || typeof body !== 'object' || String(body.type || '') !== 'detail' ||
-      !validIdentity(body) || !ref
-    ) {
-      malformed += 1;
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      rejected.malformedBody += 1;
+      continue;
+    }
+    if (String(body.type || '') !== 'detail') {
+      rejected.otherMessageType += 1;
+      continue;
+    }
+    if (!validIdentity(body)) {
+      rejected.malformedIdentity += 1;
+      continue;
+    }
+    if (!ref) {
+      rejected.missingRef += 1;
       continue;
     }
     candidates.push({
@@ -84,7 +98,7 @@ export function cleanupCandidates(messages = []) {
       ref
     });
   }
-  return { candidates, malformed };
+  return { candidates, rejected };
 }
 
 export function selectTerminalSuccessRefs(candidates = [], rows = [], limit = MAX_PURGED_PER_RUN) {
@@ -147,7 +161,12 @@ export async function runPb8TerminalDlqCleanup() {
   let purged = 0;
   let rounds = 0;
   let peeked = 0;
-  let malformed = 0;
+  const rejectedSeen = {
+    malformedBody: 0,
+    otherMessageType: 0,
+    malformedIdentity: 0,
+    missingRef: 0
+  };
   let terminalSuccessSeen = 0;
   let activeOrOtherSeen = 0;
   let missingAuthoritySeen = 0;
@@ -166,7 +185,7 @@ export async function runPb8TerminalDlqCleanup() {
     if (!messages.length) break;
 
     const parsed = cleanupCandidates(messages);
-    malformed += parsed.malformed;
+    for (const key of Object.keys(rejectedSeen)) rejectedSeen[key] += parsed.rejected[key];
     const rows = await authorityRows({ accountId, apiToken, databaseId, candidates: parsed.candidates });
     const selected = selectTerminalSuccessRefs(
       parsed.candidates,
@@ -209,7 +228,7 @@ export async function runPb8TerminalDlqCleanup() {
     terminalSuccessSeen,
     activeOrOtherSeen,
     missingAuthoritySeen,
-    malformedSeen: malformed,
+    rejectedSeen,
     stoppedBecauseNoSafeRefs,
     refScopedPurgeOnly: true,
     privateIdentifiersExposed: false
