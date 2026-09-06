@@ -18,6 +18,7 @@ on:
       - 'Deploy Catalog Engine application'
       - 'Activate tenant import Queue consumers'
       - 'Cloudflare PB8 durable DLQ diagnosis'
+      - 'Cloudflare PB8 terminal-success detail DLQ cleanup'
     types: [completed]
   workflow_dispatch:
     inputs:
