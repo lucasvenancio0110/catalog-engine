@@ -221,6 +221,39 @@ describe('PB6 durable import decision authority', () => {
     expect(JSON.stringify(payload)).not.toContain(locatorRef);
   });
 
+  it('does not let an old initial import authorize a replacement source locator', async () => {
+    const { database, db } = await createDatabase({ withInitialJob: true });
+    const replacementLocatorRef = 'loc_fedcba9876543210abcd';
+    database
+      .prepare("UPDATE tenant_source_connections SET source_locator_ref=? WHERE tenant_id=? AND source_key='primary'")
+      .run(replacementLocatorRef, tenantId);
+
+    const stateResponse = await handlePortalImportDecisionRequest(
+      request(),
+      { CATALOG_DB: db },
+      { authenticate }
+    );
+    expect(stateResponse.status).toBe(200);
+    expect(await stateResponse.json()).toEqual({ sourceConnected: true, decision: null });
+
+    const confirmResponse = await handlePortalImportDecisionRequest(
+      request('PUT', { sourceKey: 'primary', decisionKind: 'full_connected_source' }),
+      { CATALOG_DB: db },
+      { authenticate }
+    );
+    expect(confirmResponse.status).toBe(200);
+    expect((await confirmResponse.json()).decision.authority).toBe('merchant');
+
+    const row = database
+      .prepare('SELECT source_locator_ref, authority, decided_by_principal_id FROM tenant_import_decisions WHERE tenant_id=?')
+      .get(tenantId);
+    expect(row).toEqual({
+      source_locator_ref: replacementLocatorRef,
+      authority: 'merchant',
+      decided_by_principal_id: principalId
+    });
+  });
+
   it('requires an active source and an owner/admin role for mutation', async () => {
     const withoutSource = await createDatabase({ withSource: false });
     const missing = await handlePortalImportDecisionRequest(
@@ -328,7 +361,7 @@ describe('PB6 portal import decision client', () => {
 });
 
 describe('PB6 import dispatcher gate', () => {
-  it('requires a decision bound to the exact current source locator before discovering a new initial job', async () => {
+  it('requires a durable decision bound to the exact current source locator and never backfills at runtime', async () => {
     const dispatcher = await readFile(
       new URL('../worker/tenant-import-dispatcher.js', import.meta.url),
       'utf8'
@@ -337,6 +370,7 @@ describe('PB6 import dispatcher gate', () => {
     expect(dispatcher).toContain('d.source_locator_ref=c.source_locator_ref');
     expect(dispatcher).toContain("d.status='confirmed'");
     expect(dispatcher).toContain("d.decision_kind='full_connected_source'");
-    expect(dispatcher).toContain('recordPreexistingImportDecisions');
+    expect(dispatcher).not.toContain('recordPreexistingImportDecisions');
+    expect(dispatcher).not.toContain('INSERT OR IGNORE INTO tenant_import_decisions');
   });
 });
