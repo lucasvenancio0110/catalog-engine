@@ -67,6 +67,38 @@ function safeScheduleError(error) {
     : 'scheduled_operation_failed';
 }
 
+async function recordRuntimeSchedulerState(
+  env,
+  { stage, summary = {}, errorCode = null, restart = false }
+) {
+  if (!env.CATALOG_DB) return;
+  const discovered = Math.max(0, Math.floor(Number(summary.discovered) || 0));
+  const selected = Math.max(0, Math.floor(Number(summary.selected) || 0));
+  const processed = Math.max(0, Math.floor(Number(summary.processed) || 0));
+  await env.CATALOG_DB
+    .prepare(
+      `UPDATE tenant_runtime_scheduler_state
+          SET stage=?1,
+              discovered_count=?2,
+              selected_count=?3,
+              processed_count=?4,
+              last_error_code=?5,
+              started_at=CASE WHEN ?6=1 THEN CURRENT_TIMESTAMP ELSE started_at END,
+              updated_at=CURRENT_TIMESTAMP
+        WHERE singleton_id=1`
+    )
+    .bind(stage, discovered, selected, processed, errorCode, restart ? 1 : 0)
+    .run();
+}
+
+async function bestEffortRuntimeSchedulerState(env, state) {
+  try {
+    await recordRuntimeSchedulerState(env, state);
+  } catch {
+    console.error('tenant_runtime_scheduler_heartbeat_failed', 'scheduler_heartbeat_write_failed');
+  }
+}
+
 function shouldDispatchTenantRequest(pathname) {
   return pathname.startsWith('/api/') || pathname.startsWith('/media/');
 }
@@ -239,11 +271,29 @@ export default {
         // scheduler batch allowed unrelated long-running work to starve already-due
         // runtime jobs before they could even be claimed. A tenant that becomes newly
         // eligible later in this tick can safely wait for the next five-minute cron.
+        await bestEffortRuntimeSchedulerState(env, {
+          stage: 'entered',
+          restart: true
+        });
         try {
           const runtimeSummary = await runDueTenantRuntimes(env);
-          console.log('tenant_runtime_schedule', JSON.stringify(safeScheduleSummary(runtimeSummary)));
+          const safeRuntimeSummary = safeScheduleSummary(runtimeSummary);
+          await bestEffortRuntimeSchedulerState(env, {
+            stage: runtimeSummary.enabled === false ? 'disabled' : 'completed',
+            summary: safeRuntimeSummary,
+            errorCode:
+              runtimeSummary.enabled === false && runtimeSummary.reason
+                ? safeScheduleError({ code: runtimeSummary.reason })
+                : null
+          });
+          console.log('tenant_runtime_schedule', JSON.stringify(safeRuntimeSummary));
         } catch (error) {
-          console.error('tenant_runtime_schedule_failed', safeScheduleError(error));
+          const safeCode = safeScheduleError(error);
+          await bestEffortRuntimeSchedulerState(env, {
+            stage: 'failed',
+            errorCode: safeCode
+          });
+          console.error('tenant_runtime_schedule_failed', safeCode);
         }
 
         const results = await Promise.allSettled([
