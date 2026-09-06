@@ -24,7 +24,7 @@ function message(ref, overrides = {}) {
 }
 
 describe('PB8 terminal-success detail DLQ cleanup', () => {
-  it('accepts only well-formed peek refs with valid detail authority identity', () => {
+  it('accepts only well-formed detail refs and classifies each rejection without conflation', () => {
     const result = cleanupCandidates([
       message('ref-safe-1'),
       message('', {}),
@@ -33,7 +33,12 @@ describe('PB8 terminal-success detail DLQ cleanup', () => {
       { ref: 'ref-bad-json', body: 'not-json' }
     ]);
     expect(result.candidates).toHaveLength(1);
-    expect(result.malformed).toBe(4);
+    expect(result.rejected).toEqual({
+      malformedBody: 1,
+      otherMessageType: 1,
+      malformedIdentity: 1,
+      missingRef: 1
+    });
   });
 
   it('selects only success/complete import refs and obeys the bounded limit', () => {
