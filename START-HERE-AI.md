@@ -350,18 +350,21 @@ Captured against live GitHub on **2026-09-06 (America/Sao_Paulo)**.
 
 ## Repository / capture semantics
 
-At the pre-documentation capture:
+At the pre-documentation PB9 closure capture:
 
 ```text
 repository = lucasvenancio0110/catalog-engine
 branch = main
-latest PB7 runtime implementation = ccd69520607329acf764d3d5d29ddaaf29d0aa98
-trusted application deploy = 34038969797
-PB7 trusted production proof SHA = 705d7b91ed295cc9a6d62e61fa2144ec56276152
-PB7 real-merchant progress proof = 34039346993
+PB9 application Production SHA = 2e73cefc912d51fe8c10e693f48cb690ff36190e
+trusted application deploy = 34067792639
+trusted runtime staging run = 34067139582
+trusted runtime staging job = 101579132175
+PB9 production proof = 34067838547
+PB9 production proof job = 101579641324
+PB9 commit status = catalog-engine/pb9-production-proof success
 ```
 
-The documentation closure that updates this file creates a later documentation-only SHA. That later SHA does not replace the exact PB7 runtime implementation/proof points recorded above.
+The documentation closure that updates this file creates a later documentation-only SHA. That later SHA does not replace the exact PB9 application Production SHA/proof recorded above.
 
 ## Current proven milestone state at this capture
 
@@ -382,15 +385,19 @@ PB4 = PRODUCTION GREEN
 PB5 = PRODUCTION GREEN
 PB6 = PRODUCTION GREEN
 PB7 = PRODUCTION GREEN
-PB8 = PLANNED — NEXT
-PB9–PB12 = PLANNED
+PB8 = PRODUCTION GREEN
+PB9 = PRODUCTION GREEN
+PB10 = PLANNED — NEXT
+PB11–PB12 = PLANNED
 ```
 
 Detailed evidence is recorded in:
 
 - `docs/M7-TO-PB5-EXECUTION-LEDGER-2026-09-05.md` — historical reconstruction only;
-- `docs/PB6-CLOSURE-2026-09-06.md` — final PB6 Production Green evidence;
-- `docs/PB7-CLOSURE-2026-09-06.md` — final PB7 Production Green evidence;
+- `docs/PB6-CLOSURE-2026-09-06.md`;
+- `docs/PB7-CLOSURE-2026-09-06.md`;
+- `docs/PB8-CLOSURE-2026-09-06.md`;
+- `docs/PB9-CLOSURE-2026-09-06.md` — exact PB9 Production Green evidence;
 - current truth in `docs/CURRENT-STATE.md`.
 
 ## Current tenant data-plane / sync boundary
@@ -408,21 +415,35 @@ Automatic initial import is active. Recurring tenant Intelligent Sync is not.
 
 ## First real merchant proof already achieved
 
-A real beta merchant has successfully exercised production through PB7:
+The real CROCCODILOS beta merchant has successfully exercised production through PB9:
 
 ```text
 OIDC signup/login
 -> audited server-side beta entitlement
--> real isolated store creation (CROCCODILOS)
+-> real isolated store creation
 -> persisted branding/logo through private R2
 -> persisted private Yupoo source connection
 -> durable full-connected-source import decision with authority=merchant
 -> trusted isolated D1/User Worker provisioning and schema v8 readiness
 -> scheduler-owned initial import
--> merchant-safe resumable progress projected from durable state
+-> CEI classification + zero-finding verification
+-> trusted full catalog runtime staging
+-> dispatch-smoke verified runtime v1
+-> authenticated private preview
+-> real tenant metadata/product feed/product detail/media
+-> anonymous/cross-tenant/default fail-closed proof
 ```
 
-The final PB7 proof read CROCCODILOS twice from durable production state and observed `stage=importing`, `status=running`, 6104 items discovered/queued, bounded 8-second polling and no private-identifier exposure. That proves PB7 progress/re-entry behavior; it is not proof that the entire PB8 real-import/CEI/verification journey is complete.
+PB9 proof facts:
+
+```text
+merchantCatalogProducts = 6097
+previewProductsReturned = 15
+runtimeStatus = verified
+runtimeVersion = 1
+privateIdentifiersExposed = false
+recurringIntelligentSyncEnabled = false
+```
 
 Do not store or expose the merchant's private Yupoo URL, email, token, IdP subject, private provider locator, D1 UUID or Worker identifier in documentation/logs.
 
@@ -432,41 +453,29 @@ Do not store or expose the merchant's private Yupoo URL, email, token, IdP subje
 
 Subject to live revalidation, the next active PB slice is:
 
-## PB8 — Real Tenant Import
+## PB10 — Merchant Home
 
 Customer outcome:
 
-> The first real beta store receives its independently imported and organized catalog through the actual isolated tenant pipeline.
+> The persisted merchant store reappears after portal re-entry with action-oriented real status and a truthful path to private preview or onboarding continuation.
 
-PB8 begins from CROCCODILOS with physical isolated D1/User Worker ready, schema v8 ready, durable merchant import authority already consumed and an automatic initial import already running.
-
-Required proof chain:
-
-```text
-real tenant
--> connected private source
--> isolated data plane/runtime
--> schema v8
--> scheduler/Queue-owned initial scan/details/finalize
--> CEI/classification
--> verification
--> verified catalog readiness
-```
+PB10 begins after PB9 Production Green: CROCCODILOS has a real isolated catalog with 6,097 products, zero-finding verification, verified runtime v1 and a production-proven private preview.
 
 Required boundaries:
 
-- no default tenant reuse or fallback;
-- no manual Queue injection as the normal proof path;
-- prove tenant-private product/catalog counts and isolation;
-- prove CEI/classifier/intelligence completion under current provider-neutral contracts;
-- prove verification reaches success with zero structural blockers required for readiness;
-- preserve merchant overrides and LKG/publication boundaries;
-- understand Queue and DLQ health rather than hiding residue;
-- preserve private supplier/source/runtime evidence;
-- keep recurring Intelligent Sync disabled;
-- do not require public custom-domain publication for PB8.
+- read durable authenticated server state on re-entry; do not fabricate a client-only store;
+- store status must map to real backend state, never elapsed-time guesses or fake percentages;
+- if PB9 readiness is still valid, expose a truthful preview action;
+- if onboarding is incomplete/regressed, expose the correct continuation action instead;
+- preserve membership-scoped server-side tenant authority;
+- preserve loading/empty/error/retry/mobile/touch/keyboard/accessibility behavior;
+- do not expose supplier URLs, raw provider IDs, tenant/principal IDs, D1/Worker locators, Cloudflare IDs or private CEI evidence;
+- do not implicitly publish a custom domain;
+- keep recurring Intelligent Sync disabled.
 
-PB8 must not activate M7E, recurring sync, public custom-domain publication or PB9 private-preview behavior.
+Before implementation, re-read the exact PB10 definition in `docs/PORTAL-BETA-EXECUTION.md`, `docs/CUSTOMER-PORTAL.md`, `docs/DESIGN-SYSTEM.md` and current portal/admin code. Audit what the existing `Minhas lojas` card already satisfies versus what PB10 still requires; do not reimplement already-proven PB7/PB9 behavior.
+
+PB10 must not implement PB11 Beta E2E, PB12 BETA GREEN, M7E activation or recurring tenant sync.
 
 ---
 
@@ -475,16 +484,14 @@ PB8 must not activate M7E, recurring sync, public custom-domain publication or P
 While the first-real-merchant campaign remains active, use the approved sequence from `PORTAL-BETA-EXECUTION.md`:
 
 ```text
-PB8 — Real Tenant Import
-↓
-PB9 — Private Preview
-↓
 PB10 — Merchant Home
 ↓
 PB11 — Beta E2E
 ↓
 PB12 — Production Proof / BETA GREEN
 ```
+
+PB0 through PB9 are already closed within their bounded contracts and must not be repeated merely because an older handoff mentions them.
 
 After PB12, default return point is the paused **M9B — Product Discovery and Merchandising**, unless the owner explicitly changes sequencing.
 
