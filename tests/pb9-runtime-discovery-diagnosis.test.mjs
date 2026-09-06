@@ -24,6 +24,10 @@ function discoverable(overrides = {}) {
     eligible_candidates_ahead: 0,
     exhausted_eligible_jobs: 0,
     oldest_candidate_exhausted: 0,
+    oldest_candidate_job_status: null,
+    oldest_candidate_job_attempt_count: 0,
+    oldest_candidate_job_last_error_code: null,
+    oldest_candidate_job_due: 0,
     due_runtime_jobs: 0,
     ...overrides
   };
@@ -40,6 +44,10 @@ describe('PB9 runtime discovery diagnosis', () => {
       selectionRank: 1,
       exhaustedEligibleJobs: 0,
       oldestCandidateExhausted: false,
+      oldestCandidateJobStatus: 'none',
+      oldestCandidateJobAttemptCount: 0,
+      oldestCandidateJobLastErrorCode: 'none',
+      oldestCandidateJobDue: false,
       dueRuntimeJobs: 0
     });
   });
@@ -70,13 +78,17 @@ describe('PB9 runtime discovery diagnosis', () => {
     expect(evaluation.scheduling.selectionRank).toBe(0);
   });
 
-  it('reports bounded candidate ordering and exhausted-job starvation signals', () => {
+  it('reports bounded candidate ordering and oldest-job starvation signals', () => {
     const evaluation = evaluateRuntimeDiscovery(
       discoverable({
         eligible_candidates_total: 4,
         eligible_candidates_ahead: 2,
         exhausted_eligible_jobs: 1,
         oldest_candidate_exhausted: 1,
+        oldest_candidate_job_status: 'failed',
+        oldest_candidate_job_attempt_count: 3,
+        oldest_candidate_job_last_error_code: 'runtime_upload_failed',
+        oldest_candidate_job_due: 1,
         due_runtime_jobs: 1
       })
     );
@@ -86,6 +98,10 @@ describe('PB9 runtime discovery diagnosis', () => {
       selectionRank: 3,
       exhaustedEligibleJobs: 1,
       oldestCandidateExhausted: true,
+      oldestCandidateJobStatus: 'failed',
+      oldestCandidateJobAttemptCount: 3,
+      oldestCandidateJobLastErrorCode: 'runtime_upload_failed',
+      oldestCandidateJobDue: true,
       dueRuntimeJobs: 1
     });
   });
@@ -116,11 +132,15 @@ describe('PB9 runtime discovery diagnosis', () => {
     );
   });
 
-  it('sanitizes unexpected state strings', () => {
+  it('sanitizes unexpected state and oldest-job error strings', () => {
     const evaluation = evaluateRuntimeDiscovery(
-      discoverable({ provisioning_status: 'unsafe value with spaces' })
+      discoverable({
+        provisioning_status: 'unsafe value with spaces',
+        oldest_candidate_job_last_error_code: 'unsafe error with spaces'
+      })
     );
     expect(evaluation.state.provisioningStatus).toBe('none');
+    expect(evaluation.scheduling.oldestCandidateJobLastErrorCode).toBe('none');
     expect(evaluation.predicates.provisioningAtDomain).toBe(false);
   });
 
@@ -134,5 +154,7 @@ describe('PB9 runtime discovery diagnosis', () => {
     expect(runner).toContain('const MAX_AUTOMATIC_ATTEMPTS = 6;');
     expect(diagnostic).toContain('eligible_candidates_ahead');
     expect(diagnostic).toContain('oldest_candidate_exhausted');
+    expect(diagnostic).toContain('oldest_candidate_job_last_error_code');
+    expect(diagnostic).toContain('oldest_candidate_job_due');
   });
 });
