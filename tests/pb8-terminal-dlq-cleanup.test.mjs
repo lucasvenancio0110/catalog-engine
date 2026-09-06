@@ -24,15 +24,18 @@ function message(ref, overrides = {}) {
 }
 
 describe('PB8 terminal-success detail DLQ cleanup', () => {
-  it('accepts only well-formed peek refs with valid detail authority identity', () => {
+  it('accepts well-formed detail and finalize refs with valid authority identity', () => {
     const result = cleanupCandidates([
-      message('ref-safe-1'),
+      message('ref-detail'),
+      message('ref-finalize', { type: 'finalize', albumSourceId: undefined }),
       message('', {}),
-      message('ref-finalize', { type: 'finalize' }),
+      message('ref-scan', { type: 'scan' }),
       message('ref-bad-tenant', { tenantId: 'bad' }),
       { ref: 'ref-bad-json', body: 'not-json' }
     ]);
-    expect(result.candidates).toHaveLength(1);
+    expect(result.candidates).toHaveLength(2);
+    expect(result.candidates.map((candidate) => candidate.type)).toEqual(['detail', 'finalize']);
+    expect(result.messageTypes).toEqual({ detail: 1, finalize: 1 });
     expect(result.malformed).toBe(4);
   });
 
@@ -56,6 +59,7 @@ describe('PB8 terminal-success detail DLQ cleanup', () => {
 
   it('uses only ref-scoped peeked-message purge and forbids global purge/replay paths', () => {
     const source = fs.readFileSync('scripts/cloudflare-pb8-terminal-dlq-cleanup.mjs', 'utf8');
+    expect(source).toContain("new Set(['detail', 'finalize'])");
     expect(source).toContain('/messages/peek');
     expect(source).toContain('/messages/purge');
     expect(source).toContain('refs: selected.refs.map');
