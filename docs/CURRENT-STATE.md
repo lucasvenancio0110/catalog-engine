@@ -8,12 +8,12 @@ This document is intentionally compact. It records current execution truth; focu
 
 ## Live baseline
 
-- Current `main`: `be99786c54c2cd6a7be8df77f35da91dbd49d3dc` — `docs: add autonomous development runbook (#245)`.
+- Current application-code `main` before this documentation-only refresh: `80ff677fb4da30da25063f44c409560984b22c63` — `PB9: serialize runtime activation after scheduler prerequisites (#255)`.
 - PB8 closure commit on main: `232b57450f57aa69a494a2724d2691d69f666b3e` — `PB8: close real tenant import Production Green (#243)`.
-- Application Production SHA: `ccd69520607329acf764d3d5d29ddaaf29d0aa98`.
-- The later PB8 closure/runbook commits do not imply a newer deployed application runtime.
-- Active branch/PR: `pb9-private-preview` / PR #244.
-- PB9 implementation/proof-workflow baseline before this state update: `0b6d2e14dd31b7a52c01352e285ad81c5908e88b`; always re-read the live PR head before continuing.
+- Last application Production SHA proven before the pending #255 deployment: `12786b36bede6b82163ad5f0a7fcf31fa3139ec0` — `PB9: wire tenant runtime activation into production scheduler (#252)`.
+- PB9 implementation, trusted diagnostics and scheduler-order fix are integrated through PRs #244, #253, #254 and #255.
+- The deploy run for application SHA `80ff677fb4da30da25063f44c409560984b22c63` is pending behind the serialized `catalog-engine-production-d1` lock while an older trusted production canary completes. Do not bypass or cancel that lock merely to accelerate PB9.
+- No open implementation PR existed at this snapshot.
 - `HUMAN_GATE_LOCK: INACTIVE`.
 
 ## Production activation boundary
@@ -48,57 +48,85 @@ The historical default tenant remains an explicit compatibility tenant and must 
 
 ## Active execution point
 
-PB9 — Private Preview is **PR / INTEGRATION IN PROGRESS**, not Production Green.
+PB9 — Private Preview is **INTEGRATED / PRODUCTION PROOF IN PROGRESS**, not Production Green.
 
 PB9 customer outcome:
 
 > An authenticated merchant can preview the real verified tenant before custom-domain publication.
 
-Implemented on PR #244:
+The private-preview implementation is integrated on `main` and retains these boundaries:
 
-- server-side preview readiness resolves active principal membership to the exact tenant runtime and current successful zero-finding catalog verification;
-- preview never accepts a browser-supplied Worker, D1 or runtime locator;
-- short-lived random preview capability uses a host-only `__Host-` `HttpOnly` / `Secure` / `SameSite=Strict` cookie; only its SHA-256 hash plus opaque tenant/principal ownership and expiry is stored in control-plane D1;
-- migration `0024_tenant_private_preview_sessions.sql` owns that ephemeral session state;
-- authenticated portal endpoints expose only availability, fixed `/preview` navigation and expiry; logout revokes preview sessions;
-- `/preview` serves the real shared storefront shell and root catalog/media traffic is dispatched to the server-resolved isolated runtime only while the session remains valid;
-- membership/runtime/verification authority is revalidated on every preview catalog/media request;
-- preview dispatch is read-only and allowlisted; admin/health/internal runtime commands are excluded;
-- private preview responses are `private, no-store`, non-indexable and no-referrer;
-- internal preview dispatch/cache identity is tenant-scoped, preventing cross-tenant media cache collisions;
-- the portal exposes `Visualizar loja` only after verified preview readiness; otherwise it keeps the truthful preparation/retry flow;
-- storefront preview clearly labels itself as private, not published, with responsive/focus/reduced-motion behavior;
-- normative runtime/publish docs explicitly keep private preview separate from public publication authority;
-- trusted-main production proof workflow is implemented to test the real beta merchant, anonymous rejection, cross-tenant/default sentinel isolation, real product/media rendering, private-identifier non-disclosure and recurring-sync-OFF, with disposable proof sessions cleaned in `finally`.
+- server-side membership resolves the exact tenant runtime; browser input never supplies Worker/D1/runtime authority;
+- preview uses a short-lived host-only `__Host-` `HttpOnly` / `Secure` / `SameSite=Strict` capability whose SHA-256 hash is stored in control-plane D1;
+- membership, verified catalog runtime and current zero-finding verification are revalidated server-side;
+- preview catalog/media traffic is read-only and tenant-scoped;
+- anonymous, invalid, expired, revoked, cross-tenant and default-tenant fallback paths fail closed;
+- preview responses remain private/non-indexable and must not expose supplier URLs, raw provider IDs, tenant/principal IDs, D1/Worker locators, Cloudflare identifiers or private CEI evidence;
+- private preview remains separate from public custom-domain publication authority.
 
-PR evidence already observed on the implementation baseline:
+### Trusted production evidence now proven
 
-- standard PR validation and Cloudflare preview build had passed before the production-proof workflow addition;
-- `Cloudflare PB9 private preview proof` PR validation completed successfully on `0b6d2e14dd31b7a52c01352e285ad81c5908e88b`;
-- its privileged `prove` job is intentionally not executed on pull requests;
-- other exact-head PR workflows must finish green again after this state commit before merge.
+Against the deployed PB9 baseline before #255:
 
-Not yet proven:
+- migration `0024_tenant_private_preview_sessions.sql` and PB9 application wiring were deployed successfully;
+- trusted proof resolves exactly one non-default CROCCODILOS tenant with an active owner;
+- the isolated tenant has 6,097 real products;
+- current catalog verification is `success` with 0 findings;
+- anonymous preview, cross-tenant preview and default-tenant sentinel access all fail closed;
+- private identifiers remain hidden;
+- recurring Intelligent Sync remains OFF;
+- Cloudflare platform account/token bindings are present on the Worker and the `*/5` cron trigger is deployed.
 
-- integrated merge into `main`;
-- D1 migration 0024 applied in production;
-- trusted application deploy of the PB9 runtime;
-- real production PB9 canary/status on that exact trusted-main SHA;
-- final PB9 closure document / Production Green state.
+The remaining red condition on that deployed baseline is tenant catalog-runtime activation. Safe diagnostics proved:
 
-PB9 must continue to fail closed for anonymous, invalid, expired, revoked, unready and cross-tenant access; it must never fall back to the default tenant. Preview HTML/JS/API must not expose supplier URLs, raw provider IDs, tenant/principal control identifiers, D1/Worker/Cloudflare locators or private CEI evidence, and preview must not become a permanent public merchant address.
+```text
+provisioningStatus=running
+provisioningStep=domain
+instanceStatus=provisioning
+schemaVersion=8
+databaseStatus=active
+workerStatus=active
+verificationStatus=success
+verificationFindings=0
+runtimeStatus=pending
+runtimeVersion=0
+targetRuntimeVersion=1
+runtimeJobStatus=none
+```
 
-PB9 owner contracts remain `PORTAL-BETA-EXECUTION.md`, `CUSTOMER-PORTAL.md`, `TENANCY.md`, `SAAS-ARCHITECTURE.md`, `TENANT-RUNTIME-DISPATCH.md`, `TENANT-PUBLISH.md` and `DESIGN-SYSTEM.md`.
+The exact runtime-discovery predicates therefore evaluate **discoverable=true**, while no `tenant_runtime_jobs` row is materialized. This eliminated merchant lifecycle state, data-plane readiness, verification readiness, platform-secret presence and cron configuration as the immediate blockers.
+
+### Current corrective slice
+
+PR #255 changed only scheduler ordering: `runDueTenantRuntimes(env)` no longer competes inside the D1-heavy `Promise.allSettled` batch. It runs after the prerequisite scheduler batch settles, preserving the existing bounded runtime runner and safe logging while reducing control-plane D1 contention and honoring verification-before-runtime ordering.
+
+Exact PR #255 head `11d5ce505fe6b52d687e570e9075900e35189e67` passed all observed PR workflows, including:
+
+- Frontend quality;
+- Validate SaaS control plane;
+- Validate customer portal;
+- Validate tenant runtime isolation;
+- Cloudflare PB9 private preview proof PR contract;
+- M7D10 recovery/replay canary contract;
+- incremental promotion/finalization canary contracts.
+
+It was squash-merged as application SHA `80ff677fb4da30da25063f44c409560984b22c63`.
+
+Not yet proven at this snapshot:
+
+- production deployment success for application SHA `80ff677fb4da30da25063f44c409560984b22c63`;
+- a post-deploy cron tick that materializes/processes the CROCCODILOS runtime job;
+- verified runtime version 1 for the real tenant;
+- authenticated shell/feed/product/media proof against that verified runtime;
+- final PB9 closure / Production Green.
 
 ## Exact continuation action
 
-1. re-read live PR #244 head and exact-head checks;
-2. fix the first real CI failure if any and rerun until the required PR gates are green;
-3. revalidate `main` before merge and integrate any new delta if necessary;
-4. mark PR #244 ready and merge when governance/checks permit;
-5. require trusted deploy to apply migration 0024 and deploy the exact merged application;
-6. require `Cloudflare PB9 private preview proof` to pass on the exact trusted-main/deployed SHA;
-7. only then write PB9 closure, update this state to Production Green and discover the next approved slice.
+1. allow the existing serialized production-D1 canary to release the mutation lock naturally;
+2. require the pending deploy of exact application SHA `80ff677fb4da30da25063f44c409560984b22c63` to complete successfully;
+3. require at least one post-deploy scheduler opportunity, then execute the trusted PB9 production proof;
+4. if the proof remains red, use the safe runtime/job diagnostics to fix only the first proven runtime activation failure;
+5. if the proof is fully green, write PB9 closure, refresh this state to Production Green and discover the next approved PB10 slice.
 
 ## Broader roadmap boundary
 
