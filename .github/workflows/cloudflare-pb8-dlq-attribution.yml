@@ -1,0 +1,75 @@
+name: Cloudflare PB8 DLQ attribution
+
+on:
+  pull_request:
+    branches: ['main']
+    paths:
+      - '.github/workflows/cloudflare-pb8-dlq-attribution.yml'
+      - 'scripts/cloudflare-pb8-dlq-attribution.mjs'
+      - 'tests/pb8-dlq-attribution.test.mjs'
+  push:
+    branches: ['main']
+    paths:
+      - '.github/workflows/cloudflare-pb8-dlq-attribution.yml'
+      - 'scripts/cloudflare-pb8-dlq-attribution.mjs'
+      - 'tests/pb8-dlq-attribution.test.mjs'
+  workflow_dispatch:
+    inputs:
+      merchant_display_name:
+        description: Merchant display name used only to resolve the private target internally
+        required: false
+        default: CROCCODILOS
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: PB8 DLQ attribution tests
+        run: npx vitest run tests/pb8-dlq-attribution.test.mjs
+      - name: Secret-free quality gate
+        run: npm run quality
+
+  attribute:
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      PB8_MERCHANT_DISPLAY_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.merchant_display_name || 'CROCCODILOS' }}
+    steps:
+      - name: Checkout trusted main
+        uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Verify non-destructive attribution contract
+        run: npx vitest run tests/pb8-dlq-attribution.test.mjs
+      - name: Validate trusted Cloudflare credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
+      - name: Peek detail DLQ and attribute messages safely
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/cloudflare-pb8-dlq-attribution.mjs | tee /tmp/pb8-dlq-attribution.json
+          cat /tmp/pb8-dlq-attribution.json >> "$GITHUB_STEP_SUMMARY"
