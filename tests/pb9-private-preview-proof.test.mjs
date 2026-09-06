@@ -91,7 +91,9 @@ describe('PB9 trusted private preview proof', () => {
     expect(script).not.toMatch(
       /UPDATE\s+tenant_store_profiles|UPDATE\s+tenant_catalog_instances|INSERT\s+INTO\s+tenant_domains/i
     );
-    expect(script).toContain("const DEFAULT_ORIGIN = 'https://catalogoengine.com'");
+    expect(script).toContain(
+      "const DEFAULT_ORIGIN = 'https://catalog-engine.lucassantanals0110.workers.dev'"
+    );
     expect(script).toContain("const APP_ORIGIN = 'https://app.catalogoengine.com'");
   });
 });
