@@ -7,11 +7,18 @@ const DEFAULT_MERCHANT = 'CROCCODILOS';
 const DISPATCH_NAMESPACE = 'catalog-engine-production';
 const DECISION_KIND = 'full_connected_source';
 const SOURCE_KEY = 'primary';
+const MAX_DATA_PLANE_ATTEMPTS = 6;
 
 function requiredEnv(name) {
   const value = String(process.env[name] || '').trim();
   if (!value) throw new Error(`${name}_missing`);
   return value;
+}
+
+function safeDiagnosticCode(value) {
+  const code = String(value || '').trim();
+  if (!code) return 'none';
+  return /^[a-z0-9_.:-]{1,80}$/i.test(code) ? code : 'redacted';
 }
 
 async function loadRuntimeConfig() {
@@ -40,6 +47,7 @@ export function evaluateMerchantAcceptance(row, runtime) {
     initialImportEnabled: runtime?.initialImportEnabled === true,
     recurringSyncDisabled: runtime?.recurringSyncEnabled === false
   };
+  const dataPlaneAttempts = Math.max(Number(state.data_plane_attempt_count || 0), 0);
   const diagnostics = {
     provisioningStep: String(state.provisioning_current_step || 'missing'),
     provisioningStatus: String(state.provisioning_status || 'missing'),
@@ -49,7 +57,13 @@ export function evaluateMerchantAcceptance(row, runtime) {
     providerWorkerReady: Number(state.provider_worker_ready || 0) === 1,
     supplierSourceActive: Number(state.supplier_source_active || 0) === 1,
     activeInitialJob: Number(state.active_initial_job || 0) === 1,
-    schedulerCandidateReady: Number(state.scheduler_candidate_ready || 0) === 1
+    schedulerCandidateReady: Number(state.scheduler_candidate_ready || 0) === 1,
+    dataPlaneJobStatus: String(state.data_plane_job_status || 'missing'),
+    dataPlaneAttempts,
+    dataPlaneErrorCode: safeDiagnosticCode(state.data_plane_job_error_code),
+    providerErrorCode: safeDiagnosticCode(state.provider_error_code),
+    dataPlaneRetryDue: Number(state.data_plane_retry_due || 0) === 1,
+    dataPlaneRetryExhausted: dataPlaneAttempts >= MAX_DATA_PLANE_ATTEMPTS
   };
   return {
     passed: Object.values(checks).every(Boolean),
@@ -215,6 +229,26 @@ async function queryMerchantState({ accountId, apiToken, databaseId, merchant })
                AND t.status='active'
              LIMIT 1`,
         params: [merchant, SOURCE_KEY]
+      },
+      {
+        sql: `SELECT
+                COALESCE(j.status,'missing') AS data_plane_job_status,
+                COALESCE(j.attempt_count,0) AS data_plane_attempt_count,
+                COALESCE(j.last_error_code,'none') AS data_plane_job_error_code,
+                COALESCE(p.last_error_code,'none') AS provider_error_code,
+                CASE WHEN j.status IN ('pending','failed')
+                           AND COALESCE(j.attempt_count,0) < ?2
+                           AND (j.next_attempt_at IS NULL OR j.next_attempt_at <= CURRENT_TIMESTAMP)
+                     THEN 1 ELSE 0 END AS data_plane_retry_due
+              FROM catalog_tenants t
+              LEFT JOIN tenant_data_plane_provider_state p ON p.tenant_id=t.tenant_id
+              LEFT JOIN tenant_data_plane_jobs j
+                ON j.tenant_id=t.tenant_id AND j.operation='provision'
+             WHERE UPPER(t.display_name)=UPPER(?1)
+               AND t.status='active'
+             ORDER BY j.created_at DESC
+             LIMIT 1`,
+        params: [merchant, MAX_DATA_PLANE_ATTEMPTS]
       }
     ]
   });
@@ -223,7 +257,8 @@ async function queryMerchantState({ accountId, apiToken, databaseId, merchant })
     ...(result?.[0]?.results?.[0] || {}),
     ...(result?.[1]?.results?.[0] || {}),
     ...(result?.[2]?.results?.[0] || {}),
-    ...(result?.[3]?.results?.[0] || {})
+    ...(result?.[3]?.results?.[0] || {}),
+    ...(result?.[4]?.results?.[0] || {})
   };
   state.scheduler_candidate_ready = schedulerCandidateReady(state) ? 1 : 0;
   return state;
