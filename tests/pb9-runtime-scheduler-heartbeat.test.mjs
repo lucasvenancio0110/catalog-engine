@@ -72,10 +72,11 @@ describe('PB9 runtime scheduler heartbeat', () => {
   });
 
   it('wires a best-effort heartbeat around runtime activation without changing tenant authority', async () => {
-    const [entry, migration, diagnostic] = await Promise.all([
+    const [entry, migration, diagnostic, workflow] = await Promise.all([
       readFile(new URL('../worker/entry.js', import.meta.url), 'utf8'),
       readFile(new URL('../migrations/0027_tenant_runtime_scheduler_state.sql', import.meta.url), 'utf8'),
-      readFile(new URL('../scripts/cloudflare-pb9-runtime-scheduler-heartbeat.mjs', import.meta.url), 'utf8')
+      readFile(new URL('../scripts/cloudflare-pb9-runtime-scheduler-heartbeat.mjs', import.meta.url), 'utf8'),
+      readFile(new URL('../.github/workflows/cloudflare-pb9-runtime-scheduler-heartbeat.yml', import.meta.url), 'utf8')
     ]);
     const entered = entry.indexOf("stage: 'entered'");
     const runtime = entry.indexOf('const runtimeSummary = await runDueTenantRuntimes(env);');
@@ -96,5 +97,7 @@ describe('PB9 runtime scheduler heartbeat', () => {
     expect(diagnostic).toContain('p.d1_database_id IS NOT NULL');
     expect(diagnostic).toContain('LEFT JOIN tenant_store_profiles s ON s.tenant_id=o.tenant_id');
     expect(diagnostic).toContain('AS store_profile_present');
+    expect(workflow).toContain('push:');
+    expect(workflow).toContain("github.event_name == 'push'");
   });
 });
