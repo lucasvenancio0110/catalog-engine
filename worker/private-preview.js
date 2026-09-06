@@ -79,6 +79,18 @@ export function validatePrivatePreviewContext(context) {
   return null;
 }
 
+function authorityFromContext(context, tenantId) {
+  const failure = validatePrivatePreviewContext(context);
+  if (failure) {
+    const status = failure === 'preview_store_not_found' ? 404 : 409;
+    throw new PrivatePreviewError(failure, status);
+  }
+  return Object.freeze({
+    tenantId,
+    workerScriptName: context.worker_script_name
+  });
+}
+
 export async function loadPrivatePreviewAuthority(db, tenantId, principalId) {
   if (!TENANT_ID_PATTERN.test(String(tenantId || ''))) {
     throw new PrivatePreviewError('preview_store_not_found', 404);
@@ -108,16 +120,7 @@ export async function loadPrivatePreviewAuthority(db, tenantId, principalId) {
     .bind(tenantId, principalId)
     .first();
 
-  const failure = validatePrivatePreviewContext(context);
-  if (failure) {
-    const status = failure === 'preview_store_not_found' ? 404 : 409;
-    throw new PrivatePreviewError(failure, status);
-  }
-
-  return Object.freeze({
-    tenantId,
-    workerScriptName: context.worker_script_name
-  });
+  return authorityFromContext(context, tenantId);
 }
 
 export async function createPrivatePreviewSession(db, tenantId, principalId, nowMs = Date.now()) {
@@ -153,20 +156,36 @@ export async function loadPrivatePreviewSessionAuthority(db, request, nowMs = Da
   if (!token) throw new PrivatePreviewError('preview_session_required', 404);
   const sessionHash = await sha256Hex(token);
   const now = isoNow(nowMs);
-  const session = await db
+  const context = await db
     .prepare(
-      `SELECT tenant_id, principal_id
-         FROM tenant_private_preview_sessions
-        WHERE session_hash=?1
-          AND datetime(expires_at) > datetime(?2)
+      `SELECT ps.tenant_id,
+              m.role AS membership_role, m.status AS membership_status,
+              s.setup_status,
+              p.worker_script_name, p.worker_status,
+              p.runtime_kind, p.runtime_status, p.runtime_version,
+              v.status AS verification_status, v.classifier_version, v.finding_count
+         FROM tenant_private_preview_sessions ps
+         JOIN tenant_memberships m
+           ON m.tenant_id=ps.tenant_id
+          AND m.principal_id=ps.principal_id
+          AND m.status='active'
+         JOIN tenant_store_profiles s ON s.tenant_id=ps.tenant_id
+         JOIN tenant_data_plane_provider_state p ON p.tenant_id=ps.tenant_id
+         LEFT JOIN tenant_verification_jobs v ON v.job_id=(
+           SELECT v2.job_id
+             FROM tenant_verification_jobs v2
+            WHERE v2.tenant_id=ps.tenant_id
+            ORDER BY v2.created_at DESC, v2.job_id DESC
+            LIMIT 1
+         )
+        WHERE ps.session_hash=?1
+          AND datetime(ps.expires_at) > datetime(?2)
         LIMIT 1`
     )
     .bind(sessionHash, now)
     .first();
-  if (!session?.tenant_id || !session?.principal_id) {
-    throw new PrivatePreviewError('preview_session_invalid', 404);
-  }
-  return loadPrivatePreviewAuthority(db, session.tenant_id, session.principal_id);
+  if (!context?.tenant_id) throw new PrivatePreviewError('preview_session_invalid', 404);
+  return authorityFromContext(context, context.tenant_id);
 }
 
 export async function revokePrivatePreviewSessions(db, principalId) {
@@ -187,7 +206,7 @@ export function normalizePrivatePreviewPath(pathname) {
 export function privatePreviewHeaders(input = undefined) {
   const headers = new Headers(input);
   headers.set('cache-control', 'private, no-store');
-  headers.set('x-robots-tag', 'noindex, nofollow, noarchive');
+  headers.set('x-robots-tag', 'noindex, nofollow,noarchive');
   headers.set('referrer-policy', 'no-referrer');
   headers.set('x-content-type-options', 'nosniff');
   headers.delete('server');
