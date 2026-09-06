@@ -1,0 +1,46 @@
+name: Cloudflare PB9 runtime discovery diagnosis
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/cloudflare-pb9-runtime-discovery-diagnosis.mjs
+      - tests/pb9-runtime-discovery-diagnosis.test.mjs
+      - .github/workflows/cloudflare-pb9-runtime-discovery-diagnosis.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      PB9_MERCHANT_DISPLAY_NAME: CROCCODILOS
+    steps:
+      - name: Checkout exact SHA
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Test safe diagnosis contract
+        run: npx vitest run tests/pb9-runtime-discovery-diagnosis.test.mjs
+      - name: Validate trusted Cloudflare credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
+      - name: Diagnose runtime discovery predicates
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/cloudflare-pb9-runtime-discovery-diagnosis.mjs | tee /tmp/pb9-runtime-discovery.json
+          cat /tmp/pb9-runtime-discovery.json >> "$GITHUB_STEP_SUMMARY"
