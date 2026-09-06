@@ -8,6 +8,7 @@ const DEFAULT_MERCHANT = 'CROCCODILOS';
 const DEFAULT_TENANT_ID = 't_00000000000000000001';
 const DISPATCH_NAMESPACE = 'catalog-engine-production';
 const APP_ORIGIN = 'https://app.catalogoengine.com';
+const DEFAULT_ORIGIN = 'https://catalog-engine.lucassantanals0110.workers.dev';
 const PREVIEW_TTL_MS = 10 * 60 * 1000;
 
 function requiredEnv(name) {
@@ -66,7 +67,6 @@ async function readControlState({ accountId, apiToken, databaseId, merchant }) {
                 s.store_name,
                 s.setup_status,
                 p.d1_database_id,
-                p.worker_script_name,
                 p.worker_status,
                 p.runtime_kind,
                 p.runtime_status,
@@ -92,11 +92,19 @@ async function readControlState({ accountId, apiToken, databaseId, merchant }) {
               )
               LIMIT 1`,
         params: [merchant, DEFAULT_TENANT_ID]
+      },
+      {
+        sql: `SELECT product_id
+                FROM catalog_products
+               ORDER BY product_id ASC
+               LIMIT 1`,
+        params: []
       }
     ]
   });
   return {
-    target: firstRow(result, 0)
+    target: firstRow(result, 0),
+    defaultProduct: firstRow(result, 1)
   };
 }
 
@@ -128,28 +136,6 @@ async function readTenantCatalog({ accountId, apiToken, databaseId }) {
   return {
     productCount: integer(firstRow(result, 0)?.product_count),
     sample: firstRow(result, 1)
-  };
-}
-
-async function readDefaultCatalogIsolation({ accountId, apiToken, databaseId, productId }) {
-  const result = await queryD1Batch({
-    ...platformConfig(accountId, apiToken, databaseId),
-    batch: [
-      {
-        sql: `SELECT COUNT(*) AS product_count FROM catalog_products`,
-        params: []
-      },
-      {
-        sql: `SELECT COUNT(*) AS merchant_product_count
-                FROM catalog_products
-               WHERE product_id=?1`,
-        params: [productId]
-      }
-    ]
-  });
-  return {
-    productCount: integer(firstRow(result, 0)?.product_count),
-    merchantProductCount: integer(firstRow(result, 1)?.merchant_product_count)
   };
 }
 
@@ -221,7 +207,6 @@ function containsPrivateValue(text, privateValues) {
 export function evaluatePb9PrivatePreview({
   target,
   tenantCatalog,
-  defaultCatalog,
   shell,
   meta,
   products,
@@ -229,6 +214,7 @@ export function evaluatePb9PrivatePreview({
   media,
   anonymousStatus,
   crossTenantStatus,
+  defaultSentinelStatus,
   privateLeak,
   recurringSyncEnabled
 }) {
@@ -244,7 +230,6 @@ export function evaluatePb9PrivatePreview({
     verificationReady:
       target?.verification_status === 'success' && integer(target?.finding_count) === 0,
     tenantCatalogPresent: integer(tenantCatalog?.productCount) > 0,
-    defaultCatalogPresent: integer(defaultCatalog?.productCount) > 0,
     shellPrivate:
       shell?.status === 200 &&
       shell?.cacheControl === 'private, no-store' &&
@@ -259,7 +244,7 @@ export function evaluatePb9PrivatePreview({
     ownMediaWorks: media?.status === 200 && /^image\//i.test(String(media?.contentType || '')),
     anonymousFailsClosed: anonymousStatus === 404,
     crossTenantFailsClosed: crossTenantStatus === 404,
-    defaultCannotReadMerchant: integer(defaultCatalog?.merchantProductCount) === 0,
+    defaultCannotReadMerchant: defaultSentinelStatus === 404,
     privateIdentifiersHidden: privateLeak === false,
     recurringSyncStillOff: recurringSyncEnabled === false
   };
@@ -305,7 +290,6 @@ export async function runPb9PrivatePreviewProof() {
   if (String(target.tenant_id) === DEFAULT_TENANT_ID) throw new Error('pb9_default_tenant_rejected');
   if (!/^prn_[a-f0-9]{20}$/.test(String(target.principal_id || ''))) throw new Error('pb9_owner_missing');
   if (!/^[a-f0-9-]{32,40}$/i.test(String(target.d1_database_id || ''))) throw new Error('pb9_tenant_database_missing');
-  if (!String(target.worker_script_name || '').trim()) throw new Error('pb9_tenant_worker_missing');
 
   const tenantCatalog = await readTenantCatalog({
     accountId,
@@ -314,19 +298,11 @@ export async function runPb9PrivatePreviewProof() {
   });
   const productId = String(tenantCatalog.sample?.product_id || '');
   const mediaId = String(tenantCatalog.sample?.media_id || '');
+  const defaultProductId = String(control.defaultProduct?.product_id || '');
   if (!/^p_[a-f0-9]{20}$/.test(productId)) throw new Error('pb9_sample_product_missing');
   if (!/^m_[a-f0-9]{20}$/.test(mediaId)) throw new Error('pb9_sample_media_missing');
-
-  const defaultCatalog = await readDefaultCatalogIsolation({
-    accountId,
-    apiToken,
-    databaseId: runtime.controlDatabaseId,
-    productId
-  });
-  if (integer(defaultCatalog.productCount) === 0) throw new Error('pb9_default_catalog_missing');
-  if (integer(defaultCatalog.merchantProductCount) !== 0) {
-    throw new Error('pb9_default_catalog_contains_merchant_product');
-  }
+  if (!/^p_[a-f0-9]{20}$/.test(defaultProductId)) throw new Error('pb9_default_sentinel_missing');
+  if (defaultProductId === productId) throw new Error('pb9_sentinel_collision');
 
   const ownSession = randomSession();
   const crossSession = randomSession();
@@ -359,13 +335,14 @@ export async function runPb9PrivatePreviewProof() {
       robots: shellResponse.headers.get('x-robots-tag')
     };
 
-    const [metaResponse, productsResponse, productResponse, mediaResponse, anonymousResponse, crossResponse] = await Promise.all([
+    const [metaResponse, productsResponse, productResponse, mediaResponse, anonymousResponse, crossResponse, defaultResponse] = await Promise.all([
       safeFetch(`${APP_ORIGIN}/api/catalog/meta`, { headers: ownHeaders }),
       safeFetch(`${APP_ORIGIN}/api/products?page=1&limit=15`, { headers: ownHeaders }),
       safeFetch(`${APP_ORIGIN}/api/products/${encodeURIComponent(productId)}`, { headers: ownHeaders }),
       safeFetch(`${APP_ORIGIN}/media/${encodeURIComponent(mediaId)}/thumb`, { headers: ownHeaders }),
       safeFetch(`${APP_ORIGIN}/preview`),
-      safeFetch(`${APP_ORIGIN}/api/catalog/meta`, { headers: { cookie: cookieHeader(crossSession.token) } })
+      safeFetch(`${APP_ORIGIN}/api/catalog/meta`, { headers: { cookie: cookieHeader(crossSession.token) } }),
+      safeFetch(`${DEFAULT_ORIGIN}/api/products/${encodeURIComponent(productId)}`)
     ]);
 
     const metaBody = await readJson(metaResponse);
@@ -398,7 +375,6 @@ export async function runPb9PrivatePreviewProof() {
     const evaluation = evaluatePb9PrivatePreview({
       target,
       tenantCatalog,
-      defaultCatalog,
       shell,
       meta: { status: metaResponse.status, body: metaBody },
       products: { status: productsResponse.status, body: productsBody },
@@ -406,6 +382,7 @@ export async function runPb9PrivatePreviewProof() {
       media: { status: mediaResponse.status, contentType: mediaResponse.headers.get('content-type') },
       anonymousStatus: anonymousResponse.status,
       crossTenantStatus: crossResponse.status,
+      defaultSentinelStatus: defaultResponse.status,
       privateLeak,
       recurringSyncEnabled: runtime.recurringSyncEnabled
     });
