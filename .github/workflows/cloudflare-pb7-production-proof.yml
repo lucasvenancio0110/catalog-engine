@@ -8,6 +8,13 @@ on:
       - 'scripts/cloudflare-pb7-production-proof.mjs'
       - 'worker/portal-provisioning-progress.js'
       - 'tests/pb7-production-proof.test.mjs'
+  push:
+    branches: ['main']
+    paths:
+      - '.github/workflows/cloudflare-pb7-production-proof.yml'
+      - 'scripts/cloudflare-pb7-production-proof.mjs'
+      - 'worker/portal-provisioning-progress.js'
+      - 'tests/pb7-production-proof.test.mjs'
   workflow_run:
     workflows: ['Deploy Catalog Engine application']
     types: [completed]
@@ -45,6 +52,7 @@ jobs:
 
   prove:
     if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
