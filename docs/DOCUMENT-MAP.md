@@ -29,6 +29,14 @@ While the owner-authorized first real merchant campaign is active, also read:
 
 That document is a later explicit sequencing decision permitted by the roadmap. It does not supersede focused architecture/product contracts, does not close the milestone numbers whose work it pulls forward, and does not authorize recurring Intelligent Sync or M7E.
 
+### Historical execution reconstruction
+
+For detailed reconstruction of the production path from M7 through the first-real-merchant campaign, consult:
+
+- `docs/M7-TO-PB5-EXECUTION-LEDGER-2026-09-05.md` — **HISTORICAL / continuity evidence** covering M7A→M7D10, the M9 pivot, PB0→PB5, production defects/hotfixes and the PB6 handoff boundary.
+
+This ledger is not a normative owner document and never overrides live GitHub, `CURRENT-STATE.md`, the roadmap or focused contracts. It exists so a new contributor can recover why the current architecture/proof gates look the way they do without relying on a previous chat transcript.
+
 Then read the documents mapped to the affected area below.
 
 ## CEI / classification / learning / research
@@ -258,7 +266,7 @@ Required:
 - `docs/PORTAL-BETA-EXECUTION.md` while its bounded campaign is active;
 - every focused owner document for the current or proposed slice.
 
-Handoffs are transfer snapshots, not owner documents. Update state and roadmap before producing a handoff when the execution truth changed.
+Handoffs are transfer snapshots, not owner documents. Update state and roadmap before producing a handoff when the execution truth changed. Use `M7-TO-PB5-EXECUTION-LEDGER-2026-09-05.md` only as historical reconstruction when the detailed path/proof history is needed.
 
 ## Rule for cross-cutting changes
 

@@ -57,7 +57,11 @@ Do not invent, rename, reorder, merge or split submilestones outside the roadmap
 
 The default above remains normative. An owner may make a narrower, conversation-specific exception by explicitly naming an ordered campaign boundary. That exception changes only when the conversation stops; it does not combine implementation scope or relax any slice gate.
 
-For the owner-authorized campaign begun on 2026-08-30, the original boundary was `M7D10 -> M7D11 -> M7E -> M8 -> M9 -> M10 -> M11`. On 2026-08-31 the owner explicitly reordered the remaining work to execute M9 first, then return to M7D11/M7E and M8. This sequencing exception does not mark M7 or M8 complete, permit M7E activation, or let M9 weaken the existing opaque media boundary. Each slice still requires its own revalidation, branch, bounded PR, CI, exact-head merge, trusted-main proof and applicable production canaries. M8 and later undecomposed macro milestones still require the formal decomposition protocol where needed. Record a compact evidence checkpoint after each Green slice; defer consolidated closure documentation until the owner says `FAÇA O SAVE`. Stop after M11. This authorization is not transferable to another conversation or a broader milestone range.
+The owner-authorized continuous campaign begun on 2026-08-30 remains a conversation-scoped exception. It originally targeted M7D10→M11 and was later reordered by owner decisions: M9 work moved forward, then the first-real-merchant Portal Beta campaign PB0→PB12 became the active temporary execution order. None of these decisions silently complete M7D11, activate M7E, complete M8, or close paused M9B.
+
+Every slice still requires its own live revalidation, branch, bounded PR, CI, exact-head merge, trusted-main proof and applicable production canary. M8 and later undecomposed macro milestones still require formal decomposition where needed. The PB campaign is owned by `docs/PORTAL-BETA-EXECUTION.md` and defaults back to paused M9B after PB12 unless the owner makes another explicit sequencing decision.
+
+This authorization is not transferable to a future conversation without fresh owner context and live revalidation.
 
 ---
 
@@ -84,7 +88,7 @@ At minimum:
 11. distinguish default-catalog automation from tenant Intelligent Sync;
 12. verify production activation flags/configuration when relevant without printing secret values.
 
-Do not assume any repository HEAD recorded later in this file is still current. In particular, updating this file itself creates a newer documentation-only commit, so the continuity snapshot records **production implementation checkpoints separately from repository documentation capture points**.
+Do not assume any repository HEAD recorded later in this file is still current. Updating this file itself creates a newer documentation-only commit, and default-catalog automation may also advance `main`; production implementation checkpoints therefore remain separate from later documentation/data capture points.
 
 Immediately before creating a branch, revalidate `main` again because automation may advance it during the audit.
 
@@ -102,6 +106,8 @@ Read **integrally**, not from snippets only:
 8. `docs/CURRENT-STATE.md`;
 9. `docs/DEVELOPMENT-ROADMAP.md`.
 
+While PB0→PB12 is active, also read `docs/PORTAL-BETA-EXECUTION.md` before selecting or implementing the next PB slice.
+
 ## 2.3 Read **ALL Markdown files under `docs/`**
 
 This is mandatory for every new submilestone conversation.
@@ -118,7 +124,9 @@ Required procedure:
 6. classify each document as normative/current/historical/closure/diagnostic/overview according to its own metadata and governance;
 7. do not let a historical handoff/closure override current normative documents or live production truth.
 
-Baseline note only: on production implementation SHA `725854afc408bb6177aa071e2797051369c4040c`, the `docs/` folder contained 40 Markdown files. **Do not trust the number 40 in a future session; recount live.**
+For detailed reconstruction of how the repository reached the post-PB5 state, `docs/M7-TO-PB5-EXECUTION-LEDGER-2026-09-05.md` is the historical save-game. It is not a live authority.
+
+Do not trust any old document-count number in a future session; recount live.
 
 ## 2.4 Inspect implementation for the intended slice
 
@@ -175,7 +183,7 @@ Operationally, use this order:
 6. `docs/CURRENT-STATE.md` for mutable implementation/production truth;
 7. `docs/DEVELOPMENT-ROADMAP.md` for approved execution order/status;
 8. closure documents as historical production evidence;
-9. root handoffs as historical transfer context;
+9. `docs/M7-TO-PB5-EXECUTION-LEDGER-2026-09-05.md` and other historical reconstruction/handoffs;
 10. the snapshot section of this file as a convenience only.
 
 When these disagree, do not choose the most convenient source. Reconcile the conflict according to `DEVELOPMENT-CONTINUITY.md` before unsafe advancement.
@@ -215,7 +223,7 @@ A skipped privileged job, a preview deploy, a secret-free PR check or missing to
 After live revalidation and complete reading:
 
 1. identify the exact active milestone;
-2. identify the exact next **approved** submilestone from the roadmap;
+2. identify the exact next **approved** submilestone from the roadmap/active sequencing contract;
 3. verify no open PR already owns it;
 4. verify prerequisite Production Green/decision gates actually exist;
 5. state the bounded outcome;
@@ -247,7 +255,7 @@ For the selected submilestone:
 8. open a PR describing scope, invariants, risks, migration, rollback, evidence and non-goals;
 9. inspect every check;
 10. fix the first real root cause of failures;
-11. rebase/integrate latest `main` as required without discarding unrelated automated changes;
+11. integrate latest `main` as required without discarding unrelated automated catalog changes;
 12. merge only the exact tested head SHA;
 13. never treat the PR merge itself as Production Green when privileged proof is required.
 
@@ -297,23 +305,22 @@ For **PRODUCTION GREEN**, record and verify at minimum:
 [ ] schema/capability boundary if changed
 [ ] production activation flags/config boundary
 [ ] CURRENT-STATE.md updated
-[ ] DEVELOPMENT-ROADMAP.md updated
-[ ] focused owner docs updated
+[ ] DEVELOPMENT-ROADMAP.md updated when its status/order changed
+[ ] focused owner docs updated when their contract changed
 [ ] focused closure document created/updated when project pattern requires it
-[ ] START-HERE-AI.md snapshot updated
+[ ] START-HERE-AI.md snapshot updated after material production closure
 [ ] exact next approved submilestone identified
 [ ] explicit list of what was NOT implemented
-[ ] no work from the next submilestone started
+[ ] no unauthorized work from the next submilestone started
 ```
 
 Important sequencing:
 
 - do not fabricate future canary IDs in a pre-production PR;
 - first obtain the trusted-main production proof;
-- then close the documentary state to the exact proven level using the repository's established closure pattern;
-- record separately the production implementation SHA and the later documentation-only capture point when those differ;
-- revalidate `main` after closure;
-- then stop.
+- then close documentary state to the exact proven level;
+- record separately the production implementation SHA and later documentation/default-catalog capture points when those differ;
+- revalidate `main` after closure.
 
 The repository should contain enough truth that the next conversation does not need the previous chat transcript.
 
@@ -321,191 +328,174 @@ The repository should contain enough truth that the next conversation does not n
 
 # 9. UPDATE THIS FILE AT EVERY MATERIAL PRODUCTION CLOSURE
 
-At the end of each Production Green submilestone, update the snapshot below.
+Keep this file as a bootloader, not a duplicate of every detailed closure.
 
-Do not turn this file into a duplicate of all 40+ docs. Keep it as:
+It should contain:
 
 - startup protocol;
-- live revalidation checklist;
+- authority/evidence rules;
 - last known production checkpoint;
-- known conflict/debt warnings that affect continuation;
+- current campaign/milestone boundary;
 - next approved slice;
 - activation/safety boundary;
-- links to the true owner documents.
+- pointers to current/historical owner evidence.
 
-If the next milestone has not yet been decomposed/approved, record **DECISION REQUIRED / decomposition required** instead of inventing sub-slices.
-
-Do **not** attempt to make this file contain its own final repository HEAD as an eternal truth. Updating the file creates a new commit. Record the last production implementation SHA and, when useful, a documentation capture point separately. Live HEAD is always discovered at startup.
+Do **not** attempt to make this file contain its own final repository HEAD as eternal truth. Updating this file creates a new commit. Live HEAD is always discovered at startup.
 
 ---
 
 # 10. LAST KNOWN CHECKPOINT — MUST BE REVALIDATED LIVE
 
-Captured against live GitHub on **2026-08-30 (America/Sao_Paulo)**.
+Captured against live GitHub on **2026-09-05 (America/Sao_Paulo)**.
 
 ## Repository / capture semantics
+
+At the pre-documentation capture:
 
 ```text
 repository = lucasvenancio0110/catalog-engine
 branch = main
-production implementation checkpoint = 9214094197b010f46f7bf5144e7dbb445afa90ef
-pre-closure live repository capture point = f03a30ca896c8039ec7be9fc80358f3b04b84f73
+live repository capture point = ef975c86da66c210b970ec0a25217dd60ab4a851
+latest PB5 runtime implementation = 5f01b679804c45246077eb292ad2648ab6b20b48
+PB5 documentation closure parent = 7ee3d5460ca320da530e805f42c6e168450ce770
 ```
 
-The two SHAs intentionally mean different things:
+These SHAs intentionally mean different things:
 
-- `92140941...` is the final **M7D9 trusted-main production implementation/proof SHA**;
-- `f03a30ca...` is the later live-main capture point produced by the distinct transitional default-catalog sync and modifies only the sanitized compatibility snapshot `data/catalog.json` relative to the M7D9 proof SHA. It is preserved by the documentation closure and does not replace the production implementation identity.
+- `5f01b679...` is the PB5 application/runtime implementation proven by trusted-main deploy and real merchant acceptance;
+- `7ee3d546...` is the later docs-only PB5 closure/advance point;
+- `ef975c86...` is a still-later `catalog-engine-bot` default-catalog data update.
 
-Neither value is permission to skip live GitHub revalidation.
+The bot/default-catalog commit is **not** tenant recurring Intelligent Sync activation and must be preserved when integrating documentation or feature branches.
 
-M7D9 primary feature implementation entered through PR `#157 — m7d9: remove repeatedly missing products safely`; production-proof fixes continued through PRs `#158–#164`, with final proof SHA `9214094197b010f46f7bf5144e7dbb445afa90ef`.
-
-## Exact known trusted-main status on the M7D9 production implementation SHA
-
-The exact SHA `9214094197b010f46f7bf5144e7dbb445afa90ef` completed **SUCCESS** for:
+## Current proven milestone state at this capture
 
 ```text
-catalog-engine/application-deploy
-  run 33262375277
+M7A–M7D10 = PRODUCTION GREEN within their bounded contracts
+M7D11 = PLANNED
+M7E = DECISION REQUIRED / recurring tenant sync remains OFF
 
-catalog-engine/queue-consumer-activation
-  run 33262420873
+M9A = PRODUCTION GREEN
+M9B = IN PROGRESS — PAUSED by the first-real-merchant PB campaign
+M9C/M9D = PLANNED
 
-catalog-engine/tenant-data-plane-fleet-canary
-  run 33262420846 / job 99126693083
-
-catalog-engine/tenant-incremental-affected-detail-canary
-catalog-engine/tenant-incremental-cei-candidate-canary
-catalog-engine/tenant-incremental-candidate-verification-canary
-catalog-engine/tenant-incremental-promotion-authority-canary
-  cumulative run 33262420886 / job 99126532164
-
-catalog-engine/tenant-incremental-finalization-canary
-  run 33262420896 / job 99126532227
-
-catalog-engine/tenant-incremental-safe-removal-canary
-  run 33262420879 / job 99126532113
-
-automatic initial-import + CEI regression
-  run 33262420865 / job 99127336932
+PB0 = GOVERNANCE GREEN / COMPLETE
+PB1 = PRODUCTION GREEN
+PB2 = PRODUCTION GREEN
+PB3 = PRODUCTION GREEN
+PB4 = PRODUCTION GREEN
+PB5 = PRODUCTION GREEN
+PB6 = PLANNED — NEXT
+PB7–PB12 = PLANNED
 ```
 
-This is a last-known checkpoint only. Requery statuses/runs before using it as current truth.
+Detailed reconstruction of M7, M9 and PB0→PB5, including production defects/hotfixes, is recorded in:
 
-## M7 known state at this checkpoint
+- `docs/M7-TO-PB5-EXECUTION-LEDGER-2026-09-05.md` — historical evidence only;
+- focused closure documents such as `PB3-CLOSURE-2026-09-05.md`, `PB4-CLOSURE-2026-09-05.md`, `PB5-CLOSURE-2026-09-05.md`;
+- current truth in `docs/CURRENT-STATE.md`.
 
-Known production evidence supports:
-
-```text
-M7A  = PRODUCTION GREEN
-M7B  = PRODUCTION GREEN — foundation disabled
-M7C1 = PRODUCTION GREEN
-M7C2 = PRODUCTION GREEN — read-only foundation
-M7C3 = PRODUCTION GREEN
-M7C4 = PRODUCTION GREEN
-M7D1 = PRODUCTION GREEN
-M7D2 = PRODUCTION GREEN
-M7D3 = PRODUCTION GREEN
-M7D4 = PRODUCTION GREEN
-M7D5 = PRODUCTION GREEN
-M7D6 = PRODUCTION GREEN
-M7D7 = PRODUCTION GREEN
-M7D8 = PRODUCTION GREEN
-M7D9 = PRODUCTION GREEN
-M7D10 = PRODUCTION GREEN
-M7D11 = PLANNED / scope decision before customer UI
-M7E = DECISION REQUIRED / activation-only
-M9A = PRODUCTION GREEN — PRs #171/#172; application SHA 0b2c4fd8f21db5d86cf6981ba510875a637985ed; trusted-main proof SHA f5366ac7b281ce8326ceb74efe051d58ff6758df
-M9B = PLANNED — NEXT APPROVED under owner sequencing exception
-```
-
-## M7D7 documentation reconciliation
-
-M7D7 closure reconciliation was completed by PR `#153` at documentation-only SHA `f01253dd4b7c5855de0cbfb222a128cab9c48f1b`, and this follow-up reconciles the remaining normative/bootloader wording. Live revalidation still outranks this snapshot.
-
-Additional known documentation debt discovered in the full-doc audit:
-
-- `docs/TENANT-IMPORT-DETAILS.md` contains stale pre-M5 Queue activation wording;
-- `docs/TENANT-IMPORT-SCAN.md` contains stale pre-M5 Queue activation wording;
-- `docs/DESIGN-SYSTEM.md` contains a stale Fuse.js-installed/candidate sentence, while M3 records that Fuse.js was removed.
-
-These debts do not authorize unrelated runtime changes. Fix them in bounded documentation scope when appropriate.
-
-## Current tenant data-plane boundary
-
-Last known active code target:
+## Current tenant data-plane / sync boundary
 
 ```text
 TENANT_DATA_PLANE_SCHEMA_VERSION = 8
 migration command capability = v4
-historical compatibility = v3 -> schema7 remains accepted
-```
-
-Schema v8 adds scoped membership/miss authority, immutable removal policy and merchant-override retention on top of the v7 serving-authority CAS state.
-
-## Critical Intelligent Sync activation boundary
-
-Until M7E is explicitly approved and proven:
-
-```text
+TENANT_IMPORT_AUTOMATION_ENABLED = 1
 TENANT_SYNC_AUTOMATION_ENABLED = 0
 TENANT_SYNC_ACTIVE_COHORT = empty
-recurring Intelligent Sync = disabled
+TENANT_SYNC_MAX_JOBS_PER_TICK = 1
 ```
 
-Do not enable recurring sync in M7D10 or M7D11; M7D8/M7D9 are already closed with the scheduler still disabled.
+Automatic initial import is active. Recurring tenant Intelligent Sync is not.
 
-Do not create a real cohort merely to make a canary easier.
+## First real merchant proof already achieved
 
-The scheduled legacy/default-catalog `sync-yupoo-incremental.yml` workflow is a distinct transitional automation and may advance the sanitized `data/catalog.json` snapshot even while tenant Intelligent Sync remains disabled. Preserve and audit those bot commits separately; do not misclassify them as M7 tenant-cohort activation.
+A real beta merchant has successfully exercised production through PB5:
+
+```text
+OIDC signup/login
+-> audited server-side beta entitlement
+-> real isolated store creation (CROCCODILOS)
+-> persisted branding/logo through private R2
+-> persisted private Yupoo source connection
+-> reload/re-entry with safe merchant-facing state
+```
+
+Do not store or expose the merchant's private Yupoo URL, email, token, IdP subject or private provider locator in documentation/logs.
 
 ---
 
 # 11. NEXT APPROVED SUBMILESTONE
 
-Subject to live revalidation, the next roadmap slice is:
+Subject to live revalidation, the next active PB slice is:
 
-## M9A — Commerce Shell and URL State
+## PB6 — Source Scope / Import Decision
 
-Commercial outcome:
+Customer outcome:
 
-> A shopper sees a credible retail storefront immediately and can reload or navigate browser history without losing catalog state.
+> The merchant understands and explicitly authorizes what the first import will consume, without seeing provider-private IDs or pretending a client-only selector controls backend behavior.
 
-Normative owner:
+Critical live-code finding already recorded by PB5 closure:
 
-- `docs/DESIGN-SYSTEM.md`
-- `docs/DEVELOPMENT-ROADMAP.md`
+```text
+source connection
+-> provisioning can continue to data_plane
+-> migrations can advance current_step to import
+-> TENANT_IMPORT_AUTOMATION_ENABLED=1 can automatically discover eligible import work
+```
 
-Required scope covers the premium responsive shell, search/navigation hierarchy, early product visibility, structured loading/empty/error states and URL-backed query/filter/page state with reload and back/forward restoration. M9A must stay within existing public APIs and opaque media IDs and must not invent collections, featured/new claims or supplier truth.
+Therefore PB6 **cannot** be a cosmetic screen.
 
-M9A must not absorb M9B discovery/merchandising, M9C product-route or M9D SEO/performance proof scope. Recurring tenant Intelligent Sync remains disabled and no real activation cohort is created during M9.
+PB6 must establish or identify durable server-side import-decision authority that the automatic initial-import discovery path actually honors.
 
-Production checkpoint: M9A passed PR CI, trusted-main application deploy `33408598897`, isolated UI staging `33409329391`, and live production search/back/forward proof. M9B is the next approved slice.
+If safe provider-level scope discovery cannot expose stable merchant-safe choices without raw Yupoo category IDs/URLs, the approved first-beta fallback is one explicit truthful option:
+
+**Importar catálogo completo**
+
+That decision must be persisted and enforced by the actual import path. Do not destructively reset an already-running/completed tenant solely to introduce the gate; audit live CROCCODILOS state before changing activation semantics.
+
+PB6 must not:
+
+- expose private supplier URLs/raw IDs;
+- fabricate provider categories as public merchandising truth;
+- activate recurring tenant sync;
+- silently import a different scope than the merchant selected;
+- jump ahead to PB7/PB8 claims.
 
 ---
 
-# 12. OWNER-AUTHORIZED REMAINING ORDER
+# 12. ACTIVE OWNER-AUTHORIZED ORDER
 
-Subject to live roadmap revalidation:
+While the first-real-merchant campaign remains active, use the approved sequence from `PORTAL-BETA-EXECUTION.md`:
 
 ```text
-M9A — Commerce Shell and URL State
+PB6 — Source Scope / Import Decision
 ↓
-M9B — Product Discovery and Merchandising
+PB7 — Provisioning Progress
 ↓
-M9C — Product Detail, Share and Deep Links
+PB8 — Real Tenant Import
 ↓
-M9D — SEO, Accessibility, Performance and Production Proof
+PB9 — Private Preview
 ↓
-M7D11 — Safe Change and Review Feed
+PB10 — Merchant Home
 ↓
-M7E — Deliberate Activation (decision + activation only)
+PB11 — Beta E2E
 ↓
-M8 — decompose formally before implementation
+PB12 — Production Proof / BETA GREEN
 ```
 
-Do not invent M8A/M8B names. Follow the decomposition protocol before implementing M8 if the macro milestone needs multiple slices. M7 and M8 remain incomplete until their own proof gates pass.
+After PB12, default return point is the paused **M9B — Product Discovery and Merchandising**, unless the owner explicitly changes sequencing.
+
+Separately:
+
+```text
+M7D11 remains PLANNED
+M7E remains DECISION REQUIRED
+M8 remains incomplete/unproven
+M9B remains incomplete/paused
+```
+
+Do not invent a new ordering from the historical continuous-campaign text.
 
 ---
 
@@ -514,10 +504,12 @@ Do not invent M8A/M8B names. Follow the decomposition protocol before implementi
 Never regress these principles:
 
 - partial scan never means delete;
+- Last Known Good remains serving authority until safe verified promotion;
 - supplier taxonomy is evidence, not public merchandising truth;
 - private supplier URLs/raw IDs/evidence remain private;
 - merchant overrides are durable tenant business truth;
 - one tenant must never select/read/mutate another tenant's data plane;
+- the default compatibility tenant is never a fallback for a real merchant tenant;
 - application deployment and commercial catalog publication are separate responsibilities;
 - production mutation proof uses trusted-main exact-SHA paths;
 - ordinary PR validation remains secret-free;
@@ -525,8 +517,10 @@ Never regress these principles:
 - preserve failed fixtures/evidence until diagnosis;
 - no manual Queue injection when the contract requires scheduler-owned proof;
 - do not weaken gates after a production canary reveals a real defect;
-- no recurring-sync activation before M7E;
-- one conversation executes at most one approved submilestone unless the owner has explicitly activated a bounded continuous campaign under section 1.1; every slice gate remains independent.
+- no recurring tenant-sync activation before explicit M7E approval;
+- distinguish default-catalog bot commits from tenant Intelligent Sync;
+- customer-facing progress uses durable real state, never fake percentages;
+- customer UI must not expose tenant/D1/Worker/namespace/private-locator internals.
 
 ---
 
@@ -543,9 +537,7 @@ When stopping, give the user a concise handoff summary containing:
 7. activation flags/boundaries preserved;
 8. documents updated;
 9. exact next approved submilestone;
-10. confirmation that the next submilestone was **not started**.
-
-Then stop. The next conversation begins from this file again.
+10. confirmation that unauthorized next-slice work was not started.
 
 ---
 
@@ -563,10 +555,10 @@ READ THIS FILE
 → INSPECT LIVE CODE/WORKFLOWS/TESTS
 → RECONCILE CONTRADICTIONS
 → IDENTIFY EXACT NEXT APPROVED SUBMILESTONE
-→ EXECUTE ONLY THAT SUBMILESTONE
+→ EXECUTE ONLY THE AUTHORIZED SLICE/CAMPAIGN STEP
 → PROVE IT TO THE REQUIRED LEVEL
-→ UPDATE CURRENT STATE / ROADMAP / CLOSURE / THIS FILE
-→ STOP
+→ UPDATE CURRENT STATE / ROADMAP / CLOSURE / THIS FILE AS APPLICABLE
+→ STOP AT THE AUTHORIZED BOUNDARY
 ```
 
 The project must remain continuable without relying on memory from any previous chat.
