@@ -10,6 +10,15 @@ on:
       - "scripts/cloudflare-pb9-runtime-scheduler-heartbeat.mjs"
       - "tests/pb9-runtime-scheduler-heartbeat.test.mjs"
       - "tests/entry-runtime-scheduler.test.mjs"
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/cloudflare-pb9-runtime-scheduler-heartbeat.yml"
+      - "migrations/0027_tenant_runtime_scheduler_state.sql"
+      - "worker/entry.js"
+      - "scripts/cloudflare-pb9-runtime-scheduler-heartbeat.mjs"
+      - "tests/pb9-runtime-scheduler-heartbeat.test.mjs"
+      - "tests/entry-runtime-scheduler.test.mjs"
   workflow_run:
     workflows: ["Deploy Catalog Engine application"]
     types: [completed]
@@ -38,6 +47,7 @@ jobs:
 
   diagnose:
     if: >-
+      github.event_name == 'push' ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
