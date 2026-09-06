@@ -7,6 +7,9 @@ on:
       - '.github/workflows/cloudflare-pb6-merchant-acceptance.yml'
       - 'scripts/cloudflare-pb6-merchant-acceptance.mjs'
       - 'tests/pb6-merchant-acceptance.test.mjs'
+  workflow_run:
+    workflows: ['Deploy Catalog Engine application']
+    types: [completed]
   workflow_dispatch:
     inputs:
       merchant_display_name:
@@ -40,19 +43,24 @@ jobs:
         run: npm run quality
 
   prove:
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      PB6_MERCHANT_DISPLAY_NAME: ${{ inputs.merchant_display_name }}
+      PB6_MERCHANT_DISPLAY_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.merchant_display_name || 'CROCCODILOS' }}
+      TARGET_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
       STATUS_CONTEXT: catalog-engine/pb6-merchant-acceptance
     steps:
       - name: Checkout exact trusted-main SHA
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ env.TARGET_SHA }}
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -68,6 +76,7 @@ jobs:
           set -euo pipefail
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
+          test -n "$TARGET_SHA" || { echo "TARGET_SHA is missing"; exit 1; }
       - name: Prove CROCCODILOS merchant acceptance safely
         shell: bash
         run: |
@@ -79,7 +88,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         shell: bash
         run: |
@@ -92,17 +100,17 @@ jobs:
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/$REPO/statuses/$SHA" -d @/tmp/status.json
+            "https://api.github.com/repos/$REPO/statuses/$TARGET_SHA" -d @/tmp/status.json
       - name: Publish failed PB6 merchant acceptance evidence
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         shell: bash
         run: |
           set -euo pipefail
+          test -n "$TARGET_SHA" || exit 0
           jq -n --arg state failure --arg context "$STATUS_CONTEXT" \
             --arg description "PB6 real merchant acceptance is still pending or invalid" \
             --arg target_url "$RUN_URL" \
@@ -111,4 +119,4 @@ jobs:
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/$REPO/statuses/$SHA" -d @/tmp/status.json
+            "https://api.github.com/repos/$REPO/statuses/$TARGET_SHA" -d @/tmp/status.json
