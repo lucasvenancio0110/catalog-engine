@@ -71,6 +71,7 @@ export async function handlePrivatePreviewAdminRequest(request, env) {
   const sessionMatch = url.pathname.match(PREVIEW_SESSION);
   const revoke = url.pathname === PREVIEW_REVOKE;
   if (!statusMatch && !sessionMatch && !revoke) return null;
+  if (!isCatalogAdminHost(request, env)) return json({ error: 'not_found' }, 404);
 
   try {
     const principalId = await authenticatedPrincipal(request, env);
@@ -110,7 +111,11 @@ export async function handlePrivatePreviewAdminRequest(request, env) {
       return json({}, 204, { 'set-cookie': clearPrivatePreviewCookie() });
     }
 
-    return json({ error: 'method_not_allowed' }, 405, { allow: statusMatch ? 'GET' : revoke ? 'DELETE' : 'POST' });
+    return json(
+      { error: 'method_not_allowed' },
+      405,
+      { allow: statusMatch ? 'GET' : revoke ? 'DELETE' : 'POST' }
+    );
   } catch (error) {
     if (
       error instanceof PrivatePreviewError &&
