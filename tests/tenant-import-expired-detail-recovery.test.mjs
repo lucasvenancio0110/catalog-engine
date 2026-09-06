@@ -83,7 +83,7 @@ describe('initial detail expired-lease recovery', () => {
     expect(terminalize.sql).toContain('attempt_count>=?5');
     expect(terminalize.sql).toContain("state='deferred'");
     expect(terminalize.sql).toContain("outcome_code='retry_exhausted'");
-    expect(terminalize.params.at(-1)).toBe(4);
+    expect(Number(terminalize.params.at(-1))).toBe(4);
   });
 
   it('is idempotent and keeps the source index aligned with recovered durable state', async () => {
