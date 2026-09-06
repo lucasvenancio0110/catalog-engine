@@ -16,16 +16,10 @@ on:
       - 'worker/tenant-data-plane-schema-v8.js'
       - 'scripts/d1-batch-chunks.mjs'
       - 'wrangler.jsonc'
-  push:
-    branches: ['main']
-    paths:
-      - '.github/workflows/cloudflare-trusted-fresh-tenant-provision.yml'
-      - 'scripts/cloudflare-trusted-fresh-tenant-provision.mjs'
-      - 'scripts/cloudflare-trusted-tenant-runtime-stage.mjs'
-      - 'tests/trusted-fresh-tenant-provision.test.mjs'
-      - 'tests/trusted-tenant-runtime-stage.test.mjs'
-      - 'worker/tenant-runtime-runner.js'
-      - 'worker/tenant-catalog-runtime.js'
+  # Production application deploy owns the immediate post-merge mutation slot.
+  # Trusted physical provisioning/runtime staging follows on the bounded schedule
+  # (or an explicit trusted-main dispatch) so two push-triggered workflows do not
+  # replace each other in GitHub's single-pending concurrency group.
   schedule:
     - cron: '2-57/5 * * * *'
   workflow_dispatch:
@@ -56,7 +50,6 @@ jobs:
 
   provision:
     if: >-
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
