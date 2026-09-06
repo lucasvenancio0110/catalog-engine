@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import {
   evaluateRuntimeDiscovery,
@@ -19,6 +20,11 @@ function discoverable(overrides = {}) {
     runtime_version: 0,
     target_runtime_version: 1,
     runtime_job_status: null,
+    eligible_candidates_total: 1,
+    eligible_candidates_ahead: 0,
+    exhausted_eligible_jobs: 0,
+    oldest_candidate_exhausted: 0,
+    due_runtime_jobs: 0,
     ...overrides
   };
 }
@@ -28,6 +34,14 @@ describe('PB9 runtime discovery diagnosis', () => {
     const evaluation = evaluateRuntimeDiscovery(discoverable());
     expect(evaluation.discoverable).toBe(true);
     expect(Object.values(evaluation.predicates).every(Boolean)).toBe(true);
+    expect(evaluation.scheduling).toEqual({
+      eligibleCandidates: 1,
+      candidatesAhead: 0,
+      selectionRank: 1,
+      exhaustedEligibleJobs: 0,
+      oldestCandidateExhausted: false,
+      dueRuntimeJobs: 0
+    });
   });
 
   it('identifies each bounded discovery blocker independently', () => {
@@ -53,6 +67,27 @@ describe('PB9 runtime discovery diagnosis', () => {
     );
     expect(evaluation.predicates.runtimeNeedsWork).toBe(false);
     expect(evaluation.discoverable).toBe(false);
+    expect(evaluation.scheduling.selectionRank).toBe(0);
+  });
+
+  it('reports bounded candidate ordering and exhausted-job starvation signals', () => {
+    const evaluation = evaluateRuntimeDiscovery(
+      discoverable({
+        eligible_candidates_total: 4,
+        eligible_candidates_ahead: 2,
+        exhausted_eligible_jobs: 1,
+        oldest_candidate_exhausted: 1,
+        due_runtime_jobs: 1
+      })
+    );
+    expect(evaluation.scheduling).toEqual({
+      eligibleCandidates: 4,
+      candidatesAhead: 2,
+      selectionRank: 3,
+      exhaustedEligibleJobs: 1,
+      oldestCandidateExhausted: true,
+      dueRuntimeJobs: 1
+    });
   });
 
   it('emits only bounded safe state without private identifiers', () => {
@@ -75,8 +110,9 @@ describe('PB9 runtime discovery diagnosis', () => {
       targetRuntimeVersion: 1,
       runtimeJobStatus: 'none'
     });
+    expect(evidence.scheduling.selectionRank).toBe(1);
     expect(JSON.stringify(evidence)).not.toMatch(
-      /t_[a-f0-9]{20}|prn_[a-f0-9]{20}|worker_script|yupoo\.com|d1_database_id/i
+      /t_[a-f0-9]{20}|prn_[a-f0-9]{20}|rtjob_[a-f0-9]{20}|worker_script|workers\.dev|yupoo\.com|d1_database_id/i
     );
   });
 
@@ -86,5 +122,17 @@ describe('PB9 runtime discovery diagnosis', () => {
     );
     expect(evaluation.state.provisioningStatus).toBe('none');
     expect(evaluation.predicates.provisioningAtDomain).toBe(false);
+  });
+
+  it('keeps runtime-version and automatic-attempt limits aligned with the production runner', async () => {
+    const [diagnostic, runner] = await Promise.all([
+      readFile(new URL('../scripts/cloudflare-pb9-runtime-discovery-diagnosis.mjs', import.meta.url), 'utf8'),
+      readFile(new URL('../worker/tenant-runtime-runner.js', import.meta.url), 'utf8')
+    ]);
+    expect(diagnostic).toContain("import { TENANT_CATALOG_RUNTIME_VERSION } from '../worker/tenant-catalog-runtime.js'");
+    expect(diagnostic).toContain('const RUNTIME_MAX_AUTOMATIC_ATTEMPTS = 6;');
+    expect(runner).toContain('const MAX_AUTOMATIC_ATTEMPTS = 6;');
+    expect(diagnostic).toContain('eligible_candidates_ahead');
+    expect(diagnostic).toContain('oldest_candidate_exhausted');
   });
 });
