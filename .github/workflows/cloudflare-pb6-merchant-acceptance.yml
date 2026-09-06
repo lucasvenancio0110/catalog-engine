@@ -14,7 +14,9 @@ on:
       - 'scripts/cloudflare-pb6-merchant-acceptance.mjs'
       - 'tests/pb6-merchant-acceptance.test.mjs'
   workflow_run:
-    workflows: ['Deploy Catalog Engine application']
+    workflows:
+      - 'Deploy Catalog Engine application'
+      - 'Cloudflare trusted fresh tenant provisioning'
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -84,6 +86,23 @@ jobs:
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
           test -n "$TARGET_SHA" || { echo "TARGET_SHA is missing"; exit 1; }
+      - name: Wait for scheduled initial-import consumption
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 20); do
+            if node scripts/cloudflare-pb6-merchant-acceptance.mjs > /tmp/pb6-wait.json 2>/tmp/pb6-wait.err; then
+              echo "PB6 merchant acceptance became observable on attempt $attempt"
+              exit 0
+            fi
+            if [ "$attempt" -eq 20 ]; then
+              cat /tmp/pb6-wait.json || true
+              cat /tmp/pb6-wait.err || true
+              echo "PB6 initial-import evidence did not arrive within bounded scheduler wait"
+              exit 1
+            fi
+            sleep 20
+          done
       - name: Prove CROCCODILOS merchant acceptance safely
         shell: bash
         run: |
