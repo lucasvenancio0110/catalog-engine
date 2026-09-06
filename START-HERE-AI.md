@@ -346,7 +346,7 @@ Do **not** attempt to make this file contain its own final repository HEAD as et
 
 # 10. LAST KNOWN CHECKPOINT — MUST BE REVALIDATED LIVE
 
-Captured against live GitHub on **2026-09-05 (America/Sao_Paulo)**.
+Captured against live GitHub on **2026-09-06 (America/Sao_Paulo)**.
 
 ## Repository / capture semantics
 
@@ -355,18 +355,13 @@ At the pre-documentation capture:
 ```text
 repository = lucasvenancio0110/catalog-engine
 branch = main
-live repository capture point = ef975c86da66c210b970ec0a25217dd60ab4a851
-latest PB5 runtime implementation = 5f01b679804c45246077eb292ad2648ab6b20b48
-PB5 documentation closure parent = 7ee3d5460ca320da530e805f42c6e168450ce770
+live production implementation capture point = 5ec6f5e7159bfee6650da901f90d03ed16bf11f9
+latest PB6 runtime implementation = 5ec6f5e7159bfee6650da901f90d03ed16bf11f9
+trusted application deploy = 34037208532
+PB6 real-merchant proof = 34037260274
 ```
 
-These SHAs intentionally mean different things:
-
-- `5f01b679...` is the PB5 application/runtime implementation proven by trusted-main deploy and real merchant acceptance;
-- `7ee3d546...` is the later docs-only PB5 closure/advance point;
-- `ef975c86...` is a still-later `catalog-engine-bot` default-catalog data update.
-
-The bot/default-catalog commit is **not** tenant recurring Intelligent Sync activation and must be preserved when integrating documentation or feature branches.
+The documentation closure that updates this file will create a later documentation-only SHA. That later SHA does not replace the exact PB6 runtime implementation/proof point recorded above.
 
 ## Current proven milestone state at this capture
 
@@ -385,14 +380,16 @@ PB2 = PRODUCTION GREEN
 PB3 = PRODUCTION GREEN
 PB4 = PRODUCTION GREEN
 PB5 = PRODUCTION GREEN
-PB6 = PLANNED — NEXT
-PB7–PB12 = PLANNED
+PB6 = PRODUCTION GREEN
+PB7 = PLANNED — NEXT
+PB8–PB12 = PLANNED
 ```
 
-Detailed reconstruction of M7, M9 and PB0→PB5, including production defects/hotfixes, is recorded in:
+Detailed evidence is recorded in:
 
-- `docs/M7-TO-PB5-EXECUTION-LEDGER-2026-09-05.md` — historical evidence only;
-- focused closure documents such as `PB3-CLOSURE-2026-09-05.md`, `PB4-CLOSURE-2026-09-05.md`, `PB5-CLOSURE-2026-09-05.md`;
+- `docs/M7-TO-PB5-EXECUTION-LEDGER-2026-09-05.md` — historical reconstruction only;
+- `docs/PB6-PRODUCTION-PROOF-CHECKPOINT-2026-09-06.md` — the pre-merchant-acceptance checkpoint;
+- `docs/PB6-CLOSURE-2026-09-06.md` — final PB6 Production Green evidence;
 - current truth in `docs/CURRENT-STATE.md`.
 
 ## Current tenant data-plane / sync boundary
@@ -410,7 +407,7 @@ Automatic initial import is active. Recurring tenant Intelligent Sync is not.
 
 ## First real merchant proof already achieved
 
-A real beta merchant has successfully exercised production through PB5:
+A real beta merchant has successfully exercised production through PB6:
 
 ```text
 OIDC signup/login
@@ -418,10 +415,14 @@ OIDC signup/login
 -> real isolated store creation (CROCCODILOS)
 -> persisted branding/logo through private R2
 -> persisted private Yupoo source connection
--> reload/re-entry with safe merchant-facing state
+-> durable full-connected-source import decision with authority=merchant
+-> trusted isolated D1/User Worker provisioning and schema v8 readiness
+-> scheduler-owned initial import observed running
 ```
 
-Do not store or expose the merchant's private Yupoo URL, email, token, IdP subject or private provider locator in documentation/logs.
+The final PB6 proof observed the initial import in `details`. That is proof that the merchant decision was consumed, not proof that the entire PB8 real-import/CEI/verification journey is complete.
+
+Do not store or expose the merchant's private Yupoo URL, email, token, IdP subject, private provider locator, D1 UUID or Worker identifier in documentation/logs.
 
 ---
 
@@ -429,38 +430,28 @@ Do not store or expose the merchant's private Yupoo URL, email, token, IdP subje
 
 Subject to live revalidation, the next active PB slice is:
 
-## PB6 — Source Scope / Import Decision
+## PB7 — Provisioning Progress
 
 Customer outcome:
 
-> The merchant understands and explicitly authorizes what the first import will consume, without seeing provider-private IDs or pretending a client-only selector controls backend behavior.
+> The merchant sees truthful, understandable progress while the real tenant moves through durable provisioning/import state, including honest waiting/retry/error behavior, without fake percentages or infrastructure internals.
 
-Critical live-code finding already recorded by PB5 closure:
+PB7 begins from a real tenant whose PB6 import authority is already Production Green and whose initial import has started. PB7 must project existing durable backend truth rather than create a parallel client-only progress model.
 
-```text
-source connection
--> provisioning can continue to data_plane
--> migrations can advance current_step to import
--> TENANT_IMPORT_AUTOMATION_ENABLED=1 can automatically discover eligible import work
-```
+Required boundaries:
 
-Therefore PB6 **cannot** be a cosmetic screen.
+- audit the existing onboarding/import status contract before changing UI claims;
+- map only semantically real checkpoints/counters to merchant-safe progress;
+- use bounded polling and resume after reload/re-entry;
+- show truthful pending/running/retry/error state;
+- never fabricate percentages from elapsed time;
+- never expose tenant IDs, source locators, D1 UUIDs, Worker names, Queue IDs or private provider evidence;
+- remain mobile-first with touch, keyboard/focus, loading, empty, error and reduced-motion behavior;
+- preserve PB6 durable import-decision authority;
+- keep recurring Intelligent Sync disabled;
+- do not claim complete real import, CEI or verification — PB8 owns that proof.
 
-PB6 must establish or identify durable server-side import-decision authority that the automatic initial-import discovery path actually honors.
-
-If safe provider-level scope discovery cannot expose stable merchant-safe choices without raw Yupoo category IDs/URLs, the approved first-beta fallback is one explicit truthful option:
-
-**Importar catálogo completo**
-
-That decision must be persisted and enforced by the actual import path. Do not destructively reset an already-running/completed tenant solely to introduce the gate; audit live CROCCODILOS state before changing activation semantics.
-
-PB6 must not:
-
-- expose private supplier URLs/raw IDs;
-- fabricate provider categories as public merchandising truth;
-- activate recurring tenant sync;
-- silently import a different scope than the merchant selected;
-- jump ahead to PB7/PB8 claims.
+PB7 must not activate M7E, recurring sync, public billing, custom-domain publication or private-preview behavior.
 
 ---
 
@@ -469,8 +460,6 @@ PB6 must not:
 While the first-real-merchant campaign remains active, use the approved sequence from `PORTAL-BETA-EXECUTION.md`:
 
 ```text
-PB6 — Source Scope / Import Decision
-↓
 PB7 — Provisioning Progress
 ↓
 PB8 — Real Tenant Import
