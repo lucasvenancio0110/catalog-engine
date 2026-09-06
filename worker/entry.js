@@ -38,6 +38,7 @@ function safeScheduleSummary(summary) {
     discovered: summary.discovered || 0,
     selected: summary.selected || 0,
     processed: summary.processed || 0,
+    staged: summary.staged || 0,
     dispatched: summary.dispatched || 0,
     scheduled: summary.scheduled || 0,
     succeeded: summary.succeeded || 0,
