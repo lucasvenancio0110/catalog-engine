@@ -54,4 +54,16 @@ describe('tenant runtime activation scheduler', () => {
     expect(due).toContain('ORDER BY j.created_at ASC');
     expect(due).toContain('LIMIT ?3');
   });
+
+  it('never calls Cloudflare administrative APIs from the production Worker cron', async () => {
+    const source = await readFile(new URL('../worker/tenant-runtime-runner.js', import.meta.url), 'utf8');
+    expect(source).not.toContain('uploadTenantCatalogWorker');
+    expect(source).not.toContain('queryD1Batch');
+    expect(source).not.toContain('api.cloudflare.com');
+    expect(source).toContain("j.status='staged'");
+    expect(source).toContain("p.runtime_kind='catalog'");
+    expect(source).toContain("p.runtime_status='staged'");
+    expect(source).toContain("reason: 'awaiting_trusted_runtime_stage'");
+    expect(source).toContain('smokeTenantRuntime');
+  });
 });
