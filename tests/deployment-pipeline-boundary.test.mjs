@@ -52,6 +52,22 @@ describe('production deployment pipeline boundary', () => {
     expect(workflow).toContain('PORTAL_AUTH_CLIENT_ID: ${{ secrets.PORTAL_AUTH_CLIENT_ID }}');
   });
 
+  it('keeps application deploy recovery serialized instead of cancelling production work', async () => {
+    const workflow = await readWorkflow('deploy-catalog-api.yml');
+
+    expect(workflow).toContain('workflow_dispatch:');
+    expect(workflow).toContain('group: catalog-engine-production-d1');
+    expect(workflow).toContain('cancel-in-progress: false');
+    expect(workflow).toContain("- 'tests/deployment-pipeline-boundary.test.mjs'");
+
+    const dispatchIndex = workflow.indexOf('workflow_dispatch:');
+    const concurrencyIndex = workflow.indexOf('concurrency:');
+    const jobsIndex = workflow.indexOf('jobs:');
+    expect(dispatchIndex).toBeGreaterThan(-1);
+    expect(concurrencyIndex).toBeGreaterThan(dispatchIndex);
+    expect(jobsIndex).toBeGreaterThan(concurrencyIndex);
+  });
+
   it('deploys and verifies runtime secrets without exposing their values', async () => {
     const workflow = await readWorkflow('deploy-catalog-api.yml');
     const deployIndex = workflow.indexOf('Deploy Worker and static application assets');
