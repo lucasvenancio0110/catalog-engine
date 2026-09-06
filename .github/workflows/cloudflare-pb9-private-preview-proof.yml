@@ -85,6 +85,32 @@ jobs:
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
           test -n "$TARGET_SHA" || { echo "TARGET_SHA is missing"; exit 1; }
+      - name: Diagnose PB9 preview transport safely
+        shell: bash
+        run: |
+          set -euo pipefail
+          ERR_FILE="$(mktemp)"
+          trap 'rm -f "$ERR_FILE"' EXIT
+          set +e
+          HTTP_CODE="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 15 https://app.catalogoengine.com/preview 2>"$ERR_FILE")"
+          CURL_RC=$?
+          set -e
+          if test "$CURL_RC" -eq 0; then
+            echo "pb9_preview_transport=reachable http_status=$HTTP_CODE"
+            exit 0
+          fi
+          if grep -qi 'Could not resolve host' "$ERR_FILE"; then
+            echo 'pb9_preview_transport=dns_unresolved'
+          elif grep -Eqi 'SSL|certificate|TLS' "$ERR_FILE"; then
+            echo 'pb9_preview_transport=tls_failed'
+          elif grep -qi 'timed out' "$ERR_FILE"; then
+            echo 'pb9_preview_transport=timeout'
+          elif grep -Eqi 'redirect|Maximum.*redirect' "$ERR_FILE"; then
+            echo 'pb9_preview_transport=redirect_failed'
+          else
+            echo "pb9_preview_transport=network_failed curl_rc=$CURL_RC"
+          fi
+          exit "$CURL_RC"
       - name: Prove real merchant private preview isolation
         id: evidence
         shell: bash
