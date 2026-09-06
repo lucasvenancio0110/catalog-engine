@@ -1,0 +1,143 @@
+name: Cloudflare PB8 real tenant import proof
+
+on:
+  pull_request:
+    branches: ['main']
+    paths:
+      - '.github/workflows/cloudflare-pb8-real-import-proof.yml'
+      - 'scripts/cloudflare-pb8-real-import-proof.mjs'
+      - 'tests/pb8-real-import-proof.test.mjs'
+  push:
+    branches: ['main']
+    paths:
+      - '.github/workflows/cloudflare-pb8-real-import-proof.yml'
+      - 'scripts/cloudflare-pb8-real-import-proof.mjs'
+      - 'tests/pb8-real-import-proof.test.mjs'
+  workflow_run:
+    workflows: ['Deploy Catalog Engine application', 'Activate tenant import Queue consumers']
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      merchant_display_name:
+        description: Merchant display name to verify without exposing private tenant/source identifiers
+        required: false
+        default: CROCCODILOS
+        type: string
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: PB8 proof tests
+        run: npx vitest run tests/pb8-real-import-proof.test.mjs
+      - name: Secret-free quality gate
+        run: npm run quality
+
+  prove:
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      PB8_MERCHANT_DISPLAY_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.merchant_display_name || 'CROCCODILOS' }}
+      TARGET_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+      STATUS_CONTEXT: catalog-engine/pb8-production-proof
+    steps:
+      - name: Checkout exact trusted-main SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify PB8 proof contract
+        run: npx vitest run tests/pb8-real-import-proof.test.mjs
+      - name: Validate trusted Cloudflare credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
+          test -n "$TARGET_SHA" || { echo "TARGET_SHA is missing"; exit 1; }
+      - name: Read real tenant import, isolated D1 and Queue state
+        id: evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/cloudflare-pb8-real-import-proof.mjs | tee /tmp/pb8-production-proof.json
+          cat /tmp/pb8-production-proof.json >> "$GITHUB_STEP_SUMMARY"
+          RESULT="$(jq -r '.pb8ProductionProof' /tmp/pb8-production-proof.json)"
+          DIAGNOSIS="$(jq -r '.diagnosis' /tmp/pb8-production-proof.json)"
+          echo "result=$RESULT" >> "$GITHUB_OUTPUT"
+          echo "diagnosis=$DIAGNOSIS" >> "$GITHUB_OUTPUT"
+      - name: Publish PB8 production evidence status
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PROOF_RESULT: ${{ steps.evidence.outputs.result }}
+          DIAGNOSIS: ${{ steps.evidence.outputs.diagnosis }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$PROOF_RESULT" = "passed" ]; then
+            STATE=success
+            DESCRIPTION="Real isolated import + CEI + verification proven"
+          else
+            STATE=pending
+            DESCRIPTION="PB8 not green yet: ${DIAGNOSIS}"
+          fi
+          DESCRIPTION="${DESCRIPTION:0:140}"
+          jq -n --arg state "$STATE" --arg context "$STATUS_CONTEXT" \
+            --arg description "$DESCRIPTION" --arg target_url "$RUN_URL" \
+            '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
+          curl --fail --silent --show-error -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/statuses/$TARGET_SHA" -d @/tmp/status.json
+      - name: Publish failed PB8 diagnostic evidence
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$TARGET_SHA" || exit 0
+          jq -n --arg state failure --arg context "$STATUS_CONTEXT" \
+            --arg description "PB8 production diagnostic failed; inspect trusted run" \
+            --arg target_url "$RUN_URL" \
+            '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
+          curl --fail --silent --show-error -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/statuses/$TARGET_SHA" -d @/tmp/status.json
