@@ -38,6 +38,7 @@ async function discoverCandidates(db, limit) {
          FROM tenant_provisioning_runs r
          JOIN tenant_catalog_instances i ON i.tenant_id=r.tenant_id
          JOIN tenant_data_plane_provider_state p ON p.tenant_id=r.tenant_id
+         JOIN tenant_store_profiles s ON s.tenant_id=r.tenant_id
          JOIN tenant_verification_jobs v ON v.tenant_id=r.tenant_id
            AND v.status='success'
         WHERE r.current_step='domain'
@@ -400,13 +401,46 @@ export async function runDueTenantRuntimes(env, { fetchImpl = fetch, limit = 1 }
 
   const due = await db
     .prepare(
-      `SELECT job_id, tenant_id, target_runtime_version, status
-         FROM tenant_runtime_jobs
-        WHERE status IN ('pending','failed','staged')
-          AND attempt_count < ?1
-          AND target_runtime_version=?2
-          AND (next_attempt_at IS NULL OR next_attempt_at <= CURRENT_TIMESTAMP)
-        ORDER BY created_at ASC
+      `SELECT j.job_id, j.tenant_id, j.target_runtime_version, j.status
+         FROM tenant_runtime_jobs j
+        WHERE j.status IN ('pending','failed','staged')
+          AND j.attempt_count < ?1
+          AND j.target_runtime_version=?2
+          AND (j.next_attempt_at IS NULL OR j.next_attempt_at <= CURRENT_TIMESTAMP)
+          AND EXISTS (
+            SELECT 1 FROM tenant_store_profiles s
+             WHERE s.tenant_id=j.tenant_id
+          )
+          AND EXISTS (
+            SELECT 1 FROM tenant_catalog_instances i
+             WHERE i.tenant_id=j.tenant_id
+               AND i.status='provisioning'
+               AND i.schema_version >= 3
+          )
+          AND EXISTS (
+            SELECT 1 FROM tenant_data_plane_provider_state p
+             WHERE p.tenant_id=j.tenant_id
+               AND p.database_status='active'
+               AND p.worker_status='active'
+               AND p.d1_database_id IS NOT NULL
+               AND (
+                 p.runtime_kind!='catalog' OR
+                 p.runtime_status!='verified' OR
+                 p.runtime_version < ?2
+               )
+          )
+          AND EXISTS (
+            SELECT 1 FROM tenant_verification_jobs v
+             WHERE v.tenant_id=j.tenant_id
+               AND v.status='success'
+          )
+          AND EXISTS (
+            SELECT 1 FROM tenant_provisioning_runs r
+             WHERE r.tenant_id=j.tenant_id
+               AND r.current_step='domain'
+               AND r.status IN ('running','failed','blocked')
+          )
+        ORDER BY j.created_at ASC
         LIMIT ?3`
     )
     .bind(MAX_AUTOMATIC_ATTEMPTS, TENANT_CATALOG_RUNTIME_VERSION, bounded)
