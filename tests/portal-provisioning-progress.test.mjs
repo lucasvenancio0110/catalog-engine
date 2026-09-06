@@ -168,6 +168,6 @@ describe('PB7 portal progress client', () => {
     expect(bootstrap).toContain('Ver andamento');
     expect(experience).toContain("document.addEventListener('visibilitychange'");
     expect(experience).toContain('lastProgress');
-    expect(experience).not.toMatch(/\bpercent\b|estimad[oa]|ETA/i);
+    expect(experience).not.toMatch(/\bpercent\b|estimad[oa]|\bETA\b/i);
   });
 });
