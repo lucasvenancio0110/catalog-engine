@@ -28,6 +28,21 @@ describe('production deployment pipeline boundary', () => {
     expect(deployIndex).toBeGreaterThan(migrationIndex);
   });
 
+  it('keeps immediate deploy and scheduled trusted staging from competing on the same push', async () => {
+    const deployWorkflow = await readWorkflow('deploy-catalog-api.yml');
+    const trustedWorkflow = await readWorkflow('cloudflare-trusted-fresh-tenant-provision.yml');
+
+    expect(deployWorkflow).toMatch(/^\s*push:\s*$/m);
+    expect(deployWorkflow).toContain('group: catalog-engine-production-d1');
+    expect(deployWorkflow).toContain('cancel-in-progress: false');
+
+    expect(trustedWorkflow).not.toMatch(/^\s*push:\s*$/m);
+    expect(trustedWorkflow).not.toContain("github.event_name == 'push'");
+    expect(trustedWorkflow).toContain("cron: '2-57/5 * * * *'");
+    expect(trustedWorkflow).toContain('group: catalog-engine-production-d1');
+    expect(trustedWorkflow).toContain('cancel-in-progress: false');
+  });
+
   it('keeps default snapshot publication manual and separate from Worker deployment', async () => {
     const workflow = await readWorkflow('publish-default-catalog.yml');
 
