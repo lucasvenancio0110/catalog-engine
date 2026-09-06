@@ -31,26 +31,6 @@ export function tenantImportQueueConfigured(env) {
   );
 }
 
-async function recordPreexistingImportDecisions(db) {
-  await db
-    .prepare(
-      `INSERT OR IGNORE INTO tenant_import_decisions
-        (tenant_id, source_key, source_locator_ref, decision_kind, status, authority,
-         decided_by_principal_id, confirmed_at, created_at, updated_at)
-       SELECT j.tenant_id, j.source_key, c.source_locator_ref,
-              'full_connected_source', 'confirmed', 'preexisting_import', NULL,
-              COALESCE(j.created_at,CURRENT_TIMESTAMP),
-              COALESCE(j.created_at,CURRENT_TIMESTAMP), CURRENT_TIMESTAMP
-         FROM tenant_import_jobs j
-         JOIN tenant_source_connections c
-           ON c.tenant_id=j.tenant_id
-          AND c.source_key=j.source_key
-          AND c.status='active'
-        WHERE j.mode='initial'`
-    )
-    .run();
-}
-
 async function discoverImportCandidates(db, limit) {
   const result = await db
     .prepare(
@@ -311,7 +291,6 @@ export async function runDueTenantImportDispatches(
   const jobLimit = boundedLimit(limit);
   await reclaimExpiredTenantSyncPhaseLeases(db);
   await reclaimStaleScans(db);
-  await recordPreexistingImportDecisions(db);
   const discovered = await discoverImportCandidates(db, jobLimit);
   const due = await dueImportJobs(db, jobLimit);
   const outcomes = [];
