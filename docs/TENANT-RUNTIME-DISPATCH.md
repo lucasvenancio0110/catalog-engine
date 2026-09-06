@@ -8,9 +8,11 @@ After import, classification and verification, Catalog Engine still does not pub
 
 `tenant_data_plane_provider_state` distinguishes the original bootstrap Worker from the full catalog runtime through `runtime_kind`, `runtime_status`, `runtime_version` and `runtime_verified_at`. `tenant_runtime_jobs` makes staging/retry state durable.
 
-The runtime runner discovers only tenants whose onboarding is already at `domain` and whose catalog verification job succeeded. It writes only public storefront profile metadata into the isolated D1, uploads the full tenant catalog Worker over the existing deterministic Workers for Platforms script name, and records it as `staged`.
+The application cron discovers only tenants whose onboarding is already at `domain`, whose store profile exists and whose catalog verification succeeded. Discovery creates or refreshes a bounded durable runtime job, but the production Worker does **not** call Cloudflare administrative APIs to upload another Worker or mutate a tenant D1 through Cloudflare REST.
 
-A staged Worker is **not routable to customers**. It becomes `verified` only after the platform can resolve that exact script through the dispatch binding and successfully smoke-test both `/api/health` and `/api/catalog/meta` with a non-empty catalog.
+Physical runtime staging belongs to trusted CI. The scheduled trusted provisioning workflow reads only due/eligible runtime jobs, verifies the same tenant readiness gates, writes the bounded public storefront metadata into that tenant's isolated D1, uploads the full catalog Worker over the existing deterministic Workers for Platforms script name, and records the runtime as `staged`. This step is bounded, retryable and keeps recurring Intelligent Sync disabled.
+
+A staged Worker is **not routable to customers**. On the next application cron, the runtime runner selects only already-staged jobs and uses the server-owned `TENANT_DISPATCH` binding to smoke-test `/api/health` and `/api/catalog/meta`. Only a successful isolated dispatch smoke marks the runtime `verified`. A failed smoke returns the durable job to bounded retry; it does not publish the merchant.
 
 ## Tenant Worker boundary
 
@@ -22,7 +24,7 @@ The full tenant Worker is self-contained and receives only:
 
 It exposes catalog/meta/category/team/league/facet/product APIs and the tenant media proxy. It does not expose admin, memberships, domains, audit logs, provisioning jobs or control-plane APIs. Static HTML/CSS/JS remain shared platform assets.
 
-The platform can also invoke two non-public internal paths through the server-owned dispatch binding. The ordinary data-plane command accepts only bounded single-statement read/DML batches and continues to reject DDL. A separate schema-migration command accepts no SQL; it validates the bound opaque tenant, a fixed contract version and the one current schema target, then executes only the immutable versioned statement map embedded in the User Worker through that tenant's `CATALOG_DB` binding. Existing tenant Workers are idempotently refreshed with this capability by trusted deployment CI before maintenance discovery. Only after a successful upload does CI promote the durable migration-command capability marker; until then the previously verified runtime and LKG remain routable. The cron runner never calls the Workers for Platforms administrative API: migration inspection, application and verification use the server-owned dispatch binding and the tenant's native `CATALOG_DB` binding. Neither path is an admin/public storefront API or accepts a client-selected Worker identity.
+The platform can also invoke two non-public internal paths through the server-owned dispatch binding. The ordinary data-plane command accepts only bounded single-statement read/DML batches and continues to reject DDL. A separate schema-migration command accepts no SQL; it validates the bound opaque tenant, a fixed contract version and the one current schema target, then executes only the immutable versioned statement map embedded in the User Worker through that tenant's `CATALOG_DB` binding. Existing tenant Workers are idempotently refreshed with this capability by trusted deployment CI before maintenance discovery. Only after a successful upload does CI promote the durable migration-command capability marker; until then the previously verified runtime and LKG remain routable. The application cron never calls the Workers for Platforms administrative API for runtime staging or maintenance. Runtime verification, migration inspection, migration application and migration verification use the server-owned dispatch binding and the tenant's native `CATALOG_DB` binding. Neither path is an admin/public storefront API or accepts a client-selected Worker identity.
 
 Media source URLs stay private in the tenant D1. The runtime validates image upstreams as HTTPS `photo.yupoo.com` and never returns those source URLs to storefront JSON.
 
@@ -79,4 +81,4 @@ The production public dispatch boundary is active and proven:
 
 The retained smoke tenant is validation infrastructure, not a shortcut for future merchant publication. Every real tenant must pass the same runtime/domain/publish gates independently.
 
-PB9's authenticated private-preview implementation is repository/PR-proven until its trusted production deploy and tenant-isolation canary complete. Do not treat PR preview deployment as production activation evidence.
+PB9's authenticated private-preview implementation remains incomplete until the real merchant runtime is staged by trusted CI, verified through dispatch and the authenticated tenant-isolation production proof is green. Do not treat PR or deploy success alone as PB9 production activation evidence.
