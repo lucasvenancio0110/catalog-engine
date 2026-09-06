@@ -16,6 +16,10 @@ function readyFixture(overrides = {}) {
       runtime_kind: 'catalog',
       runtime_status: 'verified',
       runtime_version: 3,
+      runtime_last_error_code: null,
+      runtime_job_status: 'success',
+      runtime_job_attempt_count: 1,
+      runtime_job_error_code: null,
       verification_status: 'success',
       finding_count: 0
     },
@@ -44,6 +48,14 @@ describe('PB9 trusted private preview proof', () => {
     expect(evaluation.passed).toBe(true);
     expect(Object.values(evaluation.checks).every(Boolean)).toBe(true);
     expect(evaluation.merchantCatalogProducts).toBe(6097);
+    expect(evaluation.runtimeDiagnostic).toEqual({
+      runtimeStatus: 'verified',
+      runtimeVersion: 3,
+      runtimeLastErrorCode: 'none',
+      jobStatus: 'success',
+      jobAttemptCount: 1,
+      jobLastErrorCode: 'none'
+    });
   });
 
   it('fails closed for anonymous/cross-tenant/default leakage or recurring sync activation', () => {
@@ -75,9 +87,29 @@ describe('PB9 trusted private preview proof', () => {
     expect(evidence.pb9ProductionProof).toBe('passed');
     expect(evidence.privateIdentifiersExposed).toBe(false);
     expect(evidence.recurringIntelligentSyncEnabled).toBe(false);
+    expect(evidence.runtimeDiagnostic.jobStatus).toBe('success');
     expect(JSON.stringify(evidence)).not.toMatch(
       /t_[a-f0-9]{20}|prn_[a-f0-9]{20}|worker_script|yupoo\.com|d1_database_id/i
     );
+  });
+
+  it('sanitizes runtime diagnostic codes before trusted evidence is emitted', () => {
+    const fixture = readyFixture();
+    fixture.target.runtime_status = 'error';
+    fixture.target.runtime_last_error_code = 'unsafe value with spaces';
+    fixture.target.runtime_job_status = 'failed';
+    fixture.target.runtime_job_attempt_count = 4;
+    fixture.target.runtime_job_error_code = 'tenant_runtime_smoke_failed';
+    const evidence = safePb9Evidence('CROCCODILOS', evaluatePb9PrivatePreview(fixture));
+    expect(evidence.pb9ProductionProof).toBe('failed');
+    expect(evidence.runtimeDiagnostic).toEqual({
+      runtimeStatus: 'error',
+      runtimeVersion: 3,
+      runtimeLastErrorCode: 'none',
+      jobStatus: 'failed',
+      jobAttemptCount: 4,
+      jobLastErrorCode: 'tenant_runtime_smoke_failed'
+    });
   });
 
   it('keeps production mutation bounded to disposable preview sessions and cleanup', async () => {
