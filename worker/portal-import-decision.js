@@ -104,30 +104,6 @@ async function storedDecision(db, tenantId, sourceLocatorRef) {
     .first();
 }
 
-async function existingInitialImport(db, tenantId) {
-  return db
-    .prepare(
-      `SELECT status, phase, created_at
-         FROM tenant_import_jobs
-        WHERE tenant_id=?1 AND source_key=?2 AND mode='initial'
-        ORDER BY created_at ASC
-        LIMIT 1`
-    )
-    .bind(tenantId, SOURCE_KEY)
-    .first();
-}
-
-function compatibilityDecision(importJob) {
-  if (!importJob) return null;
-  return {
-    sourceKey: SOURCE_KEY,
-    decisionKind: DECISION_KIND,
-    status: 'confirmed',
-    authority: 'preexisting_import',
-    confirmedAt: importJob.created_at || null
-  };
-}
-
 async function readDecisionState(db, tenantId) {
   const connection = await activeConnection(db, tenantId);
   if (!connection) {
@@ -137,13 +113,10 @@ async function readDecisionState(db, tenantId) {
     throw decisionError('import_decision_source_invalid', 502);
   }
 
-  const [decision, importJob] = await Promise.all([
-    storedDecision(db, tenantId, connection.source_locator_ref),
-    existingInitialImport(db, tenantId)
-  ]);
+  const decision = await storedDecision(db, tenantId, connection.source_locator_ref);
   return {
     sourceConnected: true,
-    decision: decision ? publicDecision(decision) : compatibilityDecision(importJob)
+    decision: decision ? publicDecision(decision) : null
   };
 }
 
@@ -161,13 +134,11 @@ async function confirmDecision(db, tenantId, principalId, body) {
   const current = await storedDecision(db, tenantId, connection.source_locator_ref);
   if (current) return publicDecision(current);
 
-  // PB6 arrived after the first beta source was already connected. If a real
-  // initial-import job exists, preserve that historical authority and never claim
-  // the merchant's later tap started work that had already begun.
-  const importJob = await existingInitialImport(db, tenantId);
-  const authority = importJob ? 'preexisting_import' : 'merchant';
-  const actor = authority === 'merchant' ? principalId : null;
-  const confirmedAt = importJob?.created_at || null;
+  // Compatibility authority is created only once by migration 0026 for the exact
+  // source locator that was active when PB6 arrived. A later source replacement
+  // must never inherit authority from an older initial-import job.
+  const authority = 'merchant';
+  const actor = principalId;
 
   await db.batch([
     db
@@ -176,7 +147,7 @@ async function confirmDecision(db, tenantId, principalId, body) {
           (tenant_id, source_key, source_locator_ref, decision_kind, status, authority,
            decided_by_principal_id, confirmed_at, created_at, updated_at)
          VALUES (?1, ?2, ?3, ?4, 'confirmed', ?5, ?6,
-                 COALESCE(?7, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                 CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
          ON CONFLICT(tenant_id, source_key) DO UPDATE SET
            source_locator_ref=excluded.source_locator_ref,
            decision_kind=excluded.decision_kind,
@@ -192,8 +163,7 @@ async function confirmDecision(db, tenantId, principalId, body) {
         connection.source_locator_ref,
         DECISION_KIND,
         authority,
-        actor,
-        confirmedAt
+        actor
       ),
     db
       .prepare(
@@ -208,9 +178,7 @@ async function confirmDecision(db, tenantId, principalId, body) {
       .bind(
         tenantId,
         actor,
-        authority === 'merchant'
-          ? 'tenant.import_decision.confirmed'
-          : 'tenant.import_decision.compatibility_recorded',
+        'tenant.import_decision.confirmed',
         SOURCE_KEY,
         JSON.stringify({ decisionKind: DECISION_KIND, authority })
       )
