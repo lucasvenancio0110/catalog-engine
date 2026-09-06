@@ -1,0 +1,65 @@
+name: Cloudflare PB8 global detail DLQ inventory
+
+on:
+  pull_request:
+    branches: ['main']
+    paths:
+      - '.github/workflows/cloudflare-pb8-dlq-global-inventory.yml'
+      - 'scripts/cloudflare-pb8-dlq-global-inventory.mjs'
+      - 'tests/pb8-dlq-global-inventory.test.mjs'
+  push:
+    branches: ['main']
+    paths:
+      - '.github/workflows/cloudflare-pb8-dlq-global-inventory.yml'
+      - 'scripts/cloudflare-pb8-dlq-global-inventory.mjs'
+      - 'tests/pb8-dlq-global-inventory.test.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run tests/pb8-dlq-global-inventory.test.mjs
+      - run: npm run quality
+
+  inventory:
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - name: Checkout trusted main
+        uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run tests/pb8-dlq-global-inventory.test.mjs
+      - name: Validate trusted Cloudflare credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$CLOUDFLARE_API_TOKEN"
+      - name: Inventory detail DLQ against control-plane import authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/cloudflare-pb8-dlq-global-inventory.mjs | tee /tmp/pb8-dlq-global-inventory.json
+          cat /tmp/pb8-dlq-global-inventory.json >> "$GITHUB_STEP_SUMMARY"
