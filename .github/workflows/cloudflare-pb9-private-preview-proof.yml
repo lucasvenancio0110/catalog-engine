@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/cloudflare-pb9-private-preview-proof.yml'
       - 'scripts/cloudflare-pb9-private-preview-proof.mjs'
+      - 'scripts/pb9-fetch-diagnostic-hook.mjs'
       - 'tests/pb9-private-preview-proof.test.mjs'
       - 'worker/private-preview.js'
       - 'worker/private-preview-routing.js'
@@ -20,6 +21,7 @@ on:
     paths:
       - '.github/workflows/cloudflare-pb9-private-preview-proof.yml'
       - 'scripts/cloudflare-pb9-private-preview-proof.mjs'
+      - 'scripts/pb9-fetch-diagnostic-hook.mjs'
       - 'tests/pb9-private-preview-proof.test.mjs'
   workflow_run:
     workflows: ['Deploy Catalog Engine application']
@@ -123,7 +125,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node scripts/cloudflare-pb9-private-preview-proof.mjs | tee /tmp/pb9-production-proof.json
+          node --import ./scripts/pb9-fetch-diagnostic-hook.mjs scripts/cloudflare-pb9-private-preview-proof.mjs | tee /tmp/pb9-production-proof.json
           cat /tmp/pb9-production-proof.json >> "$GITHUB_STEP_SUMMARY"
           RESULT="$(jq -r '.pb9ProductionProof' /tmp/pb9-production-proof.json)"
           echo "result=$RESULT" >> "$GITHUB_OUTPUT"
