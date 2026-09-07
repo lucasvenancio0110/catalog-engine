@@ -93,6 +93,25 @@ Current Yupoo listing evidence also includes source title, category path, cover 
 
 Source category remains private evidence, not the public store taxonomy.
 
+### IC3 bounded listing-page fan-out
+
+IC3 may accelerate a provider listing scan only when it can preserve the same complete-scan authority.
+
+For the Yupoo adapter:
+
+- all listing/category/page network work shares one bounded `PQueue` request budget; nesting categories and pages must not multiply upstream concurrency;
+- page-level fan-out is allowed only when page 1 contains explicit trustworthy evidence of the terminal page, such as an in-host last-page locator or bounded total-page metadata;
+- a discovered terminal page above the configured hard page limit fails closed before fan-out;
+- if an explicitly declared page is missing, empty or otherwise inconsistent with the declared pagination range, the authoritative scan fails rather than silently returning `complete:true`;
+- when no trustworthy terminal-page evidence exists, the adapter falls back to the existing sequential natural-end scan instead of guessing the end of the catalog;
+- category-route discovery may reuse the already-fetched first page; it must not fetch page 1 again merely because scan orchestration begins;
+- an optional page-batch callback may receive provider-private normalized page evidence as `complete:false` for internal progressive ingestion work only;
+- page-batch evidence is not a browser/public contract and may contain private provider locators; it must not be logged or exposed as customer evidence;
+- no page batch, subset or partially completed fan-out may infer missing/removal, replace the authoritative source index or authorize publication;
+- public product identity/fingerprint compatibility remains unchanged regardless of request order or concurrency.
+
+The concurrency ceiling is a supplier-safety boundary, not a performance target. IC4 owns adaptive detail-flow control; IC3 must not introduce unbounded or adaptive supplier pressure under the listing scanner.
+
 ### Complete initial-import result
 
 Initial import requires an authoritative complete scan. `assertCatalogProviderScanResult()` therefore accepts only `complete: true` after validating the normalized observation.
@@ -179,4 +198,4 @@ A second provider should be possible by:
 7. add provider fixtures/security tests;
 8. prove tenant isolation and normalized evidence compatibility.
 
-It must not require edits to CEI classification semantics, central scan/detail/finalize orchestration or storefront code merely to understand the source format.
+It must not require edits to CEI classification semantics, central scan/detail/finalize orchestration or storefront code merely to understand that source format.
