@@ -33,14 +33,14 @@ describe('merchant storefront branding authority', () => {
 
   it('renders each active beta preset as a materially distinct storefront while preserving merchant colors', async () => {
     const [, themeModule, css] = await files;
+    expect(themeModule).toContain("'premium-dark': Object.freeze");
+    expect(themeModule).toContain('stadium: Object.freeze');
+    expect(themeModule).toContain('clean: Object.freeze');
     for (const key of ['premium-dark', 'stadium', 'clean']) {
-      expect(themeModule).toContain(`${key}: Object.freeze`);
       expect(css).toContain(`data-store-theme='${key}'`);
     }
     expect(css).toContain('var(--merchant-primary)');
     expect(css).toContain('var(--merchant-secondary)');
-    expect(css).toContain("data-store-theme='stadium'");
-    expect(css).toContain("data-store-theme='clean'");
   });
 
   it('loads the merchant theme correction after the existing storefront shell modules', async () => {
@@ -54,6 +54,7 @@ describe('merchant storefront branding authority', () => {
   it('keeps branding projection free of tenant/runtime/provider locators', async () => {
     const [, themeModule] = await files;
     expect(themeModule).not.toMatch(/tenantId|databaseId|workerScriptName|dispatchNamespace|sourceLocator|provider_asset/i);
-    expect(themeModule).toContain('/brand-assets/');
+    expect(themeModule).toContain('SAFE_LOGO_PATH');
+    expect(themeModule).toContain('brand-assets');
   });
 });
