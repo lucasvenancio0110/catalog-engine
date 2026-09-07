@@ -216,6 +216,18 @@ async function safePreview(env, tenantId, principalId) {
   });
 }
 
+async function anonymousPreview(env, tenantId) {
+  const request = new Request(
+    `https://app.catalogoengine.com/api/admin/stores/${tenantId}/construction-preview`,
+    { method: 'GET' }
+  );
+  return handlePortalConstructionPreviewRequest(request, env, {
+    authenticate: async () => {
+      throw Object.assign(new Error('unauthorized'), { code: 'unauthorized', status: 401 });
+    }
+  });
+}
+
 async function proveIsolation(env, fixture, measured) {
   const own = await safePreview(env, fixture.tenantId, fixture.principalId);
   const ownPayload = await own.json().catch(() => null);
@@ -234,10 +246,7 @@ async function proveIsolation(env, fixture, measured) {
   const defaultAccess = await safePreview(env, DEFAULT_TENANT_ID, fixture.principalId);
   if (defaultAccess.status !== 404) throw new Error('ic2_proof_default_not_closed');
 
-  const anonymous = await fetch(
-    `https://app.catalogoengine.com/api/admin/stores/${fixture.tenantId}/construction-preview`,
-    { method: 'GET', redirect: 'manual' }
-  );
+  const anonymous = await anonymousPreview(env, fixture.tenantId);
   if (![401, 403].includes(anonymous.status)) throw new Error('ic2_proof_anonymous_not_closed');
   await anonymous.body?.cancel().catch(() => {});
 

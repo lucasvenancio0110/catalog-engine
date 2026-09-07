@@ -46,19 +46,24 @@ describe('IC2 production proof contract', () => {
     );
   });
 
-  it('allows the ephemeral proof Worker to verify the real public anonymous boundary without 1042', () => {
-    expect(workflow).toContain("'global_fetch_strictly_public'");
-    expect(workflow).toContain('compatibility_flags: [...new Set(');
-    expect(canary).toContain('https://app.catalogoengine.com/api/admin/stores/${fixture.tenantId}/construction-preview');
+  it('does not perform a same-zone Worker fetch while proving the anonymous boundary', () => {
+    expect(canary).toContain('async function anonymousPreview');
+    expect(canary).toContain('handlePortalConstructionPreviewRequest(request, env');
+    expect(canary).toContain("code: 'unauthorized', status: 401");
     expect(canary).toContain("if (![401, 403].includes(anonymous.status))");
+    expect(canary).not.toContain('await fetch(\n    `https://app.catalogoengine.com/api/admin/stores/${fixture.tenantId}/construction-preview`');
   });
 
-  it('proves membership isolation and the real unauthenticated production boundary', () => {
+  it('proves membership isolation and composes the external anonymous boundary with exact-SHA PB9', () => {
     expect(canary).toContain('crossTenantFailClosed: true');
     expect(canary).toContain('defaultTenantFailClosed: true');
     expect(canary).toContain('anonymousFailClosed: true');
     expect(canary).toContain("if (cross.status !== 404)");
     expect(canary).toContain("if (defaultAccess.status !== 404)");
+    expect(workflow).toContain('catalog-engine/pb9-production-proof');
+    expect(workflow.indexOf('Wait for PB9 Last Known Good proof on exact SHA')).toBeLessThan(
+      workflow.indexOf('Publish successful IC2 production evidence')
+    );
   });
 
   it('keeps supplier and runtime locators out of returned evidence and logs', () => {
