@@ -137,11 +137,17 @@ function isExpired(state, nowMs = Date.now()) {
   return !Number.isFinite(updated) || nowMs - updated > STATE_TTL_MS;
 }
 
-function stateFromSeed(seed, previousState, nowIso, items = seed.items) {
+function stateFromSeed(
+  seed,
+  previousState,
+  nowIso,
+  items = seed.items,
+  { preserveSeedId = false } = {}
+) {
   const state = {
     version: STATE_VERSION,
     revision: Math.max(0, Number(previousState?.revision || 0)) + 1,
-    seedId: previousState?.seedId || seed.seedId,
+    seedId: preserveSeedId && previousState?.seedId ? previousState.seedId : seed.seedId,
     readiness: 'indexed',
     complete: false,
     observedAt:
@@ -198,7 +204,7 @@ export function applyConstructionBatch(previous, input, { now = new Date().toISO
   }
 
   if (!changed) return previousState;
-  return stateFromSeed(seed, previousState, nowIso, items);
+  return stateFromSeed(seed, previousState, nowIso, items, { preserveSeedId: true });
 }
 
 function safeProduct(item) {
