@@ -14,6 +14,10 @@ function htmlResponse(html, status = 200, headers = {}) {
   });
 }
 
+function album(id, title = `Produto ${id}`) {
+  return `<a href="/albums/${id}" title="${title}"><img src="//photo.yupoo.com/supplier/${id}.jpg" /></a>`;
+}
+
 describe('Worker-safe Yupoo listing scanner', () => {
   it('extracts listing evidence without opening an album detail page', () => {
     const rows = parseYupooListingHtml(
@@ -82,6 +86,99 @@ describe('Worker-safe Yupoo listing scanner', () => {
     });
     expect(scan.items[0].listingFingerprint).toMatch(/^[a-f0-9]{64}$/);
     expect(calls.some((url) => url.includes('/albums/100?'))).toBe(false);
+  });
+
+  it('fans out explicitly discovered listing pages through one bounded request queue', async () => {
+    const categorySource = 'https://supplier.x.yupoo.com/categories/99?isSubCate=true';
+    const calls = [];
+    const batches = [];
+    let active = 0;
+    let maxActive = 0;
+
+    const fetchImpl = vi.fn(async (input) => {
+      const url = new URL(String(input));
+      calls.push(url.href);
+      const page = Number(url.searchParams.get('page') || 1);
+      if (page > 1) {
+        active += 1;
+        maxActive = Math.max(maxActive, active);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        active -= 1;
+      }
+      return htmlResponse(`
+        <html><head><title>Parallel | Supplier</title></head><body>
+          ${album(900 + page)}
+          ${
+            page === 1
+              ? '<a rel="last" href="/categories/99?isSubCate=true&page=4">Last page</a>'
+              : ''
+          }
+        </body></html>
+      `);
+    });
+
+    const scan = await scanYupooListingIndex(categorySource, {
+      fetchImpl,
+      maxRootPages: 5,
+      pageConcurrency: 2,
+      onPageBatch: async (batch) => batches.push(batch)
+    });
+
+    expect(scan.complete).toBe(true);
+    expect(scan.items).toHaveLength(4);
+    expect(scan.stats.rootPages).toBe(4);
+    expect(scan.stats.requestConcurrency).toBe(2);
+    expect(maxActive).toBe(2);
+    expect(batches.map((batch) => batch.page)).toEqual([1, 2, 3, 4]);
+    expect(batches.every((batch) => batch.complete === false)).toBe(true);
+    expect(calls.some((url) => new URL(url).searchParams.get('page') === '5')).toBe(false);
+  });
+
+  it('fails closed before fanout when explicit pagination exceeds the configured page limit', async () => {
+    const categorySource = 'https://supplier.x.yupoo.com/categories/77';
+    const calls = [];
+    const fetchImpl = vi.fn(async (input) => {
+      calls.push(String(input));
+      return htmlResponse(`
+        <html><body>
+          ${album(7701)}
+          <a rel="last" href="/categories/77?page=6">Last page</a>
+        </body></html>
+      `);
+    });
+
+    await expect(
+      scanYupooListingIndex(categorySource, {
+        fetchImpl,
+        maxRootPages: 5,
+        pageConcurrency: 3
+      })
+    ).rejects.toThrow('supplier_listing_page_limit');
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(calls.every((url) => !new URL(url).searchParams.has('page'))).toBe(true);
+  });
+
+  it('does not call an explicitly discovered but incomplete pagination range complete', async () => {
+    const categorySource = 'https://supplier.x.yupoo.com/categories/88';
+    const fetchImpl = vi.fn(async (input) => {
+      const url = new URL(String(input));
+      const page = Number(url.searchParams.get('page') || 1);
+      if (page === 2) return htmlResponse('<html><body></body></html>');
+      return htmlResponse(`
+        <html><body>
+          ${album(8800 + page)}
+          ${page === 1 ? '<a rel="last" href="/categories/88?page=3">Last page</a>' : ''}
+        </body></html>
+      `);
+    });
+
+    await expect(
+      scanYupooListingIndex(categorySource, {
+        fetchImpl,
+        maxRootPages: 5,
+        pageConcurrency: 2
+      })
+    ).rejects.toThrow('supplier_listing_pagination_incomplete');
   });
 
   it('never follows a listing redirect outside the original Yupoo host', async () => {
