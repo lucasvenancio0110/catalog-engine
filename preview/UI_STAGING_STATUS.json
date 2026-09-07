@@ -1,0 +1,10 @@
+{
+  "status": "verified",
+  "previewUrl": "https://catalog-engine-ui-preview.lucassantanals0110.workers.dev",
+  "storefrontUrl": "https://catalog-engine-ui-preview.lucassantanals0110.workers.dev/",
+  "appUrl": "https://catalog-engine-ui-preview.lucassantanals0110.workers.dev/app",
+  "sourceCommit": "fafe05951531f66a43450036a3cf54c9794bea3b",
+  "verifiedAt": "2026-09-07T04:42:03Z",
+  "environment": "isolated-demo-data",
+  "productionDataTouched": false
+}
