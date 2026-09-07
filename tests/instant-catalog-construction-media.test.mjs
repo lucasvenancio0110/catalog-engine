@@ -87,7 +87,7 @@ describe('IC2 authenticated construction media proxy', () => {
     expect(response.headers.get('content-type')).toBe('image/jpeg');
     expect(response.headers.get('cache-control')).toContain('no-store');
     expect(response.headers.get('x-content-type-options')).toBe('nosniff');
-    expect(await response.arrayBuffer()).toHaveLength(4);
+    expect((await response.arrayBuffer()).byteLength).toBe(4);
     expect([...response.headers.values()].join(' ')).not.toMatch(/yupoo|supplier/i);
   });
 
