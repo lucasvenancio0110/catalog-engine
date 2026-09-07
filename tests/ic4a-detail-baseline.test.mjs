@@ -6,6 +6,12 @@ import {
   historicalDetailBaseline,
   safeIc4aEvidence
 } from '../scripts/cloudflare-ic4a-detail-baseline.mjs';
+import {
+  IC4A_DETAIL_BASELINE_CONTRACT_VERSION,
+  IC4A_DETAIL_QUEUE_BASELINE,
+  IC4A_MAX_REAL_SAMPLE_SIZE,
+  assertIc4aConservativeDetailBaseline
+} from '../worker/ingestion/ic4a-detail-baseline-contract.js';
 
 const script = fs.readFileSync('scripts/cloudflare-ic4a-detail-baseline.mjs', 'utf8');
 const workflow = fs.readFileSync('.github/workflows/cloudflare-ic4a-detail-baseline.yml', 'utf8');
@@ -100,6 +106,21 @@ describe('IC4A safe detail throughput baseline', () => {
 
     fixture.runtime.detailQueue.maxConcurrency = 3;
     expect(evaluateIc4aBaseline(fixture).passed).toBe(false);
+  });
+
+  it('persists the IC4A measurement-only queue boundary under worker code', () => {
+    expect(IC4A_DETAIL_BASELINE_CONTRACT_VERSION).toBe(1);
+    expect(IC4A_MAX_REAL_SAMPLE_SIZE).toBe(8);
+    expect(IC4A_DETAIL_QUEUE_BASELINE).toEqual({
+      maxBatchSize: 4,
+      maxBatchTimeoutSeconds: 5,
+      maxConcurrency: 2,
+      maxRetries: 5
+    });
+    expect(assertIc4aConservativeDetailBaseline(IC4A_DETAIL_QUEUE_BASELINE)).toBe(true);
+    expect(() =>
+      assertIc4aConservativeDetailBaseline({ ...IC4A_DETAIL_QUEUE_BASELINE, maxConcurrency: 3 })
+    ).toThrow('ic4a_detail_baseline_boundary_changed');
   });
 
   it('rejects safe evidence containing a private provider locator', () => {
