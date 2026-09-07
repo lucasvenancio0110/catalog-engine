@@ -40,6 +40,13 @@ function htmlResponse(html) {
   });
 }
 
+function listingAnchors(start, count) {
+  return Array.from({ length: count }, (_unused, index) => {
+    const id = start + index;
+    return `<a href="/albums/${id}" title="Produto ${id}"><img src="//photo.yupoo.com/supplier/${id}.jpg" /></a>`;
+  }).join('\n');
+}
+
 describe('IC3 progressive construction batches', () => {
   it('merges page batches idempotently while retaining the existing 48-item construction cap', () => {
     const initial = applyConstructionSeed(null, seed(0, 24, '1'), {
@@ -103,6 +110,35 @@ describe('IC3 progressive construction batches', () => {
       expect(batch.seed.items[0]).not.toHaveProperty('sourceId');
       expect(batch.seed.items[0]).not.toHaveProperty('albumSourceId');
     }
+  });
+
+  it('stops progressive normalization after 48 unique products while the authoritative scan continues', async () => {
+    const source = 'https://supplier.x.yupoo.com/categories/99?isSubCate=true';
+    const batches = [];
+    const fetchImpl = vi.fn(async (input) => {
+      const url = new URL(String(input));
+      const page = Number(url.searchParams.get('page') || 1);
+      return htmlResponse(`
+        <html><body>
+          ${listingAnchors(10_000 + (page - 1) * 24, 24)}
+          ${page === 1 ? '<a rel="last" href="/categories/99?isSubCate=true&page=3">Last page</a>' : ''}
+        </body></html>
+      `);
+    });
+
+    const scan = await yupooIngestionProvider.scanListingIndex(source, {
+      fetchImpl,
+      maxRootPages: 4,
+      pageConcurrency: 2,
+      onPageBatch: async (batch) => batches.push(batch)
+    });
+
+    expect(scan.complete).toBe(true);
+    expect(scan.items).toHaveLength(72);
+    expect(scan.stats.rootPages).toBe(3);
+    expect(batches).toHaveLength(2);
+    expect(batches.flatMap((batch) => batch.seed.items)).toHaveLength(48);
+    expect(batches.map((batch) => batch.page).sort((a, b) => a - b)).toEqual([1, 2]);
   });
 
   it('treats construction-progress write failure as optional UX degradation instead of import failure', async () => {
