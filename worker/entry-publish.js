@@ -1,10 +1,13 @@
 import base from './entry.js';
 import { TenantConstructionState } from './instant-catalog-construction.js';
-import { handlePortalConstructionPreviewRequest } from './portal-construction-preview.js';
+import {
+  handlePortalConstructionMediaRequest,
+  handlePortalConstructionPreviewRequest
+} from './portal-construction-preview.js';
 import { runDueTenantPublishes } from './tenant-publish-runner.js';
 import { isCatalogPlatformHost, storefrontRoutingError } from './tenant-routing.js';
 
-const CONSTRUCTION_ROUTE = /^\/api\/admin\/stores\/t_[a-f0-9]{20}\/construction-preview$/;
+const CONSTRUCTION_ROUTE = /^\/api\/admin\/stores\/t_[a-f0-9]{20}\/construction-(?:preview|media\/cm_[a-f0-9]{20})$/;
 
 export { TenantConstructionState };
 
@@ -28,8 +31,10 @@ export default {
       if (!isCatalogPlatformHost(request, env)) {
         return storefrontRoutingError({ reason: 'not_found', status: 404 });
       }
-      const response = await handlePortalConstructionPreviewRequest(request, env);
-      if (response) return response;
+      const previewResponse = await handlePortalConstructionPreviewRequest(request, env);
+      if (previewResponse) return previewResponse;
+      const mediaResponse = await handlePortalConstructionMediaRequest(request, env);
+      if (mediaResponse) return mediaResponse;
     }
     return base.fetch(request, env, ctx);
   },

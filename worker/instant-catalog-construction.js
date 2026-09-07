@@ -201,7 +201,11 @@ export function privateConstructionMedia(state, mediaId, { now = new Date().toIS
   if (!state || isExpired(state, Date.parse(timestamp(now)))) return null;
   for (const item of state.items || []) {
     if (item.cover?.mediaId === safeMediaId) {
-      return { mediaId: safeMediaId, sourceUrl: item.cover.sourceUrl };
+      return {
+        mediaId: safeMediaId,
+        sourceUrl: item.cover.sourceUrl,
+        refererUrl: item.sourceItemUrl
+      };
     }
   }
   return null;
