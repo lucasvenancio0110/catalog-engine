@@ -31,7 +31,10 @@ function bytes(value) {
 }
 
 function boundedText(value, maximum, { allowEmpty = false } = {}) {
-  const text = String(value ?? '').replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const text = String(value ?? '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
   if ((!text && !allowEmpty) || text.length > maximum) {
     throw new Error('construction_seed_invalid');
   }
@@ -134,6 +137,25 @@ function isExpired(state, nowMs = Date.now()) {
   return !Number.isFinite(updated) || nowMs - updated > STATE_TTL_MS;
 }
 
+function stateFromSeed(seed, previousState, nowIso, items = seed.items) {
+  const state = {
+    version: STATE_VERSION,
+    revision: Math.max(0, Number(previousState?.revision || 0)) + 1,
+    seedId: previousState?.seedId || seed.seedId,
+    readiness: 'indexed',
+    complete: false,
+    observedAt:
+      previousState?.observedAt && Date.parse(previousState.observedAt) > Date.parse(seed.observedAt)
+        ? previousState.observedAt
+        : seed.observedAt,
+    updatedAt: nowIso,
+    expiresAt: new Date(Date.parse(nowIso) + STATE_TTL_MS).toISOString(),
+    items
+  };
+  if (bytes(state) > MAX_STATE_BYTES) throw new Error('construction_seed_too_large');
+  return state;
+}
+
 export function applyConstructionSeed(previous, input, { now = new Date().toISOString() } = {}) {
   const seed = normalizeConstructionSeed(input);
   const nowIso = timestamp(now);
@@ -147,19 +169,36 @@ export function applyConstructionSeed(previous, input, { now = new Date().toISOS
     return previousState;
   }
 
-  const state = {
-    version: STATE_VERSION,
-    revision: Math.max(0, Number(previousState?.revision || 0)) + 1,
-    seedId: seed.seedId,
-    readiness: 'indexed',
-    complete: false,
-    observedAt: seed.observedAt,
-    updatedAt: nowIso,
-    expiresAt: new Date(Date.parse(nowIso) + STATE_TTL_MS).toISOString(),
-    items: seed.items
-  };
-  if (bytes(state) > MAX_STATE_BYTES) throw new Error('construction_seed_too_large');
-  return state;
+  return stateFromSeed(seed, previousState, nowIso, seed.items);
+}
+
+export function applyConstructionBatch(previous, input, { now = new Date().toISOString() } = {}) {
+  const seed = normalizeConstructionSeed(input);
+  const nowIso = timestamp(now);
+  const previousState = previous && !isExpired(previous, Date.parse(nowIso)) ? previous : null;
+  if (!previousState) return stateFromSeed(seed, null, nowIso, seed.items);
+
+  const items = [...(previousState.items || [])].slice(0, MAX_ITEMS);
+  const positions = new Map(items.map((item, index) => [item.productId, index]));
+  let changed = false;
+
+  for (const item of seed.items) {
+    const position = positions.get(item.productId);
+    if (position !== undefined) {
+      if (JSON.stringify(items[position]) !== JSON.stringify(item)) {
+        items[position] = item;
+        changed = true;
+      }
+      continue;
+    }
+    if (items.length >= MAX_ITEMS) continue;
+    positions.set(item.productId, items.length);
+    items.push(item);
+    changed = true;
+  }
+
+  if (!changed) return previousState;
+  return stateFromSeed(seed, previousState, nowIso, items);
 }
 
 function safeProduct(item) {
@@ -223,7 +262,10 @@ export class TenantConstructionState {
   async fetch(request) {
     const url = new URL(request.url);
     try {
-      if (request.method === 'PUT' && url.pathname === '/seed') {
+      if (
+        request.method === 'PUT' &&
+        (url.pathname === '/seed' || url.pathname === '/batch')
+      ) {
         const declared = Number(request.headers.get('content-length') || 0);
         if (declared > MAX_STATE_BYTES) return json({ error: 'construction_seed_too_large' }, 413);
         const text = await request.text();
@@ -236,8 +278,12 @@ export class TenantConstructionState {
         } catch {
           return json({ error: 'construction_seed_invalid' }, 400);
         }
-        const state = applyConstructionSeed(await this.readState(), payload);
-        await this.ctx.storage.put('state', state);
+        const previous = await this.readState();
+        const state =
+          url.pathname === '/batch'
+            ? applyConstructionBatch(previous, payload)
+            : applyConstructionSeed(previous, payload);
+        if (state !== previous) await this.ctx.storage.put('state', state);
         return json({ ok: true, revision: state.revision });
       }
 
