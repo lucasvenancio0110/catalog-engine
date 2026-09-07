@@ -13,8 +13,8 @@ describe('IC2 production proof contract', () => {
     expect(ic2ProductionProofCanaryContract.pollMs).toBeGreaterThanOrEqual(50);
     expect(canary).toContain('handlePortalImportDecisionRequest');
     expect(canary).toContain("authority !== 'merchant'");
-    expect(canary).toContain("last.productCount > 0");
-    expect(canary).toContain("last.ready === true");
+    expect(canary).toContain('last.productCount > 0');
+    expect(canary).toContain('last.ready === true');
     expect(canary).toContain('freshTenant: true');
   });
 
@@ -25,12 +25,12 @@ describe('IC2 production proof contract', () => {
     expect(workflow).toContain("script_name: 'catalog-engine'");
     expect(workflow).toContain('--secrets-file "$SECRET_FILE"');
     expect(workflow).toContain('openssl rand -hex 32');
-    expect(workflow).toContain("STATUS_CONTEXT: catalog-engine/ic2-production-proof");
+    expect(workflow).toContain('STATUS_CONTEXT: catalog-engine/ic2-production-proof');
   });
 
   it('cannot run the production proof from an un-deployed pull request or ordinary push', () => {
     expect(workflow).toContain("github.event_name == 'workflow_run'");
-    expect(workflow).toContain('github.event.workflow_run.conclusion == \'success\'');
+    expect(workflow).toContain("github.event.workflow_run.conclusion == 'success'");
     expect(workflow).toContain('catalog-engine/application-deploy');
     expect(workflow).not.toContain("github.event_name == 'push'");
     expect(workflow).toContain("github.event_name == 'pull_request'");
@@ -40,17 +40,31 @@ describe('IC2 production proof contract', () => {
     expect(workflow).toContain('Wait for ephemeral proof route readiness');
     expect(workflow).toContain('for attempt in $(seq 1 30)');
     expect(workflow).toContain('ic2_proof_worker_ready=true');
-    expect(workflow).toContain(".error == \"not_found\"");
+    expect(workflow).toContain('.error == "not_found"');
     expect(workflow.indexOf('Wait for ephemeral proof route readiness')).toBeLessThan(
+      workflow.indexOf('Verify proof runtime bindings before TTFI measurement')
+    );
+    expect(workflow.indexOf('Verify proof runtime bindings before TTFI measurement')).toBeLessThan(
       workflow.indexOf('Measure fresh-tenant TTFI and TTFC in production')
     );
+  });
+
+  it('probes D1 and the external construction namespace read-only before creating the fixture', () => {
+    expect(canary).toContain('async function verifyBindings');
+    expect(canary).toContain("prepare('SELECT 1 AS ok')");
+    expect(canary).toContain("fetch('https://construction.internal/projection')");
+    expect(canary).toContain("ic2BindingProbe: 'passed'");
+    expect(canary).toContain('databaseBound: true');
+    expect(canary).toContain('constructionBound: true');
+    expect(canary).toContain("url.pathname === '/__bindings'");
+    expect(workflow).toContain('ic2_binding_probe=success');
   });
 
   it('does not perform a same-zone Worker fetch while proving the anonymous boundary', () => {
     expect(canary).toContain('async function anonymousPreview');
     expect(canary).toContain('handlePortalConstructionPreviewRequest(request, env');
     expect(canary).toContain("code: 'unauthorized', status: 401");
-    expect(canary).toContain("if (![401, 403].includes(anonymous.status))");
+    expect(canary).toContain('if (![401, 403].includes(anonymous.status))');
     expect(canary).not.toContain('await fetch(\n    `https://app.catalogoengine.com/api/admin/stores/${fixture.tenantId}/construction-preview`');
   });
 
@@ -58,12 +72,24 @@ describe('IC2 production proof contract', () => {
     expect(canary).toContain('crossTenantFailClosed: true');
     expect(canary).toContain('defaultTenantFailClosed: true');
     expect(canary).toContain('anonymousFailClosed: true');
-    expect(canary).toContain("if (cross.status !== 404)");
-    expect(canary).toContain("if (defaultAccess.status !== 404)");
+    expect(canary).toContain('if (cross.status !== 404)');
+    expect(canary).toContain('if (defaultAccess.status !== 404)');
     expect(workflow).toContain('catalog-engine/pb9-production-proof');
     expect(workflow.indexOf('Wait for PB9 Last Known Good proof on exact SHA')).toBeLessThan(
       workflow.indexOf('Publish successful IC2 production evidence')
     );
+  });
+
+  it('keeps runtime failure diagnostics allowlisted and never prints raw response bodies', () => {
+    expect(workflow).toContain("-H 'Accept: application/json'");
+    expect(workflow).toContain('--dump-header /tmp/ic2-binding-probe-headers');
+    expect(workflow).toContain('--dump-header /tmp/ic2-production-proof-headers');
+    expect(workflow).toContain('cf-error-type');
+    expect(workflow).toContain('cf-error-origin');
+    expect(workflow).toContain('ic2_binding_probe_error_code=');
+    expect(workflow).toContain('ic2_production_proof_error_code=');
+    expect(workflow).not.toContain('cat /tmp/ic2-binding-probe.json');
+    expect(workflow).not.toContain('cat /tmp/ic2-production-proof.json');
   });
 
   it('keeps supplier and runtime locators out of returned evidence and logs', () => {
@@ -76,8 +102,8 @@ describe('IC2 production proof contract', () => {
   });
 
   it('cleans both the fresh control-plane fixture and ephemeral Worker', () => {
-    expect(canary).toContain("DELETE FROM tenant_import_decisions WHERE tenant_id=?1");
-    expect(canary).toContain("DELETE FROM catalog_tenants WHERE tenant_id=?1");
+    expect(canary).toContain('DELETE FROM tenant_import_decisions WHERE tenant_id=?1');
+    expect(canary).toContain('DELETE FROM catalog_tenants WHERE tenant_id=?1');
     expect(canary).toContain("fetch('https://construction.internal/state', { method: 'DELETE' })");
     expect(workflow).toContain('Delete ephemeral proof Worker');
     expect(workflow).toContain('/workers/scripts/$WORKER_NAME');
