@@ -6,7 +6,7 @@ import { performance } from 'node:perf_hooks';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import { queryD1Batch } from '../worker/cloudflare-platform.js';
-import { scanYupooListingIndex as scanCurrentListing } from '../worker/ingestion/yupoo-listing.js';
+import { yupooIngestionProvider } from '../worker/ingestion/providers/yupoo.js';
 import {
   IC3_LISTING_PROOF_BASELINE_SHA,
   IC3_LISTING_PROOF_CONTRACT_VERSION,
@@ -216,11 +216,10 @@ export async function runIc3ProductionProof() {
   });
   const baselineModule = await loadBaselineScanner();
   try {
-    // Run the IC3 implementation first. The old scanner runs second and therefore
-    // receives any incidental upstream/CDN warming advantage; an IC3 win remains
-    // conservative rather than being manufactured by request order.
+    // Run the production Provider Engine path first. The old scanner runs second and therefore
+    // receives any incidental upstream/CDN warming advantage; an IC3 win remains conservative.
     const current = await timedScan(
-      scanCurrentListing,
+      yupooIngestionProvider.scanListingIndex,
       source.sourceUrl,
       {
         maxRootPages: MAX_SCAN_PAGES,
