@@ -42,7 +42,12 @@ function assertYupooUrl(value, expectedHost = null) {
 function assertCoverUrl(value) {
   if (!value) return null;
   const url = new URL(value);
-  if (url.protocol !== 'https:' || url.username || url.password || url.hostname.toLowerCase() !== PHOTO_HOST) {
+  if (
+    url.protocol !== 'https:' ||
+    url.username ||
+    url.password ||
+    url.hostname.toLowerCase() !== PHOTO_HOST
+  ) {
     throw new Error('supplier_media_url_rejected');
   }
   return url.href;
@@ -138,7 +143,7 @@ async function constructionMediaId(sourceUrl) {
   return `cm_${digest.slice(0, 20)}`;
 }
 
-async function normalizedItem(row) {
+export async function constructionItemFromYupooListingRow(row) {
   const coverSourceUrl = assertCoverUrl(row.coverSourceUrl);
   return {
     productId: await publicProductId(row.sourceId),
@@ -155,6 +160,37 @@ async function normalizedItem(row) {
   };
 }
 
+export async function constructionSeedFromYupooListingRows(
+  sourceUrl,
+  rows,
+  { maxItems = HARD_MAX_ITEMS, now = () => new Date() } = {}
+) {
+  const source = assertYupooUrl(sourceUrl);
+  if (!Array.isArray(rows) || !rows.length) throw new Error('supplier_preview_seed_empty');
+  const items = [];
+  for (const row of rows.slice(0, boundedItems(maxItems))) {
+    items.push(await constructionItemFromYupooListingRow(row));
+  }
+  if (!items.length) throw new Error('supplier_preview_seed_empty');
+
+  const seedDigest = await sha256Hex(
+    `${SEED_NAMESPACE}|yupoo|${source.href}|${items
+      .map((item) => `${item.productId}:${item.listingFingerprint}`)
+      .join('|')}`
+  );
+  const observed = now();
+  const observedAt =
+    observed instanceof Date ? observed.toISOString() : new Date(observed).toISOString();
+
+  return {
+    seedId: `cs_${seedDigest.slice(0, 20)}`,
+    readiness: 'indexed',
+    complete: false,
+    observedAt,
+    items
+  };
+}
+
 export async function previewSeedYupoo(
   sourceUrl,
   {
@@ -167,26 +203,7 @@ export async function previewSeedYupoo(
   const source = assertYupooUrl(sourceUrl);
   const { html, pageUrl } = await fetchFirstListingPage(source.href, { fetchImpl, deadlineMs });
   const rows = parseYupooListingHtml(html, pageUrl).slice(0, boundedItems(maxItems));
-  if (!rows.length) throw new Error('supplier_preview_seed_empty');
-
-  const items = [];
-  for (const row of rows) items.push(await normalizedItem(row));
-
-  const seedDigest = await sha256Hex(
-    `${SEED_NAMESPACE}|yupoo|${source.href}|${items
-      .map((item) => `${item.productId}:${item.listingFingerprint}`)
-      .join('|')}`
-  );
-  const observed = now();
-  const observedAt = observed instanceof Date ? observed.toISOString() : new Date(observed).toISOString();
-
-  return {
-    seedId: `cs_${seedDigest.slice(0, 20)}`,
-    readiness: 'indexed',
-    complete: false,
-    observedAt,
-    items
-  };
+  return constructionSeedFromYupooListingRows(source.href, rows, { maxItems, now });
 }
 
 export const yupooPreviewSeedContract = Object.freeze({
