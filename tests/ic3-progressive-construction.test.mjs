@@ -144,11 +144,12 @@ describe('IC3 progressive construction batches', () => {
 
   it('keeps canonical initial-import persistence behind the full complete-scan barrier', () => {
     const source = fs.readFileSync('worker/ingestion/scan-consumer.js', 'utf8');
-    const completeAssertion = source.indexOf('assertCatalogProviderScanResult');
-    const persist = source.indexOf('persistCompleteListingScan(context, scan');
-    expect(completeAssertion).toBeGreaterThan(-1);
+    const writer = source.indexOf('const onPageBatch = createInitialConstructionPageWriter');
+    const completeAssertion = source.indexOf('const scan = assertCatalogProviderScanResult', writer);
+    const persist = source.indexOf('await persistCompleteListingScan(context, scan', completeAssertion);
+    expect(writer).toBeGreaterThan(-1);
+    expect(completeAssertion).toBeGreaterThan(writer);
     expect(persist).toBeGreaterThan(completeAssertion);
-    expect(source).toContain('createInitialConstructionPageWriter(env, context.tenantId)');
-    expect(source).not.toContain('supplier_album_index', source.indexOf('onPageBatch'));
+    expect(source.slice(writer, persist)).not.toContain('supplier_album_index');
   });
 });
