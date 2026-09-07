@@ -1,5 +1,12 @@
+import PQueue from 'p-queue';
 import './provisioning-progress-styles.css';
 import { accessibleTextColor, normalizeBrandColor } from '../domain/brand-colors.js';
+import {
+  choosePreviewAuthority,
+  realConstructionCount,
+  requestPortalConstructionMedia,
+  requestPortalConstructionPreview
+} from './construction-preview.js';
 import { portalApiErrorMessage, portalInitials } from './portal-model.js';
 import {
   requestPortalPrivatePreviewStatus,
@@ -82,7 +89,14 @@ function applyBranding(overlay, brand) {
   overlay.style.setProperty('--creation-secondary', brand.secondaryColor);
 }
 
-function countPresentation(progress) {
+function countPresentation(progress, construction) {
+  const constructionCount = realConstructionCount(construction);
+  if (constructionCount > 0) {
+    return {
+      value: constructionCount,
+      label: constructionCount === 1 ? 'produto disponível' : 'produtos disponíveis'
+    };
+  }
   const counters = progress?.counters || {};
   if (Number(counters.discovered) > 0) {
     return {
@@ -105,29 +119,30 @@ function countPresentation(progress) {
   return null;
 }
 
-function customerJourney(progress, previewReady) {
+function customerJourney(progress, construction, authority) {
   const stage = progress.stage;
   const sourceReady = stage !== 'source';
-  const productsFound = Number(progress.counters?.discovered || 0) > 0 ||
+  const constructionCount = realConstructionCount(construction);
+  const productsFound = constructionCount > 0 || Number(progress.counters?.discovered || 0) > 0 ||
     ['importing', 'finalizing', 'organizing', 'checking', 'ready'].includes(stage);
-  const preparingStore = ['organizing', 'checking', 'ready'].includes(stage);
+  const canVisualize = Boolean(authority);
   const items = [
     ['Identidade criada', true, false],
     ['Fonte conectada', sourceReady, stage === 'source'],
     ['Encontrando produtos', productsFound, sourceReady && !productsFound],
-    ['Preparando sua vitrine', previewReady, productsFound && !previewReady],
-    ['Sua loja está pronta', previewReady, false]
+    ['Preparando sua vitrine', canVisualize, productsFound && !canVisualize],
+    ['Sua loja já pode ser visualizada', canVisualize, false]
   ];
 
-  return items.map(([label, done, current], index) => ({
+  return items.map(([label, done, current]) => ({
     label,
-    state: done ? 'done' : current || (index === 3 && preparingStore && !previewReady) ? 'current' : 'future'
+    state: done ? 'done' : current ? 'current' : 'future'
   }));
 }
 
-function journeyView(progress, previewReady) {
+function journeyView(progress, construction, authority) {
   const list = el('ol', { className: 'progress-journey' });
-  for (const item of customerJourney(progress, previewReady)) {
+  for (const item of customerJourney(progress, construction, authority)) {
     const node = el('li', { className: `progress-journey-item progress-journey-item--${item.state}` }, [
       el('span', { className: 'progress-journey-mark', text: item.state === 'done' ? '✓' : item.state === 'current' ? '●' : '○' }),
       el('span', { text: item.label })
@@ -146,14 +161,15 @@ function retryNote(progress) {
   ]);
 }
 
-function updatedLabel(progress) {
-  if (!progress.updatedAt) return 'Estado salvo no Catalog Engine';
-  const date = new Date(progress.updatedAt);
+function updatedLabel(progress, construction) {
+  const value = construction?.updatedAt || progress.updatedAt;
+  if (!value) return 'Estado salvo no Catalog Engine';
+  const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'Estado salvo no Catalog Engine';
   return `Atualizado às ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
 }
 
-function loadingView(brand, hasPrevious) {
+function brandMark(brand) {
   const mark = brand.logoPath
     ? el('img', { className: 'progress-brand-logo' })
     : el('span', { className: 'progress-brand-initials', text: portalInitials(brand.storeName) });
@@ -161,11 +177,15 @@ function loadingView(brand, hasPrevious) {
     mark.src = brand.logoPath;
     mark.alt = `Logo ${brand.storeName}`;
   }
+  return mark;
+}
+
+function loadingView(brand, hasPrevious) {
   return el('div', { className: 'progress-loading' }, [
     el('div', { className: 'progress-orbit', ariaLabel: 'Preparando loja' }, [
       el('span', { className: 'progress-orbit-ring progress-orbit-ring--one' }),
       el('span', { className: 'progress-orbit-ring progress-orbit-ring--two' }),
-      el('div', { className: 'progress-brand-mark' }, [mark])
+      el('div', { className: 'progress-brand-mark' }, [brandMark(brand)])
     ]),
     el('span', { className: 'progress-kicker', text: brand.storeName }),
     el('h2', { text: hasPrevious ? 'Atualizando sua loja…' : 'Estamos montando sua loja.' }),
@@ -173,32 +193,38 @@ function loadingView(brand, hasPrevious) {
   ]);
 }
 
-function progressView({ progress, brand, previewReady, onOpenPreview }) {
-  const count = countPresentation(progress);
-  const complete = previewReady;
-  const attention = progress.status === 'attention';
-  const mark = brand.logoPath
-    ? el('img', { className: 'progress-brand-logo' })
-    : el('span', { className: 'progress-brand-initials', text: portalInitials(brand.storeName) });
-  if (brand.logoPath && mark instanceof HTMLImageElement) {
-    mark.src = brand.logoPath;
-    mark.alt = `Logo ${brand.storeName}`;
+function previewMessage(progress, construction, authority) {
+  if (authority === 'verified') {
+    return 'A visualização privada já passou pelas verificações atuais. Você pode entrar na loja agora.';
   }
+  if (authority === 'construction') {
+    const count = realConstructionCount(construction);
+    return `${count.toLocaleString('pt-BR')} produtos reais já estão disponíveis. Continuamos adicionando e organizando o restante.`;
+  }
+  return progress.message;
+}
 
-  const content = el('div', { className: `progress-content progress-content--${attention ? 'attention' : complete ? 'complete' : 'running'}` }, [
+function progressView({ progress, brand, construction, authority, onOpenPreview }) {
+  const count = countPresentation(progress, construction);
+  const viewable = Boolean(authority);
+  const attention = progress.status === 'attention' && !viewable;
+  const content = el('div', { className: `progress-content progress-content--${attention ? 'attention' : viewable ? 'complete' : 'running'}` }, [
     el('div', { className: 'progress-orbit progress-orbit--live' }, [
       el('span', { className: 'progress-orbit-ring progress-orbit-ring--one' }),
       el('span', { className: 'progress-orbit-ring progress-orbit-ring--two' }),
-      el('div', { className: 'progress-brand-mark' }, [mark])
+      el('div', { className: 'progress-brand-mark' }, [brandMark(brand)])
     ]),
     el('span', { className: 'progress-kicker', text: brand.storeName }),
-    el('h2', { text: complete ? 'Sua loja está pronta para visualizar.' : attention ? 'Sua loja continua preservada.' : 'Estamos montando sua loja.' }),
-    el('p', {
-      className: 'progress-message',
-      text: complete
-        ? 'A visualização privada já passou pelas verificações atuais. Você pode entrar na loja agora.'
-        : progress.message
-    })
+    el('h2', {
+      text: authority === 'verified'
+        ? 'Sua loja está pronta para visualizar.'
+        : authority === 'construction'
+          ? 'Sua loja já está aparecendo.'
+          : attention
+            ? 'Sua loja continua preservada.'
+            : 'Estamos montando sua loja.'
+    }),
+    el('p', { className: 'progress-message', text: previewMessage(progress, construction, authority) })
   ]);
 
   if (count) {
@@ -210,21 +236,25 @@ function progressView({ progress, brand, previewReady, onOpenPreview }) {
     );
   }
 
-  content.append(journeyView(progress, previewReady));
+  content.append(journeyView(progress, construction, authority));
   const retry = retryNote(progress);
   if (retry) content.append(retry);
 
-  if (complete) {
+  if (viewable) {
     const open = el('button', {
       className: 'progress-open-store',
       type: 'button',
-      text: 'Ver minha loja'
+      text: authority === 'verified' ? 'Ver minha loja' : 'Ver loja em construção'
     });
     open.addEventListener('click', onOpenPreview);
     content.append(
       el('div', { className: 'progress-ready-action' }, [
         open,
-        el('span', { text: 'Esta é a visualização privada. Domínio e publicação continuam separados.' })
+        el('span', {
+          text: authority === 'verified'
+            ? 'Esta é a visualização privada verificada. Domínio e publicação continuam separados.'
+            : 'Prévia privada em construção: os produtos continuam sendo adicionados e organizados. Domínio e publicação continuam separados.'
+        })
       ])
     );
   } else {
@@ -236,8 +266,50 @@ function progressView({ progress, brand, previewReady, onOpenPreview }) {
     );
   }
 
-  content.append(el('small', { className: 'progress-updated', text: updatedLabel(progress) }));
+  content.append(el('small', { className: 'progress-updated', text: updatedLabel(progress, construction) }));
   return content;
+}
+
+function constructionCard(product) {
+  const media = el('div', { className: 'construction-card-media' }, [
+    el('span', { className: 'construction-card-placeholder', text: product.coverMediaId ? 'Carregando imagem…' : 'Imagem ainda não disponível' })
+  ]);
+  if (product.coverMediaId) media.dataset.mediaId = product.coverMediaId;
+  const card = el('article', { className: 'construction-card' }, [
+    media,
+    el('div', { className: 'construction-card-copy' }, [
+      el('span', { className: 'construction-card-status', text: 'Produto encontrado' }),
+      el('h3', { text: product.title }),
+      el('p', { text: 'Detalhes e organização continuam sendo preparados.' })
+    ])
+  ]);
+  card.dataset.productId = product.id;
+  return card;
+}
+
+function constructionStorefrontView({ construction, brand, onBack }) {
+  const back = el('button', {
+    className: 'construction-back',
+    type: 'button',
+    text: 'Voltar para criação'
+  });
+  back.addEventListener('click', onBack);
+  const count = realConstructionCount(construction);
+  const grid = el('div', { className: 'construction-grid', ariaLabel: 'Produtos disponíveis na prévia em construção' });
+  for (const product of construction.products) grid.append(constructionCard(product));
+  return el('section', { className: 'construction-storefront' }, [
+    el('div', { className: 'construction-storefront-top' }, [
+      back,
+      el('div', { className: 'construction-storefront-brand' }, [brandMark(brand), el('strong', { text: brand.storeName })])
+    ]),
+    el('div', { className: 'construction-storefront-hero' }, [
+      el('span', { className: 'progress-kicker', text: 'Prévia privada em construção' }),
+      el('h2', { text: 'Sua loja já está ganhando forma.' }),
+      el('p', { text: `${count.toLocaleString('pt-BR')} produtos reais já estão disponíveis. Continuamos adicionando e organizando o restante.` })
+    ]),
+    grid,
+    el('p', { className: 'construction-storefront-note', text: 'Esta prévia ainda não é a versão verificada nem uma publicação pública.' })
+  ]);
 }
 
 function focusableElements(panel) {
@@ -271,11 +343,25 @@ export async function openProvisioningProgressExperience({ store, getAccessToken
 
   let closed = false;
   let lastProgress = null;
-  let previewReady = false;
+  let construction = null;
+  let verifiedReady = false;
   let timer = null;
   let failureCount = 0;
   let requestInFlight = false;
   let brandingLoaded = false;
+  let viewMode = 'progress';
+  let mediaGeneration = 0;
+  const mediaObjectUrls = new Set();
+
+  function authority() {
+    return choosePreviewAuthority({ verifiedReady, construction });
+  }
+
+  function clearConstructionMedia() {
+    mediaGeneration += 1;
+    for (const url of mediaObjectUrls) URL.revokeObjectURL(url);
+    mediaObjectUrls.clear();
+  }
 
   async function openVerifiedPreview() {
     const button = panel.querySelector('.progress-open-store');
@@ -298,58 +384,131 @@ export async function openProvisioningProgressExperience({ store, getAccessToken
     }
   }
 
-  function render(progress) {
+  function render(progress = lastProgress) {
+    if (!progress || viewMode !== 'progress') return;
     lastProgress = progress;
+    body.classList.remove('progress-panel-body--storefront');
     body.replaceChildren(progressView({
       progress,
       brand,
-      previewReady,
-      onOpenPreview: openVerifiedPreview
+      construction,
+      authority: authority(),
+      onOpenPreview: openCurrentPreview
     }));
+  }
+
+  async function loadConstructionMedia(snapshot) {
+    const token = await getAccessToken();
+    if (!token || closed || viewMode !== 'construction') return;
+    const generation = mediaGeneration;
+    const queue = new PQueue({ concurrency: 3 });
+    const tasks = snapshot.products
+      .filter((product) => product.coverMediaId)
+      .map((product) => queue.add(async () => {
+        const target = body.querySelector(`[data-product-id="${product.id}"] .construction-card-media`);
+        if (!target) return;
+        try {
+          const blob = await requestPortalConstructionMedia({
+            tenantId: store.tenantId,
+            mediaId: product.coverMediaId,
+            token
+          });
+          if (closed || viewMode !== 'construction' || generation !== mediaGeneration || !target.isConnected) return;
+          const objectUrl = URL.createObjectURL(blob);
+          mediaObjectUrls.add(objectUrl);
+          const image = el('img', { className: 'construction-card-image' });
+          image.src = objectUrl;
+          image.alt = `Imagem de ${product.title}`;
+          image.loading = 'lazy';
+          target.replaceChildren(image);
+        } catch {
+          if (target.isConnected) {
+            target.replaceChildren(el('span', { className: 'construction-card-placeholder', text: 'Imagem indisponível' }));
+          }
+        }
+      }));
+    await Promise.allSettled(tasks);
+  }
+
+  async function openConstructionPreview() {
+    if (!construction?.ready) return;
+    viewMode = 'construction';
+    clearConstructionMedia();
+    const snapshot = construction;
+    body.classList.add('progress-panel-body--storefront');
+    body.replaceChildren(constructionStorefrontView({
+      construction: snapshot,
+      brand,
+      onBack: () => {
+        clearConstructionMedia();
+        viewMode = 'progress';
+        render();
+        panel.querySelector('.progress-open-store')?.focus();
+      }
+    }));
+    body.querySelector('.construction-back')?.focus();
+    loadConstructionMedia(snapshot).catch(() => {});
+  }
+
+  async function openCurrentPreview() {
+    if (authority() === 'verified') return openVerifiedPreview();
+    return openConstructionPreview();
   }
 
   function schedule(delay) {
     if (closed) return;
     clearTimeout(timer);
-    timer = setTimeout(refresh, Math.min(Math.max(Number(delay) || 8000, 5000), 30000));
+    timer = setTimeout(refresh, Math.min(Math.max(Number(delay) || 2500, 1500), 30000));
   }
 
   async function refresh() {
     if (closed || requestInFlight || document.hidden) return;
     requestInFlight = true;
     transientError.hidden = true;
-    if (!lastProgress) body.replaceChildren(loadingView(brand, false));
+    if (!lastProgress && viewMode === 'progress') body.replaceChildren(loadingView(brand, false));
     try {
       const token = await getAccessToken();
       if (!token) throw new PortalProvisioningProgressError('unauthorized', 401);
-      const work = [requestPortalProvisioningProgress({ tenantId: store.tenantId, token })];
+      const constructionWork = requestPortalConstructionPreview({ tenantId: store.tenantId, token })
+        .catch(() => construction);
+      const work = [
+        requestPortalProvisioningProgress({ tenantId: store.tenantId, token }),
+        constructionWork
+      ];
       if (!brandingLoaded) work.push(requestBranding({ tenantId: store.tenantId, token }));
-      const [progress, profile] = await Promise.all(work);
+      const [progress, nextConstruction, profile] = await Promise.all(work);
+      construction = nextConstruction || construction;
       if (!brandingLoaded) {
         brand = normalizeBranding(profile, store);
         brandingLoaded = true;
         applyBranding(overlay, brand);
       }
 
-      previewReady = false;
+      verifiedReady = false;
       if (progress.stage === 'ready' && progress.status === 'complete') {
         try {
           const preview = await requestPortalPrivatePreviewStatus({ tenantId: store.tenantId, token });
-          previewReady = preview.available === true;
+          verifiedReady = preview.available === true;
         } catch {
-          previewReady = false;
+          verifiedReady = false;
         }
       }
 
       failureCount = 0;
+      lastProgress = progress;
       render(progress);
-      schedule(previewReady ? 30000 : Math.min(progress.pollAfterMs, 8000));
+      const nextDelay = authority()
+        ? 8000
+        : construction?.readiness === 'indexed'
+          ? 1800
+          : Math.min(progress.pollAfterMs, 2200);
+      schedule(nextDelay);
     } catch (error) {
       failureCount += 1;
       if (lastProgress) {
         transientError.textContent = errorMessage(error);
         transientError.hidden = false;
-      } else {
+      } else if (viewMode === 'progress') {
         body.replaceChildren(
           el('div', { className: 'progress-content progress-content--attention' }, [
             el('span', { className: 'progress-kicker', text: brand.storeName }),
@@ -370,6 +529,7 @@ export async function openProvisioningProgressExperience({ store, getAccessToken
     if (closed) return;
     closed = true;
     clearTimeout(timer);
+    clearConstructionMedia();
     document.removeEventListener('keydown', onKeydown);
     document.removeEventListener('visibilitychange', onVisibilityChange);
     overlay.remove();
@@ -386,7 +546,14 @@ export async function openProvisioningProgressExperience({ store, getAccessToken
   function onKeydown(event) {
     if (event.key === 'Escape') {
       event.preventDefault();
-      close();
+      if (viewMode === 'construction') {
+        clearConstructionMedia();
+        viewMode = 'progress';
+        render();
+        panel.querySelector('.progress-open-store')?.focus();
+      } else {
+        close();
+      }
       return;
     }
     if (event.key !== 'Tab') return;
