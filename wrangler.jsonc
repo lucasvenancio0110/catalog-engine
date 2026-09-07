@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "catalog-engine",
-  "main": "./worker/entry-publish.js",
+  "main": "./worker/entry-instant-catalog.js",
   "compatibility_date": "2026-08-17",
   "vars": {
     "CATALOG_PLATFORM_HOSTS": "catalog-engine.lucassantanals0110.workers.dev,catalogoengine.com,app.catalogoengine.com",
@@ -37,6 +37,20 @@
       "database_name": "catalog-engine-db",
       "database_id": "12ac414c-4aef-4668-a8f9-dc63d57d449f",
       "migrations_dir": "migrations"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "TENANT_CONSTRUCTION_STATE",
+        "class_name": "TenantConstructionState"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "ic2-construction-state-v1",
+      "new_sqlite_classes": ["TenantConstructionState"]
     }
   ],
   "dispatch_namespaces": [
