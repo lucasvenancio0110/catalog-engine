@@ -124,6 +124,7 @@ jobs:
             name: process.env.WORKER_NAME,
             main: 'worker/ic2-production-proof-canary.js',
             compatibility_date: base.compatibility_date || '2026-09-01',
+            compatibility_flags: [...new Set([...(base.compatibility_flags || []), 'global_fetch_strictly_public'])],
             workers_dev: true,
             d1_databases: [{
               binding: 'CATALOG_DB',
@@ -160,6 +161,30 @@ jobs:
           rm -f "$SECRET_FILE" "$CONFIG_FILE" /tmp/ic2-proof-deploy.log
           echo "worker_name=$WORKER_NAME" >> "$GITHUB_OUTPUT"
           echo 'ic2_proof_worker_deployed=true'
+      - name: Wait for ephemeral proof route readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORKER_NAME="$(cat /tmp/ic2-proof-worker-name)"
+          PROOF_TOKEN="$(cat /tmp/ic2-proof-token)"
+          READY_URL="https://${WORKER_NAME}.${WORKERS_SUBDOMAIN}.workers.dev/__ready"
+          for attempt in $(seq 1 30); do
+            BODY_FILE="$(mktemp)"
+            HTTP_CODE="$(curl --silent --show-error --max-time 5 \
+              --output "$BODY_FILE" \
+              --write-out '%{http_code}' \
+              -H "Authorization: Bearer ${PROOF_TOKEN}" \
+              "$READY_URL" || true)"
+            if test "$HTTP_CODE" = '404' && jq -e '.error == "not_found"' "$BODY_FILE" >/dev/null 2>&1; then
+              rm -f "$BODY_FILE"
+              echo 'ic2_proof_worker_ready=true'
+              exit 0
+            fi
+            rm -f "$BODY_FILE"
+            sleep 2
+          done
+          echo 'ic2_proof_worker_readiness_timeout'
+          exit 1
       - name: Measure fresh-tenant TTFI and TTFC in production
         id: evidence
         shell: bash
