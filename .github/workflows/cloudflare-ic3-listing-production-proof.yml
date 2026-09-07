@@ -7,11 +7,17 @@ on:
       - '.github/workflows/cloudflare-ic3-listing-production-proof.yml'
       - 'scripts/cloudflare-ic3-listing-proof.mjs'
       - 'tests/ic3-listing-production-proof.test.mjs'
+      - 'tests/ic3-proof-provider-path.test.mjs'
+      - 'tests/ic3-gallery-route.test.mjs'
+      - 'tests/ic3-progressive-construction.test.mjs'
       - 'tests/tenant-import-scan.test.mjs'
+      - 'worker/instant-catalog-construction.js'
       - 'worker/ingestion/ic3-listing-proof-contract.js'
+      - 'worker/ingestion/initial-construction-progress.js'
       - 'worker/ingestion/yupoo-listing.js'
       - 'worker/ingestion/providers/**'
       - 'src/catalog-provider/**'
+      - 'wrangler.import-scan.jsonc'
       - 'wrangler.jsonc'
   workflow_run:
     workflows: ['Deploy Catalog Engine application']
@@ -37,8 +43,14 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Verify IC3 proof and scanner contracts
-        run: npx vitest run tests/ic3-listing-production-proof.test.mjs tests/tenant-import-scan.test.mjs
+      - name: Verify IC3 proof, progressive construction and scanner contracts
+        run: >-
+          npx vitest run
+          tests/ic3-listing-production-proof.test.mjs
+          tests/ic3-proof-provider-path.test.mjs
+          tests/ic3-gallery-route.test.mjs
+          tests/ic3-progressive-construction.test.mjs
+          tests/tenant-import-scan.test.mjs
       - name: Secret-free quality gate
         run: npm run quality
 
@@ -72,8 +84,14 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Verify IC3 proof and scanner contracts
-        run: npx vitest run tests/ic3-listing-production-proof.test.mjs tests/tenant-import-scan.test.mjs
+      - name: Verify IC3 proof, progressive construction and scanner contracts
+        run: >-
+          npx vitest run
+          tests/ic3-listing-production-proof.test.mjs
+          tests/ic3-proof-provider-path.test.mjs
+          tests/ic3-gallery-route.test.mjs
+          tests/ic3-progressive-construction.test.mjs
+          tests/tenant-import-scan.test.mjs
       - name: Validate trusted proof prerequisites and exact deploy
         env:
           GH_TOKEN: ${{ github.token }}
@@ -101,7 +119,7 @@ jobs:
           DEPLOY_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context == "catalog-engine/application-deploy")][0].state // "missing"')"
           test "$DEPLOY_STATE" = 'success' || { echo "Exact SHA application deploy state=$DEPLOY_STATE"; exit 1; }
           echo 'exact_sha_application_deploy=success'
-      - name: Measure real IC3 listing fan-out against pre-IC3 scanner
+      - name: Measure real IC3 listing path against pre-IC3 scanner
         id: evidence
         shell: bash
         run: |
@@ -144,12 +162,13 @@ jobs:
           echo "improvement_pct=$(jq -r '.improvementPct' /tmp/ic3-listing-production-proof.json)" >> "$GITHUB_OUTPUT"
           echo "speedup_ratio=$(jq -r '.speedupRatio' /tmp/ic3-listing-production-proof.json)" >> "$GITHUB_OUTPUT"
           echo "product_count=$(jq -r '.productCount' /tmp/ic3-listing-production-proof.json)" >> "$GITHUB_OUTPUT"
-      - name: Wait for exact-SHA PB9 and IC2 safety regressions
+      - name: Wait for exact-SHA Queue deployment, PB9 and IC2 safety regressions
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          QUEUE_STATE='missing'
           PB9_STATE='missing'
           IC2_STATE='missing'
           for attempt in $(seq 1 72); do
@@ -158,12 +177,18 @@ jobs:
               -H 'Accept: application/vnd.github+json' \
               -H 'X-GitHub-Api-Version: 2022-11-28' \
               "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/status")"
+            QUEUE_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context == "catalog-engine/queue-consumer-activation")][0].state // "missing"')"
             PB9_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context == "catalog-engine/pb9-production-proof")][0].state // "missing"')"
             IC2_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context == "catalog-engine/ic2-production-proof")][0].state // "missing"')"
-            if test "$PB9_STATE" = 'success' -a "$IC2_STATE" = 'success'; then
+            if test "$QUEUE_STATE" = 'success' -a "$PB9_STATE" = 'success' -a "$IC2_STATE" = 'success'; then
+              echo 'queue_scan_consumer_deployment=success'
               echo 'pb9_verified_lkg=success'
               echo 'ic2_construction_regression=success'
               exit 0
+            fi
+            if test "$QUEUE_STATE" = 'failure' -o "$QUEUE_STATE" = 'error'; then
+              echo "Queue exact-SHA deployment state=$QUEUE_STATE"
+              exit 1
             fi
             if test "$PB9_STATE" = 'failure' -o "$PB9_STATE" = 'error'; then
               echo "PB9 exact-SHA proof state=$PB9_STATE"
@@ -175,7 +200,7 @@ jobs:
             fi
             sleep 10
           done
-          echo "PB9 exact-SHA proof state=$PB9_STATE IC2 exact-SHA proof state=$IC2_STATE"
+          echo "Exact-SHA dependencies: queue=$QUEUE_STATE pb9=$PB9_STATE ic2=$IC2_STATE"
           exit 1
       - name: Publish successful IC3 production evidence
         if: success()
@@ -192,7 +217,7 @@ jobs:
           set -euo pipefail
           test "$PROOF_RESULT" = 'passed' || { echo 'IC3 proof did not pass'; exit 1; }
           DESCRIPTION="IC3 listing ${SPEEDUP_RATIO}x; ${IMPROVEMENT_PCT}% faster; ${PRODUCT_COUNT} products identity stable"
-          test "${#DESCRIPTION}" -le 140 || DESCRIPTION='IC3 listing fan-out faster with stable identity; PB9/IC2 green'
+          test "${#DESCRIPTION}" -le 140 || DESCRIPTION='IC3 listing faster with stable identity; Queue/PB9/IC2 green'
           jq -n --arg state success --arg context "$STATUS_CONTEXT" \
             --arg description "$DESCRIPTION" --arg target_url "$RUN_URL" \
             '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
