@@ -13,17 +13,20 @@ The repository is durable memory. Chat history is not authority.
 
 # 1. SESSION / CAMPAIGN BOUNDARY
 
-Default protocol is one officially approved submilestone per conversation. The owner-authorized continuous campaign begun on 2026-08-30 is a conversation-scoped exception and permits continuing through the explicitly approved temporary sequence while every individual slice still keeps its own branch, PR, CI, deploy/proof and closure gate.
+Default protocol is one officially approved submilestone per conversation. The owner-authorized continuous campaign permits continuing through the explicitly approved temporary sequence while every individual slice still keeps its own branch, PR, CI, deploy/proof and closure gate.
 
 The current owner-authorized order is:
 
 ```text
 PB0 -> ... -> PB9
--> IC0 -> IC1 -> IC2 -> IC3 -> IC4 -> IC5 -> IC6
+-> IC0 -> IC1 -> IC2 -> IC3
+-> IC4A -> IC4B -> IC4C -> IC4D -> IC4E
+-> IC5A -> IC5B -> IC5C -> IC5D -> IC5E
+-> IC6A -> IC6B -> IC6C -> IC6D -> IC6E
 -> PB10 -> PB11 -> PB12
 ```
 
-The Instant Catalog insertion is owned by `docs/INSTANT-CATALOG.md`.
+The Instant Catalog insertion is owned by `docs/INSTANT-CATALOG.md`. The approved IC4–IC6 performance/security decomposition is owned by `docs/IC4-IC6-SLO60-GOVERNANCE.md`.
 
 After PB12 the default return point remains paused **M9B — Product Discovery and Merchandising**, unless a later explicit owner decision changes sequencing.
 
@@ -69,6 +72,7 @@ While the PB campaign/Instant Catalog insertion is active, also treat these focu
 
 - `docs/PORTAL-BETA-EXECUTION.md`;
 - `docs/INSTANT-CATALOG.md`;
+- `docs/IC4-IC6-SLO60-GOVERNANCE.md` while IC4–IC6 work is active;
 - the subsystem owner docs mapped by `docs/DOCUMENT-MAP.md`.
 
 Historical ledgers/closure docs preserve evidence but do not override current normative contracts or live production truth.
@@ -192,32 +196,59 @@ At this snapshot:
 IC0 = COMPLETE / GOVERNANCE GREEN
 IC1 = PRODUCTION GREEN
 IC2 = PRODUCTION GREEN
-IC3 = PLANNED — NEXT APPROVED SLICE
-IC4–IC6 = PLANNED
+IC3 = PRODUCTION GREEN
+IC4A = PLANNED — NEXT APPROVED SLICE
+IC4B–IC4E = PLANNED
+IC5A–IC5E = PLANNED
+IC6A–IC6E = PLANNED
 PB10–PB12 = approved behind IC6
 ```
 
 Detailed closures:
 
 - `docs/IC1-CLOSURE-2026-09-07.md`;
-- `docs/IC2-CLOSURE-2026-09-07.md`.
+- `docs/IC2-CLOSURE-2026-09-07.md`;
+- `docs/IC3-CLOSURE-2026-09-07.md`.
 
-## IC2 exact production proof
+## IC3 exact production proof
 
 ```text
-application Production SHA = 9b6b5251fd59eb5ea82d30b3f1f8a7ff19e3319b
-deploy run = 34128489551
-IC2 proof run = 34130174224
-proof attempt = 3
-proof job = 101776923895
-status = catalog-engine/ic2-production-proof success
-PB9 exact-SHA proof = success
+application Production SHA = 9cc5b3ef9757dc76266d1423e7056af8d332d8af
+deploy run = 34143369165
+Queue activation run = 34143462176
+IC3 proof run = 34143462169
+IC3 proof job = 101810312524
+PB9 exact-SHA run = 34143462198
+IC2 exact-SHA run = 34143462145
+status = catalog-engine/ic3-production-proof success
 ```
 
-Fresh production measurement:
+Safe IC3 measurement:
 
 ```text
-decisionRoundTripMs = 1067
+baselineMs = 106416
+fanoutMs = 96591
+improvementPct = 9.2
+productCount = 6111
+identityMatch = true
+taxonomyMatch = true
+baselineRequests = 452
+fanoutRequests = 342
+baselineMaxActive = 4
+fanoutMaxActive = 4
+progressiveItems = 48
+requestConcurrency = 4
+privateIdentifiersExposed = false
+recurringIntelligentSyncEnabled = false
+```
+
+This is engineering evidence for that healthy-source production run, not a universal customer ETA.
+
+## IC2 proven first value
+
+Historical fresh production measurement retained for regression context:
+
+```text
 TTFI = 6715 ms
 TTFC = 6715 ms
 productCount = 24
@@ -227,8 +258,6 @@ crossTenantFailClosed = true
 defaultTenantFailClosed = true
 privateIdentifiersExposed = false
 ```
-
-The 6.715-second TTFI/TTFC is engineering evidence for that proof, never a universal customer ETA.
 
 Historical IC1 CROCCODILOS baseline remains useful for comparison:
 
@@ -261,38 +290,66 @@ Never activate M7E/recurring sync implicitly through Instant Catalog work.
 
 ---
 
-# 11. NEXT APPROVED SUBMILESTONE — IC3
+# 11. NEXT APPROVED SUBMILESTONE — IC4A
 
-## IC3 — Streaming / parallel listing discovery
+## IC4A — Detail Throughput Baseline and Safe Telemetry
 
-Customer/engineering outcome:
+Engineering outcome:
 
-> After IC2 shows the first real products quickly, the authoritative listing discovery should grow much faster without turning a partial scan into complete catalog truth or overwhelming the supplier.
+> Before increasing detail concurrency, measure exactly where the current detail pipeline spends time and establish a trusted production baseline that separates Queue wait, provider fetch, normalization and tenant-D1 persistence pressure.
 
-Required architecture direction from `docs/INSTANT-CATALOG.md`:
+IC4A is governed by `docs/IC4-IC6-SLO60-GOVERNANCE.md`.
 
-- introduce bounded page-level fan-out behind the Provider Engine boundary;
-- preserve one shared concurrency budget across nested category/page work;
-- expose normalized page batches progressively to internal ingestion stages;
-- keep authoritative complete-scan success dependent on every required page succeeding;
-- preserve stable opaque product identity and existing retry/failure semantics;
-- keep provider/source locators out of browser/public evidence;
-- measure TTFA improvement from real production evidence.
+Current conservative baseline must remain unchanged during this slice:
 
-IC3 Definition of Done requires:
+```text
+catalog-engine-import-detail
+max_batch_size = 4
+max_batch_timeout = 5s
+max_concurrency = 2
+batch messages processed sequentially by the consumer
+```
 
-- partial observation cannot replace authoritative index;
-- full-scan identity/count matches baseline fixtures;
-- concurrency is bounded by the approved queue/concurrency primitive;
-- provider failure/throttling remains fail-safe;
-- measured TTFA improves without increased error or private-leak rate;
-- PB9/LKG and IC2 safety regressions remain green.
+Required IC4A evidence:
 
-IC3 does **not** own IC4 adaptive detail swarm/governor, IC5 warm cell pool, IC6 final fresh-beta proof, PB10 Merchant Home, recurring sync activation or M7E.
+- Queue wait/age timing;
+- provider detail fetch timing;
+- normalization/processing timing;
+- tenant-D1 persistence timing;
+- total detail terminal throughput;
+- safe request/retry/backlog/error counters;
+- exact trusted-main production run;
+- no supplier URL/hostname, raw provider ID/media locator, D1 UUID, Worker locator, token or secret in safe evidence;
+- tenant isolation and idempotency regressions remain green.
+
+IC4A **does not authorize any concurrency increase**. IC4B owns the first Queue micro-delivery/horizontal fan-out change only after IC4A is Production Green.
 
 ---
 
-# 12. PERMANENT SAFETY REMINDERS
+# 12. SLO60 SAFETY ORDER
+
+For IC4–IC6 the permanent priority is:
+
+```text
+security / privacy
+> tenant isolation
+> correctness / complete-scan authority
+> Last Known Good preservation
+> provider safety
+> recovery / idempotency
+> observability
+> latency / throughput
+```
+
+If speed conflicts with any higher item, speed loses.
+
+Do not use proxy/IP rotation, account multiplication, hidden mirrors or another mechanism intended to evade provider throttling/access controls.
+
+The internal 6K/60 target is an engineering objective, never a customer countdown or guaranteed ETA.
+
+---
+
+# 13. PERMANENT SAFETY REMINDERS
 
 Never regress:
 
@@ -313,7 +370,7 @@ Never regress:
 
 ---
 
-# 13. SAVE-GAME / CLOSURE RULE
+# 14. SAVE-GAME / CLOSURE RULE
 
 For every material Production Green closure record at minimum:
 

@@ -8,14 +8,18 @@ This document is intentionally compact. Focused normative documents own durable 
 
 ## Live baseline
 
-- Exact application Production SHA: `9b6b5251fd59eb5ea82d30b3f1f8a7ff19e3319b` — merge of PR #288.
-- Trusted application deploy `34128489551`: **SUCCESS** on the exact Production SHA.
-- IC2 dedicated trusted production proof `34130174224`, attempt `3`, job `101776923895`: **SUCCESS**.
-- Commit status `catalog-engine/ic2-production-proof = success` on the Production SHA.
-- Exact-SHA PB9 proof `34130174234`: **SUCCESS**.
-- PB6/PB7/PB8/PB9 and the relevant tenant-ingestion regressions remained **SUCCESS** on the same Production SHA.
-- Open pull requests immediately before the IC2 closure branch: none.
+- Exact application Production SHA: `9cc5b3ef9757dc76266d1423e7056af8d332d8af` — merge of PR #293.
+- Trusted application deploy `34143369165`: **SUCCESS** on the exact Production SHA, including production smoke.
+- Exact-SHA tenant import Queue consumer activation `34143462176`, job `101810312651`: **SUCCESS**.
+- IC3 dedicated trusted production proof `34143462169`, job `101810312524`: **SUCCESS**.
+- Commit status `catalog-engine/ic3-production-proof = success` on the Production SHA.
+- Exact-SHA IC2 fresh-tenant regression `34143462145`, job `101810312138`: **SUCCESS**.
+- Exact-SHA PB9 verified-private-preview proof `34143462198`, job `101810311943`: **SUCCESS**.
+- Provider Engine exact-main quality `34143369172`: **SUCCESS**.
+- Open pull requests immediately before the IC3 closure branch: none.
 - `HUMAN_GATE_LOCK: INACTIVE` at the latest durable operational snapshot; every autonomous resume must revalidate it.
+
+A later documentation-only HEAD may legitimately differ from the application Production SHA. Production truth must be taken from exact deploy/proof evidence, not inferred from a docs-only merge.
 
 ## Production activation boundary
 
@@ -43,39 +47,39 @@ PB0 through PB9 of the owner-authorized first-real-merchant campaign remain clos
 - PB8 — Real Tenant Import: **PRODUCTION GREEN**.
 - PB9 — Private Preview: **PRODUCTION GREEN**.
 
-The real CROCCODILOS isolated tenant has approximately:
-
-- 6,097 persisted products and 15,396 media links;
-- CEI/classification completed;
-- verification completed with 0 findings;
-- full catalog runtime verified;
-- authenticated PB9 private preview, product detail and media access proven;
-- anonymous, cross-tenant and default-tenant access proven fail-closed;
-- recurring Intelligent Sync still OFF.
-
-The historical default tenant remains an explicit compatibility tenant and must never become an implicit fallback for a real merchant.
+The real CROCCODILOS isolated tenant has approximately 6k products, completed CEI/classification, completed verification, full runtime and authenticated PB9 private preview. Anonymous, cross-tenant and default-tenant access remain fail-closed. The historical default tenant remains an explicit compatibility tenant and must never become an implicit fallback for a real merchant.
 
 ## Instant Catalog execution state
 
-Owner contract: `docs/INSTANT-CATALOG.md`.
+Owner contracts:
+
+- `docs/INSTANT-CATALOG.md` — IC0–IC6 architecture and sequencing;
+- `docs/IC4-IC6-SLO60-GOVERNANCE.md` — approved IC4–IC6 performance/security decomposition and 6K/60 engineering program.
 
 Approved temporary order:
 
 ```text
 PB9
--> IC0 -> IC1 -> IC2 -> IC3 -> IC4 -> IC5 -> IC6
+-> IC0 -> IC1 -> IC2 -> IC3
+-> IC4A -> IC4B -> IC4C -> IC4D -> IC4E
+-> IC5A -> IC5B -> IC5C -> IC5D -> IC5E
+-> IC6A -> IC6B -> IC6C -> IC6D -> IC6E
 -> PB10 -> PB11 -> PB12
 ```
 
 Current statuses:
 
 - IC0 — Governance + performance contract: **COMPLETE / GOVERNANCE GREEN**; PR #272.
-- IC1 — Real latency baseline + branded creation UX: **PRODUCTION GREEN**; detailed proof in `IC1-CLOSURE-2026-09-07.md`.
-- IC2 — Instant seed + construction preview: **PRODUCTION GREEN**; detailed proof in `IC2-CLOSURE-2026-09-07.md`.
-- IC3 — Streaming/parallel listing discovery: **PLANNED — NEXT APPROVED SLICE**.
-- IC4 — Adaptive detail swarm: **PLANNED**.
-- IC5 — Warm tenant cell pool: **PLANNED**.
-- IC6 — Fresh beta speed/isolation proof: **PLANNED**.
+- IC1 — Real latency baseline + branded creation UX: **PRODUCTION GREEN**; `IC1-CLOSURE-2026-09-07.md`.
+- IC2 — Instant seed + construction preview: **PRODUCTION GREEN**; `IC2-CLOSURE-2026-09-07.md`.
+- IC3 — Streaming/parallel listing discovery: **PRODUCTION GREEN**; implementation PRs #290–#293 and `IC3-CLOSURE-2026-09-07.md`.
+- IC4A — Detail throughput baseline + safe telemetry: **PLANNED — NEXT APPROVED SLICE**.
+- IC4B — Queue micro-delivery + horizontal consumer fan-out: **PLANNED**.
+- IC4C — Adaptive upstream governor: **PLANNED**.
+- IC4D — Tenant D1 write-pressure governor: **PLANNED**.
+- IC4E — Production detail-swarm proof: **PLANNED**.
+- IC5A–IC5E — Warm start + batched persistence/streaming CEI program: **PLANNED**.
+- IC6A–IC6E — Fresh 6K/60 integration/chaos/acceptance program: **PLANNED**.
 - PB10 remains approved but paused until IC6 reaches its required Green state.
 
 PB9 stays the L2 verified Last Known Good authority while earlier construction/catalog paths are developed.
@@ -96,21 +100,7 @@ These values are engineering baseline evidence, **not a customer ETA**.
 
 ## IC2 Production Green evidence
 
-Implementation was delivered across bounded PRs #276–#281, followed by the dedicated proof and proof/deployment hardening through #288.
-
-Exact production/proof evidence:
-
-```text
-application Production SHA = 9b6b5251fd59eb5ea82d30b3f1f8a7ff19e3319b
-deploy run = 34128489551
-IC2 proof run = 34130174224
-IC2 proof attempt = 3
-IC2 proof job = 101776923895
-status = catalog-engine/ic2-production-proof success
-PB9 exact-SHA proof = success
-```
-
-Fresh production proof result:
+IC2 proved useful real L0 construction value on a fresh tenant:
 
 ```text
 decisionRoundTripMs = 1067
@@ -124,62 +114,104 @@ defaultTenantFailClosed = true
 privateIdentifiersExposed = false
 ```
 
-The 6.715-second result is evidence from this production proof, not a universal customer ETA. It demonstrates that real useful L0 value no longer needs to wait for the historical 35m21s pre-import critical path.
+The 6.715-second result is evidence from that production proof, not a universal customer ETA. IC2 construction state remains non-authoritative and verified PB9/L2 wins when ready.
 
-## IC2 authority and safety result
+## IC3 Production Green evidence
 
-IC2 now provides:
+Exact production/proof evidence:
 
-- immediate idempotent instant-seed dispatch after accepted import decision;
-- provider-neutral bounded `complete:false` preview seed;
-- tenant-isolated ephemeral `TenantConstructionState`;
-- safe authenticated construction API and media proxy;
-- real readiness based on product count, not elapsed time;
-- mobile-first construction preview before L2;
-- no raw supplier URL/provider-private identity/runtime locator in browser evidence;
-- fail-closed anonymous/cross-tenant/default access;
-- verified PB9/L2 remains Last Known Good and wins when ready.
+```text
+application Production SHA = 9cc5b3ef9757dc76266d1423e7056af8d332d8af
+deploy run = 34143369165
+Queue activation run = 34143462176
+IC3 proof run = 34143462169
+IC3 proof job = 101810312524
+PB9 exact-SHA run = 34143462198
+IC2 exact-SHA run = 34143462145
+status = catalog-engine/ic3-production-proof success
+```
 
-Construction state is not publication state. L0 remains distinct from L2.
+Safe production A/B result on the real CROCCODILOS-class source:
 
-## Active execution point
+```text
+baselineMs = 106416
+fanoutMs = 96591
+improvementPct = 9.2
+speedupRatio = 1.1
+productCount = 6111
+identityMatch = true
+taxonomyMatch = true
+baselinePages = 125
+fanoutPages = 71
+baselineRequests = 452
+fanoutRequests = 342
+baselineMaxActive = 4
+fanoutMaxActive = 4
+progressiveBatches = 1
+progressiveItems = 48
+requestConcurrency = 4
+minimumImprovementPct = 5
+initialImportEnabled = true
+recurringIntelligentSyncEnabled = false
+privateIdentifiersExposed = false
+```
 
-**IC3 — Streaming / Parallel Listing Discovery: NEXT APPROVED SLICE.**
+IC3 therefore improved this measured full-listing path from **106.416 s to 96.591 s**, or **9.2%**, while preserving all 6,111 products, identity and taxonomy and without increasing the supplier concurrency ceiling above 4. The request count in this proof fell from 452 to 342. This is engineering evidence for one healthy-source production run, not a customer ETA.
 
-Bounded outcome:
+IC3 also streams bounded normalized listing batches into the tenant-isolated construction state while preserving `complete:false` partial authority. Progressive construction work stops after 48 unique private items; the authoritative full scan continues normally.
 
-- accelerate authoritative listing discovery after the instant seed;
-- introduce provider-safe bounded page-level fan-out;
-- make normalized listing page batches progressively available internally;
-- preserve the same complete-scan authority: every required page must succeed before the authoritative index is complete;
-- use one shared bounded concurrency budget so category/page nesting cannot explode supplier pressure;
-- preserve stable identities, retry semantics, tenant isolation and no-private-leak boundaries;
-- measure TTFA improvement against the IC1 baseline without pretending partial discovery is complete.
+## IC3 permanent safety result
 
-IC3 does **not** own IC4 detail swarm/adaptive governor, IC5 warm tenant cell pool, IC6 final fresh-beta proof, PB10 Merchant Home, recurring tenant sync, M7E or public custom-domain activation.
-
-## IC3 permanent safety boundaries
-
-- page concurrency is bounded and provider-safe;
+- page/network concurrency remains bounded and provider-safe;
+- no unbounded supplier fan-out;
 - partial listing batches never become complete authority;
-- scan failure cannot trigger missing/removal from an incomplete observation;
-- source URLs/provider-private IDs remain server-side;
-- stable public/opaque product identity remains compatible with the authoritative importer;
-- Last Known Good continues serving until normal safe promotion;
+- missing/inconsistent required pages fail closed;
+- partial scans cannot infer missing/removal;
+- full identity and taxonomy matched the pre-IC3 baseline;
+- source/provider-private identifiers remain server-side;
+- PB9 verified LKG remained green on exact SHA;
+- IC2 construction/isolation remained green on exact SHA;
 - tenant isolation remains fail-closed;
 - recurring Intelligent Sync remains OFF;
 - no fake percentage or ETA.
 
+## Active execution point
+
+**IC4A — Detail Throughput Baseline and Safe Telemetry: NEXT APPROVED SLICE.**
+
+IC4A is measurement-only and governed by `docs/IC4-IC6-SLO60-GOVERNANCE.md`.
+
+Bounded outcome:
+
+- instrument the current detail pipeline without increasing concurrency;
+- separate Queue wait, provider detail fetch, normalization/CEI-preparation and tenant-D1 persistence latency;
+- measure requests/s, terminal products/s, Queue age/backlog, retries and D1 latency through safe counters/timings;
+- ensure no supplier URL/hostname, provider-private ID, D1 UUID, Worker locator or secret appears in public/proof evidence;
+- establish exact trusted-main production evidence before IC4B is allowed to alter delivery/concurrency.
+
+Current conservative detail topology remains the baseline during IC4A:
+
+```text
+max_batch_size = 4
+max_batch_timeout = 5s
+max_concurrency = 2
+consumer processes batch messages sequentially
+```
+
+IC4A does **not** authorize raising those values. IC4B owns the first horizontal delivery/concurrency change after IC4A reaches Production Green.
+
 ## Exact continuation action
 
-1. revalidate live `main`, open PRs, relevant exact-SHA statuses and `HUMAN_GATE_LOCK`;
-2. confirm the IC2 closure PR is merged and no existing PR/branch already owns IC3;
-3. inspect the current Provider Engine/Yupoo listing scanner and its page/category concurrency behavior;
-4. create a fresh IC3 branch from exact revalidated `main`;
-5. implement bounded page-level listing fan-out behind the Provider Engine boundary with a shared concurrency budget;
-6. preserve complete-scan semantics and add partial/failure/identity/concurrency regressions;
-7. measure TTFA with production-safe evidence before claiming IC3 Production Green;
-8. keep PB9/LKG and all IC2 safety regressions green.
+1. revalidate live `main`, open PRs, exact production statuses and `HUMAN_GATE_LOCK`;
+2. read `IC4-IC6-SLO60-GOVERNANCE.md` plus the mapped Queue/import/detail/data-plane/provider contracts;
+3. inspect the exact detail consumer and current Queue configuration;
+4. create a fresh IC4A branch from the revalidated main HEAD;
+5. add safe stage timing/throughput instrumentation without changing detail concurrency;
+6. add leak/isolation/idempotency/telemetry contract tests;
+7. add a trusted production baseline proof that reports only safe timing/counter evidence;
+8. merge only after normal CI is green;
+9. prove exact-SHA application/Queue deployment and run the real IC4A production baseline;
+10. update state/closure only to the level actually proven; do not start IC4B until IC4A is honestly Production Green.
 
 ## Broader roadmap boundary
 
