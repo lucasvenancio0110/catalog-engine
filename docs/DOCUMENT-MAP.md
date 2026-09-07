@@ -29,6 +29,14 @@ While the owner-authorized first real merchant campaign is active, also read:
 
 That document is a later explicit sequencing decision permitted by the roadmap. It does not supersede focused architecture/product contracts, does not close the milestone numbers whose work it pulls forward, and does not authorize recurring Intelligent Sync or M7E.
 
+### Active Instant Catalog insertion
+
+The owner decision of 2026-09-06 inserts a bounded Instant Catalog initiative after PB9 and before PB10. While IC0–IC6 is active, also read:
+
+- `docs/INSTANT-CATALOG.md` — normative time-to-first-catalog, construction-preview, ingestion-acceleration, warm-capacity and speed-proof contract.
+
+`INSTANT-CATALOG.md` supersedes only the temporary execution position between PB9 and PB10. It does not reopen PB9, complete PB10, activate recurring Intelligent Sync/M7E, or weaken verified private-preview/publication authority.
+
 ### Historical execution reconstruction
 
 For detailed reconstruction of the production path from M7 through the first-real-merchant campaign, consult:
@@ -91,6 +99,7 @@ Required:
 - `docs/TENANCY.md`
 - `docs/SAAS-ARCHITECTURE.md`
 - `docs/PORTAL-BETA-EXECUTION.md` while PB0–PB12 is active
+- `docs/INSTANT-CATALOG.md` when onboarding speed, branded creation/loading, construction preview or progressive readiness is affected
 
 Additionally:
 
@@ -107,6 +116,7 @@ Required:
 - `docs/SAAS-ARCHITECTURE.md`
 - `docs/TENANT-DATA-PLANES.md`
 - `docs/TENANT-RUNTIME-DISPATCH.md` when runtime routing is affected
+- `docs/INSTANT-CATALOG.md` when construction-state or warm-cell ownership is affected
 
 ## Provisioning / store creation
 
@@ -121,6 +131,7 @@ Required:
 - `docs/TENANT-IMPORT-QUEUES.md` when import activation/runtime delivery changes
 - `docs/TENANT-PUBLISH.md`
 - `docs/PORTAL-BETA-EXECUTION.md` while PB0–PB12 is active
+- `docs/INSTANT-CATALOG.md` while IC0–IC6 is active
 
 If a domain is touched, also read `docs/CUSTOM-DOMAINS.md`.
 
@@ -149,6 +160,7 @@ Required:
 - `docs/TENANT-IMPORT-QUEUES.md` when queue topology/activation/retry/consumer behavior changes
 - `docs/TENANT-IMPORT-SCAN.md`
 - `docs/TENANT-IMPORT-DETAILS.md`
+- `docs/INSTANT-CATALOG.md` when preview seed, page fan-out or adaptive import acceleration changes
 - `AGENTS.md` scraper/synchronization rules
 
 Source-specific knowledge must not become public taxonomy truth. Central ingestion/CEI code must consume provider contracts rather than directly importing a supplier-specific parser.
@@ -165,6 +177,7 @@ Required:
 - `docs/TENANT-DATA-PLANES.md`
 - `docs/TENANT-RUNTIME-DISPATCH.md`
 - `docs/CURRENT-STATE.md`
+- `docs/INSTANT-CATALOG.md` when instant-seed delivery, adaptive detail concurrency or warm-cell activation is affected
 
 Queue resource creation, producer bindings and automatic discovery are separate activation gates. Do not collapse them into one deployment merely because Wrangler supports configuring them together.
 
@@ -209,6 +222,7 @@ Required:
 - `docs/CEI.md` for canonical merchandising output
 - `docs/BUSINESS-MODEL.md` for white-label/customer promise
 - `docs/CUSTOMER-PORTAL.md` when appearance configuration changes
+- `docs/INSTANT-CATALOG.md` for construction-preview/progressive-product behavior
 - `AGENTS.md` Vite/storefront rules
 
 Customer-facing work must meet the responsive/loading/empty/error/touch/keyboard/accessibility Definition of Done defined by `DESIGN-SYSTEM.md`.
@@ -220,6 +234,7 @@ Required:
 - `docs/DESIGN-SYSTEM.md`
 - `AGENTS.md`
 - the focused product contract for the affected surface (`CUSTOMER-PORTAL.md`, `LANDING-PAGE.md`, CEI/storefront docs as applicable)
+- `docs/INSTANT-CATALOG.md` when the creation/loading experience is affected
 
 If the change introduces a new dependency, also follow the dependency/library mapping below.
 
@@ -264,6 +279,7 @@ Required:
 - `docs/CURRENT-STATE.md`;
 - `docs/DEVELOPMENT-ROADMAP.md`;
 - `docs/PORTAL-BETA-EXECUTION.md` while its bounded campaign is active;
+- `docs/INSTANT-CATALOG.md` while IC0–IC6 is active;
 - every focused owner document for the current or proposed slice.
 
 Handoffs are transfer snapshots, not owner documents. Update state and roadmap before producing a handoff when the execution truth changed. Use `M7-TO-PB5-EXECUTION-LEDGER-2026-09-05.md` only as historical reconstruction when the detailed path/proof history is needed.
