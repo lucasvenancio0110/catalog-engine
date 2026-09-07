@@ -43,6 +43,23 @@ describe('production deployment pipeline boundary', () => {
     expect(trustedWorkflow).toContain('cancel-in-progress: false');
   });
 
+  it('keeps privileged post-deploy canaries out of the direct-push production lock collision', async () => {
+    const postDeployCanaries = [
+      'cloudflare-tenant-data-plane-fleet-canary.yml',
+      'cloudflare-auto-tenant-import-canary.yml',
+      'cloudflare-m7d10-recovery-canary.yml',
+      'cloudflare-ic2-production-proof.yml'
+    ];
+
+    for (const name of postDeployCanaries) {
+      const workflow = await readWorkflow(name);
+      expect(workflow).toContain("workflows: ['Deploy Catalog Engine application']");
+      expect(workflow).not.toMatch(/^\s*push:\s*$/m);
+      expect(workflow).toContain('group: catalog-engine-production-d1');
+      expect(workflow).toContain('cancel-in-progress: false');
+    }
+  });
+
   it('keeps default snapshot publication manual and separate from Worker deployment', async () => {
     const workflow = await readWorkflow('publish-default-catalog.yml');
 
