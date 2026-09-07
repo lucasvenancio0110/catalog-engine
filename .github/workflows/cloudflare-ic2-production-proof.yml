@@ -185,6 +185,47 @@ jobs:
           done
           echo 'ic2_proof_worker_readiness_timeout'
           exit 1
+      - name: Verify proof runtime bindings before TTFI measurement
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORKER_NAME="$(cat /tmp/ic2-proof-worker-name)"
+          PROOF_TOKEN="$(cat /tmp/ic2-proof-token)"
+          BINDING_URL="https://${WORKER_NAME}.${WORKERS_SUBDOMAIN}.workers.dev/__bindings"
+          HTTP_CODE="$(curl --silent --show-error --max-time 15 \
+            --dump-header /tmp/ic2-binding-probe-headers \
+            --output /tmp/ic2-binding-probe.json \
+            --write-out '%{http_code}' \
+            -X POST \
+            -H "Authorization: Bearer ${PROOF_TOKEN}" \
+            -H 'Accept: application/json' \
+            -H 'Content-Type: application/json' \
+            "$BINDING_URL" || true)"
+          if test "$HTTP_CODE" != '200'; then
+            ERROR_CODE="$(jq -r '(.code // .error.code // .errors[0].code // empty) | tostring' /tmp/ic2-binding-probe.json 2>/dev/null || true)"
+            if ! printf '%s' "$ERROR_CODE" | grep -Eq '^[0-9]{3,6}$'; then
+              ERROR_CODE="$(sed -nE 's/^[[:space:]]*error code:[[:space:]]*([0-9]{3,6})[[:space:]]*$/\1/p' /tmp/ic2-binding-probe.json | head -n1)"
+            fi
+            test -n "$ERROR_CODE" || ERROR_CODE='unknown'
+            CF_ERROR_TYPE="$(grep -i '^cf-error-type:' /tmp/ic2-binding-probe-headers | tail -n1 | cut -d: -f2- | tr -d '\r' | tr -cd 'A-Za-z0-9._:-' | cut -c1-96 || true)"
+            CF_ERROR_ORIGIN="$(grep -i '^cf-error-origin:' /tmp/ic2-binding-probe-headers | tail -n1 | cut -d: -f2- | tr -d '\r' | tr -cd 'A-Za-z0-9._:-' | cut -c1-96 || true)"
+            test -n "$CF_ERROR_TYPE" || CF_ERROR_TYPE='unknown'
+            test -n "$CF_ERROR_ORIGIN" || CF_ERROR_ORIGIN='unknown'
+            echo "ic2_binding_probe_http=$HTTP_CODE"
+            echo "ic2_binding_probe_error_code=$ERROR_CODE"
+            echo "ic2_binding_probe_cf_error_type=$CF_ERROR_TYPE"
+            echo "ic2_binding_probe_cf_error_origin=$CF_ERROR_ORIGIN"
+            exit 1
+          fi
+          jq -e '
+            .ic2BindingProbe == "passed" and
+            .databaseBound == true and
+            .constructionBound == true
+          ' /tmp/ic2-binding-probe.json >/dev/null
+          jq '{ic2BindingProbe,databaseBound,constructionBound}' /tmp/ic2-binding-probe.json \
+            | tee /tmp/ic2-binding-probe-safe.json
+          cat /tmp/ic2-binding-probe-safe.json >> "$GITHUB_STEP_SUMMARY"
+          echo 'ic2_binding_probe=success'
       - name: Measure fresh-tenant TTFI and TTFC in production
         id: evidence
         shell: bash
@@ -194,13 +235,30 @@ jobs:
           PROOF_TOKEN="$(cat /tmp/ic2-proof-token)"
           PROOF_URL="https://${WORKER_NAME}.${WORKERS_SUBDOMAIN}.workers.dev/prove"
           HTTP_CODE="$(curl --silent --show-error --max-time 90 \
+            --dump-header /tmp/ic2-production-proof-headers \
             --output /tmp/ic2-production-proof.json \
             --write-out '%{http_code}' \
             -X POST \
             -H "Authorization: Bearer ${PROOF_TOKEN}" \
+            -H 'Accept: application/json' \
             -H 'Content-Type: application/json' \
-            "$PROOF_URL")"
-          test "$HTTP_CODE" = '200' || { echo "IC2 production proof HTTP status=$HTTP_CODE"; cat /tmp/ic2-production-proof.json; exit 1; }
+            "$PROOF_URL" || true)"
+          if test "$HTTP_CODE" != '200'; then
+            ERROR_CODE="$(jq -r '(.code // .error.code // .errors[0].code // empty) | tostring' /tmp/ic2-production-proof.json 2>/dev/null || true)"
+            if ! printf '%s' "$ERROR_CODE" | grep -Eq '^[0-9]{3,6}$'; then
+              ERROR_CODE="$(sed -nE 's/^[[:space:]]*error code:[[:space:]]*([0-9]{3,6})[[:space:]]*$/\1/p' /tmp/ic2-production-proof.json | head -n1)"
+            fi
+            test -n "$ERROR_CODE" || ERROR_CODE='unknown'
+            CF_ERROR_TYPE="$(grep -i '^cf-error-type:' /tmp/ic2-production-proof-headers | tail -n1 | cut -d: -f2- | tr -d '\r' | tr -cd 'A-Za-z0-9._:-' | cut -c1-96 || true)"
+            CF_ERROR_ORIGIN="$(grep -i '^cf-error-origin:' /tmp/ic2-production-proof-headers | tail -n1 | cut -d: -f2- | tr -d '\r' | tr -cd 'A-Za-z0-9._:-' | cut -c1-96 || true)"
+            test -n "$CF_ERROR_TYPE" || CF_ERROR_TYPE='unknown'
+            test -n "$CF_ERROR_ORIGIN" || CF_ERROR_ORIGIN='unknown'
+            echo "ic2_production_proof_http=$HTTP_CODE"
+            echo "ic2_production_proof_error_code=$ERROR_CODE"
+            echo "ic2_production_proof_cf_error_type=$CF_ERROR_TYPE"
+            echo "ic2_production_proof_cf_error_origin=$CF_ERROR_ORIGIN"
+            exit 1
+          fi
           jq -e '
             .ic2ProductionProof == "passed" and
             .freshTenant == true and
@@ -311,5 +369,13 @@ jobs:
               "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER_NAME" \
               >/dev/null 2>&1
           fi
-          rm -f /tmp/ic2-proof-token /tmp/ic2-proof-worker-name /tmp/ic2-production-proof.json /tmp/ic2-production-proof-safe.json
+          rm -f \
+            /tmp/ic2-proof-token \
+            /tmp/ic2-proof-worker-name \
+            /tmp/ic2-binding-probe.json \
+            /tmp/ic2-binding-probe-headers \
+            /tmp/ic2-binding-probe-safe.json \
+            /tmp/ic2-production-proof.json \
+            /tmp/ic2-production-proof-headers \
+            /tmp/ic2-production-proof-safe.json
           echo 'ic2_proof_worker_cleanup_attempted=true'

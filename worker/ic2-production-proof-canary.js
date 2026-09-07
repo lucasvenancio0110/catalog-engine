@@ -150,6 +150,28 @@ async function projection(env, tenantId) {
   return payload;
 }
 
+async function verifyBindings(env) {
+  const dbProbe = await env.CATALOG_DB.prepare('SELECT 1 AS ok').first();
+  if (Number(dbProbe?.ok) !== 1) throw new Error('ic2_proof_database_probe_failed');
+
+  const fixture = await fixtureIdentity(env.IC2_PROOF_RUN_SEED);
+  const state = await projection(env, fixture.tenantId);
+  if (
+    state.readiness !== 'empty' ||
+    state.ready !== false ||
+    state.productCount !== 0 ||
+    state.products.length !== 0
+  ) {
+    throw new Error('ic2_proof_construction_probe_invalid');
+  }
+
+  return {
+    ic2BindingProbe: 'passed',
+    databaseBound: true,
+    constructionBound: true
+  };
+}
+
 async function acceptDecision(env, fixture) {
   const request = new Request(
     `https://app.catalogoengine.com/api/admin/stores/${fixture.tenantId}/import-decision`,
@@ -308,9 +330,12 @@ export default {
     try {
       requireEnv(env);
       const url = new URL(request.url);
-      if (url.pathname !== '/prove' || request.method !== 'POST') return json({ error: 'not_found' }, 404);
+      const isProof = url.pathname === '/prove' && request.method === 'POST';
+      const isBindingProbe = url.pathname === '/__bindings' && request.method === 'POST';
+      if (!isProof && !isBindingProbe) return json({ error: 'not_found' }, 404);
       const authorization = String(request.headers.get('authorization') || '');
       if (authorization !== `Bearer ${env.IC2_PROOF_TOKEN}`) return json({ error: 'unauthorized' }, 401);
+      if (isBindingProbe) return json(await verifyBindings(env));
       return json(await runProof(env));
     } catch (error) {
       return json({ ic2ProductionProof: 'failed', error: safeFailure(error) }, 500);
