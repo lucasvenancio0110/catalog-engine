@@ -14,12 +14,6 @@ on:
       - 'worker/instant-seed-queue.js'
       - 'worker/ingestion/providers/**'
       - 'wrangler.jsonc'
-  push:
-    branches: ['main']
-    paths:
-      - '.github/workflows/cloudflare-ic2-production-proof.yml'
-      - 'worker/ic2-production-proof-canary.js'
-      - 'tests/ic2-production-proof.test.mjs'
   workflow_run:
     workflows: ['Deploy Catalog Engine application']
     types: [completed]
@@ -56,7 +50,6 @@ jobs:
   prove:
     if: >-
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main')
@@ -83,7 +76,9 @@ jobs:
         run: npm ci
       - name: Verify IC2 proof contract
         run: npx vitest run tests/ic2-production-proof.test.mjs tests/instant-seed-dispatch.test.mjs tests/instant-seed-consumer.test.mjs tests/portal-construction-preview.test.mjs
-      - name: Validate trusted proof prerequisites
+      - name: Validate trusted proof prerequisites and exact deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -100,6 +95,14 @@ jobs:
           if (String(config.vars?.TENANT_SYNC_ACTIVE_COHORT || '') !== '') throw new Error('Recurring sync cohort must remain empty');
           if (String(config.vars?.TENANT_SYNC_MAX_JOBS_PER_TICK || '') !== '1') throw new Error('Recurring sync max jobs boundary changed');
           NODE
+          STATUS_JSON="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/status")"
+          DEPLOY_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context == "catalog-engine/application-deploy")][0].state // "missing"')"
+          test "$DEPLOY_STATE" = 'success' || { echo "Exact SHA application deploy state=$DEPLOY_STATE"; exit 1; }
+          echo 'exact_sha_application_deploy=success'
       - name: Deploy ephemeral trusted IC2 proof worker
         id: deploy_proof
         shell: bash
@@ -177,9 +180,11 @@ jobs:
           jq -e '
             .ic2ProductionProof == "passed" and
             .freshTenant == true and
-            (.ttfiMs | type == "number" and . >= 0) and
-            (.ttfcMs | type == "number" and . >= .ttfiMs) and
-            (.productCount >= .readinessThreshold) and
+            (.ttfiMs | type == "number") and
+            (.ttfcMs | type == "number") and
+            .ttfiMs >= 0 and
+            .ttfcMs >= .ttfiMs and
+            .productCount >= .readinessThreshold and
             .anonymousFailClosed == true and
             .crossTenantFailClosed == true and
             .defaultTenantFailClosed == true and
@@ -202,20 +207,32 @@ jobs:
           echo "result=$(jq -r '.ic2ProductionProof' /tmp/ic2-production-proof.json)" >> "$GITHUB_OUTPUT"
           echo "ttfi_ms=$(jq -r '.ttfiMs' /tmp/ic2-production-proof.json)" >> "$GITHUB_OUTPUT"
           echo "ttfc_ms=$(jq -r '.ttfcMs' /tmp/ic2-production-proof.json)" >> "$GITHUB_OUTPUT"
-      - name: Verify PB9 Last Known Good status on exact SHA
+      - name: Wait for PB9 Last Known Good proof on exact SHA
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          STATUS_JSON="$(curl --fail --silent --show-error \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/status")"
-          PB9_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context == "catalog-engine/pb9-production-proof")][0].state // "missing"')"
-          test "$PB9_STATE" = 'success' || { echo "PB9 exact-SHA proof state=$PB9_STATE"; exit 1; }
-          echo 'pb9_verified_lkg=success'
+          PB9_STATE='missing'
+          for attempt in $(seq 1 36); do
+            STATUS_JSON="$(curl --fail --silent --show-error \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/status")"
+            PB9_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context == "catalog-engine/pb9-production-proof")][0].state // "missing"')"
+            if test "$PB9_STATE" = 'success'; then
+              echo 'pb9_verified_lkg=success'
+              exit 0
+            fi
+            if test "$PB9_STATE" = 'failure' -o "$PB9_STATE" = 'error'; then
+              echo "PB9 exact-SHA proof state=$PB9_STATE"
+              exit 1
+            fi
+            sleep 10
+          done
+          echo "PB9 exact-SHA proof state=$PB9_STATE"
+          exit 1
       - name: Publish successful IC2 production evidence
         if: success()
         env:
