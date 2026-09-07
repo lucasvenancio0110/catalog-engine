@@ -1,0 +1,290 @@
+name: Cloudflare IC2 instant catalog production proof
+
+on:
+  pull_request:
+    branches: ['main']
+    paths:
+      - '.github/workflows/cloudflare-ic2-production-proof.yml'
+      - 'worker/ic2-production-proof-canary.js'
+      - 'tests/ic2-production-proof.test.mjs'
+      - 'worker/portal-import-decision.js'
+      - 'worker/portal-construction-preview.js'
+      - 'worker/instant-seed-consumer.js'
+      - 'worker/instant-catalog-construction.js'
+      - 'worker/instant-seed-queue.js'
+      - 'worker/ingestion/providers/**'
+      - 'wrangler.jsonc'
+  workflow_run:
+    workflows: ['Deploy Catalog Engine application']
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify IC2 proof contract
+        run: npx vitest run tests/ic2-production-proof.test.mjs tests/instant-seed-dispatch.test.mjs tests/instant-seed-consumer.test.mjs tests/portal-construction-preview.test.mjs
+      - name: Secret-free quality gate
+        run: npm run quality
+
+  prove:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: catalog-engine-production-d1
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      TARGET_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+      STATUS_CONTEXT: catalog-engine/ic2-production-proof
+      WRANGLER_VERSION: 4.123.0
+      WORKERS_SUBDOMAIN: lucassantanals0110
+    steps:
+      - name: Checkout exact trusted-main SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify IC2 proof contract
+        run: npx vitest run tests/ic2-production-proof.test.mjs tests/instant-seed-dispatch.test.mjs tests/instant-seed-consumer.test.mjs tests/portal-construction-preview.test.mjs
+      - name: Validate trusted proof prerequisites and exact deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is missing"; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing"; exit 1; }
+          test -n "$TARGET_SHA" || { echo "TARGET_SHA is missing"; exit 1; }
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const config = JSON.parse(fs.readFileSync('wrangler.jsonc', 'utf8'));
+          const db = config.d1_databases?.find((entry) => entry.binding === 'CATALOG_DB');
+          if (!db?.database_id) throw new Error('IC2 proof control D1 binding missing');
+          if (config.vars?.TENANT_IMPORT_AUTOMATION_ENABLED !== '1') throw new Error('Initial import automation must remain enabled');
+          if (config.vars?.TENANT_SYNC_AUTOMATION_ENABLED !== '0') throw new Error('Recurring Intelligent Sync must remain disabled');
+          if (String(config.vars?.TENANT_SYNC_ACTIVE_COHORT || '') !== '') throw new Error('Recurring sync cohort must remain empty');
+          if (String(config.vars?.TENANT_SYNC_MAX_JOBS_PER_TICK || '') !== '1') throw new Error('Recurring sync max jobs boundary changed');
+          NODE
+          STATUS_JSON="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/status")"
+          DEPLOY_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context == "catalog-engine/application-deploy")][0].state // "missing"')"
+          test "$DEPLOY_STATE" = 'success' || { echo "Exact SHA application deploy state=$DEPLOY_STATE"; exit 1; }
+          echo 'exact_sha_application_deploy=success'
+      - name: Deploy ephemeral trusted IC2 proof worker
+        id: deploy_proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORKER_NAME="catalog-engine-ic2-proof-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          PROOF_TOKEN="$(openssl rand -hex 32)"
+          PROOF_SEED="${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}:${TARGET_SHA}"
+          CONFIG_FILE="$PWD/.wrangler-ic2-proof-runtime.json"
+          SECRET_FILE="$(mktemp)"
+          printf '%s' "$WORKER_NAME" > /tmp/ic2-proof-worker-name
+          printf '%s' "$PROOF_TOKEN" > /tmp/ic2-proof-token
+          export WORKER_NAME PROOF_SEED CONFIG_FILE SECRET_FILE
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const base = JSON.parse(fs.readFileSync('wrangler.jsonc', 'utf8'));
+          const db = base.d1_databases?.find((entry) => entry.binding === 'CATALOG_DB');
+          if (!db?.database_id || !db?.database_name) throw new Error('ic2_proof_control_db_missing');
+          const config = {
+            name: process.env.WORKER_NAME,
+            main: 'worker/ic2-production-proof-canary.js',
+            compatibility_date: base.compatibility_date || '2026-09-01',
+            workers_dev: true,
+            d1_databases: [{
+              binding: 'CATALOG_DB',
+              database_name: db.database_name,
+              database_id: db.database_id
+            }],
+            queues: {
+              producers: [{ binding: 'TENANT_INSTANT_SEED_QUEUE', queue: 'catalog-engine-instant-seed' }]
+            },
+            durable_objects: {
+              bindings: [{
+                name: 'TENANT_CONSTRUCTION_STATE',
+                class_name: 'TenantConstructionState',
+                script_name: 'catalog-engine'
+              }]
+            },
+            vars: {
+              IC2_PROOF_RUN_SEED: process.env.PROOF_SEED,
+              IC2_PROOF_SOURCE_DISPLAY_NAME: 'CROCCODILOS'
+            }
+          };
+          fs.writeFileSync(process.env.CONFIG_FILE, JSON.stringify(config));
+          NODE
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          fs.writeFileSync(process.env.SECRET_FILE, JSON.stringify({
+            IC2_PROOF_TOKEN: fs.readFileSync('/tmp/ic2-proof-token', 'utf8')
+          }));
+          NODE
+          if ! npx --yes "wrangler@$WRANGLER_VERSION" deploy --config "$CONFIG_FILE" --secrets-file "$SECRET_FILE" > /tmp/ic2-proof-deploy.log 2>&1; then
+            echo 'ic2_proof_worker_deploy_failed'
+            exit 1
+          fi
+          rm -f "$SECRET_FILE" "$CONFIG_FILE" /tmp/ic2-proof-deploy.log
+          echo "worker_name=$WORKER_NAME" >> "$GITHUB_OUTPUT"
+          echo 'ic2_proof_worker_deployed=true'
+      - name: Measure fresh-tenant TTFI and TTFC in production
+        id: evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORKER_NAME="$(cat /tmp/ic2-proof-worker-name)"
+          PROOF_TOKEN="$(cat /tmp/ic2-proof-token)"
+          PROOF_URL="https://${WORKER_NAME}.${WORKERS_SUBDOMAIN}.workers.dev/prove"
+          HTTP_CODE="$(curl --silent --show-error --max-time 90 \
+            --output /tmp/ic2-production-proof.json \
+            --write-out '%{http_code}' \
+            -X POST \
+            -H "Authorization: Bearer ${PROOF_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "$PROOF_URL")"
+          test "$HTTP_CODE" = '200' || { echo "IC2 production proof HTTP status=$HTTP_CODE"; cat /tmp/ic2-production-proof.json; exit 1; }
+          jq -e '
+            .ic2ProductionProof == "passed" and
+            .freshTenant == true and
+            (.ttfiMs | type == "number") and
+            (.ttfcMs | type == "number") and
+            .ttfiMs >= 0 and
+            .ttfcMs >= .ttfiMs and
+            .productCount >= .readinessThreshold and
+            .anonymousFailClosed == true and
+            .crossTenantFailClosed == true and
+            .defaultTenantFailClosed == true and
+            .privateIdentifiersExposed == false
+          ' /tmp/ic2-production-proof.json >/dev/null
+          jq '{
+            ic2ProductionProof,
+            freshTenant,
+            decisionRoundTripMs,
+            ttfiMs,
+            ttfcMs,
+            productCount,
+            readinessThreshold,
+            anonymousFailClosed,
+            crossTenantFailClosed,
+            defaultTenantFailClosed,
+            privateIdentifiersExposed
+          }' /tmp/ic2-production-proof.json | tee /tmp/ic2-production-proof-safe.json
+          cat /tmp/ic2-production-proof-safe.json >> "$GITHUB_STEP_SUMMARY"
+          echo "result=$(jq -r '.ic2ProductionProof' /tmp/ic2-production-proof.json)" >> "$GITHUB_OUTPUT"
+          echo "ttfi_ms=$(jq -r '.ttfiMs' /tmp/ic2-production-proof.json)" >> "$GITHUB_OUTPUT"
+          echo "ttfc_ms=$(jq -r '.ttfcMs' /tmp/ic2-production-proof.json)" >> "$GITHUB_OUTPUT"
+      - name: Wait for PB9 Last Known Good proof on exact SHA
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PB9_STATE='missing'
+          for attempt in $(seq 1 36); do
+            STATUS_JSON="$(curl --fail --silent --show-error \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/status")"
+            PB9_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context == "catalog-engine/pb9-production-proof")][0].state // "missing"')"
+            if test "$PB9_STATE" = 'success'; then
+              echo 'pb9_verified_lkg=success'
+              exit 0
+            fi
+            if test "$PB9_STATE" = 'failure' -o "$PB9_STATE" = 'error'; then
+              echo "PB9 exact-SHA proof state=$PB9_STATE"
+              exit 1
+            fi
+            sleep 10
+          done
+          echo "PB9 exact-SHA proof state=$PB9_STATE"
+          exit 1
+      - name: Publish successful IC2 production evidence
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PROOF_RESULT: ${{ steps.evidence.outputs.result }}
+          TTFI_MS: ${{ steps.evidence.outputs.ttfi_ms }}
+          TTFC_MS: ${{ steps.evidence.outputs.ttfc_ms }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$PROOF_RESULT" = 'passed' || { echo 'IC2 proof did not pass'; exit 1; }
+          DESCRIPTION="Fresh L0 proof passed; TTFI=${TTFI_MS}ms TTFC=${TTFC_MS}ms; isolation + PB9 LKG green"
+          test "${#DESCRIPTION}" -le 140 || DESCRIPTION='Fresh L0 TTFI/TTFC + isolation + PB9 LKG proven'
+          jq -n --arg state success --arg context "$STATUS_CONTEXT" \
+            --arg description "$DESCRIPTION" --arg target_url "$RUN_URL" \
+            '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
+          curl --fail --silent --show-error -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$REPO/statuses/$TARGET_SHA" -d @/tmp/status.json
+      - name: Publish failed IC2 diagnostic evidence
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$TARGET_SHA" || exit 0
+          jq -n --arg state failure --arg context "$STATUS_CONTEXT" \
+            --arg description 'IC2 fresh-tenant production proof failed; inspect trusted run' \
+            --arg target_url "$RUN_URL" \
+            '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
+          curl --fail --silent --show-error -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$REPO/statuses/$TARGET_SHA" -d @/tmp/status.json
+      - name: Delete ephemeral proof Worker
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          WORKER_NAME="$(cat /tmp/ic2-proof-worker-name 2>/dev/null)"
+          if test -n "$WORKER_NAME"; then
+            curl --silent --show-error -X DELETE \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER_NAME" \
+              >/dev/null 2>&1
+          fi
+          rm -f /tmp/ic2-proof-token /tmp/ic2-proof-worker-name /tmp/ic2-production-proof.json /tmp/ic2-production-proof-safe.json
+          echo 'ic2_proof_worker_cleanup_attempted=true'
