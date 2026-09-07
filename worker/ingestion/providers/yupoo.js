@@ -13,6 +13,7 @@ import {
 
 const PUBLIC_ID_NAMESPACE = 'catalog-engine:public-id:v1';
 const CATEGORY_PATH_PATTERN = /\/categories\/\d+\/?$/i;
+const PROGRESSIVE_CONSTRUCTION_MAX_ITEMS = 48;
 
 async function publicCategoryId(sourceId) {
   const digest = await sha256Hex(
@@ -61,15 +62,32 @@ export function galleryCategoryFetch(fetchImpl = fetch) {
   };
 }
 
+function nextProgressiveRows(batch, seen) {
+  if (!Array.isArray(batch?.items) || batch.items.length === 0) return [];
+  if (seen.size >= PROGRESSIVE_CONSTRUCTION_MAX_ITEMS) return [];
+
+  const rows = [];
+  for (const row of batch.items) {
+    const sourceId = String(row?.sourceId || '').trim();
+    if (!sourceId || seen.has(sourceId)) continue;
+    seen.add(sourceId);
+    rows.push(row);
+    if (seen.size >= PROGRESSIVE_CONSTRUCTION_MAX_ITEMS) break;
+  }
+  return rows;
+}
+
 async function scanListingIndex(sourceUrl, options = {}) {
   const { onPageBatch, fetchImpl = fetch, ...scanOptions } = options;
+  const progressiveSeen = new Set();
   const progressiveCallback =
     typeof onPageBatch === 'function'
       ? async (batch) => {
-          if (!Array.isArray(batch?.items) || batch.items.length === 0) return;
+          const rows = nextProgressiveRows(batch, progressiveSeen);
+          if (!rows.length) return;
           const seed = assertCatalogProviderPreviewSeedObservation(
-            await constructionSeedFromYupooListingRows(sourceUrl, batch.items, {
-              maxItems: 48
+            await constructionSeedFromYupooListingRows(sourceUrl, rows, {
+              maxItems: rows.length
             })
           );
           await onPageBatch({

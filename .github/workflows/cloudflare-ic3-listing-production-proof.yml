@@ -135,6 +135,14 @@ jobs:
             .productCount > 0 and
             .identityMatch == true and
             .taxonomyMatch == true and
+            .fanoutRequests > 0 and
+            .baselineRequests > 0 and
+            .fanoutMaxActive >= 1 and
+            .fanoutMaxActive <= .requestConcurrency and
+            .baselineMaxActive >= 1 and
+            .progressiveBatches > 0 and
+            .progressiveItems > 0 and
+            .progressiveItems <= 48 and
             .privateIdentifiersExposed == false and
             .recurringIntelligentSyncEnabled == false
           ' /tmp/ic3-listing-production-proof.json >/dev/null
@@ -151,6 +159,12 @@ jobs:
             taxonomyMatch,
             baselinePages,
             fanoutPages,
+            baselineRequests,
+            fanoutRequests,
+            baselineMaxActive,
+            fanoutMaxActive,
+            progressiveBatches,
+            progressiveItems,
             requestConcurrency,
             minimumImprovementPct,
             initialImportEnabled,

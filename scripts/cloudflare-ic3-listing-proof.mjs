@@ -120,6 +120,18 @@ function measuredFetch(fetchImpl = fetch) {
   };
 }
 
+function measuredProgressiveSink() {
+  let batches = 0;
+  let items = 0;
+  return {
+    onPageBatch: async (batch) => {
+      batches += 1;
+      items += Math.max(0, Number(batch?.seed?.items?.length || 0));
+    },
+    snapshot: () => ({ batches, items })
+  };
+}
+
 async function loadBaselineScanner() {
   if (!/^[a-f0-9]{40}$/.test(IC3_LISTING_PROOF_BASELINE_SHA)) {
     throw new Error('ic3_baseline_sha_invalid');
@@ -202,7 +214,7 @@ export function evaluateIc3ProductionProof({ current, baseline, currentMs, basel
   };
 }
 
-export function safeIc3Evidence(merchant, evaluation, network = {}) {
+export function safeIc3Evidence(merchant, evaluation, network = {}, progressive = {}) {
   const evidence = {
     ic3ProductionProof: evaluation.passed ? 'passed' : 'pending',
     contractVersion: IC3_LISTING_PROOF_CONTRACT_VERSION,
@@ -220,6 +232,8 @@ export function safeIc3Evidence(merchant, evaluation, network = {}) {
     fanoutRequests: Math.max(0, Number(network?.current?.requests || 0)),
     baselineMaxActive: Math.max(0, Number(network?.baseline?.maxActive || 0)),
     fanoutMaxActive: Math.max(0, Number(network?.current?.maxActive || 0)),
+    progressiveBatches: Math.max(0, Number(progressive?.batches || 0)),
+    progressiveItems: Math.max(0, Number(progressive?.items || 0)),
     requestConcurrency: IC3_LISTING_PROOF_REQUEST_CONCURRENCY,
     minimumImprovementPct: IC3_LISTING_PROOF_MIN_IMPROVEMENT_PCT,
     initialImportEnabled: evaluation.checks.initialImportEnabled,
@@ -246,14 +260,17 @@ export async function runIc3ProductionProof() {
   });
   const baselineModule = await loadBaselineScanner();
   try {
-    // Run the production Provider Engine path first. The old scanner runs second and therefore
-    // receives any incidental upstream/CDN warming advantage; an IC3 win remains conservative.
+    // Run the production Provider Engine path first. Progressive normalization is exercised
+    // through a no-op sink so the TTFA measurement includes its CPU cost without mutating
+    // tenant construction state. The old scanner runs second and gets any cache advantage.
     const currentNetwork = measuredFetch();
+    const progressive = measuredProgressiveSink();
     const current = await timedScan(
       yupooIngestionProvider.scanListingIndex,
       source.sourceUrl,
       {
         fetchImpl: currentNetwork.fetchImpl,
+        onPageBatch: progressive.onPageBatch,
         maxRootPages: MAX_SCAN_PAGES,
         maxCategoryPages: MAX_SCAN_PAGES,
         categoryConcurrency: IC3_LISTING_PROOF_REQUEST_CONCURRENCY,
@@ -280,10 +297,15 @@ export async function runIc3ProductionProof() {
       baselineMs: baseline.elapsedMs,
       runtime
     });
-    const evidence = safeIc3Evidence(merchant, evaluation, {
-      current: currentNetwork.snapshot(),
-      baseline: baselineNetwork.snapshot()
-    });
+    const evidence = safeIc3Evidence(
+      merchant,
+      evaluation,
+      {
+        current: currentNetwork.snapshot(),
+        baseline: baselineNetwork.snapshot()
+      },
+      progressive.snapshot()
+    );
     process.stdout.write(`${JSON.stringify(evidence, null, 2)}\n`);
     if (evidence.privateIdentifiersExposed) throw new Error('ic3_proof_private_evidence_detected');
     if (!evaluation.passed) throw new Error('ic3_listing_improvement_not_proven');
