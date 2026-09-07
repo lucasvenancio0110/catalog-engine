@@ -37,13 +37,28 @@ describe('trusted fresh tenant provisioning boundary', () => {
     expect(workflow).not.toContain('TENANT_SYNC_AUTOMATION_ENABLED=1');
   });
 
-  it('does not compete with the immediate application deploy for the same production mutation slot', () => {
+  it('waits for the exact application deploy before competing for the production mutation slot', () => {
     expect(workflow).not.toMatch(/^\s*push:\s*$/m);
     expect(workflow).not.toContain("github.event_name == 'push'");
     expect(workflow).toContain("github.event_name == 'schedule'");
     expect(workflow).toContain("github.event_name == 'workflow_dispatch'");
-    expect(workflow).toContain('group: catalog-engine-production-d1');
-    expect(workflow).toContain('cancel-in-progress: false');
+
+    const prerequisitesStart = workflow.indexOf('  prerequisites:');
+    const provisionStart = workflow.indexOf('  provision:');
+    expect(prerequisitesStart).toBeGreaterThan(-1);
+    expect(provisionStart).toBeGreaterThan(prerequisitesStart);
+
+    const prerequisitesBlock = workflow.slice(prerequisitesStart, provisionStart);
+    const provisionBlock = workflow.slice(provisionStart);
+    expect(prerequisitesBlock).toContain('catalog-engine/application-deploy');
+    expect(prerequisitesBlock).toContain('Wait for exact-SHA application deploy outside mutation lock');
+    expect(prerequisitesBlock).not.toContain('group: catalog-engine-production-d1');
+    expect(provisionBlock).toContain("needs: prerequisites");
+    expect(provisionBlock).toContain("if: needs.prerequisites.result == 'success'");
+    expect(provisionBlock).toContain('group: catalog-engine-production-d1');
+    expect(provisionBlock).toContain('cancel-in-progress: false');
+    expect(provisionBlock).toContain('ref: ${{ needs.prerequisites.outputs.sha }}');
+    expect(provisionBlock).toContain('SHA: ${{ needs.prerequisites.outputs.sha }}');
   });
 
   it('keeps physical provider identifiers out of the emitted outcome summary', () => {
