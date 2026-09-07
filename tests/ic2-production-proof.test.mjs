@@ -36,14 +36,29 @@ describe('IC2 production proof contract', () => {
     expect(workflow).toContain("github.event_name == 'pull_request'");
   });
 
+  it('waits for the ephemeral workers.dev route before starting TTFI measurement', () => {
+    expect(workflow).toContain('Wait for ephemeral proof route readiness');
+    expect(workflow).toContain('for attempt in $(seq 1 30)');
+    expect(workflow).toContain('ic2_proof_worker_ready=true');
+    expect(workflow).toContain(".error == \"not_found\"");
+    expect(workflow.indexOf('Wait for ephemeral proof route readiness')).toBeLessThan(
+      workflow.indexOf('Measure fresh-tenant TTFI and TTFC in production')
+    );
+  });
+
+  it('allows the ephemeral proof Worker to verify the real public anonymous boundary without 1042', () => {
+    expect(workflow).toContain("'global_fetch_strictly_public'");
+    expect(workflow).toContain('compatibility_flags: [...new Set(');
+    expect(canary).toContain('https://app.catalogoengine.com/api/admin/stores/${fixture.tenantId}/construction-preview');
+    expect(canary).toContain("if (![401, 403].includes(anonymous.status))");
+  });
+
   it('proves membership isolation and the real unauthenticated production boundary', () => {
     expect(canary).toContain('crossTenantFailClosed: true');
     expect(canary).toContain('defaultTenantFailClosed: true');
     expect(canary).toContain('anonymousFailClosed: true');
     expect(canary).toContain("if (cross.status !== 404)");
     expect(canary).toContain("if (defaultAccess.status !== 404)");
-    expect(canary).toContain('https://app.catalogoengine.com/api/admin/stores/${fixture.tenantId}/construction-preview');
-    expect(canary).toContain("if (![401, 403].includes(anonymous.status))");
   });
 
   it('keeps supplier and runtime locators out of returned evidence and logs', () => {

@@ -60,6 +60,18 @@ describe('production deployment pipeline boundary', () => {
     }
   });
 
+  it('keeps IC2 proof transport bounded before it is allowed to measure production latency', async () => {
+    const workflow = await readWorkflow('cloudflare-ic2-production-proof.yml');
+    const readyIndex = workflow.indexOf('Wait for ephemeral proof route readiness');
+    const measureIndex = workflow.indexOf('Measure fresh-tenant TTFI and TTFC in production');
+
+    expect(workflow).toContain("'global_fetch_strictly_public'");
+    expect(workflow).toContain('for attempt in $(seq 1 30)');
+    expect(workflow).toContain('ic2_proof_worker_ready=true');
+    expect(readyIndex).toBeGreaterThan(-1);
+    expect(measureIndex).toBeGreaterThan(readyIndex);
+  });
+
   it('keeps default snapshot publication manual and separate from Worker deployment', async () => {
     const workflow = await readWorkflow('publish-default-catalog.yml');
 
