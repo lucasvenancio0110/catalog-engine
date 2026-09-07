@@ -14,3 +14,4 @@ import './storefront/private-preview.css';
 import './storefront/private-preview.js';
 import './storefront/luxury-mobile.js';
 import './storefront/mobile-shell.js';
+import './storefront/merchant-theme.js';
