@@ -43,6 +43,20 @@ describe('production deployment pipeline boundary', () => {
     expect(trustedWorkflow).toContain('cancel-in-progress: false');
   });
 
+  it('deploys exact main when trusted provisioning orchestration changes', async () => {
+    const workflow = await readWorkflow('deploy-catalog-api.yml');
+    for (const path of [
+      '.github/workflows/cloudflare-trusted-fresh-tenant-provision.yml',
+      'scripts/cloudflare-trusted-fresh-tenant-provision.mjs',
+      'scripts/cloudflare-trusted-tenant-runtime-stage.mjs',
+      'tests/trusted-fresh-tenant-provision.test.mjs',
+      'tests/trusted-tenant-runtime-stage.test.mjs',
+      'tests/tenant-runtime-runner.test.mjs'
+    ]) {
+      expect(workflow).toContain(`- '${path}'`);
+    }
+  });
+
   it('keeps privileged post-deploy canaries out of the direct-push production lock collision', async () => {
     const postDeployCanaries = [
       'cloudflare-tenant-data-plane-fleet-canary.yml',
