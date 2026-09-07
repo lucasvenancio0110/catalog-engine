@@ -23,8 +23,9 @@ describe('PB9 portal private preview experience', () => {
 
   it('keeps preparation truth when preview readiness is absent instead of fabricating completion', async () => {
     const [, bootstrap] = await files;
-    expect(bootstrap).toContain('Preparando catálogo');
-    expect(bootstrap).toContain('Ver andamento');
+    expect(bootstrap).toContain('Criando sua loja');
+    expect(bootstrap).toContain('Ver criação da loja');
+    expect(bootstrap).toContain("card.dataset.catalogAction = 'progress'");
     expect(bootstrap).toContain('previewReady = false');
     expect(bootstrap).not.toMatch(/\bETA\b|estimad[oa]|\bpercent\b/i);
   });
