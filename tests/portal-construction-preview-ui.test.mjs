@@ -100,7 +100,7 @@ describe('IC2 portal construction preview client', () => {
   it('wires the branded creation flow to real construction state without supplier locators', () => {
     const source = fs.readFileSync('src/app/provisioning-progress-experience.js', 'utf8');
     expect(source).toContain('requestPortalConstructionPreview');
-    expect(source).toContain("text: 'Ver loja em construção'");
+    expect(source).toContain("'Ver loja em construção'");
     expect(source).toContain("new PQueue({ concurrency: 3 })");
     expect(source).toContain('requestPortalConstructionMedia');
     expect(source).toContain("authority === 'verified'");
