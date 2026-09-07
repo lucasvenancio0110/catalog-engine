@@ -11,6 +11,20 @@ function timestamp(value) {
   return text || null;
 }
 
+function epoch(value) {
+  const text = timestamp(value);
+  if (!text) return null;
+  const parsed = Date.parse(text);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function elapsedFrom(start, end) {
+  const from = epoch(start);
+  const to = epoch(end);
+  if (from == null || to == null || to < from) return null;
+  return Math.min(to - from, 1000 * 60 * 60 * 24 * 30);
+}
+
 function automaticRetry(job) {
   const scheduledAt = timestamp(job?.next_attempt_at);
   if (!scheduledAt || job?.status !== 'failed') return null;
@@ -26,6 +40,7 @@ function base(stage, status, title, message, extra = {}) {
     message,
     counters: null,
     retry: null,
+    timing: null,
     updatedAt: null,
     pollAfterMs: status === 'running' || status === 'waiting' ? 8000 : 15000,
     ...extra
@@ -60,6 +75,38 @@ function verificationCounters(job) {
   const findings = number(job?.finding_count);
   if (checked === 0 && findings === 0) return null;
   return { checked, findings };
+}
+
+function safeTiming({ decision, importJob, classificationJob, verificationJob, observedAt }) {
+  const startedAt = timestamp(decision?.confirmed_at);
+  if (!startedAt) return null;
+
+  const milestones = {};
+  const candidates = [
+    ['importStartedMs', importJob?.started_at],
+    ['listingScannedMs', importJob?.scan_completed_at],
+    ['importCompletedMs', importJob?.finished_at],
+    ['classificationCompletedMs', classificationJob?.finished_at],
+    ['verificationCompletedMs', verificationJob?.finished_at]
+  ];
+  for (const [key, value] of candidates) {
+    const elapsed = elapsedFrom(startedAt, value);
+    if (elapsed != null) milestones[key] = elapsed;
+  }
+
+  const terminalAt =
+    verificationJob?.finished_at ||
+    classificationJob?.finished_at ||
+    importJob?.finished_at ||
+    importJob?.updated_at ||
+    observedAt;
+  const elapsedMs = elapsedFrom(startedAt, terminalAt);
+
+  return {
+    contract: 'instant-catalog-baseline-v1',
+    elapsedMs: elapsedMs == null ? 0 : elapsedMs,
+    milestones
+  };
 }
 
 function progressFromVerification(job) {
@@ -193,66 +240,74 @@ export function buildMerchantProvisioningProgress({
   provisioning = null,
   importJob = null,
   classificationJob = null,
-  verificationJob = null
+  verificationJob = null,
+  decision = null,
+  observedAt = new Date().toISOString()
 } = {}) {
-  const verification = progressFromVerification(verificationJob);
-  if (verification) return verification;
-  const classification = progressFromClassification(classificationJob);
-  if (classification) return classification;
-  const importing = progressFromImport(importJob);
-  if (importing) return importing;
+  let progress = progressFromVerification(verificationJob);
+  if (!progress) progress = progressFromClassification(classificationJob);
+  if (!progress) progress = progressFromImport(importJob);
 
-  const step = String(provisioning?.current_step || '').trim();
-  const status = String(provisioning?.status || '').trim();
-  const updatedAt = timestamp(provisioning?.updated_at || provisioning?.started_at);
+  if (!progress) {
+    const step = String(provisioning?.current_step || '').trim();
+    const status = String(provisioning?.status || '').trim();
+    const updatedAt = timestamp(provisioning?.updated_at || provisioning?.started_at);
 
-  if (['classify', 'verify'].includes(step)) {
-    return base(
-      step === 'verify' ? 'checking' : 'organizing',
-      'waiting',
-      step === 'verify' ? 'Preparando a verificação' : 'Preparando a organização',
-      'A etapa anterior terminou e a próxima etapa será iniciada automaticamente.',
-      { updatedAt }
-    );
+    if (['classify', 'verify'].includes(step)) {
+      progress = base(
+        step === 'verify' ? 'checking' : 'organizing',
+        'waiting',
+        step === 'verify' ? 'Preparando a verificação' : 'Preparando a organização',
+        'A etapa anterior terminou e a próxima etapa será iniciada automaticamente.',
+        { updatedAt }
+      );
+    } else if (step === 'import') {
+      progress = base(
+        'discovering',
+        status === 'failed' || status === 'blocked' ? 'attention' : 'waiting',
+        status === 'failed' || status === 'blocked' ? 'A preparação precisa de atenção' : 'Importação autorizada',
+        status === 'failed' || status === 'blocked'
+          ? 'O trabalho já concluído foi preservado. O Catalog Engine está aguardando uma condição segura para continuar.'
+          : 'A decisão de importação está salva. O processo inicial será iniciado automaticamente.',
+        { updatedAt }
+      );
+    } else if (['data_plane', 'migrations'].includes(step)) {
+      progress = base(
+        'preparing',
+        status === 'failed' || status === 'blocked' ? 'attention' : 'running',
+        status === 'failed' || status === 'blocked' ? 'A preparação precisa de atenção' : 'Preparando sua loja',
+        status === 'failed' || status === 'blocked'
+          ? 'A configuração foi preservada e poderá continuar sem recriar sua loja.'
+          : 'Estamos preparando a estrutura necessária para receber o catálogo com segurança.',
+        { updatedAt }
+      );
+    } else if (['domain', 'publish'].includes(step) || status === 'success') {
+      progress = base(
+        'ready',
+        'complete',
+        'Catálogo preparado',
+        'As etapas de preparação do catálogo foram concluídas.',
+        { updatedAt, pollAfterMs: 30000 }
+      );
+    } else {
+      progress = base(
+        'source',
+        'waiting',
+        'Aguardando o catálogo',
+        'Conecte e confirme a fonte do catálogo para iniciar a preparação.',
+        { updatedAt }
+      );
+    }
   }
-  if (step === 'import') {
-    return base(
-      'discovering',
-      status === 'failed' || status === 'blocked' ? 'attention' : 'waiting',
-      status === 'failed' || status === 'blocked' ? 'A preparação precisa de atenção' : 'Importação autorizada',
-      status === 'failed' || status === 'blocked'
-        ? 'O trabalho já concluído foi preservado. O Catalog Engine está aguardando uma condição segura para continuar.'
-        : 'A decisão de importação está salva. O processo inicial será iniciado automaticamente.',
-      { updatedAt }
-    );
-  }
-  if (['data_plane', 'migrations'].includes(step)) {
-    return base(
-      'preparing',
-      status === 'failed' || status === 'blocked' ? 'attention' : 'running',
-      status === 'failed' || status === 'blocked' ? 'A preparação precisa de atenção' : 'Preparando sua loja',
-      status === 'failed' || status === 'blocked'
-        ? 'A configuração foi preservada e poderá continuar sem recriar sua loja.'
-        : 'Estamos preparando a estrutura necessária para receber o catálogo com segurança.',
-      { updatedAt }
-    );
-  }
-  if (['domain', 'publish'].includes(step) || status === 'success') {
-    return base(
-      'ready',
-      'complete',
-      'Catálogo preparado',
-      'As etapas de preparação do catálogo foram concluídas.',
-      { updatedAt, pollAfterMs: 30000 }
-    );
-  }
-  return base(
-    'source',
-    'waiting',
-    'Aguardando o catálogo',
-    'Conecte e confirme a fonte do catálogo para iniciar a preparação.',
-    { updatedAt }
-  );
+
+  progress.timing = safeTiming({
+    decision,
+    importJob,
+    classificationJob,
+    verificationJob,
+    observedAt
+  });
+  return progress;
 }
 
 export async function readMerchantProvisioningProgress(db, tenantId) {
@@ -270,7 +325,7 @@ export async function readMerchantProvisioningProgress(db, tenantId) {
     .prepare(
       `SELECT status,phase,discovered_count,queued_detail_count,completed_detail_count,
               failed_detail_count,deferred_detail_count,published_product_count,
-              next_attempt_at,started_at,finished_at,updated_at
+              next_attempt_at,started_at,scan_completed_at,finished_at,updated_at
          FROM tenant_import_jobs
         WHERE tenant_id=?1 AND mode='initial'
         ORDER BY created_at DESC
@@ -300,11 +355,22 @@ export async function readMerchantProvisioningProgress(db, tenantId) {
     )
     .bind(tenantId)
     .first();
+  const decision = await db
+    .prepare(
+      `SELECT confirmed_at
+         FROM tenant_import_decisions
+        WHERE tenant_id=?1 AND source_key='primary' AND status='confirmed'
+        ORDER BY confirmed_at DESC
+        LIMIT 1`
+    )
+    .bind(tenantId)
+    .first();
 
   return buildMerchantProvisioningProgress({
     provisioning,
     importJob,
     classificationJob,
-    verificationJob
+    verificationJob,
+    decision
   });
 }

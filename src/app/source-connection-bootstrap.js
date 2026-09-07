@@ -60,7 +60,8 @@ function openProgress(store) {
   if (!store?.tenantId) return;
   openProvisioningProgressExperience({
     store,
-    getAccessToken: portalToken
+    getAccessToken: portalToken,
+    onDone: async () => window.location.reload()
   });
 }
 
@@ -69,6 +70,7 @@ function openImport(store) {
   openImportDecisionExperience({
     store,
     getAccessToken: portalToken,
+    onConfirmed: async () => openProgress(store),
     onDone: async () => window.location.reload()
   });
 }
@@ -168,19 +170,19 @@ function storeCardCopy(
   } else if (connected && decision) {
     setText(
       bodyCopy,
-      'Fonte conectada e importação confirmada. A preparação continua em segundo plano e você pode acompanhar o estado real sem manter esta tela aberta.'
+      'Sua loja está sendo montada com o estado real do catálogo. Você pode acompanhar os produtos encontrados e sair da tela sem perder o progresso.'
     );
     if (meta[0]) {
       setText(meta[0].querySelector('small'), 'Andamento');
-      setText(meta[0].querySelector('strong'), 'Preparando catálogo');
+      setText(meta[0].querySelector('strong'), 'Criando sua loja');
     }
     if (meta[1]) {
       setText(meta[1].querySelector('small'), 'Jornada');
-      setText(meta[1].querySelector('strong'), 'Marca ✓ → fonte ✓ → importação ✓ → preparação → preview');
+      setText(meta[1].querySelector('strong'), 'Marca ✓ → fonte ✓ → produtos → vitrine');
     }
     if (action) {
-      setText(action.querySelector('span'), 'Ver andamento');
-      action.title = `Ver andamento do catálogo de ${store.storeName || 'sua loja'}`;
+      setText(action.querySelector('span'), 'Ver criação da loja');
+      action.title = `Acompanhar criação de ${store.storeName || 'sua loja'}`;
     }
     card.dataset.catalogAction = 'progress';
   } else if (connected) {
@@ -309,8 +311,6 @@ export async function enhancePortalSourceConnection(root = document.querySelecto
             stateKnown: true
           });
         } catch {
-          // Background refresh failure is not equivalent to "no source" or
-          // "no decision". Keep the card actionable and let the explicit flow own retry.
           storeCardCopy(card, store, {
             source: null,
             decisionState: null,

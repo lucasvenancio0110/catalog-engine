@@ -16,6 +16,13 @@ const COUNTER_KEYS = new Set([
   'checked',
   'findings'
 ]);
+const TIMING_KEYS = new Set([
+  'importStartedMs',
+  'listingScannedMs',
+  'importCompletedMs',
+  'classificationCompletedMs',
+  'verificationCompletedMs'
+]);
 
 export class PortalProvisioningProgressError extends Error {
   constructor(code, status = 0) {
@@ -40,6 +47,14 @@ function safeText(value, maximum) {
   return text;
 }
 
+function boundedInteger(value, maximum = 10_000_000) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > maximum) {
+    throw new PortalProvisioningProgressError('progress_state_invalid', 502);
+  }
+  return parsed;
+}
+
 function safeCounters(input) {
   if (input == null) return null;
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
@@ -48,13 +63,33 @@ function safeCounters(input) {
   const result = {};
   for (const [key, value] of Object.entries(input)) {
     if (!COUNTER_KEYS.has(key)) throw new PortalProvisioningProgressError('progress_state_invalid', 502);
-    const parsed = Number(value);
-    if (!Number.isInteger(parsed) || parsed < 0 || parsed > 10_000_000) {
-      throw new PortalProvisioningProgressError('progress_state_invalid', 502);
-    }
-    result[key] = parsed;
+    result[key] = boundedInteger(value);
   }
   return Object.keys(result).length ? result : null;
+}
+
+function safeTiming(input) {
+  if (input == null) return null;
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new PortalProvisioningProgressError('progress_state_invalid', 502);
+  }
+  if (input.contract !== 'instant-catalog-baseline-v1') {
+    throw new PortalProvisioningProgressError('progress_state_invalid', 502);
+  }
+  const milestones = input.milestones;
+  if (!milestones || typeof milestones !== 'object' || Array.isArray(milestones)) {
+    throw new PortalProvisioningProgressError('progress_state_invalid', 502);
+  }
+  const normalizedMilestones = {};
+  for (const [key, value] of Object.entries(milestones)) {
+    if (!TIMING_KEYS.has(key)) throw new PortalProvisioningProgressError('progress_state_invalid', 502);
+    normalizedMilestones[key] = boundedInteger(value, 1000 * 60 * 60 * 24 * 30);
+  }
+  return {
+    contract: 'instant-catalog-baseline-v1',
+    elapsedMs: boundedInteger(input.elapsedMs, 1000 * 60 * 60 * 24 * 30),
+    milestones: normalizedMilestones
+  };
 }
 
 export function normalizePortalProvisioningProgress(input) {
@@ -80,6 +115,7 @@ export function normalizePortalProvisioningProgress(input) {
     message: safeText(input.message, 320),
     counters: safeCounters(input.counters),
     retry,
+    timing: safeTiming(input.timing),
     updatedAt: String(input.updatedAt || '').trim() || null,
     pollAfterMs
   };

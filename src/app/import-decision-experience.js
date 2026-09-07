@@ -36,14 +36,21 @@ function connectedSourceBadge() {
   ]);
 }
 
-function confirmedView({ decision, close }) {
+function confirmedView({ decision, close, onContinue }) {
   const preexisting = decision?.authority === 'preexisting_import';
   const action = el('button', {
+    className: 'import-decision-primary',
+    type: 'button',
+    text: 'Acompanhar criação da loja'
+  });
+  action.addEventListener('click', () => onContinue?.(decision));
+
+  const back = el('button', {
     className: 'import-decision-secondary',
     type: 'button',
     text: 'Voltar para minhas lojas'
   });
-  action.addEventListener('click', close);
+  back.addEventListener('click', close);
 
   return el('div', { className: 'import-decision-content import-decision-content--success' }, [
     el('div', { className: 'import-decision-success-mark', text: '✓' }),
@@ -59,15 +66,16 @@ function confirmedView({ decision, close }) {
     }),
     connectedSourceBadge(),
     el('div', { className: 'import-decision-next' }, [
-      el('small', { text: 'Próximo passo' }),
-      el('strong', { text: 'Preparar o catálogo' }),
-      el('span', { text: 'Você poderá sair desta tela. As próximas etapas usam estados reais e continuam em segundo plano.' })
+      el('small', { text: 'Agora' }),
+      el('strong', { text: 'Ver sua loja sendo criada' }),
+      el('span', { text: 'A próxima tela usa apenas progresso real e acompanha a preparação mesmo se você sair e voltar.' })
     ]),
-    action
+    action,
+    back
   ]);
 }
 
-function decisionView({ store, getAccessToken, setBody, close }) {
+function decisionView({ store, getAccessToken, setBody, close, onContinue }) {
   const content = el('div', { className: 'import-decision-content' });
   const errorBox = el('div', { className: 'import-decision-error' });
   errorBox.hidden = true;
@@ -89,7 +97,11 @@ function decisionView({ store, getAccessToken, setBody, close }) {
         tenantId: store.tenantId,
         token
       });
-      setBody(confirmedView({ decision, close }));
+      if (typeof onContinue === 'function') {
+        await onContinue(decision);
+        return;
+      }
+      setBody(confirmedView({ decision, close, onContinue }));
     } catch (error) {
       errorBox.textContent = errorMessage(error);
       errorBox.hidden = false;
@@ -137,7 +149,7 @@ function focusableElements(panel) {
   );
 }
 
-export async function openImportDecisionExperience({ store, getAccessToken, onDone }) {
+export async function openImportDecisionExperience({ store, getAccessToken, onDone, onConfirmed }) {
   if (!store?.tenantId || typeof getAccessToken !== 'function') return;
   const previousFocus = document.activeElement;
   const overlay = el('div', { className: 'import-decision-overlay' });
@@ -159,14 +171,23 @@ export async function openImportDecisionExperience({ store, getAccessToken, onDo
   }
 
   let closed = false;
-  async function close() {
+  async function close({ notify = true, restoreFocus = true } = {}) {
     if (closed) return;
     closed = true;
     document.removeEventListener('keydown', onKeydown);
     overlay.remove();
     document.documentElement.classList.remove('import-decision-dialog-open');
-    if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
-    if (typeof onDone === 'function') await onDone();
+    if (restoreFocus && previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
+    if (notify && typeof onDone === 'function') await onDone();
+  }
+
+  async function continueToCreation(decision) {
+    if (typeof onConfirmed !== 'function') {
+      setBody(confirmedView({ decision, close, onContinue: continueToCreation }));
+      return;
+    }
+    await close({ notify: false, restoreFocus: false });
+    await onConfirmed(decision);
   }
 
   function onKeydown(event) {
@@ -189,7 +210,7 @@ export async function openImportDecisionExperience({ store, getAccessToken, onDo
     }
   }
 
-  closeButton.addEventListener('click', close);
+  closeButton.addEventListener('click', () => close());
   overlay.addEventListener('mousedown', (event) => {
     if (event.target === overlay) close();
   });
@@ -226,8 +247,14 @@ export async function openImportDecisionExperience({ store, getAccessToken, onDo
     }
     setBody(
       state.decision
-        ? confirmedView({ decision: state.decision, close })
-        : decisionView({ store, getAccessToken, setBody, close })
+        ? confirmedView({ decision: state.decision, close, onContinue: continueToCreation })
+        : decisionView({
+            store,
+            getAccessToken,
+            setBody,
+            close,
+            onContinue: continueToCreation
+          })
     );
   } catch (error) {
     const retry = el('button', {
