@@ -12,6 +12,7 @@ import {
 } from '../yupoo-preview-seed.js';
 
 const PUBLIC_ID_NAMESPACE = 'catalog-engine:public-id:v1';
+const CATEGORY_PATH_PATTERN = /\/categories\/\d+\/?$/i;
 
 async function publicCategoryId(sourceId) {
   const digest = await sha256Hex(
@@ -49,8 +50,19 @@ export function normalizeYupooScanTaxonomy(scan) {
   };
 }
 
+export function galleryCategoryFetch(fetchImpl = fetch) {
+  if (typeof fetchImpl !== 'function') throw new Error('catalog_provider_fetch_invalid');
+  return async (input, init) => {
+    const url = new URL(String(input));
+    if (CATEGORY_PATH_PATTERN.test(url.pathname) && !url.searchParams.has('tab')) {
+      url.searchParams.set('tab', 'gallery');
+    }
+    return fetchImpl(url.href, init);
+  };
+}
+
 async function scanListingIndex(sourceUrl, options = {}) {
-  const { onPageBatch, ...scanOptions } = options;
+  const { onPageBatch, fetchImpl = fetch, ...scanOptions } = options;
   const progressiveCallback =
     typeof onPageBatch === 'function'
       ? async (batch) => {
@@ -70,6 +82,7 @@ async function scanListingIndex(sourceUrl, options = {}) {
       : null;
   const scan = await scanYupooListingIndex(sourceUrl, {
     ...scanOptions,
+    fetchImpl: galleryCategoryFetch(fetchImpl),
     onPageBatch: progressiveCallback
   });
   return normalizeYupooScanTaxonomy(scan);
