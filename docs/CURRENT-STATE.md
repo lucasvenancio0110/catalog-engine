@@ -8,13 +8,13 @@ This document is intentionally compact. Focused normative documents own durable 
 
 ## Live baseline
 
-- Exact live `main` before this documentation closure branch: `2ab820c6f096a791e14807c0b3be75a55b6fe361` — merge of PR #274, IC1 production-latency proof.
-- Exact application Production SHA: `ee36ef7621d79e09fbf71308b553f338bda8c862` — merge of PR #273, IC1 application implementation.
-- Trusted application deploy `34079142874`: **SUCCESS** on `ee36ef7621d79e09fbf71308b553f338bda8c862`.
-- IC1 dedicated trusted production proof `34079538032` / job `101612071627`: **SUCCESS**.
-- Commit status `catalog-engine/ic1-production-proof = success` on `2ab820c6f096a791e14807c0b3be75a55b6fe361`.
-- PB6/PB7/PB8/PB9 trusted production regressions remained **SUCCESS** on the IC1 application Production SHA.
-- Open pull requests immediately before this closure branch: none.
+- Exact application Production SHA: `9b6b5251fd59eb5ea82d30b3f1f8a7ff19e3319b` — merge of PR #288.
+- Trusted application deploy `34128489551`: **SUCCESS** on the exact Production SHA.
+- IC2 dedicated trusted production proof `34130174224`, attempt `3`, job `101776923895`: **SUCCESS**.
+- Commit status `catalog-engine/ic2-production-proof = success` on the Production SHA.
+- Exact-SHA PB9 proof `34130174234`: **SUCCESS**.
+- PB6/PB7/PB8/PB9 and the relevant tenant-ingestion regressions remained **SUCCESS** on the same Production SHA.
+- Open pull requests immediately before the IC2 closure branch: none.
 - `HUMAN_GATE_LOCK: INACTIVE` at the latest durable operational snapshot; every autonomous resume must revalidate it.
 
 ## Production activation boundary
@@ -43,14 +43,13 @@ PB0 through PB9 of the owner-authorized first-real-merchant campaign remain clos
 - PB8 — Real Tenant Import: **PRODUCTION GREEN**.
 - PB9 — Private Preview: **PRODUCTION GREEN**.
 
-The real CROCCODILOS isolated tenant has:
+The real CROCCODILOS isolated tenant has approximately:
 
-- 6,104 discovered/terminal source items from the initial import;
 - 6,097 persisted products and 15,396 media links;
-- CEI/classification success for 6,097 products: 5,869 automatic, 228 review, 0 unknown;
-- verification success for 6,097 products with 0 findings;
-- full catalog runtime `verified`, runtime version `1`;
-- authenticated PB9 private preview, own-product detail and own-media access proven;
+- CEI/classification completed;
+- verification completed with 0 findings;
+- full catalog runtime verified;
+- authenticated PB9 private preview, product detail and media access proven;
 - anonymous, cross-tenant and default-tenant access proven fail-closed;
 - recurring Intelligent Sync still OFF.
 
@@ -70,47 +69,20 @@ PB9
 
 Current statuses:
 
-- IC0 — Governance + performance contract: **COMPLETE / GOVERNANCE GREEN**; PR #272, merge `375bb7ee67083f558bdaf9f7bdb78a317a3c4b78`.
+- IC0 — Governance + performance contract: **COMPLETE / GOVERNANCE GREEN**; PR #272.
 - IC1 — Real latency baseline + branded creation UX: **PRODUCTION GREEN**; detailed proof in `IC1-CLOSURE-2026-09-07.md`.
-- IC2 — Instant seed + construction preview: **PLANNED — NEXT APPROVED SLICE**.
-- IC3 — Streaming/parallel listing discovery: **PLANNED**.
+- IC2 — Instant seed + construction preview: **PRODUCTION GREEN**; detailed proof in `IC2-CLOSURE-2026-09-07.md`.
+- IC3 — Streaming/parallel listing discovery: **PLANNED — NEXT APPROVED SLICE**.
 - IC4 — Adaptive detail swarm: **PLANNED**.
 - IC5 — Warm tenant cell pool: **PLANNED**.
-- IC6 — Fresh speed/isolation proof: **PLANNED**.
+- IC6 — Fresh beta speed/isolation proof: **PLANNED**.
 - PB10 remains approved but paused until IC6 reaches its required Green state.
 
-PB9 stays the L2 verified Last Known Good authority while the separate pre-verification construction path is developed.
+PB9 stays the L2 verified Last Known Good authority while earlier construction/catalog paths are developed.
 
-## IC1 Production Green evidence
+## IC1 historical latency baseline
 
-Application implementation:
-
-```text
-PR = #273
-application Production SHA = ee36ef7621d79e09fbf71308b553f338bda8c862
-deploy = 34079142874
-PB6 regression = success
-PB7 regression = success
-PB8 regression = success
-PB9 regression = success
-```
-
-Dedicated safe latency proof:
-
-```text
-PR = #274
-proof/main SHA = 2ab820c6f096a791e14807c0b3be75a55b6fe361
-proof run = 34079538032
-proof job = 101612071627
-status = catalog-engine/ic1-production-proof success
-merchant = CROCCODILOS
-productCount = 6097
-findings = 0
-privateIdentifiersExposed = false
-recurringIntelligentSyncEnabled = false
-```
-
-Measured historical first-merchant baseline from durable import-decision confirmation:
+The first real merchant baseline established before Instant Catalog acceleration was:
 
 ```text
 import start = 2,121,000 ms = 35m21s
@@ -120,63 +92,94 @@ classification complete = 12,326,000 ms = 3h25m26s
 verification complete = 12,621,000 ms = 3h30m21s
 ```
 
-These numbers are engineering baseline evidence, **not a customer ETA**.
+These values are engineering baseline evidence, **not a customer ETA**.
 
-## Quantified root cause
+## IC2 Production Green evidence
 
-The old safe path is much slower than the Instant Catalog objective because first value waits on work that should not be on the first-value path:
+Implementation was delivered across bounded PRs #276–#281, followed by the dedicated proof and proof/deployment hardening through #288.
 
-- physical tenant data-plane/runtime readiness;
-- five-minute scheduler discovery/recovery cadence;
-- conservative scan/detail Queue throughput;
-- full detail hydration;
-- CEI/classification;
-- verification;
-- verified runtime staging/dispatch.
+Exact production/proof evidence:
 
-The first 35m21s before import start proves IC2 must create an immediate separate seed path rather than simply styling the existing wait.
+```text
+application Production SHA = 9b6b5251fd59eb5ea82d30b3f1f8a7ff19e3319b
+deploy run = 34128489551
+IC2 proof run = 34130174224
+IC2 proof attempt = 3
+IC2 proof job = 101776923895
+status = catalog-engine/ic2-production-proof success
+PB9 exact-SHA proof = success
+```
+
+Fresh production proof result:
+
+```text
+decisionRoundTripMs = 1067
+TTFI = 6715 ms
+TTFC = 6715 ms
+productCount = 24
+readinessThreshold = 12
+anonymousFailClosed = true
+crossTenantFailClosed = true
+defaultTenantFailClosed = true
+privateIdentifiersExposed = false
+```
+
+The 6.715-second result is evidence from this production proof, not a universal customer ETA. It demonstrates that real useful L0 value no longer needs to wait for the historical 35m21s pre-import critical path.
+
+## IC2 authority and safety result
+
+IC2 now provides:
+
+- immediate idempotent instant-seed dispatch after accepted import decision;
+- provider-neutral bounded `complete:false` preview seed;
+- tenant-isolated ephemeral `TenantConstructionState`;
+- safe authenticated construction API and media proxy;
+- real readiness based on product count, not elapsed time;
+- mobile-first construction preview before L2;
+- no raw supplier URL/provider-private identity/runtime locator in browser evidence;
+- fail-closed anonymous/cross-tenant/default access;
+- verified PB9/L2 remains Last Known Good and wins when ready.
+
+Construction state is not publication state. L0 remains distinct from L2.
 
 ## Active execution point
 
-**IC2 — Instant seed + construction preview: NEXT APPROVED SLICE.**
+**IC3 — Streaming / Parallel Listing Discovery: NEXT APPROVED SLICE.**
 
 Bounded outcome:
 
-- accepted source/import decision immediately triggers a separate seed job;
-- the seed does not wait for physical tenant D1/User Worker readiness;
-- provider capability returns a bounded `complete:false` observation;
-- tenant-isolated ephemeral construction state stores private evidence;
-- browser receives only safe L0/L1 projections;
-- authenticated construction preview opens when the real useful-product threshold is satisfied;
-- PB9 remains the verified L2 authority and publication boundary.
+- accelerate authoritative listing discovery after the instant seed;
+- introduce provider-safe bounded page-level fan-out;
+- make normalized listing page batches progressively available internally;
+- preserve the same complete-scan authority: every required page must succeed before the authoritative index is complete;
+- use one shared bounded concurrency budget so category/page nesting cannot explode supplier pressure;
+- preserve stable identities, retry semantics, tenant isolation and no-private-leak boundaries;
+- measure TTFA improvement against the IC1 baseline without pretending partial discovery is complete.
 
-Preferred first storage implementation: **one Durable Object instance per tenant**, as approved by `INSTANT-CATALOG.md`, unless implementation evidence proves it unsuitable and architecture is explicitly updated.
+IC3 does **not** own IC4 detail swarm/adaptive governor, IC5 warm tenant cell pool, IC6 final fresh-beta proof, PB10 Merchant Home, recurring tenant sync, M7E or public custom-domain activation.
 
-## IC2 permanent safety boundaries
+## IC3 permanent safety boundaries
 
-- membership and tenant resolution server-side;
-- no raw supplier URL/provider ID/media origin/D1 UUID/Worker locator in browser/public evidence;
-- construction state is not publication state;
-- L0 is not L2;
-- partial seed never means missing/removal;
-- Queue message contains no raw supplier URL;
-- provider requests remain bounded and rate-limit respecting;
-- PB9 verified preview remains rollback/LKG;
-- no recurring Intelligent Sync activation;
-- no M7E activation;
-- no public custom-domain publication merely to prove speed.
+- page concurrency is bounded and provider-safe;
+- partial listing batches never become complete authority;
+- scan failure cannot trigger missing/removal from an incomplete observation;
+- source URLs/provider-private IDs remain server-side;
+- stable public/opaque product identity remains compatible with the authoritative importer;
+- Last Known Good continues serving until normal safe promotion;
+- tenant isolation remains fail-closed;
+- recurring Intelligent Sync remains OFF;
+- no fake percentage or ETA.
 
 ## Exact continuation action
 
-1. revalidate current `main`, open PRs, IC1 proof status and `HUMAN_GATE_LOCK`;
-2. create a fresh IC2 branch only from the exact revalidated main;
-3. implement the tenant-isolated construction-state primitive and safe projection contract;
-4. add the bounded provider preview-seed capability using the existing Provider Engine boundary;
-5. add immediate idempotent seed dispatch with no raw source locator in Queue payload;
-6. wire authenticated construction status/products/media and creation-preview UI;
-7. keep PB9 regressions green;
-8. prove anonymous/cross-tenant/default fail-closed and no private leaks;
-9. measure real TTFI/TTFC on a fresh tenant before claiming IC2 Production Green.
+1. revalidate live `main`, open PRs, relevant exact-SHA statuses and `HUMAN_GATE_LOCK`;
+2. confirm the IC2 closure PR is merged and no existing PR/branch already owns IC3;
+3. inspect the current Provider Engine/Yupoo listing scanner and its page/category concurrency behavior;
+4. create a fresh IC3 branch from exact revalidated `main`;
+5. implement bounded page-level listing fan-out behind the Provider Engine boundary with a shared concurrency budget;
+6. preserve complete-scan semantics and add partial/failure/identity/concurrency regressions;
+7. measure TTFA with production-safe evidence before claiming IC3 Production Green;
+8. keep PB9/LKG and all IC2 safety regressions green.
 
 ## Broader roadmap boundary
 
@@ -184,14 +187,4 @@ Preferred first storage implementation: **one Durable Object instance per tenant
 - M7D11: **PLANNED**.
 - M7E: **DECISION REQUIRED**; recurring sync remains OFF.
 - M9A: **PRODUCTION GREEN**.
-- M9B: **IN PROGRESS — PAUSED**.
-- M9C/M9D: **PLANNED**.
-- IC2 is active; IC3–IC6 are planned behind it.
-- PB10/PB11/PB12 remain approved behind IC6.
-- After PB12, return to paused M9B unless a later explicit owner decision changes sequencing.
-
-## Continuity rule
-
-Before every continuation, revalidate live `main`, open PRs, active branch, CI, deploy/proof and this document. If live evidence advances beyond this snapshot, update this document to the level actually proven rather than repeating completed work.
-
-Do not claim IC2 or a later slice Green without its required integrated and production evidence.
+- M9B: **IN PROGRESS — PAUSED** while the owner-authorized PB/Instant Catalog sequence is active.

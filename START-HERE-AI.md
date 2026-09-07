@@ -191,40 +191,46 @@ At this snapshot:
 ```text
 IC0 = COMPLETE / GOVERNANCE GREEN
 IC1 = PRODUCTION GREEN
-IC2 = PLANNED — NEXT APPROVED SLICE
-IC3–IC6 = PLANNED
+IC2 = PRODUCTION GREEN
+IC3 = PLANNED — NEXT APPROVED SLICE
+IC4–IC6 = PLANNED
 PB10–PB12 = approved behind IC6
 ```
 
-IC1 detailed closure: `docs/IC1-CLOSURE-2026-09-07.md`.
+Detailed closures:
 
-## IC1 application implementation
+- `docs/IC1-CLOSURE-2026-09-07.md`;
+- `docs/IC2-CLOSURE-2026-09-07.md`.
+
+## IC2 exact production proof
 
 ```text
-PR #273 = IC1: measure and render branded store creation
-application Production SHA = ee36ef7621d79e09fbf71308b553f338bda8c862
-deploy run = 34079142874
-PB6 regression = success
-PB7 regression = success
-PB8 regression = success
-PB9 regression = success
+application Production SHA = 9b6b5251fd59eb5ea82d30b3f1f8a7ff19e3319b
+deploy run = 34128489551
+IC2 proof run = 34130174224
+proof attempt = 3
+proof job = 101776923895
+status = catalog-engine/ic2-production-proof success
+PB9 exact-SHA proof = success
 ```
 
-## IC1 dedicated latency proof
+Fresh production measurement:
 
 ```text
-PR #274 = IC1: prove real production latency baseline
-proof/main SHA = 2ab820c6f096a791e14807c0b3be75a55b6fe361
-proof run = 34079538032
-proof job = 101612071627
-status = catalog-engine/ic1-production-proof success
-productCount = 6097
-findings = 0
+decisionRoundTripMs = 1067
+TTFI = 6715 ms
+TTFC = 6715 ms
+productCount = 24
+readinessThreshold = 12
+anonymousFailClosed = true
+crossTenantFailClosed = true
+defaultTenantFailClosed = true
 privateIdentifiersExposed = false
-recurringIntelligentSyncEnabled = false
 ```
 
-Historical CROCCODILOS baseline from durable import-decision confirmation:
+The 6.715-second TTFI/TTFC is engineering evidence for that proof, never a universal customer ETA.
+
+Historical IC1 CROCCODILOS baseline remains useful for comparison:
 
 ```text
 import started = 2,121,000 ms = 35m21s
@@ -234,9 +240,7 @@ classification complete = 12,326,000 ms = 3h25m26s
 verification complete = 12,621,000 ms = 3h30m21s
 ```
 
-These values are engineering evidence only, never a customer-facing ETA.
-
-PB0–PB9 remain Production Green within their bounded contracts. CROCCODILOS remains verified with 6,097 products, 0 verification findings and PB9 private preview isolation proven.
+PB0–PB9 remain Production Green within their bounded contracts. PB9 remains the verified L2 Last Known Good authority.
 
 ---
 
@@ -257,47 +261,34 @@ Never activate M7E/recurring sync implicitly through Instant Catalog work.
 
 ---
 
-# 11. NEXT APPROVED SUBMILESTONE — IC2
+# 11. NEXT APPROVED SUBMILESTONE — IC3
 
-## IC2 — Instant seed + construction preview
+## IC3 — Streaming / parallel listing discovery
 
-Customer outcome:
+Customer/engineering outcome:
 
-> After the merchant confirms the connected catalog, the first real products should appear in a private branded construction experience quickly, without waiting for physical tenant runtime creation or the entire verified-import chain.
+> After IC2 shows the first real products quickly, the authoritative listing discovery should grow much faster without turning a partial scan into complete catalog truth or overwhelming the supplier.
 
-Required architecture:
+Required architecture direction from `docs/INSTANT-CATALOG.md`:
 
-```text
-source/import decision accepted
-  |-- immediately -> bounded instant seed -> tenant-isolated construction state -> safe L0 preview
-  |
-  `-- normal durable import -> L1/full import -> CEI -> verification -> PB9/L2 verified preview
-```
+- introduce bounded page-level fan-out behind the Provider Engine boundary;
+- preserve one shared concurrency budget across nested category/page work;
+- expose normalized page batches progressively to internal ingestion stages;
+- keep authoritative complete-scan success dependent on every required page succeeding;
+- preserve stable opaque product identity and existing retry/failure semantics;
+- keep provider/source locators out of browser/public evidence;
+- measure TTFA improvement from real production evidence.
 
-Required boundaries:
+IC3 Definition of Done requires:
 
-- a separate immediate seed path; five-minute cron is recovery, not first-value latency;
-- Queue payload does not contain raw supplier URL;
-- Provider Engine owns the preview-seed capability; central code must not couple directly to the Yupoo parser;
-- seed observation is bounded and `complete:false`;
-- partial seed never authorizes missing/removal;
-- stable opaque product identity matches the normal authoritative namespace;
-- tenant-isolated ephemeral construction state; preferred first implementation is one Durable Object instance per tenant;
-- raw provider item IDs, source URLs, media origins, D1 IDs and Worker locators stay server-side;
-- construction APIs require active membership and fail closed cross-tenant/default/anonymous;
-- construction preview is private/no-store/non-indexable/no-referrer;
-- initial useful preview threshold must be real data (initial target around 12 safe products), never a timer;
-- PB9/L2 remains the verified preview and rollback/LKG authority;
-- construction preview cannot publish a custom domain or mark a catalog verified.
+- partial observation cannot replace authoritative index;
+- full-scan identity/count matches baseline fixtures;
+- concurrency is bounded by the approved queue/concurrency primitive;
+- provider failure/throttling remains fail-safe;
+- measured TTFA improves without increased error or private-leak rate;
+- PB9/LKG and IC2 safety regressions remain green.
 
-IC2 Definition of Done from `docs/INSTANT-CATALOG.md` requires:
-
-- TTFI/TTFC measured on a real fresh tenant;
-- anonymous/cross-tenant/default fail closed;
-- no source/runtime identifiers leaked;
-- PB9 verified preview remains green.
-
-IC2 does **not** own IC3 page-level full-listing fan-out, IC4 adaptive detail swarm, IC5 warm pool, IC6 final fresh-beta campaign proof, PB10 Merchant Home or recurring sync activation.
+IC3 does **not** own IC4 adaptive detail swarm/governor, IC5 warm cell pool, IC6 final fresh-beta proof, PB10 Merchant Home, recurring sync activation or M7E.
 
 ---
 
