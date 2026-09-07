@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "catalog-engine",
-  "main": "./worker/entry-instant-catalog.js",
+  "main": "./worker/entry-publish.js",
   "compatibility_date": "2026-08-17",
   "vars": {
     "CATALOG_PLATFORM_HOSTS": "catalog-engine.lucassantanals0110.workers.dev,catalogoengine.com,app.catalogoengine.com",
