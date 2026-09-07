@@ -6,7 +6,7 @@ import { performance } from 'node:perf_hooks';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import { queryD1Batch } from '../worker/cloudflare-platform.js';
-import { scanYupooListingIndex as scanCurrentListing } from '../worker/ingestion/yupoo-listing.js';
+import { yupooIngestionProvider } from '../worker/ingestion/providers/yupoo.js';
 import {
   IC3_LISTING_PROOF_BASELINE_SHA,
   IC3_LISTING_PROOF_CONTRACT_VERSION,
@@ -84,7 +84,10 @@ function identityDigest(scan) {
 }
 
 function totalPages(scan) {
-  return Math.max(0, Number(scan?.stats?.rootPages || 0)) + Math.max(0, Number(scan?.stats?.categoryPages || 0));
+  return (
+    Math.max(0, Number(scan?.stats?.rootPages || 0)) +
+    Math.max(0, Number(scan?.stats?.categoryPages || 0))
+  );
 }
 
 function safeDuration(value) {
@@ -95,6 +98,26 @@ function safeProviderCode(error, fallback) {
   const code = String(error?.code || error?.message || '').trim().toLowerCase();
   if (/^(supplier|catalog_provider)_[a-z0-9_]{1,100}$/.test(code)) return code;
   return fallback;
+}
+
+function measuredFetch(fetchImpl = fetch) {
+  let requests = 0;
+  let active = 0;
+  let maxActive = 0;
+
+  return {
+    fetchImpl: async (input, init) => {
+      requests += 1;
+      active += 1;
+      maxActive = Math.max(maxActive, active);
+      try {
+        return await fetchImpl(input, init);
+      } finally {
+        active = Math.max(0, active - 1);
+      }
+    },
+    snapshot: () => ({ requests, maxActive })
+  };
 }
 
 async function loadBaselineScanner() {
@@ -145,8 +168,11 @@ export function evaluateIc3ProductionProof({ current, baseline, currentMs, basel
   const speedupRatio =
     currentDuration > 0 ? Number((baselineDuration / currentDuration).toFixed(2)) : 0;
   const identityMatch =
-    currentCount > 0 && currentCount === baselineCount && identityDigest(current) === identityDigest(baseline);
-  const taxonomyMatch = Number(current?.taxonomy?.length || 0) === Number(baseline?.taxonomy?.length || 0);
+    currentCount > 0 &&
+    currentCount === baselineCount &&
+    identityDigest(current) === identityDigest(baseline);
+  const taxonomyMatch =
+    Number(current?.taxonomy?.length || 0) === Number(baseline?.taxonomy?.length || 0);
   const checks = {
     currentComplete: current?.complete === true,
     baselineComplete: baseline?.complete === true,
@@ -176,7 +202,7 @@ export function evaluateIc3ProductionProof({ current, baseline, currentMs, basel
   };
 }
 
-export function safeIc3Evidence(merchant, evaluation) {
+export function safeIc3Evidence(merchant, evaluation, network = {}) {
   const evidence = {
     ic3ProductionProof: evaluation.passed ? 'passed' : 'pending',
     contractVersion: IC3_LISTING_PROOF_CONTRACT_VERSION,
@@ -190,6 +216,10 @@ export function safeIc3Evidence(merchant, evaluation) {
     taxonomyMatch: evaluation.taxonomyMatch,
     baselinePages: evaluation.baselinePages,
     fanoutPages: evaluation.currentPages,
+    baselineRequests: Math.max(0, Number(network?.baseline?.requests || 0)),
+    fanoutRequests: Math.max(0, Number(network?.current?.requests || 0)),
+    baselineMaxActive: Math.max(0, Number(network?.baseline?.maxActive || 0)),
+    fanoutMaxActive: Math.max(0, Number(network?.current?.maxActive || 0)),
     requestConcurrency: IC3_LISTING_PROOF_REQUEST_CONCURRENCY,
     minimumImprovementPct: IC3_LISTING_PROOF_MIN_IMPROVEMENT_PCT,
     initialImportEnabled: evaluation.checks.initialImportEnabled,
@@ -216,13 +246,14 @@ export async function runIc3ProductionProof() {
   });
   const baselineModule = await loadBaselineScanner();
   try {
-    // Run the IC3 implementation first. The old scanner runs second and therefore
-    // receives any incidental upstream/CDN warming advantage; an IC3 win remains
-    // conservative rather than being manufactured by request order.
+    // Run the production Provider Engine path first. The old scanner runs second and therefore
+    // receives any incidental upstream/CDN warming advantage; an IC3 win remains conservative.
+    const currentNetwork = measuredFetch();
     const current = await timedScan(
-      scanCurrentListing,
+      yupooIngestionProvider.scanListingIndex,
       source.sourceUrl,
       {
+        fetchImpl: currentNetwork.fetchImpl,
         maxRootPages: MAX_SCAN_PAGES,
         maxCategoryPages: MAX_SCAN_PAGES,
         categoryConcurrency: IC3_LISTING_PROOF_REQUEST_CONCURRENCY,
@@ -230,10 +261,12 @@ export async function runIc3ProductionProof() {
       },
       'ic3_current_scan_failed'
     );
+    const baselineNetwork = measuredFetch();
     const baseline = await timedScan(
       baselineModule.scan,
       source.sourceUrl,
       {
+        fetchImpl: baselineNetwork.fetchImpl,
         maxRootPages: MAX_SCAN_PAGES,
         maxCategoryPages: MAX_SCAN_PAGES,
         categoryConcurrency: IC3_LISTING_PROOF_REQUEST_CONCURRENCY
@@ -247,7 +280,10 @@ export async function runIc3ProductionProof() {
       baselineMs: baseline.elapsedMs,
       runtime
     });
-    const evidence = safeIc3Evidence(merchant, evaluation);
+    const evidence = safeIc3Evidence(merchant, evaluation, {
+      current: currentNetwork.snapshot(),
+      baseline: baselineNetwork.snapshot()
+    });
     process.stdout.write(`${JSON.stringify(evidence, null, 2)}\n`);
     if (evidence.privateIdentifiersExposed) throw new Error('ic3_proof_private_evidence_detected');
     if (!evaluation.passed) throw new Error('ic3_listing_improvement_not_proven');

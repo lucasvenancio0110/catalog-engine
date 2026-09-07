@@ -6,9 +6,13 @@ import { yupooSourceProvider } from '../../../src/catalog-provider/yupoo-source.
 import { sha256Hex } from '../../runtime-identity.js';
 import { fetchYupooAlbumDetailWorker, mediaId as yupooMediaId } from '../yupoo-detail.js';
 import { scanYupooListingIndex } from '../yupoo-listing.js';
-import { previewSeedYupoo } from '../yupoo-preview-seed.js';
+import {
+  constructionSeedFromYupooListingRows,
+  previewSeedYupoo
+} from '../yupoo-preview-seed.js';
 
 const PUBLIC_ID_NAMESPACE = 'catalog-engine:public-id:v1';
+const CATEGORY_PATH_PATTERN = /\/categories\/\d+\/?$/i;
 
 async function publicCategoryId(sourceId) {
   const digest = await sha256Hex(
@@ -46,8 +50,41 @@ export function normalizeYupooScanTaxonomy(scan) {
   };
 }
 
+export function galleryCategoryFetch(fetchImpl = fetch) {
+  if (typeof fetchImpl !== 'function') throw new Error('catalog_provider_fetch_invalid');
+  return async (input, init) => {
+    const url = new URL(String(input));
+    if (CATEGORY_PATH_PATTERN.test(url.pathname) && !url.searchParams.has('tab')) {
+      url.searchParams.set('tab', 'gallery');
+    }
+    return fetchImpl(url.href, init);
+  };
+}
+
 async function scanListingIndex(sourceUrl, options = {}) {
-  const scan = await scanYupooListingIndex(sourceUrl, options);
+  const { onPageBatch, fetchImpl = fetch, ...scanOptions } = options;
+  const progressiveCallback =
+    typeof onPageBatch === 'function'
+      ? async (batch) => {
+          if (!Array.isArray(batch?.items) || batch.items.length === 0) return;
+          const seed = assertCatalogProviderPreviewSeedObservation(
+            await constructionSeedFromYupooListingRows(sourceUrl, batch.items, {
+              maxItems: 48
+            })
+          );
+          await onPageBatch({
+            complete: false,
+            page: Number(batch.page || 0),
+            categoryId: batch.categoryId ? String(batch.categoryId) : null,
+            seed
+          });
+        }
+      : null;
+  const scan = await scanYupooListingIndex(sourceUrl, {
+    ...scanOptions,
+    fetchImpl: galleryCategoryFetch(fetchImpl),
+    onPageBatch: progressiveCallback
+  });
   return normalizeYupooScanTaxonomy(scan);
 }
 

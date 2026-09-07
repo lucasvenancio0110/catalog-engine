@@ -99,7 +99,7 @@ describe('IC3 real listing production proof', () => {
     expect(evaluation.checks.syncCohortEmpty).toBe(false);
   });
 
-  it('emits only bounded safe production evidence', () => {
+  it('emits only bounded safe production and network-utilization evidence', () => {
     const ids = [1, 2, 3];
     const evaluation = evaluateIc3ProductionProof({
       current: scan(ids),
@@ -108,10 +108,19 @@ describe('IC3 real listing production proof', () => {
       baselineMs: 75_000,
       runtime: healthyRuntime
     });
-    const evidence = safeIc3Evidence('CROCCODILOS', evaluation);
+    const evidence = safeIc3Evidence('CROCCODILOS', evaluation, {
+      current: { requests: 21, maxActive: 4 },
+      baseline: { requests: 39, maxActive: 4 }
+    });
     const serialized = JSON.stringify(evidence);
 
     expect(evidence.privateIdentifiersExposed).toBe(false);
+    expect(evidence).toMatchObject({
+      fanoutRequests: 21,
+      baselineRequests: 39,
+      fanoutMaxActive: 4,
+      baselineMaxActive: 4
+    });
     expect(serialized).not.toMatch(/https?:\/\/|yupoo\.com|source_url|album_source_id|database_id/i);
     expect(evidence).not.toHaveProperty('sourceUrl');
     expect(evidence).not.toHaveProperty('provider');
@@ -129,6 +138,7 @@ describe('IC3 real listing production proof', () => {
     expect(workflow).toContain("workflows: ['Deploy Catalog Engine application']");
     expect(workflow).toContain('fetch-depth: 0');
     expect(workflow).toContain('catalog-engine/ic3-production-proof');
+    expect(workflow).toContain('catalog-engine/queue-consumer-activation');
     expect(workflow).toContain('catalog-engine/pb9-production-proof');
     expect(workflow).toContain('catalog-engine/ic2-production-proof');
     expect(workflow).not.toMatch(/^\s*push:\s*$/m);

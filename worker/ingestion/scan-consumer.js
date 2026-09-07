@@ -10,6 +10,7 @@ import {
   ingestionPlatformConfig,
   loadTenantImportContext
 } from './context.js';
+import { createInitialConstructionPageWriter } from './initial-construction-progress.js';
 import { handleTenantIncrementalScan } from './incremental-scan-consumer.js';
 import { resolveCatalogIngestionProvider } from './providers/index.js';
 import {
@@ -377,7 +378,10 @@ export async function handleTenantImportScanMessage(
   const message = parseTenantImportMessage(messageValue);
   if (message.type !== 'scan') return { outcome: 'unsupported', type: message.type };
   if (!env.CATALOG_DB) return { outcome: 'failed', error: 'database_unbound' };
-  if (!env.TENANT_IMPORT_DETAIL_QUEUE || typeof env.TENANT_IMPORT_DETAIL_QUEUE.sendBatch !== 'function') {
+  if (
+    !env.TENANT_IMPORT_DETAIL_QUEUE ||
+    typeof env.TENANT_IMPORT_DETAIL_QUEUE.sendBatch !== 'function'
+  ) {
     return { outcome: 'failed', error: 'tenant_import_detail_queue_unbound' };
   }
 
@@ -414,8 +418,12 @@ export async function handleTenantImportScanMessage(
     leaseOwned = lease.ownership;
 
     if (context.phase === 'scan') {
+      const onPageBatch = createInitialConstructionPageWriter(env, context.tenantId);
       const scan = assertCatalogProviderScanResult(
-        await provider.scanListingIndex(context.privateSource.url, { fetchImpl })
+        await provider.scanListingIndex(context.privateSource.url, {
+          fetchImpl,
+          onPageBatch
+        })
       );
       if (scan.items.length === 0) throw new Error('supplier_listing_empty');
       await persistCompleteListingScan(context, scan, platform, fetchImpl);
