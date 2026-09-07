@@ -1,0 +1,40 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "catalog-engine-instant-seed",
+  "main": "./worker/instant-seed-entry.js",
+  "compatibility_date": "2026-08-17",
+  "workers_dev": false,
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "CATALOG_DB",
+      "database_name": "catalog-engine-db",
+      "database_id": "12ac414c-4aef-4668-a8f9-dc63d57d449f",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "TENANT_CONSTRUCTION_STATE",
+        "class_name": "TenantConstructionState",
+        "script_name": "catalog-engine"
+      }
+    ]
+  },
+  "queues": {
+    "consumers": [
+      {
+        "queue": "catalog-engine-instant-seed",
+        "max_batch_size": 1,
+        "max_batch_timeout": 1,
+        "max_retries": 3,
+        "dead_letter_queue": "catalog-engine-instant-seed-dlq",
+        "max_concurrency": 2,
+        "retry_delay": 15
+      }
+    ]
+  }
+}

@@ -1,0 +1,38 @@
+name: Validate IC2 instant seed
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/validate-instant-seed.yml'
+      - '.github/workflows/deploy-instant-seed-consumer.yml'
+      - 'wrangler.instant-seed.jsonc'
+      - 'worker/instant-seed-*.js'
+      - 'worker/ingestion/providers/**'
+      - 'worker/ingestion/yupoo-preview-seed.js'
+      - 'src/catalog-provider/provider-contract.js'
+      - 'tests/instant-seed-*.test.mjs'
+      - 'tests/instant-catalog-provider-seed.test.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      WRANGLER_VERSION: 4.123.0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Instant seed contract tests
+        run: npx vitest run tests/instant-seed-queue.test.mjs tests/instant-catalog-provider-seed.test.mjs
+      - name: Validate private consumer bundle
+        run: npx --yes "wrangler@$WRANGLER_VERSION" deploy --dry-run --config wrangler.instant-seed.jsonc --outdir /tmp/catalog-engine-instant-seed
