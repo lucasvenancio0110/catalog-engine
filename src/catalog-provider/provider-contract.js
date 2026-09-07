@@ -1,4 +1,8 @@
 const PROVIDER_KEY_PATTERN = /^[a-z0-9][a-z0-9-]{0,31}$/;
+const PREVIEW_PRODUCT_ID_PATTERN = /^p_[a-f0-9]{20}$/;
+const PREVIEW_MEDIA_ID_PATTERN = /^cm_[a-f0-9]{20}$/;
+const PREVIEW_SEED_ID_PATTERN = /^cs_[a-f0-9]{20}$/;
+const FINGERPRINT_PATTERN = /^[a-f0-9]{32,128}$/;
 
 export const CATALOG_PROVIDER_CONTRACT_VERSION = 1;
 
@@ -109,6 +113,53 @@ export function assertCatalogProviderScanResult(result) {
     throw new CatalogProviderError('catalog_provider_scan_contract_invalid');
   }
   return observation;
+}
+
+function isPrivateHttpsUrl(value) {
+  try {
+    const url = new URL(String(value || ''));
+    return url.protocol === 'https:' && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
+export function assertCatalogProviderPreviewSeedObservation(result) {
+  if (
+    !result ||
+    result.complete !== false ||
+    result.readiness !== 'indexed' ||
+    !PREVIEW_SEED_ID_PATTERN.test(String(result.seedId || '')) ||
+    !Number.isFinite(Date.parse(String(result.observedAt || ''))) ||
+    !Array.isArray(result.items) ||
+    result.items.length < 1 ||
+    result.items.length > 48
+  ) {
+    throw new CatalogProviderError('catalog_provider_preview_seed_contract_invalid');
+  }
+
+  for (const item of result.items) {
+    if (
+      !item ||
+      !PREVIEW_PRODUCT_ID_PATTERN.test(String(item.productId || '')) ||
+      !String(item.title || '').trim() ||
+      String(item.title).length > 160 ||
+      !FINGERPRINT_PATTERN.test(String(item.listingFingerprint || '')) ||
+      !isPrivateHttpsUrl(item.sourceItemUrl) ||
+      !Array.isArray(item.categories) ||
+      item.categories.length > 4
+    ) {
+      throw new CatalogProviderError('catalog_provider_preview_seed_contract_invalid');
+    }
+    if (
+      item.cover &&
+      (!PREVIEW_MEDIA_ID_PATTERN.test(String(item.cover.mediaId || '')) ||
+        !isPrivateHttpsUrl(item.cover.sourceUrl))
+    ) {
+      throw new CatalogProviderError('catalog_provider_preview_seed_contract_invalid');
+    }
+  }
+  return result;
 }
 
 export function assertCatalogProviderDetailResult(result) {

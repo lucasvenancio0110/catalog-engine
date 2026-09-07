@@ -14,3 +14,7 @@ export function resolveCatalogIngestionProvider(providerKey) {
     'publicTextLeakPatterns'
   ]);
 }
+
+export function resolveCatalogPreviewSeedProvider(providerKey) {
+  return catalogIngestionProviders.get(providerKey, ['previewSeed']);
+}
