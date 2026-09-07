@@ -10,16 +10,20 @@ const config = parseJsonc('wrangler.jsonc');
 const deploy = fs.readFileSync('.github/workflows/deploy-catalog-api.yml', 'utf8');
 
 describe('main tenant import producer activation boundary', () => {
-  it('binds only the required scan/detail producers while keeping the automation bit explicitly reversible', () => {
-    expect(['0', '1']).toContain(config.vars.TENANT_IMPORT_AUTOMATION_ENABLED);
+  it('binds required import plus IC2 instant-seed producers while preserving automation boundaries', () => {
+    expect(config.vars.TENANT_IMPORT_AUTOMATION_ENABLED).toBe('1');
+    expect(config.vars.TENANT_SYNC_AUTOMATION_ENABLED).toBe('0');
+    expect(config.vars.TENANT_SYNC_ACTIVE_COHORT).toBe('');
+    expect(config.vars.TENANT_SYNC_MAX_JOBS_PER_TICK).toBe('1');
     expect(config.queues?.consumers ?? []).toEqual([]);
     expect(config.queues?.producers).toEqual([
       { binding: 'TENANT_IMPORT_QUEUE', queue: 'catalog-engine-import-scan' },
-      { binding: 'TENANT_IMPORT_DETAIL_QUEUE', queue: 'catalog-engine-import-detail' }
+      { binding: 'TENANT_IMPORT_DETAIL_QUEUE', queue: 'catalog-engine-import-detail' },
+      { binding: 'TENANT_INSTANT_SEED_QUEUE', queue: 'catalog-engine-instant-seed' }
     ]);
   });
 
-  it('keeps code deploy separate from catalog publication and verifies producer bindings after deploy', () => {
+  it('keeps code deploy separate from catalog publication and verifies existing import producer boundaries after deploy', () => {
     expect(deploy).toContain('Verify tenant import producers and automation boundaries');
     expect(deploy).toContain('TENANT_IMPORT_AUTOMATION_ENABLED');
     expect(deploy).toContain('TENANT_SYNC_AUTOMATION_ENABLED');

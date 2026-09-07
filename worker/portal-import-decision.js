@@ -1,4 +1,8 @@
 import { authenticateAdminRequest } from './admin-auth.js';
+import {
+  assertPublicSafeInstantSeedMessage,
+  buildInstantSeedMessage
+} from './instant-seed-queue.js';
 
 const TENANT_ID_PATTERN = /^t_[a-f0-9]{20}$/;
 const MUTATING_ROLES = new Set(['owner', 'admin']);
@@ -189,6 +193,27 @@ async function confirmDecision(db, tenantId, principalId, body) {
   );
 }
 
+async function enqueueInstantSeed(env, tenantId) {
+  const queue = env?.TENANT_INSTANT_SEED_QUEUE;
+  // Rollback/test deployments from before IC2 may omit the fast-path binding.
+  // The authoritative import decision remains valid in that case.
+  if (!queue) return false;
+  if (typeof queue.send !== 'function') {
+    throw decisionError('instant_seed_queue_unavailable', 503);
+  }
+  const message = assertPublicSafeInstantSeedMessage(
+    buildInstantSeedMessage({ tenantId, sourceKey: SOURCE_KEY })
+  );
+  try {
+    await queue.send(message, { contentType: 'json', delaySeconds: 0 });
+    return true;
+  } catch {
+    // Decision durability precedes delivery. A repeated idempotent PUT can safely
+    // retry the same minimal seed message without changing business authority.
+    throw decisionError('instant_seed_enqueue_failed', 503);
+  }
+}
+
 function tenantIdFromPath(pathname) {
   const match = String(pathname || '').match(
     /^\/api\/admin\/stores\/(t_[a-f0-9]{20})\/import-decision$/
@@ -220,6 +245,7 @@ export async function handlePortalImportDecisionRequest(
 
     const body = await readJson(request);
     const decision = await confirmDecision(env.CATALOG_DB, tenantId, auth.principalId, body);
+    await enqueueInstantSeed(env, tenantId);
     return json({ sourceConnected: true, decision });
   } catch (error) {
     return publicError(error);
