@@ -34,8 +34,9 @@ That document is a later explicit sequencing decision permitted by the roadmap. 
 The owner decision of 2026-09-06 inserts a bounded Instant Catalog initiative after PB9 and before PB10. While IC0–IC6 is active, also read:
 
 - `docs/INSTANT-CATALOG.md` — normative time-to-first-catalog, construction-preview, ingestion-acceleration, warm-capacity and speed-proof contract.
+- `docs/IC4-IC6-SLO60-GOVERNANCE.md` — normative IC4–IC6 6K/60 performance-execution, security, concurrency, backpressure, rollback and proof contract.
 
-`INSTANT-CATALOG.md` supersedes only the temporary execution position between PB9 and PB10. It does not reopen PB9, complete PB10, activate recurring Intelligent Sync/M7E, or weaken verified private-preview/publication authority.
+`INSTANT-CATALOG.md` supersedes only the temporary execution position between PB9 and PB10. It does not reopen PB9, complete PB10, activate recurring Intelligent Sync/M7E, or weaken verified private-preview/publication authority. `IC4-IC6-SLO60-GOVERNANCE.md` refines IC4–IC6 execution and may not weaken the higher security/privacy/authority invariants in `AGENTS.md` or `INSTANT-CATALOG.md`.
 
 ### Historical execution reconstruction
 
@@ -55,6 +56,7 @@ Required:
 - `docs/TENANT-CLASSIFY-VERIFY.md`
 - `docs/TENANCY.md` when knowledge/memory is tenant-scoped
 - `docs/TENANT-IMPORT-PIPELINE.md` when classification is part of ingestion
+- `docs/IC4-IC6-SLO60-GOVERNANCE.md` when classification is moved earlier or overlapped for IC5/IC6 performance.
 
 Also inspect relevant sync/source documents when changing source evidence or reclassification behavior.
 
@@ -117,6 +119,7 @@ Required:
 - `docs/TENANT-DATA-PLANES.md`
 - `docs/TENANT-RUNTIME-DISPATCH.md` when runtime routing is affected
 - `docs/INSTANT-CATALOG.md` when construction-state or warm-cell ownership is affected
+- `docs/IC4-IC6-SLO60-GOVERNANCE.md` when warm-cell claims, write combining or performance concurrency can affect isolation.
 
 ## Provisioning / store creation
 
@@ -132,6 +135,7 @@ Required:
 - `docs/TENANT-PUBLISH.md`
 - `docs/PORTAL-BETA-EXECUTION.md` while PB0–PB12 is active
 - `docs/INSTANT-CATALOG.md` while IC0–IC6 is active
+- `docs/IC4-IC6-SLO60-GOVERNANCE.md` for IC5 warm-start or immediate full-pipeline work.
 
 If a domain is touched, also read `docs/CUSTOM-DOMAINS.md`.
 
@@ -161,6 +165,7 @@ Required:
 - `docs/TENANT-IMPORT-SCAN.md`
 - `docs/TENANT-IMPORT-DETAILS.md`
 - `docs/INSTANT-CATALOG.md` when preview seed, page fan-out or adaptive import acceleration changes
+- `docs/IC4-IC6-SLO60-GOVERNANCE.md` for detail swarm, adaptive provider pressure, SLO60 telemetry or result/write-combiner changes
 - `AGENTS.md` scraper/synchronization rules
 
 Source-specific knowledge must not become public taxonomy truth. Central ingestion/CEI code must consume provider contracts rather than directly importing a supplier-specific parser.
@@ -178,6 +183,7 @@ Required:
 - `docs/TENANT-RUNTIME-DISPATCH.md`
 - `docs/CURRENT-STATE.md`
 - `docs/INSTANT-CATALOG.md` when instant-seed delivery, adaptive detail concurrency or warm-cell activation is affected
+- `docs/IC4-IC6-SLO60-GOVERNANCE.md` for micro-delivery, horizontal consumer fan-out, adaptive concurrency, write combining or SLO60 proof
 
 Queue resource creation, producer bindings and automatic discovery are separate activation gates. Do not collapse them into one deployment merely because Wrangler supports configuring them together.
 
@@ -266,6 +272,7 @@ Required:
 - `docs/CURRENT-STATE.md`
 - `docs/DEVELOPMENT-CONTINUITY.md`
 - every focused normative document whose product behavior/scope changes
+- `docs/IC4-IC6-SLO60-GOVERNANCE.md` when changing the approved IC4–IC6 performance decomposition, SLO60 acceptance criteria or rollback boundaries
 
 If a roadmap decision changes a durable product contract (for example introducing trial before payment), the focused normative documents must be updated in the same PR. The roadmap alone cannot override them.
 
@@ -280,6 +287,7 @@ Required:
 - `docs/DEVELOPMENT-ROADMAP.md`;
 - `docs/PORTAL-BETA-EXECUTION.md` while its bounded campaign is active;
 - `docs/INSTANT-CATALOG.md` while IC0–IC6 is active;
+- `docs/IC4-IC6-SLO60-GOVERNANCE.md` while IC4–IC6 performance work is active;
 - every focused owner document for the current or proposed slice.
 
 Handoffs are transfer snapshots, not owner documents. Update state and roadmap before producing a handoff when the execution truth changed. Use `M7-TO-PB5-EXECUTION-LEDGER-2026-09-05.md` only as historical reconstruction when the detailed path/proof history is needed.
