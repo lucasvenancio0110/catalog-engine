@@ -8,19 +8,40 @@ function expectPresent(value) {
 }
 
 describe('trusted tenant Queue activation workflow', () => {
-  it('never exposes the production activation job to pull_request and follows a completed application deploy', () => {
+  it('never exposes the production activation job to pull_request and follows only a successful application deploy', () => {
     expect(workflow).not.toMatch(/^\s*pull_request\s*:/m);
     expectPresent('workflow_run:');
     expectPresent("workflows: ['Deploy Catalog Engine application']");
     expectPresent('types: [completed]');
     expectPresent('workflow_dispatch:');
+    expectPresent("github.event.workflow_run.conclusion == 'success'");
     expectPresent("github.event.workflow_run.head_branch == 'main'");
     expectPresent('github.event.workflow_run.head_sha');
-    expectPresent('Upstream application deploy did not succeed');
     expectPresent('Checkout exact deployed trusted-main SHA');
     expectPresent('ref: ${{ steps.target.outputs.sha }}');
     expectPresent('secrets.CLOUDFLARE_API_TOKEN');
     expectPresent('secrets.CLOUDFLARE_ACCOUNT_ID');
+  });
+
+  it('rejects failed or cancelled deploy workflow_run events before the production concurrency slot', () => {
+    const jobsStart = workflow.indexOf('\njobs:');
+    const activateStart = workflow.indexOf('\n  activate:', jobsStart);
+    const concurrencyStart = workflow.indexOf('\n    concurrency:', activateStart);
+    const envStart = workflow.indexOf('\n    env:', concurrencyStart);
+
+    expect(jobsStart).toBeGreaterThan(-1);
+    expect(activateStart).toBeGreaterThan(jobsStart);
+    expect(concurrencyStart).toBeGreaterThan(activateStart);
+    expect(envStart).toBeGreaterThan(concurrencyStart);
+
+    const workflowHeader = workflow.slice(0, jobsStart);
+    const activateGate = workflow.slice(activateStart, concurrencyStart);
+    const concurrencyBlock = workflow.slice(concurrencyStart, envStart);
+
+    expect(workflowHeader).not.toContain('group: catalog-engine-production-d1');
+    expect(activateGate).toContain("github.event.workflow_run.conclusion == 'success'");
+    expect(concurrencyBlock).toContain('group: catalog-engine-production-d1');
+    expect(concurrencyBlock).toContain('cancel-in-progress: false');
   });
 
   it('serializes Worker and Queue control-plane mutations with trusted production work', () => {
