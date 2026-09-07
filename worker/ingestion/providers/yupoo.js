@@ -6,7 +6,10 @@ import { yupooSourceProvider } from '../../../src/catalog-provider/yupoo-source.
 import { sha256Hex } from '../../runtime-identity.js';
 import { fetchYupooAlbumDetailWorker, mediaId as yupooMediaId } from '../yupoo-detail.js';
 import { scanYupooListingIndex } from '../yupoo-listing.js';
-import { previewSeedYupoo } from '../yupoo-preview-seed.js';
+import {
+  constructionSeedFromYupooListingRows,
+  previewSeedYupoo
+} from '../yupoo-preview-seed.js';
 
 const PUBLIC_ID_NAMESPACE = 'catalog-engine:public-id:v1';
 
@@ -47,7 +50,28 @@ export function normalizeYupooScanTaxonomy(scan) {
 }
 
 async function scanListingIndex(sourceUrl, options = {}) {
-  const scan = await scanYupooListingIndex(sourceUrl, options);
+  const { onPageBatch, ...scanOptions } = options;
+  const progressiveCallback =
+    typeof onPageBatch === 'function'
+      ? async (batch) => {
+          if (!Array.isArray(batch?.items) || batch.items.length === 0) return;
+          const seed = assertCatalogProviderPreviewSeedObservation(
+            await constructionSeedFromYupooListingRows(sourceUrl, batch.items, {
+              maxItems: 48
+            })
+          );
+          await onPageBatch({
+            complete: false,
+            page: Number(batch.page || 0),
+            categoryId: batch.categoryId ? String(batch.categoryId) : null,
+            seed
+          });
+        }
+      : null;
+  const scan = await scanYupooListingIndex(sourceUrl, {
+    ...scanOptions,
+    onPageBatch: progressiveCallback
+  });
   return normalizeYupooScanTaxonomy(scan);
 }
 
