@@ -68,6 +68,10 @@
       {
         "binding": "TENANT_IMPORT_DETAIL_QUEUE",
         "queue": "catalog-engine-import-detail"
+      },
+      {
+        "binding": "TENANT_INSTANT_SEED_QUEUE",
+        "queue": "catalog-engine-instant-seed"
       }
     ]
   }
