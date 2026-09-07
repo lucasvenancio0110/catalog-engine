@@ -53,7 +53,8 @@ async function fetchHtml(url, { sourceHost, fetchImpl = fetch }) {
           redirect: 'manual',
           signal: controller.signal,
           headers: {
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36',
+            'user-agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36',
             'accept-language': 'pt-BR,pt;q=0.9,en;q=0.8',
             accept: 'text/html,application/xhtml+xml'
           }
@@ -74,7 +75,9 @@ async function fetchHtml(url, { sourceHost, fetchImpl = fetch }) {
         }
         if (!response.ok) {
           await response.body?.cancel().catch(() => {});
-          throw Object.assign(new Error(`supplier_http_${response.status}`), { status: response.status });
+          throw Object.assign(new Error(`supplier_http_${response.status}`), {
+            status: response.status
+          });
         }
 
         const contentLength = Number(response.headers.get('content-length') || 0);
@@ -110,6 +113,49 @@ function pagedUrl(base, page) {
   if (!url.searchParams.has('tab')) url.searchParams.set('tab', 'gallery');
   url.searchParams.set('page', String(page));
   return url.href;
+}
+
+function paginationLastPage(html, pageUrl) {
+  const $ = cheerio.load(html);
+  const current = new URL(pageUrl);
+  let lastPage = null;
+
+  function consider(value) {
+    const page = Number.parseInt(cleanText(value), 10);
+    if (!Number.isSafeInteger(page) || page < 1) return;
+    lastPage = Math.max(lastPage || 1, page);
+  }
+
+  $('[data-total-pages], [data-total-page]').each((_index, element) => {
+    const node = $(element);
+    consider(node.attr('data-total-pages') || node.attr('data-total-page'));
+  });
+
+  $('a[href]').each((_index, element) => {
+    const anchor = $(element);
+    const marker = cleanText(
+      [anchor.attr('rel'), anchor.attr('class'), anchor.attr('aria-label'), anchor.text()].join(' ')
+    ).toLowerCase();
+    const marksLastPage =
+      marker.split(/\s+/).includes('last') ||
+      marker.includes('last page') ||
+      marker.includes('última') ||
+      marker.includes('ultima') ||
+      marker.includes('末页');
+    if (!marksLastPage) return;
+
+    const href = absolute(pageUrl, anchor.attr('href'));
+    if (!href) return;
+    try {
+      const candidate = assertYupooUrl(href, current.hostname);
+      if (candidate.pathname !== current.pathname) return;
+      consider(candidate.searchParams.get('page'));
+    } catch {
+      // A malformed/out-of-host pagination locator is not authoritative page discovery.
+    }
+  });
+
+  return lastPage;
 }
 
 function albumSourceId(href) {
@@ -229,13 +275,16 @@ function categoriesFromHtml(html, sourceUrl) {
       id,
       name: cleanText(category.name || previous.name),
       parentId: category.parentId ? String(category.parentId) : previous.parentId || null,
-      sourceUrl: category.sourceUrl || previous.sourceUrl || new URL(`/categories/${id}`, sourceUrl).href
+      sourceUrl:
+        category.sourceUrl || previous.sourceUrl || new URL(`/categories/${id}`, sourceUrl).href
     });
   }
 
   $('script').each((_index, element) => {
     const text = $(element).html() || '';
-    const match = text.match(/categoryData\s*:\s*(\[[\s\S]*?\])\s*,\s*(?:settings|showcase|sort|watermark|language)/);
+    const match = text.match(
+      /categoryData\s*:\s*(\[[\s\S]*?\])\s*,\s*(?:settings|showcase|sort|watermark|language)/
+    );
     if (!match) return;
     try {
       const rows = JSON.parse(match[1]);
@@ -330,13 +379,22 @@ async function listingFingerprint(item) {
   );
 }
 
-async function scanListing({ baseUrl, maxPages, category, sourceHost, fetchImpl, albums }) {
+async function scanListing({
+  baseUrl,
+  maxPages,
+  category,
+  sourceHost,
+  fetchImpl,
+  albums,
+  requestQueue,
+  firstHtml = null,
+  onPageBatch = null
+}) {
   const seen = new Set();
-  let naturalEnd = false;
   let pages = 0;
-  for (let page = 1; page <= maxPages; page += 1) {
+
+  async function consume(page, html) {
     const pageUrl = pagedUrl(baseUrl, page);
-    const html = await fetchHtml(pageUrl, { sourceHost, fetchImpl });
     const rows = parseYupooListingHtml(html, pageUrl);
     pages += 1;
     let newInScope = 0;
@@ -351,7 +409,55 @@ async function scanListing({ baseUrl, maxPages, category, sourceHost, fetchImpl,
         category: chooseCategory(previous?.category || null, category || null)
       });
     }
-    if (rows.length === 0 || newInScope === 0) {
+
+    if (typeof onPageBatch === 'function') {
+      await onPageBatch({
+        complete: false,
+        page,
+        categoryId: category?.id ? String(category.id) : null,
+        items: rows.map((row) => ({ ...row }))
+      });
+    }
+
+    return { rows, newInScope };
+  }
+
+  const firstPageUrl = pagedUrl(baseUrl, 1);
+  const first =
+    firstHtml ||
+    (await requestQueue.add(() => fetchHtml(firstPageUrl, { sourceHost, fetchImpl })));
+  const firstResult = await consume(1, first);
+  if (firstResult.rows.length === 0 || firstResult.newInScope === 0) return pages;
+
+  const discoveredLastPage = paginationLastPage(first, firstPageUrl);
+  if (discoveredLastPage !== null) {
+    if (discoveredLastPage > maxPages) throw new Error('supplier_listing_page_limit');
+    const pageResults = await Promise.all(
+      Array.from({ length: Math.max(0, discoveredLastPage - 1) }, (_unused, index) => {
+        const page = index + 2;
+        const pageUrl = pagedUrl(baseUrl, page);
+        return requestQueue.add(async () => ({
+          page,
+          html: await fetchHtml(pageUrl, { sourceHost, fetchImpl })
+        }));
+      })
+    );
+
+    for (const result of pageResults.sort((a, b) => a.page - b.page)) {
+      const consumed = await consume(result.page, result.html);
+      if (consumed.rows.length === 0 || consumed.newInScope === 0) {
+        throw new Error('supplier_listing_pagination_incomplete');
+      }
+    }
+    return pages;
+  }
+
+  let naturalEnd = false;
+  for (let page = 2; page <= maxPages; page += 1) {
+    const pageUrl = pagedUrl(baseUrl, page);
+    const html = await requestQueue.add(() => fetchHtml(pageUrl, { sourceHost, fetchImpl }));
+    const consumed = await consume(page, html);
+    if (consumed.rows.length === 0 || consumed.newInScope === 0) {
       naturalEnd = true;
       break;
     }
@@ -364,17 +470,21 @@ function categoryRoute(category, sourceUrl) {
   return new URL(category.sourceUrl || `/categories/${category.id}`, sourceUrl).href;
 }
 
-async function resolveCategoryRoute(category, sourceUrl, sourceHost, fetchImpl) {
+async function resolveCategoryRoute(category, sourceUrl, sourceHost, fetchImpl, requestQueue) {
   const normal = categoryRoute(category, sourceUrl);
   try {
-    await fetchHtml(normal, { sourceHost, fetchImpl });
-    return normal;
+    const firstHtml = await requestQueue.add(() =>
+      fetchHtml(normal, { sourceHost, fetchImpl })
+    );
+    return { route: normal, firstHtml };
   } catch (error) {
     if (error?.status !== 404) throw error;
   }
   const candidate = new URL(normal);
   candidate.searchParams.set('isSubCate', 'true');
-  return candidate.href;
+  const route = candidate.href;
+  const firstHtml = await requestQueue.add(() => fetchHtml(route, { sourceHost, fetchImpl }));
+  return { route, firstHtml };
 }
 
 function syntheticSingleCategory(sourceUrl, html) {
@@ -391,7 +501,9 @@ export async function scanYupooListingIndex(
     fetchImpl = fetch,
     maxRootPages = 500,
     maxCategoryPages = 500,
-    categoryConcurrency = 4
+    categoryConcurrency = 4,
+    pageConcurrency = categoryConcurrency,
+    onPageBatch = null
   } = {}
 ) {
   const root = assertYupooUrl(sourceUrl);
@@ -399,12 +511,16 @@ export async function scanYupooListingIndex(
   const pathname = root.pathname.replace(/\/+$/, '') || '/';
   const isCategoryScope = /\/categories\/\d+$/i.test(pathname);
   const albums = new Map();
+  const requestConcurrency = Math.max(1, Math.min(8, Number(pageConcurrency) || 1));
+  const requestQueue = new PQueue({ concurrency: requestConcurrency });
   let taxonomy = [];
   let rootPages = 0;
   let categoryPages = 0;
 
   if (isCategoryScope) {
-    const firstHtml = await fetchHtml(root.href, { sourceHost, fetchImpl });
+    const firstHtml = await requestQueue.add(() =>
+      fetchHtml(root.href, { sourceHost, fetchImpl })
+    );
     const category = syntheticSingleCategory(root.href, firstHtml);
     rootPages = await scanListing({
       baseUrl: root.href,
@@ -412,11 +528,16 @@ export async function scanYupooListingIndex(
       category,
       sourceHost,
       fetchImpl,
-      albums
+      albums,
+      requestQueue,
+      firstHtml,
+      onPageBatch
     });
     taxonomy = category ? [category] : [];
   } else {
-    const taxonomyHtml = await fetchHtml(root.href, { sourceHost, fetchImpl });
+    const taxonomyHtml = await requestQueue.add(() =>
+      fetchHtml(root.href, { sourceHost, fetchImpl })
+    );
     taxonomy = normalizeTaxonomy(categoriesFromHtml(taxonomyHtml, root.href));
     rootPages = await scanListing({
       baseUrl: root.href,
@@ -424,26 +545,35 @@ export async function scanYupooListingIndex(
       category: null,
       sourceHost,
       fetchImpl,
-      albums
+      albums,
+      requestQueue,
+      firstHtml: taxonomyHtml,
+      onPageBatch
     });
 
-    const queue = new PQueue({ concurrency: Math.max(1, Math.min(8, categoryConcurrency)) });
     await Promise.all(
       [...taxonomy]
         .sort((a, b) => b.depth - a.depth || a.id.localeCompare(b.id))
-        .map((category) =>
-          queue.add(async () => {
-            const route = await resolveCategoryRoute(category, root.href, sourceHost, fetchImpl);
-            categoryPages += await scanListing({
-              baseUrl: route,
-              maxPages: maxCategoryPages,
-              category,
-              sourceHost,
-              fetchImpl,
-              albums
-            });
-          })
-        )
+        .map(async (category) => {
+          const { route, firstHtml } = await resolveCategoryRoute(
+            category,
+            root.href,
+            sourceHost,
+            fetchImpl,
+            requestQueue
+          );
+          categoryPages += await scanListing({
+            baseUrl: route,
+            maxPages: maxCategoryPages,
+            category,
+            sourceHost,
+            fetchImpl,
+            albums,
+            requestQueue,
+            firstHtml,
+            onPageBatch
+          });
+        })
     );
   }
 
@@ -475,7 +605,8 @@ export async function scanYupooListingIndex(
       albums: items.length,
       categories: taxonomy.length,
       rootPages,
-      categoryPages
+      categoryPages,
+      requestConcurrency
     }
   };
 }
