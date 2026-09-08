@@ -24,6 +24,30 @@ function retryDelay(result, fallback) {
   return Math.max(30, Math.min(900, Number.isFinite(value) ? value : fallback));
 }
 
+export function tenantImportQueueDeliveryAction(parsed, result) {
+  const outcome = String(result?.outcome || '');
+  if (['success', 'skipped', 'deferred'].includes(outcome)) {
+    return { action: 'ack' };
+  }
+
+  // The five-minute platform cron owns finalize-barrier polling. A healthy
+  // finalize probe that finds durable detail work still in flight is not a
+  // failed Queue delivery and must not consume retries or poison the DLQ.
+  // The next cron tick will enqueue a fresh bounded probe. Real execution
+  // failures remain retryable through the normal Queue policy below.
+  if (parsed?.type === 'finalize' && outcome === 'not_ready') {
+    return { action: 'ack' };
+  }
+
+  return {
+    action: 'retry',
+    delaySeconds: retryDelay(
+      result,
+      parsed?.type === 'finalize' ? 90 : outcome === 'failed' ? 300 : 120
+    )
+  };
+}
+
 async function handleDetail(parsed, env) {
   const initialId = await initialTenantImportId({
     tenantId: parsed.tenantId,
@@ -88,18 +112,14 @@ export default {
         result = { outcome: 'failed', error: 'tenant_import_delivery_failed' };
       }
 
-      if (['success', 'skipped', 'deferred'].includes(result.outcome)) {
+      const delivery = tenantImportQueueDeliveryAction(parsed, result);
+      if (delivery.action === 'ack') {
         message.ack();
       } else {
         // Initial and incremental detail claims are idempotent. Queue delivery
-        // may retry transient failures, while exhausted incremental candidates
-        // remain durable private evidence and are acked as deferred.
-        message.retry({
-          delaySeconds: retryDelay(
-            result,
-            parsed.type === 'finalize' ? 90 : result.outcome === 'failed' ? 300 : 120
-          )
-        });
+        // retries actual transient execution failures, while finalize barrier
+        // polling is owned by the periodic scheduler rather than Queue retries.
+        message.retry({ delaySeconds: delivery.delaySeconds });
       }
     }
   }
