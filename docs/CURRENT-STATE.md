@@ -23,23 +23,36 @@ TENANT_SYNC_MAX_JOBS_PER_TICK=1
 
 Automatic initial tenant import is enabled. Recurring tenant Intelligent Sync remains disabled. M7E remains separately decision-gated.
 
-## Exact production baseline
+## Exact application production baseline
 
 Current application Production SHA:
 
 ```text
-eb1a4612e3c216530a4ac951b917ef9fb8b2a06d
+4135f08805763f2c17ab6abeeabf645cbb1c0ee6
 ```
 
-Application deployment for this exact SHA:
+Exact-SHA production evidence:
 
 ```text
-Deploy Catalog Engine application = 34213150775 — SUCCESS
+application deploy = 34245336329 — SUCCESS
+Queue consumer activation = 34245474929 — SUCCESS
+tenant data-plane fleet canary = 34245474757 — SUCCESS
+automatic tenant import canary = 34245474751 — SUCCESS
+PB9 production proof = 34245474763 — SUCCESS
+IC2 production proof = 34245474831 — SUCCESS
+IC3 production proof = 34245474752 — SUCCESS
+IC4B detail fan-out proof = 34245474970 — SUCCESS
+IC4C provider governor proof = 34245474833 — SUCCESS
+IC4D tenant D1 write-pressure governor proof = 34245474949 — SUCCESS
 ```
 
-The exact-SHA post-deploy chain is still running. Queue activation `34213282070`, fleet/real-provider regressions, IC4B/IC4C regressions and the dedicated IC4D proof `34213281785` are intentionally serialized by the shared production mutation/evidence gates. Do not infer IC4D Production Green until `catalog-engine/ic4d-tenant-d1-write-governor = success` exists on this exact Production SHA.
+Exact successful IC4D status:
 
-A later docs-only `main` HEAD may legitimately differ from this Production SHA. Never infer application deployment from GitHub HEAD alone.
+```text
+catalog-engine/ic4d-tenant-d1-write-governor = success
+```
+
+A later documentation/proof-only `main` HEAD may legitimately differ from this application Production SHA. Never infer application deployment from GitHub HEAD alone.
 
 ## Proven first-merchant state
 
@@ -71,96 +84,50 @@ Current statuses:
 - IC3 — Streaming/parallel listing discovery: **PRODUCTION GREEN**.
 - IC4A — Detail throughput baseline + safe telemetry: **PRODUCTION GREEN**.
 - IC4B — Queue micro-delivery + horizontal consumer fan-out: **PRODUCTION GREEN**.
-- IC4C — Adaptive upstream governor: **PRODUCTION GREEN**; `docs/IC4C-CLOSURE-2026-09-08.md`.
-- IC4D — Tenant D1 write-pressure governor: **IMPLEMENTED + DEPLOYED; TRUSTED PRODUCTION PROOF IN PROGRESS — NOT GREEN YET**.
-- IC4E — Production detail-swarm proof: **PLANNED / BLOCKED UNTIL IC4D PRODUCTION GREEN**.
+- IC4C — Adaptive upstream governor: **PRODUCTION GREEN**.
+- IC4D — Tenant D1 write-pressure governor: **PRODUCTION GREEN**; `docs/IC4D-CLOSURE-2026-09-08.md`.
+- IC4E — Production detail-swarm proof: **PLANNED — NEXT APPROVED SLICE**.
 - IC5A–IC5E — Warm start + batched persistence/streaming CEI: **PLANNED**.
 - IC6A–IC6E — Fresh 6K/60 integration/chaos/acceptance: **PLANNED**.
 - PB10 remains approved but paused until the Instant Catalog campaign reaches its required Green state.
 
-## IC4C Production Green evidence
+## IC4D Production Green result
 
-Trusted proof `34207104798` established:
+Implementation merged through PR #312 and trusted proof harness through PR #313. Exact-SHA proof run `34245474949` passed after all required regressions were green.
+
+Trusted IC4D proof established:
 
 ```text
 contractVersion = 1
 durableObjectCoordination = true
 initialLimit = 2
-healthy scale-up = 2 -> 3 -> 4
-hardCeiling = 4
-concurrentAttempted = 8
-concurrentAdmitted = 4
-concurrentRejected = 4
-429 reduced limit = 2 + cooldown reject
-5xx reduced limit = 2 + cooldown reject
-timeout reduced limit = 2 + cooldown reject
-degraded latency reduced limit = 2 + cooldown reject
-recurring Intelligent Sync changed = false
-private identifiers exposed = false
-proof resource cleanup = complete
-```
-
-## IC4D implementation boundary
-
-Implementation merged through PR #312 and the trusted proof harness through PR #313.
-
-Production behavior now includes a dedicated per-tenant `TenantD1WriteGovernor` Durable Object, independent from the IC4C provider governor:
-
-- only mutating tenant-dispatch D1 batches consume write permits;
-- read-only tenant D1 traffic remains outside the write budget;
-- provider fetch pressure remains owned separately by IC4C;
-- each tenant has an opaque independent pressure authority;
-- normal tenant write ceiling = `2`;
-- slow D1 / tenant-data-plane 5xx / dispatch transport pressure reduces that tenant to `1` writer with bounded cooldown;
-- a bounded healthy-write window recovers `1 -> 2`;
-- lease expiry prevents a crashed Worker from permanently consuming capacity;
-- Queue claim/retry/idempotency and PB9/LKG authority remain unchanged;
-- recurring Intelligent Sync remains OFF;
-- IC4D does not implement the IC5C normalized-result Queue/write-combiner architecture.
-
-Implementation exact-SHA `0d18bfe77c53289938ea097bd681ad3635ad0d52` already completed application deploy `34212646964` and Queue activation `34212750612`, proving the detail consumer can deploy with the IC4D Durable Object migration/binding. The later Production SHA `eb1a4612e3c216530a4ac951b917ef9fb8b2a06d` additionally contains the dedicated exact-SHA proof harness.
-
-## IC4D trusted proof contract now running
-
-Workflow:
-
-```text
-Cloudflare IC4D tenant D1 write-pressure governor proof
-run = 34213281785
-Production SHA = eb1a4612e3c216530a4ac951b917ef9fb8b2a06d
-```
-
-Before receiving privileged proof authority it requires the same SHA to prove:
-
-- application deploy;
-- Queue consumer activation;
-- automatic real-provider initial import;
-- PB9 Last Known Good;
-- IC2 isolation/construction regression;
-- IC3 listing regression;
-- IC4B detail fan-out regression;
-- IC4C provider governor regression.
-
-The isolated guarded IC4D proof then requires:
-
-```text
-initial tenant write limit = 2
+hardCeiling = 2
 4 same-tenant concurrent attempts -> 2 admitted / 2 rejected
 artificial slow D1 -> limit 1 + cooldown reject
 after cooldown -> one writer only
-bounded healthy window -> recovery to limit 2
-independent second tenant -> its own limit 2 remains available
+healthy recovery -> limit 2
+independent tenant -> limit 2 remains available
 5xx pressure -> limit 1
 transport pressure -> limit 1
 workLossObserved = false
 recurringIntelligentSyncChanged = false
 privateIdentifiersExposed = false
-proof resource cleanup before success publication
+isolated proof cleanup = complete before success publication
 ```
 
-No threshold may be weakened merely to make this proof pass.
+Trusted quality evidence inside the proof:
 
-## Permanent safety result through current IC4D implementation
+```text
+targeted IC4D/import/data-plane tests = 24 passed
+full test files = 190 passed
+full tests = 969 passed
+dependency policy = green
+lint = green
+```
+
+The IC4D governor remains independent from IC4C provider pressure. Mutating tenant-dispatch D1 batches consume permits; reads do not. One tenant's D1 pressure does not consume another tenant's capacity. Queue claim/retry/replay/idempotency and PB9/LKG authority remain unchanged.
+
+## Permanent safety boundary through IC4D
 
 - listing/detail work remains bounded;
 - provider pressure and tenant persistence pressure are separate coordinated authorities;
@@ -177,22 +144,40 @@ No threshold may be weakened merely to make this proof pass.
 
 ## Active execution point
 
-**IC4D — Tenant D1 Write-Pressure Governor: TRUSTED PRODUCTION PROOF IN PROGRESS.**
+**IC4E — Production Detail-Swarm Proof: PLANNED / NEXT APPROVED SLICE.**
 
-Do not begin IC4E while this proof is unresolved.
+IC4E owns the first real large-catalog end-to-end production acceptance of the IC4B + IC4C + IC4D detail topology. It is not an authorization to weaken TTFH, bypass scheduler/Queue ownership, touch the canonical merchant LKG or activate recurring sync.
 
-The shared production mutation slot is currently allowed to finish the previous exact-SHA real auto-import canary before Queue activation and downstream evidence for `eb1a461...` proceed. This serialization is expected safety behavior, not an IC4D defect.
+IC4E Definition of Done from the owner contract:
+
+- production proof on a real large catalog with exact-SHA Queue/runtime deployment;
+- materially improved TTFH while preserving safety/error rate;
+- authoritative listing identity/count match;
+- error/retry/DLQ within documented safe budget;
+- PB9/LKG, IC2/IC3 regressions and tenant isolation remain green;
+- recurring Intelligent Sync remains OFF.
+
+TTFH remains:
+
+```text
+accepted source decision
+-> every discovered initial detail terminal under success/skipped/deferred
+```
+
+Do not silently exclude scheduler time or redefine terminality to make the proof pass.
 
 ## Exact continuation action
 
-1. revalidate live `main`, open PRs, CI/deploy/proof status and `HUMAN_GATE_LOCK`;
-2. treat `eb1a4612e3c216530a4ac951b917ef9fb8b2a06d` as the current application Production SHA unless live deployment evidence supersedes it;
-3. consume Queue activation `34213282070` and the exact-SHA fleet/auto-import regressions;
-4. consume IC4B and IC4C regressions on the same SHA;
-5. allow IC4D run `34213281785` to enter its privileged proof only after those prerequisites are green;
-6. if the IC4D proof fails, fix the first real root cause without reducing acceptance criteria and repeat exact-SHA proof;
-7. only if `catalog-engine/ic4d-tenant-d1-write-governor = success` is published on the Production SHA, create `docs/IC4D-CLOSURE-2026-09-08.md`, mark IC4D **PRODUCTION GREEN** and authorize **IC4E — Production Detail-Swarm Proof**;
-8. otherwise remain in IC4D.
+1. revalidate live `main`, open PRs, production SHA/status and `HUMAN_GATE_LOCK`;
+2. read the IC4E-mapped Provider Engine, import, Queue, data-plane/runtime-dispatch and deployment contracts;
+3. implement one bounded IC4E harness/workflow/test slice from latest `main`;
+4. use an isolated ephemeral tenant/data plane against a real large supported source resolved server-side; never mutate the canonical merchant/LKG;
+5. exercise the actual scheduler -> scan Queue -> detail Queue -> IC4B/IC4C/IC4D production path;
+6. measure accepted-decision -> terminal detail TTFH plus safe counts/throughput/retry/DLQ evidence;
+7. compare authoritative listing identity/count internally and publish only safe booleans/counts;
+8. preserve cleanup/recovery evidence and fail closed if queues/resources are not safe to clean;
+9. merge only green code/CI and then require exact-SHA trusted production proof before calling IC4E Green;
+10. only after IC4E Production Green may IC5A begin.
 
 ## Broader roadmap boundary
 
