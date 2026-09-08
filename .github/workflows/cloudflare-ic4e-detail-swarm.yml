@@ -49,17 +49,18 @@ jobs:
         run: npm ci
 
       - name: Verify IC4E proof contract
-        run: >-
-          npx vitest run
-          tests/ic4e-detail-swarm-proof.test.mjs
-          tests/tenant-import-auto-canary.test.mjs
-          tests/ic4b-detail-fanout.test.mjs
-          tests/ic4c-provider-detail-governor.test.mjs
-          tests/ic4d-tenant-d1-write-governor.test.mjs
-          tests/tenant-import-scan.test.mjs
-          tests/tenant-import-detail.test.mjs
-          tests/tenant-import-queue-config.test.mjs
-          tests/exact-sha-production-proof-trigger-alignment.test.mjs
+        run: |
+          node --check scripts/cloudflare-ic4e-detail-swarm.mjs
+          npx vitest run \
+            tests/ic4e-detail-swarm-proof.test.mjs \
+            tests/tenant-import-auto-canary.test.mjs \
+            tests/ic4b-detail-fanout.test.mjs \
+            tests/ic4c-provider-detail-governor.test.mjs \
+            tests/ic4d-tenant-d1-write-governor.test.mjs \
+            tests/tenant-import-scan.test.mjs \
+            tests/tenant-import-detail.test.mjs \
+            tests/tenant-import-queue-config.test.mjs \
+            tests/exact-sha-production-proof-trigger-alignment.test.mjs
 
       - name: Secret-free quality gate
         run: npm run quality
@@ -177,6 +178,7 @@ jobs:
 
       - name: Quality and IC4E contract gate before real large-catalog proof
         run: |
+          node --check scripts/cloudflare-ic4e-detail-swarm.mjs
           npx vitest run tests/ic4e-detail-swarm-proof.test.mjs tests/tenant-import-auto-canary.test.mjs tests/ic4b-detail-fanout.test.mjs tests/ic4c-provider-detail-governor.test.mjs tests/ic4d-tenant-d1-write-governor.test.mjs tests/tenant-import-scan.test.mjs tests/tenant-import-detail.test.mjs
           npm run quality
 
