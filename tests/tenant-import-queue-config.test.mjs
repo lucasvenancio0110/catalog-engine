@@ -44,7 +44,7 @@ describe('tenant import queue activation configuration', () => {
     ]);
   });
 
-  it('defines a deliberately bounded detail consumer with a separate DLQ', async () => {
+  it('defines the IC4B micro-delivery detail consumer with a hard horizontal ceiling', async () => {
     const config = await readJson('wrangler.import-detail.jsonc');
     expect(config.name).toBe('catalog-engine-import-detail');
     expect(config.main).toBe('./worker/import-detail-entry.js');
@@ -56,11 +56,11 @@ describe('tenant import queue activation configuration', () => {
     expect(config.queues?.consumers).toEqual([
       {
         queue: 'catalog-engine-import-detail',
-        max_batch_size: 4,
+        max_batch_size: 1,
         max_batch_timeout: 5,
         max_retries: 5,
         dead_letter_queue: 'catalog-engine-import-detail-dlq',
-        max_concurrency: 2,
+        max_concurrency: 4,
         retry_delay: 120
       }
     ]);
