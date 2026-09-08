@@ -17,6 +17,7 @@ import {
 
 const rollbackConfig = JSON.parse(fs.readFileSync('wrangler.import-detail.jsonc', 'utf8'));
 const activationWorkflow = fs.readFileSync('.github/workflows/activate-tenant-import-queues.yml', 'utf8');
+const proofWorkflow = fs.readFileSync('.github/workflows/cloudflare-ic4b-detail-fanout.yml', 'utf8');
 const ic4aWorkflow = fs.readFileSync('.github/workflows/cloudflare-ic4a-detail-baseline.yml', 'utf8');
 const probeHarness = fs.readFileSync('scripts/cloudflare-ic4b-detail-fanout.mjs', 'utf8');
 const probeWorker = fs.readFileSync('worker/ic4b-fanout-probe.js', 'utf8');
@@ -158,6 +159,23 @@ describe('IC4B Queue micro-delivery and bounded horizontal fan-out', () => {
     expect(probeHarness).toContain('providerRegressionGate');
     expect(probeHarness).toContain('crossTenantRegressionGate');
     expect(probeHarness).toContain('privateIdentifiersExposed: false');
+  });
+
+  it('gates production proof on exact deploy, Queue, real provider, LKG and isolation evidence', () => {
+    expect(proofWorkflow).toContain("workflows: ['Deploy Catalog Engine application']");
+    expect(proofWorkflow).toContain('catalog-engine/application-deploy');
+    expect(proofWorkflow).toContain('catalog-engine/queue-consumer-activation');
+    expect(proofWorkflow).toContain('catalog-engine/tenant-import-auto-canary');
+    expect(proofWorkflow).toContain('catalog-engine/pb9-production-proof');
+    expect(proofWorkflow).toContain('catalog-engine/ic2-production-proof');
+    expect(proofWorkflow).toContain('catalog-engine/ic3-production-proof');
+    expect(proofWorkflow).toContain('group: catalog-engine-production-d1');
+    expect(proofWorkflow).toContain('ref: ${{ env.TARGET_SHA }}');
+    expect(proofWorkflow).toContain('Delete all isolated IC4B proof resources');
+    expect(proofWorkflow).toContain('if: always()');
+    expect(proofWorkflow).toContain('catalog-engine/ic4b-detail-fanout');
+    const validateBlock = proofWorkflow.split('\n  prerequisites:')[0];
+    expect(validateBlock).not.toContain('secrets.CLOUDFLARE');
   });
 
   it('retires IC4A only as a live topology gate while preserving its closed historical proof contract', () => {
