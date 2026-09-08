@@ -27,26 +27,62 @@ Automatic **initial tenant import is enabled**. Recurring tenant Intelligent Syn
 
 ## Exact production baseline
 
-The current exact application Production SHA under IC4C proof is:
+The current application Production SHA under the recovered IC4C proof campaign is:
 
 ```text
-41e5ae867e45bdfdaac2c7e84e824da2e5681bcd
+5482cf68c45f598ec73261949c2f41515e57e84d
 ```
 
-It is the merge SHA of PR #306 and deployed through application run `34201518868 = SUCCESS`. The deployment passed quality, build/artifact verification, D1 migrations, Worker/static deployment, binding checks, import/sync boundary checks and production smoke.
-
-Exact-SHA evidence already green on this SHA includes application deploy, Queue activation, PB6/PB7/PB8/PB9, IC1, IC2 and IC3. Queue activation reconfirmed the IC4B target `detail batch=1 / maxConcurrency=4` with retry/DLQ and automation boundaries preserved.
-
-The dedicated IC4C production-proof workflow is run:
+It is the merge SHA of PR #309 and was deployed through:
 
 ```text
-Cloudflare IC4C adaptive provider governor proof = 34201611840
-status at this checkpoint = IN PROGRESS
+Deploy Catalog Engine application = 34206993880 — SUCCESS
+Activate tenant import Queue consumers = 34207104828 — SUCCESS
 ```
 
-It is intentionally waiting for the remaining exact-SHA provider/fleet/IC4B regressions before its privileged proof job may start. This checkpoint **does not** declare IC4C Production Green.
+The application run passed quality, build/artifact verification, D1 migrations, Worker/static deployment, binding verification, fleet preparation, import/sync boundary checks and production smoke. Queue activation redeployed and verified the bounded detail consumer/runtime topology before publishing `catalog-engine/queue-consumer-activation = success`.
+
+Exact-SHA evidence already green on this SHA includes application deploy, Queue activation, PB6/PB7/PB8/PB9, IC1, IC2 and IC3. The tenant data-plane fleet canary also completed successfully in run `34207104766`, including scheduler-owned v7 -> v8 maintenance, LKG preservation and recurring sync OFF.
+
+The remaining chain at this checkpoint is:
+
+```text
+Cloudflare automatic tenant import canary = 34207104743 — IN PROGRESS
+Cloudflare IC4B detail fan-out proof = 34207104819 — IN PROGRESS / gated behind provider proof
+Cloudflare IC4C adaptive provider governor proof = 34207104798 — IN PROGRESS / prerequisites
+```
+
+The automatic import canary has already passed exact-SHA prerequisites, checkout, dependency install, quality, discovery-state and credential checks and is executing the real scheduler-driven isolated import + CEI classify/verify step with zero manual Queue messages.
 
 A later docs-only `main` HEAD may legitimately differ from this Production SHA. Never infer Production Green from merge or documentation alone.
+
+## IC4C proof-recovery incident
+
+The first dedicated IC4C trusted proof on earlier Production SHA `41e5ae867e45bdfdaac2c7e84e824da2e5681bcd` failed in run `34201611840`. Two concrete orchestration defects were found and corrected without lowering any proof threshold or provider-safety boundary.
+
+### Root cause 1 — transient Wrangler config path
+
+The proof generated its Wrangler config under `$RUNNER_TEMP` but declared:
+
+```text
+main: './worker/ic4c-governor-probe.js'
+```
+
+Wrangler resolves relative source paths from the config location, so the guarded probe source in the repository checkout could not be bundled. PR #308 moved the transient config into the checkout root and added regression coverage forbidding the broken `$RUNNER_TEMP` pattern.
+
+```text
+PR #308 — IC4C: fix trusted proof Wrangler config resolution — MERGED / CI GREEN
+```
+
+### Root cause 2 — exact-SHA deploy trigger gap
+
+After #308 merged, its workflow/test-only change did not trigger `Deploy Catalog Engine application`, so the corrected proof could not receive a fresh application Production SHA or enter its `workflow_run` proof graph. PR #309 added the IC4C proof workflow/test/config inputs to the trusted deploy path graph and pinned that relationship with regression coverage.
+
+```text
+PR #309 — CI: align IC4C proof with exact-SHA deploy graph — MERGED / CI GREEN
+```
+
+The recovered chain then produced Production SHA `5482cf68c45f598ec73261949c2f41515e57e84d`, application deploy success and Queue activation success. No AIMD acceptance value, retry/DLQ contract, tenant isolation rule, LKG rule, privacy rule or recurring-sync gate was weakened by either fix.
 
 ## Proven first-merchant state
 
@@ -90,8 +126,8 @@ Current statuses:
 - IC2 — Instant seed + construction preview: **PRODUCTION GREEN**; `IC2-CLOSURE-2026-09-07.md`.
 - IC3 — Streaming/parallel listing discovery: **PRODUCTION GREEN**; `IC3-CLOSURE-2026-09-07.md`.
 - IC4A — Detail throughput baseline + safe telemetry: **PRODUCTION GREEN**; `IC4A-CLOSURE-2026-09-07.md`.
-- IC4B — Queue micro-delivery + horizontal consumer fan-out: **PRODUCTION GREEN**; PR #299, exact-SHA proof `34192306859`, `IC4B-CLOSURE-2026-09-08.md`.
-- IC4C — Adaptive upstream governor: **PRODUCTION PROOF IN PROGRESS — NOT PRODUCTION GREEN**; implementation PR #305, dedicated proof PR #306.
+- IC4B — Queue micro-delivery + horizontal consumer fan-out: **PRODUCTION GREEN**; PR #299, `IC4B-CLOSURE-2026-09-08.md`.
+- IC4C — Adaptive upstream governor: **PRODUCTION PROOF IN PROGRESS — NOT PRODUCTION GREEN**; implementation PR #305, proof PR #306, proof-recovery PRs #308/#309.
 - IC4D — Tenant D1 write-pressure governor: **PLANNED — NOT AUTHORIZED UNTIL IC4C CLOSURE**.
 - IC4E — Production detail-swarm proof: **PLANNED**.
 - IC5A–IC5E — Warm start + batched persistence/streaming CEI: **PLANNED**.
@@ -137,9 +173,9 @@ Trusted activation derives the proven IC4B `batch=1 / maxConcurrency=4` producti
 
 **IC4C — Adaptive Upstream Governor: ACTIVE SLICE / PROOF PHASE.**
 
-Implementation merged in PR #305 provides one server-side Durable Object coordination authority per opaque provider/source-host key. Admission is transactional and lease-based, starts conservatively at `2`, has hard floor `1` and ceiling `4`, increases only after healthy windows, and multiplicatively reduces on upstream `429`, meaningful `5xx`, timeout/transport failure or degraded latency. Provider detail fetches from initial and incremental handlers share this same authority; Cloudflare/platform/internal traffic is excluded from provider-pressure accounting.
+Implementation PR #305 provides one server-side Durable Object coordination authority per opaque provider/source-host key. Admission is transactional and lease-based, starts conservatively at `2`, has hard floor `1` and ceiling `4`, increases only after healthy windows, and multiplicatively reduces on upstream `429`, meaningful `5xx`, timeout/transport failure or degraded latency. Provider detail fetches from initial and incremental handlers share this same authority; Cloudflare/platform/internal traffic is excluded from provider-pressure accounting.
 
-PR #306 added the dedicated trusted production proof without changing the production governor semantics. Its guarded ephemeral probe exports the same production `ProviderDetailGovernor` class and is designed to prove, on trusted Cloudflare infrastructure:
+The dedicated trusted proof exports the same production `ProviderDetailGovernor` class through a guarded ephemeral probe and must prove on trusted Cloudflare infrastructure:
 
 - real Durable Object coordination rather than a process-local counter;
 - initial admission limit `2`;
@@ -150,9 +186,9 @@ PR #306 added the dedicated trusted production proof without changing the produc
 - recurring Intelligent Sync remains OFF;
 - cleanup of the ephemeral proof Worker before successful status publication.
 
-The proof is gated on exact-SHA application deploy, Queue activation, automatic provider import, PB9/LKG, IC2, IC3 and IC4B evidence. No PR validation receives production Cloudflare credentials.
+The proof remains gated on exact-SHA application deploy, Queue activation, automatic provider import, PB9/LKG, IC2, IC3 and IC4B evidence. No PR validation receives production Cloudflare credentials.
 
-IC4C is **not** Production Green until run `34201611840` completes successfully, publishes `catalog-engine/ic4c-provider-governor = success`, the required exact-SHA regressions remain green and a closure document/state transition is merged.
+IC4C is **not** Production Green until the recovered run `34207104798` completes successfully, publishes `catalog-engine/ic4c-provider-governor = success`, required exact-SHA regressions remain green and a closure document/state transition is merged.
 
 ## Permanent safety result through IC4B
 
@@ -170,10 +206,10 @@ IC4C is **not** Production Green until run `34201611840` completes successfully,
 ## Exact continuation action
 
 1. revalidate live `main`, open PRs, CI/deploy/proof statuses and `HUMAN_GATE_LOCK`;
-2. consume fleet/automatic-provider/IC4B exact-SHA regressions for Production SHA `41e5ae867e45bdfdaac2c7e84e824da2e5681bcd`;
-3. consume dedicated IC4C run `34201611840` and inspect the privileged proof job step-by-step;
-4. if the proof fails, fix the first proven root cause without weakening thresholds or safety boundaries, then repeat exact-SHA proof;
-5. if the proof and required regressions are green, add `IC4C-CLOSURE-2026-09-08.md`, transition IC4C to **PRODUCTION GREEN**, and mark IC4D as the next approved slice;
+2. treat `5482cf68c45f598ec73261949c2f41515e57e84d` as the current application Production SHA unless live deployment evidence supersedes it;
+3. consume automatic tenant import run `34207104743`, then IC4B run `34207104819`, then recovered IC4C run `34207104798`;
+4. if any proof fails, inspect and fix the first proven root cause without weakening thresholds or safety boundaries; do not rerun blindly;
+5. if IC4C and all required regressions are green, add `IC4C-CLOSURE-2026-09-08.md`, transition IC4C to **PRODUCTION GREEN**, and mark IC4D as the next approved slice;
 6. only after that closure/state transition merges may implementation of IC4D begin.
 
 ## Broader roadmap boundary
