@@ -74,11 +74,18 @@ describe('trusted tenant Queue activation workflow', () => {
     expectPresent('queues create "$queue"');
     expectPresent('Build bounded IC4B detail consumer config');
     expectPresent('node scripts/build-ic4b-detail-config.mjs');
-    expectPresent('/tmp/wrangler.import-detail.ic4b.json');
-    expectPresent('deploy --config /tmp/wrangler.import-detail.ic4b.json');
+    expectPresent('IC4B_DETAIL_CONFIG: .wrangler.import-detail.ic4b.json');
+    expectPresent('deploy --config "$IC4B_DETAIL_CONFIG"');
+    expectPresent('Delete generated IC4B detail config');
+    expectPresent('rm -f "$IC4B_DETAIL_CONFIG"');
     expectPresent('deploy --config wrangler.import-scan.jsonc');
     expectPresent('queues consumer worker list catalog-engine-import-scan --json');
     expectPresent('queues consumer worker list catalog-engine-import-detail --json');
+  });
+
+  it('keeps generated Wrangler config beside repository-relative entrypoints rather than under /tmp', () => {
+    expect(workflow).not.toContain('--config /tmp/wrangler.import-detail.ic4b.json');
+    expectPresent('IC4B_DETAIL_CONFIG: .wrangler.import-detail.ic4b.json');
   });
 
   it('verifies the promoted IC4B topology instead of trusting the generated config alone', () => {
