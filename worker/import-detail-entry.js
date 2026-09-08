@@ -3,11 +3,17 @@ import { handleTenantImportFinalizeMessage } from './ingestion/finalize-consumer
 import { handleTenantIncrementalDetailMessage } from './ingestion/incremental-detail-consumer.js';
 import { recoverExhaustedInitialDetailLeases } from './ingestion/initial-detail-recovery.js';
 import {
+  ProviderDetailGovernor,
+  createAdaptiveProviderFetch
+} from './ingestion/provider-detail-governor.js';
+import {
   initialTenantImportId,
   parseTenantImportMessage,
   recordTenantImportDelivery,
   tenantImportMessageDisposition
 } from './tenant-import-queue.js';
+
+export { ProviderDetailGovernor };
 
 function retryDelay(result, fallback) {
   const value = Number(result?.delaySeconds || fallback);
@@ -19,10 +25,11 @@ async function handleDetail(parsed, env) {
     tenantId: parsed.tenantId,
     sourceKey: parsed.sourceKey
   });
+  const fetchImpl = createAdaptiveProviderFetch(env, fetch);
   if (parsed.importId === initialId) {
-    return handleTenantImportDetailMessage(parsed, env);
+    return handleTenantImportDetailMessage(parsed, env, { fetchImpl });
   }
-  return handleTenantIncrementalDetailMessage(parsed, env);
+  return handleTenantIncrementalDetailMessage(parsed, env, { fetchImpl });
 }
 
 export default {
