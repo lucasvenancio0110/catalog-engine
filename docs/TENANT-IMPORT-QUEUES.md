@@ -53,6 +53,8 @@ These are conservative launch values, not permanent scale limits. Increase concu
 
 Application-level retry/deferred state inside tenant import jobs remains distinct from Cloudflare delivery retries. Queue delivery retry protects message execution; durable import state protects product/business recovery.
 
+The periodic initial-import `finalize` message is a barrier probe whose cadence is owned by the five-minute platform cron. If the consumer successfully reads the durable import/detail state and the barrier is simply not ready yet, that delivery is acknowledged rather than retried by Cloudflare Queue; the next cron tick emits the next probe. Only actual finalize execution/delivery failures consume Queue retries or may reach the detail DLQ. A long legitimate detail stage must therefore not create DLQ evidence solely because completion took longer than the Queue retry horizon.
+
 ## Producer activation boundary
 
 The main platform Worker's cron already invokes the tenant import dispatcher every five minutes.
@@ -68,7 +70,7 @@ Therefore:
 7. one test tenant is imported intentionally;
 8. two simultaneous isolated test tenants are imported intentionally;
 9. retry exhaustion, DLQ containment, repair and replay are proven with automation still OFF;
-10. a read-only production preflight must prove no unexpected eligible/import/backlog work exists;
+10. a read-only production preflight must prove no unexpected eligible/import/backlog work exists before activation;
 11. only after those gates pass may a trusted activation change set the flag to `1`;
 12. the first enabled run must prove the cron itself discovers an eligible canary and completes the normal isolated Queue pipeline without manually producing the initial message;
 13. only after that automatic proof and clean post-run Queue/DLQ state is M5 complete.
