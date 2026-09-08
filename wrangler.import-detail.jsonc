@@ -1,21 +1,13 @@
 {
-  "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "catalog-engine-import-detail",
   "main": "./worker/import-detail-entry.js",
-  "compatibility_date": "2026-08-17",
+  "compatibility_date": "2024-11-01",
   "workers_dev": false,
-  "vars": {
-    "CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE": "catalog-engine-production"
-  },
-  "observability": {
-    "enabled": true
-  },
   "d1_databases": [
     {
       "binding": "CATALOG_DB",
       "database_name": "catalog-engine-db",
-      "database_id": "12ac414c-4aef-4668-a8f9-dc63d57d449f",
-      "migrations_dir": "migrations"
+      "database_id": "da848315-1184-454f-9d76-b8c9c2f38976"
     }
   ],
   "dispatch_namespaces": [
@@ -25,14 +17,15 @@
     }
   ],
   "queues": {
+    "producers": [],
     "consumers": [
       {
         "queue": "catalog-engine-import-detail",
-        "max_batch_size": 4,
+        "max_batch_size": 1,
         "max_batch_timeout": 5,
         "max_retries": 5,
         "dead_letter_queue": "catalog-engine-import-detail-dlq",
-        "max_concurrency": 2,
+        "max_concurrency": 4,
         "retry_delay": 120
       }
     ]
