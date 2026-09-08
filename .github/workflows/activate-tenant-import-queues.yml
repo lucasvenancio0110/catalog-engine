@@ -98,13 +98,21 @@ jobs:
             grep -Fq "$queue" /tmp/catalog-engine-queues-final.txt || { echo "Queue missing after ensure: $queue"; exit 1; }
           done
 
-      - name: Deploy detail consumer first
-        run: npx --yes "wrangler@$WRANGLER_VERSION" deploy --config wrangler.import-detail.jsonc
+      - name: Build bounded IC4B detail consumer config
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/build-ic4b-detail-config.mjs \
+            wrangler.import-detail.jsonc \
+            /tmp/wrangler.import-detail.ic4b.json
+
+      - name: Deploy IC4B detail consumer first
+        run: npx --yes "wrangler@$WRANGLER_VERSION" deploy --config /tmp/wrangler.import-detail.ic4b.json
 
       - name: Deploy scan consumer
         run: npx --yes "wrangler@$WRANGLER_VERSION" deploy --config wrangler.import-scan.jsonc
 
-      - name: Verify Queue consumers and policies are attached
+      - name: Verify Queue consumers and IC4B policies are attached
         shell: bash
         run: |
           set -euo pipefail
@@ -114,11 +122,42 @@ jobs:
           npx --yes "wrangler@$WRANGLER_VERSION" queues consumer worker list catalog-engine-import-detail --json | tee /tmp/detail-consumers.json
           grep -Fq 'catalog-engine-import-scan' /tmp/scan-consumers.json || { echo "Scan consumer not attached"; exit 1; }
           grep -Fq 'catalog-engine-import-detail' /tmp/detail-consumers.json || { echo "Detail consumer not attached"; exit 1; }
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const payload = JSON.parse(fs.readFileSync('/tmp/detail-consumers.json', 'utf8'));
+          const objects = [];
+          const visit = (value) => {
+            if (!value || typeof value !== 'object') return;
+            if (Array.isArray(value)) {
+              for (const item of value) visit(item);
+              return;
+            }
+            objects.push(value);
+            for (const nested of Object.values(value)) visit(nested);
+          };
+          visit(payload);
+          const consumer = objects.find((row) =>
+            row?.settings && String(row?.script_name || row?.script || '').includes('catalog-engine-import-detail')
+          ) || objects.find((row) => row?.settings?.batch_size !== undefined);
+          if (!consumer?.settings) throw new Error('IC4B detail consumer settings missing');
+          const settings = consumer.settings;
+          if (Number(settings.batch_size) !== 1) throw new Error('IC4B detail batch size is not 1');
+          if (Number(settings.max_concurrency) !== 4) throw new Error('IC4B detail max concurrency is not 4');
+          if (Number(settings.max_retries) !== 5) throw new Error('IC4B detail max retries changed');
+          if (Number(settings.max_wait_time_ms) !== 5000) throw new Error('IC4B detail batch timeout changed');
+          if (Number(settings.retry_delay) !== 120) throw new Error('IC4B detail retry delay changed');
+          if (!String(consumer.dead_letter_queue || '').includes('catalog-engine-import-detail-dlq')) {
+            throw new Error('IC4B detail DLQ is missing');
+          }
+          console.log('IC4B detail consumer verified: batch=1 max_concurrency=4 retries=5 timeout=5s');
+          NODE
 
       - name: Consumer deployment checkpoint
         shell: bash
         run: |
           echo "Tenant import Queue consumers are deployed and verified."
+          echo "IC4B detail topology is batch=1 with max_concurrency=4 and the existing retry/DLQ policy."
+          echo "wrangler.import-detail.jsonc remains the explicit 4/2 rollback template."
           echo "Automation state is owned by wrangler.jsonc and is not changed by this workflow."
 
       - name: Publish successful activation evidence
@@ -134,7 +173,7 @@ jobs:
           jq -n \
             --arg state success \
             --arg context "$STATUS_CONTEXT" \
-            --arg description "4 Queues + 2 consumers verified after exact-SHA deploy; automation setting preserved" \
+            --arg description "Queues verified; IC4B detail batch=1/max=4; retry+DLQ and automation boundary preserved" \
             --arg target_url "$RUN_URL" \
             '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
           curl --fail --silent --show-error \
@@ -158,7 +197,7 @@ jobs:
           jq -n \
             --arg state failure \
             --arg context "$STATUS_CONTEXT" \
-            --arg description "Queue consumer deployment failed after deploy; inspect automation state before retry" \
+            --arg description "Queue consumer deployment or IC4B topology verification failed; inspect before retry" \
             --arg target_url "$RUN_URL" \
             '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
           curl --fail --silent --show-error \
