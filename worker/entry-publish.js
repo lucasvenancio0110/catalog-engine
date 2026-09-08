@@ -1,5 +1,5 @@
 import base from './entry.js';
-import { TenantConstructionState } from './instant-catalog-construction.js';
+import { TenantConstructionState } from './tenant-construction-state-runtime.js';
 import {
   handlePortalConstructionMediaRequest,
   handlePortalConstructionPreviewRequest

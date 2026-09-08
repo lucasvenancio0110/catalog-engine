@@ -134,9 +134,7 @@ function constructionStub(env, tenantId) {
 }
 
 async function projection(env, tenantId) {
-  const response = await constructionStub(env, tenantId).fetch('https://construction.internal/projection');
-  if (!response.ok) throw new Error('ic2_proof_projection_unavailable');
-  const payload = await response.json().catch(() => null);
+  const payload = await constructionStub(env, tenantId).getProjection();
   if (
     Number(payload?.version) !== 1 ||
     !['empty', 'indexed'].includes(payload?.readiness) ||
@@ -292,9 +290,7 @@ async function cleanupFixture(env, fixture) {
     env.CATALOG_DB.prepare('DELETE FROM tenant_store_profiles WHERE tenant_id=?1').bind(fixture.tenantId),
     env.CATALOG_DB.prepare('DELETE FROM catalog_tenants WHERE tenant_id=?1').bind(fixture.tenantId)
   ]);
-  await constructionStub(env, fixture.tenantId)
-    .fetch('https://construction.internal/state', { method: 'DELETE' })
-    .catch(() => null);
+  await constructionStub(env, fixture.tenantId).deleteState().catch(() => null);
 }
 
 async function runProof(env) {
