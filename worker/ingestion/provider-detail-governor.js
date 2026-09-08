@@ -75,58 +75,77 @@ function activeLeaseCount(state) {
   return Object.keys(state.leases || {}).length;
 }
 
+function hydrateState(value) {
+  return { ...initialProviderGovernorState(), ...(value || {}) };
+}
+
 export class ProviderDetailGovernor {
   constructor(state) {
     this.state = state;
   }
 
-  async loadState() {
-    return {
-      ...initialProviderGovernorState(),
-      ...((await this.state.storage.get('state')) || {})
-    };
-  }
-
-  async saveState(value) {
-    await this.state.storage.put('state', value);
+  async transact(mutator) {
+    return this.state.storage.transaction(async (transaction) => {
+      const current = hydrateState(await transaction.get('state'));
+      const result = await mutator(current);
+      if (result?.state) await transaction.put('state', result.state);
+      return result?.response;
+    });
   }
 
   async fetch(request) {
     const url = new URL(request.url);
     const now = Date.now();
-    let state = pruneLeases(await this.loadState(), now);
 
     if (request.method === 'POST' && url.pathname === '/acquire') {
-      if ((state.cooldownUntil || 0) > now) {
-        await this.saveState(state);
-        return Response.json({ admitted: false, waitMs: clamp(state.cooldownUntil - now, 50, 5000) }, { status: 429 });
-      }
-      if (activeLeaseCount(state) >= state.limit) {
-        await this.saveState(state);
-        return Response.json({ admitted: false, waitMs: 100 }, { status: 429 });
-      }
-      const token = crypto.randomUUID();
-      state.leases = { ...state.leases, [token]: now + LEASE_MS };
-      await this.saveState(state);
-      return Response.json({ admitted: true, token, limit: state.limit });
+      return this.transact(async (current) => {
+        const state = pruneLeases(current, now);
+        if ((state.cooldownUntil || 0) > now) {
+          return {
+            state,
+            response: Response.json(
+              { admitted: false, waitMs: clamp(state.cooldownUntil - now, 50, 5000) },
+              { status: 429 }
+            )
+          };
+        }
+        if (activeLeaseCount(state) >= state.limit) {
+          return {
+            state,
+            response: Response.json({ admitted: false, waitMs: 100 }, { status: 429 })
+          };
+        }
+        const token = crypto.randomUUID();
+        state.leases = { ...state.leases, [token]: now + LEASE_MS };
+        return {
+          state,
+          response: Response.json({ admitted: true, token, limit: state.limit })
+        };
+      });
     }
 
     if (request.method === 'POST' && url.pathname === '/report') {
       const body = await request.json().catch(() => ({}));
-      const token = String(body?.token || '');
-      if (token && state.leases?.[token]) {
-        const leases = { ...state.leases };
-        delete leases[token];
-        state.leases = leases;
-      }
-      state = evolveProviderGovernorState(state, {
-        status: body?.status,
-        latencyMs: body?.latencyMs,
-        timeout: body?.timeout === true,
-        transportError: body?.transportError === true
-      }, now);
-      await this.saveState(state);
-      return Response.json({ ok: true, limit: state.limit });
+      return this.transact(async (current) => {
+        let state = pruneLeases(current, now);
+        const token = String(body?.token || '');
+        if (token && state.leases?.[token]) {
+          const leases = { ...state.leases };
+          delete leases[token];
+          state.leases = leases;
+        }
+        state = evolveProviderGovernorState(
+          state,
+          {
+            status: body?.status,
+            latencyMs: body?.latencyMs,
+            timeout: body?.timeout === true,
+            transportError: body?.transportError === true
+          },
+          now
+        );
+        return { state, response: Response.json({ ok: true, limit: state.limit }) };
+      });
     }
 
     return new Response('not_found', { status: 404 });
@@ -157,7 +176,9 @@ async function acquire(stub) {
     const response = await stub.fetch('https://governor.internal/acquire', { method: 'POST' });
     const body = await response.json().catch(() => ({}));
     if (response.ok && body?.admitted === true && body?.token) return String(body.token);
-    if (Date.now() - started >= MAX_ADMISSION_WAIT_MS) throw new Error('catalog_provider_governor_admission_timeout');
+    if (Date.now() - started >= MAX_ADMISSION_WAIT_MS) {
+      throw new Error('catalog_provider_governor_admission_timeout');
+    }
     const base = clamp(Number(body?.waitMs || 100), 50, 5000);
     await sleep(base + Math.floor(Math.random() * 75));
   }
@@ -194,11 +215,13 @@ export function createAdaptiveProviderFetch(env, fetchImpl = fetch) {
       throw error;
     } finally {
       const latencyMs = Math.max(0, Math.round(performance.now() - started));
-      await stub.fetch('https://governor.internal/report', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ token, status, latencyMs, timeout, transportError })
-      }).catch(() => {});
+      await stub
+        .fetch('https://governor.internal/report', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ token, status, latencyMs, timeout, transportError })
+        })
+        .catch(() => {});
     }
   };
 }
