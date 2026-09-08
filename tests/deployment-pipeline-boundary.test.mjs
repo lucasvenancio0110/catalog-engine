@@ -57,6 +57,23 @@ describe('production deployment pipeline boundary', () => {
     }
   });
 
+  it('deploys exact main when IC3 production-proof orchestration changes', async () => {
+    const workflow = await readWorkflow('deploy-catalog-api.yml');
+    for (const path of [
+      '.github/workflows/cloudflare-ic3-listing-production-proof.yml',
+      'scripts/cloudflare-ic3-listing-proof.mjs',
+      'scripts/cloudflare-ic3-regression-seal.mjs',
+      'tests/ic3-listing-production-proof.test.mjs',
+      'tests/ic3-regression-seal.test.mjs',
+      'tests/ic3-proof-provider-path.test.mjs',
+      'tests/ic3-gallery-route.test.mjs',
+      'tests/ic3-progressive-construction.test.mjs',
+      'tests/tenant-import-scan.test.mjs'
+    ]) {
+      expect(workflow).toContain(`- '${path}'`);
+    }
+  });
+
   it('keeps privileged post-deploy canaries out of the direct-push production lock collision', async () => {
     const postDeployCanaries = [
       'cloudflare-tenant-data-plane-fleet-canary.yml',
