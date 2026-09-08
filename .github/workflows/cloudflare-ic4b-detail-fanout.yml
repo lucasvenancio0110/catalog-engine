@@ -136,6 +136,7 @@ jobs:
       TARGET_SHA: ${{ needs.prerequisites.outputs.sha }}
       WRANGLER_VERSION: 4.123.0
       STATUS_CONTEXT: catalog-engine/ic4b-detail-fanout
+      IC4B_PROBE_CONFIG: .wrangler.ic4b-fanout-probe.json
 
     steps:
       - name: Checkout exact deployed trusted-main SHA
@@ -174,8 +175,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          cp /tmp/ic4b-fanout-wrangler.json "$IC4B_PROBE_CONFIG"
+          trap 'rm -f "$IC4B_PROBE_CONFIG"' EXIT
           if ! npx --yes "wrangler@$WRANGLER_VERSION" deploy \
-            --config /tmp/ic4b-fanout-wrangler.json \
+            --config "$IC4B_PROBE_CONFIG" \
             >/tmp/ic4b-probe-deploy.log 2>&1; then
             echo 'IC4B isolated probe Worker deploy failed; raw resource identifiers remain suppressed.'
             exit 1
@@ -193,6 +196,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          rm -f "$IC4B_PROBE_CONFIG"
           node scripts/cloudflare-ic4b-detail-fanout.mjs cleanup
 
       - name: Finalize safe IC4B evidence after cleanup
