@@ -165,7 +165,9 @@ jobs:
           set -euo pipefail
           PROBE_WORKER_NAME="ce-ic4c-proof-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           PROBE_TOKEN="$(node -e "process.stdout.write(require('crypto').randomBytes(32).toString('hex'))")"
-          PROBE_CONFIG="$(mktemp -p "$RUNNER_TEMP" ic4c-governor-XXXXXX.json)"
+          # Keep the transient Wrangler config in the repository root so its relative `main`
+          # path resolves against the checked-out source tree rather than RUNNER_TEMP.
+          PROBE_CONFIG=".wrangler.ic4c-governor-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.json"
           node --input-type=module - "$PROBE_CONFIG" "$PROBE_WORKER_NAME" "$PROBE_TOKEN" <<'NODE'
           import fs from 'node:fs';
           const [configPath, workerName, token] = process.argv.slice(2);

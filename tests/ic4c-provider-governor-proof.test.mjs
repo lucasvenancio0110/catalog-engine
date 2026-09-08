@@ -35,6 +35,12 @@ describe('IC4C trusted provider-governor proof', () => {
     expect(workflow).toContain('.pressure.degradedLatency.reducedLimit == 2');
   });
 
+  it('keeps the transient Wrangler config inside the checkout so relative source paths resolve', () => {
+    expect(workflow).toContain('PROBE_CONFIG=".wrangler.ic4c-governor-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.json"');
+    expect(workflow).toContain("main: './worker/ic4c-governor-probe.js'");
+    expect(workflow).not.toContain('mktemp -p "$RUNNER_TEMP" ic4c-governor-');
+  });
+
   it('guards the transient workers.dev probe and removes it before publishing success', () => {
     expect(probe).toContain("request.headers.get('x-probe-token')");
     expect(probe).toContain("return new Response('not_found', { status: 404 })");
