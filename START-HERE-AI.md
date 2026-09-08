@@ -197,8 +197,9 @@ IC0 = COMPLETE / GOVERNANCE GREEN
 IC1 = PRODUCTION GREEN
 IC2 = PRODUCTION GREEN
 IC3 = PRODUCTION GREEN
-IC4A = PLANNED — NEXT APPROVED SLICE
-IC4B–IC4E = PLANNED
+IC4A = PRODUCTION GREEN
+IC4B = PLANNED — NEXT APPROVED SLICE
+IC4C–IC4E = PLANNED
 IC5A–IC5E = PLANNED
 IC6A–IC6E = PLANNED
 PB10–PB12 = approved behind IC6
@@ -208,49 +209,84 @@ Detailed closures:
 
 - `docs/IC1-CLOSURE-2026-09-07.md`;
 - `docs/IC2-CLOSURE-2026-09-07.md`;
-- `docs/IC3-CLOSURE-2026-09-07.md`.
+- `docs/IC3-CLOSURE-2026-09-07.md`;
+- `docs/IC4A-CLOSURE-2026-09-07.md`.
 
-## IC3 exact production proof
+## IC4A exact production proof
 
 ```text
-application Production SHA = 9cc5b3ef9757dc76266d1423e7056af8d332d8af
-deploy run = 34143369165
-Queue activation run = 34143462176
-IC3 proof run = 34143462169
-IC3 proof job = 101810312524
-PB9 exact-SHA run = 34143462198
-IC2 exact-SHA run = 34143462145
-status = catalog-engine/ic3-production-proof success
+application Production SHA = 02bb72ee15b0fae7968b72c18a6bd508cffe8474
+deploy run = 34171630268
+Queue activation run = 34171688412
+PB9 proof run = 34171688408
+PB8 proof run = 34171761181
+IC2 proof run = 34171688381
+IC2 proof job = 101893053635
+IC3 proof run = 34171688377
+IC3 proof job = 101893752533
+IC4A proof run = 34171688443
+IC4A proof job = 101894437682
+status = catalog-engine/ic4a-detail-baseline success
 ```
 
-Safe IC3 measurement:
+Safe IC4A baseline:
 
 ```text
-baselineMs = 106416
-fanoutMs = 96591
-improvementPct = 9.2
-productCount = 6111
-identityMatch = true
-taxonomyMatch = true
-baselineRequests = 452
-fanoutRequests = 342
-baselineMaxActive = 4
-fanoutMaxActive = 4
-progressiveItems = 48
-requestConcurrency = 4
+referenceClass = real-large-catalog
+discovered = 6104
+terminal = 6104
+success = 6097
+skipped = 5
+deferred = 2
+failed = 0
+terminalProductsPerSecond = 0.971
+Queue backlog = 0
+DLQ backlog = 0
+sample successful = 6/6
+provider fetch p95 = 1219.9 ms
+normalization p95 = 8.2 ms
+D1 write p95 = 361.4 ms
+total measured p95 = 1554.2 ms
+max_batch_size = 4
+max_batch_timeout = 5s
+max_concurrency = 2
+max_retries = 5
+temporaryDatabaseCleaned = true
+detailConcurrencyChanged = false
 privateIdentifiersExposed = false
 recurringIntelligentSyncEnabled = false
 ```
 
-This is engineering evidence for that healthy-source production run, not a universal customer ETA.
+Measured conclusion: provider/network fetch is the dominant per-product cost; D1 persistence is second; normalization is small by comparison. IC4A changed no production detail concurrency.
 
-## IC2 proven first value
+## IC3 exact-SHA regression retained for IC4A closure
 
-Historical fresh production measurement retained for regression context:
+The permanent `5%` IC3 gate was not weakened. After one noisy failed A/B, one justified rerun passed:
 
 ```text
-TTFI = 6715 ms
-TTFC = 6715 ms
+baselineMs = 105574
+fanoutMs = 98671
+improvementPct = 6.5
+productCount = 6111
+identityMatch = true
+taxonomyMatch = true
+baselineRequests = 449
+fanoutRequests = 344
+baselineMaxActive = 4
+fanoutMaxActive = 4
+requestConcurrency = 4
+minimumImprovementPct = 5
+privateIdentifiersExposed = false
+recurringIntelligentSyncEnabled = false
+```
+
+Historical IC3 closure evidence at `9cc5b3e...` remains valid historical proof of the earlier `9.2%` production run.
+
+## IC2 exact-SHA regression retained for IC4A closure
+
+```text
+TTFI = 4809 ms
+TTFC = 4809 ms
 productCount = 24
 readinessThreshold = 12
 anonymousFailClosed = true
@@ -258,6 +294,8 @@ crossTenantFailClosed = true
 defaultTenantFailClosed = true
 privateIdentifiersExposed = false
 ```
+
+Earlier proof attempts encountered Cloudflare `1042`/`1104`; PR #297 added a read-only D1/Durable Object binding probe and allowlisted diagnostic boundary. The final exact-SHA proof passed. Do not overclaim a more specific Cloudflare root cause.
 
 Historical IC1 CROCCODILOS baseline remains useful for comparison:
 
@@ -290,39 +328,52 @@ Never activate M7E/recurring sync implicitly through Instant Catalog work.
 
 ---
 
-# 11. NEXT APPROVED SUBMILESTONE — IC4A
+# 11. NEXT APPROVED SUBMILESTONE — IC4B
 
-## IC4A — Detail Throughput Baseline and Safe Telemetry
+## IC4B — Queue Micro-delivery and Horizontal Consumer Fan-out
 
 Engineering outcome:
 
-> Before increasing detail concurrency, measure exactly where the current detail pipeline spends time and establish a trusted production baseline that separates Queue wait, provider fetch, normalization and tenant-D1 persistence pressure.
+> Use the IC4A measured baseline to remove the fixed two-consumer delivery bottleneck through bounded independent Worker invocations, while keeping provider pressure conservative until IC4C owns the coordinated adaptive governor.
 
-IC4A is governed by `docs/IC4-IC6-SLO60-GOVERNANCE.md`.
+IC4B is governed by `docs/IC4-IC6-SLO60-GOVERNANCE.md`.
 
-Current conservative baseline must remain unchanged during this slice:
+Current rollback baseline:
 
 ```text
 catalog-engine-import-detail
 max_batch_size = 4
 max_batch_timeout = 5s
 max_concurrency = 2
+max_retries = 5
 batch messages processed sequentially by the consumer
 ```
 
-Required IC4A evidence:
+Required IC4B work/evidence:
 
-- Queue wait/age timing;
-- provider detail fetch timing;
-- normalization/processing timing;
-- tenant-D1 persistence timing;
-- total detail terminal throughput;
-- safe request/retry/backlog/error counters;
-- exact trusted-main production run;
-- no supplier URL/hostname, raw provider ID/media locator, D1 UUID, Worker locator, token or secret in safe evidence;
-- tenant isolation and idempotency regressions remain green.
+- evaluate Queue delivery batch size `1–2` versus current batch `4` from IC4A evidence;
+- establish an explicit bounded Worker-level concurrency ceiling;
+- increase horizontal consumer invocation parallelism without unbounded in-process fan-out;
+- preserve exact per-message import/tenant/product ownership;
+- preserve claim/lease/idempotency/retry/DLQ semantics;
+- prove two-tenant isolation remains fail-closed;
+- prove provider error/throttle behavior is not materially worse than the IC4A safety baseline;
+- prove Queue/DLQ health on exact production deployment;
+- preserve a direct rollback to the conservative IC4A topology;
+- keep any new acceleration authority default OFF until its dedicated trusted proof/activation boundary requires otherwise;
+- keep supplier URLs/hostnames/raw provider IDs/media origins/D1 UUIDs/Worker locators/tokens/secrets out of browser/public/safe proof evidence;
+- recurring Intelligent Sync stays OFF and PB9/L2 remains Last Known Good.
 
-IC4A **does not authorize any concurrency increase**. IC4B owns the first Queue micro-delivery/horizontal fan-out change only after IC4A is Production Green.
+IC4B does **not** own:
+
+- IC4C coordinated adaptive AIMD provider governor;
+- IC4D tenant-D1 write-pressure governor;
+- IC4E large-catalog swarm acceptance;
+- IC5 result Queue/write combiner;
+- IC5 streaming CEI or warm tenant pool;
+- IC6 6K/60 acceptance;
+- Provider Snapshot Engine;
+- any customer-facing 60-second guarantee.
 
 ---
 
