@@ -64,7 +64,7 @@ jobs:
        github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 70
     concurrency:
       group: catalog-engine-ic3-listing-proof
       cancel-in-progress: false
@@ -256,7 +256,7 @@ jobs:
           QUEUE_STATE='missing'
           PB9_STATE='missing'
           IC2_STATE='missing'
-          for attempt in $(seq 1 72); do
+          for attempt in $(seq 1 300); do
             STATUS_JSON="$(curl --fail --silent --show-error \
               -H "Authorization: Bearer $GH_TOKEN" \
               -H 'Accept: application/vnd.github+json' \
