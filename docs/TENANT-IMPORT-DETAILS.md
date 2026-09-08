@@ -35,6 +35,28 @@ The core owns catalog/CEI normalization and tenant-safe persistence.
 
 Existing Yupoo category/media IDs are preserved exactly by the Yupoo adapter so provider-neutral refactors do not rotate already-published opaque identifiers.
 
+## IC4D tenant D1 write-pressure boundary
+
+Horizontal detail fan-out may produce several independent Worker invocations for the same tenant. Provider fetch concurrency and tenant D1 persistence concurrency are therefore separate pressure domains.
+
+The detail Worker binds a dedicated `TENANT_D1_WRITE_GOVERNOR` Durable Object class. The import entrypoint wraps only the tenant-dispatch path used by detail/finalize execution; the wrapper inspects the private versioned D1 batch command and acquires persistence authority only when the batch contains `INSERT`, `UPDATE` or `DELETE` work. Read-only D1 commands do not consume write permits, and supplier network requests remain governed separately by the IC4C `PROVIDER_DETAIL_GOVERNOR`.
+
+Write pressure is coordinated **per tenant**, not globally across all merchants:
+
+- the Durable Object identity is derived from an opaque hash of the tenant id;
+- one tenant begins with at most two concurrent mutating tenant-D1 commands;
+- an artificial slow write, tenant-data-plane 5xx or dispatch transport failure reduces that tenant to one writer and starts a bounded cooldown;
+- a bounded healthy-write window may recover the tenant from one writer back to two;
+- the ceiling is two and cannot be increased by additional Queue Worker invocations;
+- expired governor leases are reclaimable so a crashed Worker cannot permanently strand persistence capacity;
+- a tenant under D1 pressure uses a different Durable Object instance from every other tenant, so its slowdown cannot consume another tenant's permits.
+
+The governor wraps both initial and incremental detail/finalize tenant-dispatch mutations because they share the same physical tenant D1 pressure domain. This does **not** enable recurring Intelligent Sync; `TENANT_SYNC_AUTOMATION_ENABLED=0` remains independently authoritative.
+
+IC4D is intentionally **not** a write combiner. Product write batches remain the existing validated/idempotent batches and continue to commit through the tenant's native `CATALOG_DB.batch()` command. Normalized result queues, set-based multi-product combining and commit-before-ack write aggregation remain IC5C scope. IC4D only bounds admission to the existing persistence path.
+
+If governor admission or governed dispatch fails, the existing detail/finalize delivery remains retryable through the Queue/durable claim contracts. The governor does not acknowledge Queue work, fabricate terminal state or bypass claim-token ownership.
+
 ## Finalize stage
 
 The platform cron periodically emits an opaque finalize message after the listing fan-out cursor reaches the discovered item count. Finalization is a barrier, not a timer: it succeeds only when every discovered item is terminal (`success`, `skipped`, or `deferred`).

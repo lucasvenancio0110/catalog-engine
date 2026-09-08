@@ -86,11 +86,13 @@ describe('IC4C provider detail governor', () => {
     expect(outcomes.at(-1).body.admitted).toBe(false);
   });
 
-  it('binds a server-side Durable Object and routes both initial and incremental detail handlers through it', () => {
+  it('keeps the IC4C Durable Object binding and both detail handlers on adaptive provider fetch', () => {
     const config = JSON.parse(fs.readFileSync('wrangler.import-detail.jsonc', 'utf8'));
-    expect(config.durable_objects?.bindings).toEqual([
-      { name: 'PROVIDER_DETAIL_GOVERNOR', class_name: 'ProviderDetailGovernor' }
-    ]);
+    expect(config.durable_objects?.bindings).toEqual(
+      expect.arrayContaining([
+        { name: 'PROVIDER_DETAIL_GOVERNOR', class_name: 'ProviderDetailGovernor' }
+      ])
+    );
     expect(config.migrations).toContainEqual({
       tag: 'ic4c-provider-detail-governor-v1',
       new_sqlite_classes: ['ProviderDetailGovernor']
@@ -100,7 +102,7 @@ describe('IC4C provider detail governor', () => {
     expect(entry).toContain('createAdaptiveProviderFetch(env, fetch)');
     expect(entry).toContain('handleTenantImportDetailMessage(parsed, env, { fetchImpl })');
     expect(entry).toContain('handleTenantIncrementalDetailMessage(parsed, env, { fetchImpl })');
-    expect(entry).toContain('export { ProviderDetailGovernor }');
+    expect(entry).toContain('ProviderDetailGovernor');
   });
 
   it('keeps provider identity private and preserves the recurring-sync boundary', () => {

@@ -23,6 +23,10 @@
       {
         "name": "PROVIDER_DETAIL_GOVERNOR",
         "class_name": "ProviderDetailGovernor"
+      },
+      {
+        "name": "TENANT_D1_WRITE_GOVERNOR",
+        "class_name": "TenantD1WriteGovernor"
       }
     ]
   },
@@ -30,6 +34,10 @@
     {
       "tag": "ic4c-provider-detail-governor-v1",
       "new_sqlite_classes": ["ProviderDetailGovernor"]
+    },
+    {
+      "tag": "ic4d-tenant-d1-write-governor-v1",
+      "new_sqlite_classes": ["TenantD1WriteGovernor"]
     }
   ],
   "dispatch_namespaces": [
