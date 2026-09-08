@@ -115,9 +115,16 @@ describe('IC4E production detail-swarm proof contract', () => {
     expectScript('assertSafeEvidence(evidence)');
     expectScript('privateIdentifiersExposed: false');
     expectScript('temporaryFixtureCleaned: true');
+    expectScript('ic4eFixtureRetained: true');
     expectScript("reason: 'queue_evidence_not_clean'");
-    expect(script).not.toContain('tenantId: fixture.tenantId');
-    expect(script).not.toContain('sourceUrl: fixture.sourceUrl');
+    const retainedBlock = script.slice(
+      script.indexOf('ic4eFixtureRetained: true'),
+      script.indexOf("reason: 'queue_evidence_not_clean'") + 64
+    );
+    expect(retainedBlock).not.toContain('tenantId');
+    expect(retainedBlock).not.toContain('sourceUrl');
+    expect(retainedBlock).not.toContain('databaseId');
+    expect(retainedBlock).not.toContain('workerScriptName');
   });
 
   it('keeps recurring Intelligent Sync OFF throughout the proof', () => {
