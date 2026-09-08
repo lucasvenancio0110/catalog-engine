@@ -70,6 +70,18 @@ describe('exact-SHA production proof trigger alignment', () => {
     }
   });
 
+  it('revalidates the application when IC4C production-proof orchestration changes', () => {
+    for (const path of [
+      '.github/workflows/cloudflare-ic4c-provider-governor.yml',
+      'tests/ic4c-provider-governor-proof.test.mjs',
+      'tests/ic4c-provider-detail-governor.test.mjs',
+      'wrangler.import-detail.jsonc'
+    ]) {
+      expect(deployWorkflow).toContain(`'${path}'`);
+    }
+    expect(deployWorkflow).toContain("'worker/**'");
+  });
+
   it('waits outside the mutation lock before fleet and automatic import take the shared production lock', () => {
     for (const workflow of [fleetWorkflow, autoWorkflow]) {
       const prerequisiteStart = workflow.indexOf('  prerequisites:');
