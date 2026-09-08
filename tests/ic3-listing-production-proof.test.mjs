@@ -141,6 +141,8 @@ describe('IC3 real listing production proof', () => {
     expect(workflow).toContain('catalog-engine/queue-consumer-activation');
     expect(workflow).toContain('catalog-engine/pb9-production-proof');
     expect(workflow).toContain('catalog-engine/ic2-production-proof');
+    expect(workflow).toContain('timeout-minutes: 70');
+    expect(workflow).toContain('for attempt in $(seq 1 300)');
     expect(workflow).not.toMatch(/^\s*push:\s*$/m);
   });
 });
