@@ -52,7 +52,7 @@ describe('trusted tenant Queue activation workflow', () => {
 
   it('publishes Queue evidence against the exact deployed SHA instead of the workflow runner SHA', () => {
     expectPresent('SHA: ${{ steps.target.outputs.sha }}');
-    expectPresent('4 Queues + 2 consumers verified after exact-SHA deploy');
+    expectPresent('IC4B detail batch=1/max=4');
   });
 
   it('preserves the configured automation state instead of forcing OFF during consumer deployment', () => {
@@ -72,9 +72,23 @@ describe('trusted tenant Queue activation workflow', () => {
       expectPresent(queue);
     }
     expectPresent('queues create "$queue"');
-    expectPresent('deploy --config wrangler.import-detail.jsonc');
+    expectPresent('Build bounded IC4B detail consumer config');
+    expectPresent('node scripts/build-ic4b-detail-config.mjs');
+    expectPresent('/tmp/wrangler.import-detail.ic4b.json');
+    expectPresent('deploy --config /tmp/wrangler.import-detail.ic4b.json');
     expectPresent('deploy --config wrangler.import-scan.jsonc');
     expectPresent('queues consumer worker list catalog-engine-import-scan --json');
     expectPresent('queues consumer worker list catalog-engine-import-detail --json');
+  });
+
+  it('verifies the promoted IC4B topology instead of trusting the generated config alone', () => {
+    expectPresent('Verify Queue consumers and IC4B policies are attached');
+    expectPresent('Number(settings.batch_size) !== 1');
+    expectPresent('Number(settings.max_concurrency) !== 4');
+    expectPresent('Number(settings.max_retries) !== 5');
+    expectPresent('Number(settings.max_wait_time_ms) !== 5000');
+    expectPresent('Number(settings.retry_delay) !== 120');
+    expectPresent('catalog-engine-import-detail-dlq');
+    expectPresent('wrangler.import-detail.jsonc remains the explicit 4/2 rollback template.');
   });
 });
