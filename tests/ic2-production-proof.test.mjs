@@ -4,6 +4,8 @@ import { ic2ProductionProofCanaryContract } from '../worker/ic2-production-proof
 
 const workflow = fs.readFileSync('.github/workflows/cloudflare-ic2-production-proof.yml', 'utf8');
 const canary = fs.readFileSync('worker/ic2-production-proof-canary.js', 'utf8');
+const runtime = fs.readFileSync('worker/tenant-construction-state-runtime.js', 'utf8');
+const entryPublish = fs.readFileSync('worker/entry-publish.js', 'utf8');
 
 describe('IC2 production proof contract', () => {
   it('measures the real fresh-tenant L0 threshold without weakening it', () => {
@@ -77,15 +79,28 @@ describe('IC2 production proof contract', () => {
     );
   });
 
-  it('probes D1 and the external construction namespace read-only before creating the fixture', () => {
+  it('probes D1 and the external construction namespace over Durable Object RPC before creating the fixture', () => {
     expect(canary).toContain('async function verifyBindings');
     expect(canary).toContain("prepare('SELECT 1 AS ok')");
-    expect(canary).toContain("fetch('https://construction.internal/projection')");
+    expect(canary).toContain('constructionStub(env, tenantId).getProjection()');
+    expect(canary).not.toContain("fetch('https://construction.internal/projection')");
     expect(canary).toContain("ic2BindingProbe: 'passed'");
     expect(canary).toContain('databaseBound: true');
     expect(canary).toContain('constructionBound: true');
     expect(canary).toContain("url.pathname === '/__bindings'");
     expect(workflow).toContain('ic2_binding_probe=success');
+  });
+
+  it('keeps the production construction class compatible while exposing bounded RPC proof methods', () => {
+    expect(runtime).toContain("import { DurableObject } from 'cloudflare:workers'");
+    expect(runtime).toContain('export class TenantConstructionState extends DurableObject');
+    expect(runtime).toContain('this.legacy = new LegacyTenantConstructionState(ctx)');
+    expect(runtime).toContain('async getProjection()');
+    expect(runtime).toContain('constructionProjection(await this.legacy.readState())');
+    expect(runtime).toContain('async deleteState()');
+    expect(runtime).toContain('return this.legacy.fetch(request)');
+    expect(entryPublish).toContain("from './tenant-construction-state-runtime.js'");
+    expect(entryPublish).toContain('export { TenantConstructionState }');
   });
 
   it('does not perform a same-zone Worker fetch while proving the anonymous boundary', () => {
@@ -132,7 +147,8 @@ describe('IC2 production proof contract', () => {
   it('cleans both the fresh control-plane fixture and ephemeral Worker', () => {
     expect(canary).toContain('DELETE FROM tenant_import_decisions WHERE tenant_id=?1');
     expect(canary).toContain('DELETE FROM catalog_tenants WHERE tenant_id=?1');
-    expect(canary).toContain("fetch('https://construction.internal/state', { method: 'DELETE' })");
+    expect(canary).toContain('constructionStub(env, fixture.tenantId).deleteState()');
+    expect(canary).not.toContain("fetch('https://construction.internal/state', { method: 'DELETE' })");
     expect(workflow).toContain('Delete ephemeral proof Worker');
     expect(workflow).toContain('/workers/scripts/$WORKER_NAME');
     expect(workflow).toContain('if: always()');
