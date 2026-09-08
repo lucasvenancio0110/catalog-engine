@@ -140,7 +140,10 @@ describe('IC4B Queue micro-delivery and bounded horizontal fan-out', () => {
   it('promotes only through trusted exact-SHA Queue activation and verifies the live 1/4 settings', () => {
     expect(activationWorkflow).toContain('Build bounded IC4B detail consumer config');
     expect(activationWorkflow).toContain('scripts/build-ic4b-detail-config.mjs');
-    expect(activationWorkflow).toContain('/tmp/wrangler.import-detail.ic4b.json');
+    expect(activationWorkflow).toContain('IC4B_DETAIL_CONFIG: .wrangler.import-detail.ic4b.json');
+    expect(activationWorkflow).toContain('deploy --config "$IC4B_DETAIL_CONFIG"');
+    expect(activationWorkflow).toContain('Delete generated IC4B detail config');
+    expect(activationWorkflow).not.toContain('--config /tmp/wrangler.import-detail.ic4b.json');
     expect(activationWorkflow).toContain('batch_size) !== 1');
     expect(activationWorkflow).toContain('max_concurrency) !== 4');
     expect(activationWorkflow).toContain('max_retries) !== 5');
@@ -159,6 +162,15 @@ describe('IC4B Queue micro-delivery and bounded horizontal fan-out', () => {
     expect(probeHarness).toContain('providerRegressionGate');
     expect(probeHarness).toContain('crossTenantRegressionGate');
     expect(probeHarness).toContain('privateIdentifiersExposed: false');
+  });
+
+  it('deploys the generated probe config beside repository-relative entrypoints and removes it', () => {
+    expect(proofWorkflow).toContain('IC4B_PROBE_CONFIG: .wrangler.ic4b-fanout-probe.json');
+    expect(proofWorkflow).toContain('cp /tmp/ic4b-fanout-wrangler.json "$IC4B_PROBE_CONFIG"');
+    expect(proofWorkflow).toContain('deploy \\\n            --config "$IC4B_PROBE_CONFIG"');
+    expect(proofWorkflow).toContain("trap 'rm -f \"$IC4B_PROBE_CONFIG\"' EXIT");
+    expect(proofWorkflow).toContain('rm -f "$IC4B_PROBE_CONFIG"');
+    expect(proofWorkflow).not.toContain('--config /tmp/ic4b-fanout-wrangler.json');
   });
 
   it('gates production proof on exact deploy, Queue, real provider, LKG and isolation evidence', () => {

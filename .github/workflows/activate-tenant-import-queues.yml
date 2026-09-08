@@ -30,6 +30,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       WRANGLER_VERSION: 4.123.0
       STATUS_CONTEXT: catalog-engine/queue-consumer-activation
+      IC4B_DETAIL_CONFIG: .wrangler.import-detail.ic4b.json
 
     steps:
       - name: Resolve exact deployed trusted-main SHA
@@ -104,10 +105,15 @@ jobs:
           set -euo pipefail
           node scripts/build-ic4b-detail-config.mjs \
             wrangler.import-detail.jsonc \
-            /tmp/wrangler.import-detail.ic4b.json
+            "$IC4B_DETAIL_CONFIG"
 
       - name: Deploy IC4B detail consumer first
-        run: npx --yes "wrangler@$WRANGLER_VERSION" deploy --config /tmp/wrangler.import-detail.ic4b.json
+        run: npx --yes "wrangler@$WRANGLER_VERSION" deploy --config "$IC4B_DETAIL_CONFIG"
+
+      - name: Delete generated IC4B detail config
+        if: always()
+        shell: bash
+        run: rm -f "$IC4B_DETAIL_CONFIG"
 
       - name: Deploy scan consumer
         run: npx --yes "wrangler@$WRANGLER_VERSION" deploy --config wrangler.import-scan.jsonc
