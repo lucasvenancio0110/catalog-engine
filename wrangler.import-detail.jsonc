@@ -18,6 +18,20 @@
       "migrations_dir": "migrations"
     }
   ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "PROVIDER_DETAIL_GOVERNOR",
+        "class_name": "ProviderDetailGovernor"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "ic4c-provider-detail-governor-v1",
+      "new_sqlite_classes": ["ProviderDetailGovernor"]
+    }
+  ],
   "dispatch_namespaces": [
     {
       "binding": "TENANT_DISPATCH",
