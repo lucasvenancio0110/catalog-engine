@@ -15,10 +15,6 @@ import {
 
 const script = fs.readFileSync('scripts/cloudflare-ic4a-detail-baseline.mjs', 'utf8');
 const workflow = fs.readFileSync('.github/workflows/cloudflare-ic4a-detail-baseline.yml', 'utf8');
-const detailConfig = JSON.parse(fs.readFileSync('wrangler.import-detail.jsonc', 'utf8'));
-const detailConsumer = detailConfig.queues?.consumers?.find(
-  (entry) => entry.queue === 'catalog-engine-import-detail'
-);
 
 function passingFixture() {
   return {
@@ -100,7 +96,7 @@ describe('IC4A safe detail throughput baseline', () => {
     expect(baseline.terminalProductsPerSecond).toBeCloseTo(1.667, 3);
   });
 
-  it('requires measurement while the conservative 4/5/2 Queue boundary is unchanged', () => {
+  it('requires measurement while the historical conservative 4/5/2 Queue boundary is unchanged', () => {
     const fixture = passingFixture();
     expect(evaluateIc4aBaseline(fixture).passed).toBe(true);
 
@@ -108,7 +104,7 @@ describe('IC4A safe detail throughput baseline', () => {
     expect(evaluateIc4aBaseline(fixture).passed).toBe(false);
   });
 
-  it('persists the IC4A measurement-only queue boundary under worker code', () => {
+  it('persists the closed IC4A measurement boundary as historical evidence', () => {
     expect(IC4A_DETAIL_BASELINE_CONTRACT_VERSION).toBe(1);
     expect(IC4A_MAX_REAL_SAMPLE_SIZE).toBe(8);
     expect(IC4A_DETAIL_QUEUE_BASELINE).toEqual({
@@ -144,25 +140,11 @@ describe('IC4A safe detail throughput baseline', () => {
     expect(script).toContain('oldest_message_timestamp_ms');
   });
 
-  it('keeps the production detail Queue at the IC4A conservative baseline', () => {
-    expect(detailConsumer).toMatchObject({
-      queue: 'catalog-engine-import-detail',
-      max_batch_size: 4,
-      max_batch_timeout: 5,
-      max_concurrency: 2,
-      max_retries: 5
-    });
-  });
-
-  it('keeps PR validation secret-free and production proof gated by an exact deploy', () => {
-    expect(workflow).toContain("if: github.event_name == 'pull_request'");
-    expect(workflow).toContain("workflows: ['Deploy Catalog Engine application']");
-    expect(workflow).toContain('catalog-engine/application-deploy');
-    expect(workflow).toContain('catalog-engine/queue-consumer-activation');
-    expect(workflow).toContain('catalog-engine/ic3-production-proof');
-    expect(workflow).toContain('catalog-engine/pb9-production-proof');
-    expect(workflow).toContain("consumer?.max_concurrency) !== 2");
-    const validateBlock = workflow.split('\n  prove:')[0];
-    expect(validateBlock).not.toContain('secrets.CLOUDFLARE');
+  it('keeps the closed production proof as secret-free PR validation instead of blocking IC4B topology', () => {
+    expect(workflow).toContain("pull_request:");
+    expect(workflow).toContain('docs/IC4A-CLOSURE-2026-09-07.md');
+    expect(workflow).not.toContain('workflow_run:');
+    expect(workflow).not.toContain('secrets.CLOUDFLARE');
+    expect(workflow).toContain('tests/ic4a-detail-baseline.test.mjs');
   });
 });

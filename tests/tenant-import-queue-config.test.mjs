@@ -44,7 +44,7 @@ describe('tenant import queue activation configuration', () => {
     ]);
   });
 
-  it('defines a deliberately bounded detail consumer with a separate DLQ', async () => {
+  it('keeps the canonical detail config as the explicit IC4B rollback template', async () => {
     const config = await readJson('wrangler.import-detail.jsonc');
     expect(config.name).toBe('catalog-engine-import-detail');
     expect(config.main).toBe('./worker/import-detail-entry.js');

@@ -1,0 +1,268 @@
+name: Cloudflare IC4B detail fan-out proof
+
+on:
+  pull_request:
+    branches: ['main']
+    paths:
+      - '.github/workflows/cloudflare-ic4b-detail-fanout.yml'
+      - '.github/workflows/cloudflare-ic4a-detail-baseline.yml'
+      - '.github/workflows/activate-tenant-import-queues.yml'
+      - 'scripts/build-ic4b-detail-config.mjs'
+      - 'scripts/cloudflare-ic4b-detail-fanout.mjs'
+      - 'tests/ic4b-detail-fanout.test.mjs'
+      - 'tests/ic4a-detail-baseline.test.mjs'
+      - 'tests/tenant-import-queue-config.test.mjs'
+      - 'worker/ic4b-fanout-probe.js'
+      - 'worker/import-detail-entry.js'
+      - 'worker/ingestion/ic4b-detail-fanout-contract.js'
+      - 'worker/ingestion/detail-consumer.js'
+      - 'worker/ingestion/tenant-data-plane.js'
+      - 'worker/tenant-import-queue.js'
+  workflow_run:
+    workflows: ['Deploy Catalog Engine application']
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify IC4B fan-out, rollback and isolation contracts
+        run: >-
+          npx vitest run
+          tests/ic4b-detail-fanout.test.mjs
+          tests/tenant-import-queue-config.test.mjs
+          tests/ic4a-detail-baseline.test.mjs
+          tests/tenant-import-detail.test.mjs
+          tests/tenant-data-plane-command.test.mjs
+          tests/tenant-m7d10-recovery-canary.test.mjs
+
+      - name: Secret-free quality gate
+        run: npm run quality
+
+  prerequisites:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    outputs:
+      sha: ${{ steps.target.outputs.sha }}
+    steps:
+      - name: Resolve exact deployed trusted-main SHA
+        id: target
+        env:
+          EVENT_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$EVENT_SHA" || { echo 'Missing target SHA'; exit 1; }
+          echo "sha=$EVENT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for exact-SHA deploy, Queue, provider and LKG regressions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ steps.target.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 300); do
+            STATUS_JSON="$(curl --fail --silent --show-error \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/$REPO/commits/$SHA/status")"
+            APP_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context=="catalog-engine/application-deploy")][0].state // "missing"')"
+            QUEUE_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context=="catalog-engine/queue-consumer-activation")][0].state // "missing"')"
+            AUTO_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context=="catalog-engine/tenant-import-auto-canary")][0].state // "missing"')"
+            PB9_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context=="catalog-engine/pb9-production-proof")][0].state // "missing"')"
+            IC2_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context=="catalog-engine/ic2-production-proof")][0].state // "missing"')"
+            IC3_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context=="catalog-engine/ic3-production-proof")][0].state // "missing"')"
+            if [ "$APP_STATE" = success ] && [ "$QUEUE_STATE" = success ] && \
+               [ "$AUTO_STATE" = success ] && [ "$PB9_STATE" = success ] && \
+               [ "$IC2_STATE" = success ] && [ "$IC3_STATE" = success ]; then
+              echo 'exact_sha_application_deploy=success'
+              echo 'exact_sha_queue_activation=success'
+              echo 'exact_sha_real_provider_canary=success'
+              echo 'exact_sha_pb9_lkg=success'
+              echo 'exact_sha_ic2_isolation=success'
+              echo 'exact_sha_ic3_listing=success'
+              exit 0
+            fi
+            case "$APP_STATE:$QUEUE_STATE:$AUTO_STATE:$PB9_STATE:$IC2_STATE:$IC3_STATE" in
+              *failure*|*error*)
+                echo "Exact-SHA dependency failed: app=$APP_STATE queue=$QUEUE_STATE auto=$AUTO_STATE pb9=$PB9_STATE ic2=$IC2_STATE ic3=$IC3_STATE"
+                exit 1
+                ;;
+            esac
+            sleep 10
+          done
+          echo "Exact-SHA dependencies unresolved: app=$APP_STATE queue=$QUEUE_STATE auto=$AUTO_STATE pb9=$PB9_STATE ic2=$IC2_STATE ic3=$IC3_STATE"
+          exit 1
+
+  prove:
+    needs: prerequisites
+    if: needs.prerequisites.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    concurrency:
+      group: catalog-engine-production-d1
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE: catalog-engine-production
+      TARGET_SHA: ${{ needs.prerequisites.outputs.sha }}
+      WRANGLER_VERSION: 4.123.0
+      STATUS_CONTEXT: catalog-engine/ic4b-detail-fanout
+
+    steps:
+      - name: Checkout exact deployed trusted-main SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate trusted Cloudflare credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo 'CLOUDFLARE_ACCOUNT_ID is missing'; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo 'CLOUDFLARE_API_TOKEN is missing'; exit 1; }
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Quality and IC4B contract gate before proof resources
+        run: |
+          npx vitest run tests/ic4b-detail-fanout.test.mjs tests/tenant-import-queue-config.test.mjs tests/tenant-data-plane-command.test.mjs tests/tenant-m7d10-recovery-canary.test.mjs
+          npm run quality
+
+      - name: Create isolated IC4B Queue and D1 probe resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/cloudflare-ic4b-detail-fanout.mjs setup
+
+      - name: Deploy private IC4B fan-out probe Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! npx --yes "wrangler@$WRANGLER_VERSION" deploy \
+            --config /tmp/ic4b-fanout-wrangler.json \
+            >/tmp/ic4b-probe-deploy.log 2>&1; then
+            echo 'IC4B isolated probe Worker deploy failed; raw resource identifiers remain suppressed.'
+            exit 1
+          fi
+          echo 'IC4B isolated probe Worker deployed privately.'
+
+      - name: Measure production topology and real Worker-level fan-out
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/cloudflare-ic4b-detail-fanout.mjs run | tee /tmp/ic4b-fanout-core-safe.json
+
+      - name: Delete all isolated IC4B proof resources
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/cloudflare-ic4b-detail-fanout.mjs cleanup
+
+      - name: Finalize safe IC4B evidence after cleanup
+        if: success()
+        id: evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/cloudflare-ic4b-detail-fanout.mjs finalize | tee /tmp/ic4b-fanout-evidence-safe.json
+          jq -e '
+            .ic4bProductionFanout == "passed" and
+            .contractVersion == 1 and
+            .production.batchSize == 1 and
+            .production.maxConcurrency == 4 and
+            .production.maxRetries == 5 and
+            .production.backlogCount == 0 and
+            .production.dlqBacklogCount == 0 and
+            .probe.completed == 24 and
+            .probe.uniqueCompleted == 24 and
+            .probe.maxObservedActive >= 3 and
+            .probe.maxObservedActive <= 4 and
+            .probe.backlogCount == 0 and
+            .probe.dlqBacklogCount == 0 and
+            .cleanup.workerCleaned == true and
+            .cleanup.queueCleaned == true and
+            .cleanup.dlqCleaned == true and
+            .cleanup.databaseCleaned == true and
+            .initialImportEnabled == true and
+            .recurringIntelligentSyncEnabled == false and
+            .privateIdentifiersExposed == false
+          ' /tmp/ic4b-fanout-evidence-safe.json >/dev/null
+          cat /tmp/ic4b-fanout-evidence-safe.json >> "$GITHUB_STEP_SUMMARY"
+          echo "observed=$(jq -r '.probe.maxObservedActive' /tmp/ic4b-fanout-evidence-safe.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish successful IC4B production proof
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          OBSERVED: ${{ steps.evidence.outputs.observed }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          DESCRIPTION="IC4B green; detail batch=1/max=4; observed workers=${OBSERVED}; Queue+DLQ clean"
+          jq -n --arg state success --arg context "$STATUS_CONTEXT" \
+            --arg description "$DESCRIPTION" --arg target_url "$RUN_URL" \
+            '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
+          curl --fail --silent --show-error -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$REPO/statuses/$TARGET_SHA" -d @/tmp/status.json
+
+      - name: Publish failed IC4B production proof
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$TARGET_SHA" || exit 0
+          jq -n --arg state failure --arg context "$STATUS_CONTEXT" \
+            --arg description 'IC4B trusted fan-out proof failed; rollback authority remains 4/2' \
+            --arg target_url "$RUN_URL" \
+            '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
+          curl --fail --silent --show-error -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$REPO/statuses/$TARGET_SHA" -d @/tmp/status.json
