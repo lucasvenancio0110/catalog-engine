@@ -7,13 +7,17 @@ import {
   createAdaptiveProviderFetch
 } from './ingestion/provider-detail-governor.js';
 import {
+  TenantD1WriteGovernor,
+  createTenantD1WriteGovernedEnv
+} from './ingestion/tenant-d1-write-governor.js';
+import {
   initialTenantImportId,
   parseTenantImportMessage,
   recordTenantImportDelivery,
   tenantImportMessageDisposition
 } from './tenant-import-queue.js';
 
-export { ProviderDetailGovernor };
+export { ProviderDetailGovernor, TenantD1WriteGovernor };
 
 function retryDelay(result, fallback) {
   const value = Number(result?.delaySeconds || fallback);
@@ -34,6 +38,7 @@ async function handleDetail(parsed, env) {
 
 export default {
   async queue(batch, env) {
+    const governedEnv = createTenantD1WriteGovernedEnv(env);
     for (const message of batch.messages) {
       let parsed;
       try {
@@ -70,14 +75,14 @@ export default {
 
       try {
         if (parsed.type === 'detail') {
-          result = await handleDetail(parsed, env);
+          result = await handleDetail(parsed, governedEnv);
         } else {
           // Finalize delivery is also the liveness barrier for initial detail work:
           // expired claims that already exhausted the bounded detail attempt budget
           // become deferred before terminal-count evaluation. This is tenant/import
           // scoped and idempotent, so a DLQ-exhausted detail cannot strand onboarding.
-          await recoverExhaustedInitialDetailLeases(parsed, env);
-          result = await handleTenantImportFinalizeMessage(parsed, env);
+          await recoverExhaustedInitialDetailLeases(parsed, governedEnv);
+          result = await handleTenantImportFinalizeMessage(parsed, governedEnv);
         }
       } catch {
         result = { outcome: 'failed', error: 'tenant_import_delivery_failed' };
