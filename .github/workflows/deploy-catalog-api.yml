@@ -15,6 +15,7 @@ on:
       - '.github/workflows/cloudflare-trusted-fresh-tenant-provision.yml'
       - '.github/workflows/cloudflare-ic3-listing-production-proof.yml'
       - '.github/workflows/cloudflare-ic4b-detail-fanout.yml'
+      - '.github/workflows/cloudflare-ic4c-provider-governor.yml'
       - 'index.html'
       - 'app.html'
       - 'package.json'
@@ -58,10 +59,13 @@ on:
       - 'tests/ic3-progressive-construction.test.mjs'
       - 'tests/ic4b-detail-fanout.test.mjs'
       - 'tests/ic4b-proof-cleanup-retry.test.mjs'
+      - 'tests/ic4c-provider-governor-proof.test.mjs'
+      - 'tests/ic4c-provider-detail-governor.test.mjs'
       - 'tests/tenant-import-scan.test.mjs'
       - 'src/**'
       - 'worker/**'
       - 'wrangler.jsonc'
+      - 'wrangler.import-detail.jsonc'
   workflow_dispatch:
 
 permissions:
