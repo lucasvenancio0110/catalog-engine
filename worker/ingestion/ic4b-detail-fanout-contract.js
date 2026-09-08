@@ -44,13 +44,18 @@ export function evaluateIc4bFanoutProbe({
   configuredMaxConcurrency = IC4B_DETAIL_QUEUE_TARGET.maxConcurrency,
   workerCleaned,
   queueCleaned,
+  dlqCleaned,
   databaseCleaned
 } = {}) {
   const observed = integer(maxObservedActive) ?? 0;
   const ceiling = integer(configuredMaxConcurrency) ?? 0;
   const expected = integer(expectedMessages) ?? 0;
   const done = integer(completed) ?? -1;
-  const cleanupPassed = workerCleaned === true && queueCleaned === true && databaseCleaned === true;
+  const cleanupPassed =
+    workerCleaned === true &&
+    queueCleaned === true &&
+    dlqCleaned === true &&
+    databaseCleaned === true;
   return {
     passed:
       expected > 0 &&
