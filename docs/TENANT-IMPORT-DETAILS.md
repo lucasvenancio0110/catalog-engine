@@ -61,6 +61,8 @@ If governor admission or governed dispatch fails, the existing detail/finalize d
 
 The platform cron periodically emits an opaque finalize message after the listing fan-out cursor reaches the discovered item count. Finalization is a barrier, not a timer: it succeeds only when every discovered item is terminal (`success`, `skipped`, or `deferred`).
 
+A finalize delivery that successfully inspects the correct durable state but finds the barrier **not ready** is a healthy probe, not a failed Queue delivery. That probe is acknowledged immediately and leaves the import in `details`; the next five-minute cron tick owns the next bounded probe. Queue delivery retries and the detail DLQ remain reserved for actual execution/delivery failures. This prevents long-running imports from multiplying stale finalize retries or creating DLQ evidence merely because detail work is still legitimately in flight.
+
 Before counting terminal rows, the finalize delivery performs the bounded expired-claim recovery described above. It may only terminalize initial-import rows owned by the same `tenantId`/`sourceKey`/`importId`, with `state='processing'`, an expired non-null lease and an already-exhausted detail attempt budget. Pending work, active leases and retryable claims are left untouched.
 
 Finalization recomputes category, league, team and facet counts from the isolated tenant D1, removes unreferenced private media, writes public catalog metadata and runs a white-label check over public product text.
