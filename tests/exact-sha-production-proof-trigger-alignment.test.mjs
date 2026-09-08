@@ -59,6 +59,17 @@ describe('exact-SHA production proof trigger alignment', () => {
     }
   });
 
+  it('revalidates the application when IC4B production-proof orchestration changes', () => {
+    for (const path of [
+      '.github/workflows/cloudflare-ic4b-detail-fanout.yml',
+      'scripts/cloudflare-ic4b-detail-fanout.mjs',
+      'tests/ic4b-detail-fanout.test.mjs',
+      'tests/ic4b-proof-cleanup-retry.test.mjs'
+    ]) {
+      expect(deployWorkflow).toContain(`'${path}'`);
+    }
+  });
+
   it('waits outside the mutation lock before fleet and automatic import take the shared production lock', () => {
     for (const workflow of [fleetWorkflow, autoWorkflow]) {
       const prerequisiteStart = workflow.indexOf('  prerequisites:');
