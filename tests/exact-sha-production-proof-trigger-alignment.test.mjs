@@ -82,6 +82,17 @@ describe('exact-SHA production proof trigger alignment', () => {
     expect(deployWorkflow).toContain("'worker/**'");
   });
 
+  it('revalidates the application when IC4E production-proof orchestration changes', () => {
+    for (const path of [
+      '.github/workflows/cloudflare-ic4e-detail-swarm.yml',
+      'scripts/cloudflare-ic4e-detail-swarm.mjs',
+      'tests/ic4e-detail-swarm-proof.test.mjs'
+    ]) {
+      expect(deployWorkflow).toContain(`'${path}'`);
+    }
+    expect(deployWorkflow).toContain("'worker/**'");
+  });
+
   it('waits outside the mutation lock before fleet and automatic import take the shared production lock', () => {
     for (const workflow of [fleetWorkflow, autoWorkflow]) {
       const prerequisiteStart = workflow.indexOf('  prerequisites:');
