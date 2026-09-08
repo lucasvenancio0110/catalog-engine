@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   PROVIDER_GOVERNOR_CONTRACT,
+  ProviderDetailGovernor,
   evolveProviderGovernorState,
   initialProviderGovernorState
 } from '../worker/ingestion/provider-detail-governor.js';
@@ -12,6 +13,20 @@ function healthy(state, count, startedAt = 1_000) {
     next = evolveProviderGovernorState(next, { status: 200, latencyMs: 500 }, startedAt + index);
   }
   return next;
+}
+
+function fakeDurableState(initialState) {
+  const values = new Map([['state', initialState]]);
+  return {
+    storage: {
+      async get(key) {
+        return values.get(key);
+      },
+      async put(key, value) {
+        values.set(key, value);
+      }
+    }
+  };
 }
 
 describe('IC4C provider detail governor', () => {
@@ -42,6 +57,22 @@ describe('IC4C provider detail governor', () => {
     const state = { ...initialProviderGovernorState(), limit: 1 };
     const reduced = evolveProviderGovernorState(state, { status: 429, latencyMs: 100 }, 20_000);
     expect(reduced.limit).toBe(PROVIDER_GOVERNOR_CONTRACT.floor);
+  });
+
+  it('enforces the hard ceiling inside the shared Durable Object admission point', async () => {
+    const durableState = fakeDurableState({
+      ...initialProviderGovernorState(),
+      limit: PROVIDER_GOVERNOR_CONTRACT.ceiling
+    });
+    const governor = new ProviderDetailGovernor(durableState);
+    const outcomes = [];
+    for (let index = 0; index < PROVIDER_GOVERNOR_CONTRACT.ceiling + 1; index += 1) {
+      const response = await governor.fetch(new Request('https://governor.internal/acquire', { method: 'POST' }));
+      outcomes.push({ status: response.status, body: await response.json() });
+    }
+    expect(outcomes.slice(0, PROVIDER_GOVERNOR_CONTRACT.ceiling).every((entry) => entry.body.admitted)).toBe(true);
+    expect(outcomes.at(-1).status).toBe(429);
+    expect(outcomes.at(-1).body.admitted).toBe(false);
   });
 
   it('binds a server-side Durable Object and routes both initial and incremental detail handlers through it', () => {
