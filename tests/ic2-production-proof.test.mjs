@@ -36,6 +36,34 @@ describe('IC2 production proof contract', () => {
     expect(workflow).toContain("github.event_name == 'pull_request'");
   });
 
+  it('waits for exact-SHA regressions outside the shared mutation lock before privileged proof', () => {
+    const prerequisiteStart = workflow.indexOf('  prerequisites:');
+    const proveStart = workflow.indexOf('  prove:');
+    expect(prerequisiteStart).toBeGreaterThan(-1);
+    expect(proveStart).toBeGreaterThan(prerequisiteStart);
+
+    const prerequisiteBlock = workflow.slice(prerequisiteStart, proveStart);
+    const proveBlock = workflow.slice(proveStart);
+    expect(prerequisiteBlock).not.toContain('group: catalog-engine-production-d1');
+    expect(prerequisiteBlock).toContain(
+      'Wait for exact-SHA application, Queue, fleet, automatic import and PB9 evidence outside mutation lock'
+    );
+    for (const context of [
+      'catalog-engine/application-deploy',
+      'catalog-engine/queue-consumer-activation',
+      'catalog-engine/tenant-data-plane-fleet-canary',
+      'catalog-engine/tenant-import-auto-canary',
+      'catalog-engine/pb9-production-proof'
+    ]) {
+      expect(prerequisiteBlock).toContain(context);
+    }
+    expect(prerequisiteBlock).not.toContain('catalog-engine/ic3-production-proof');
+    expect(proveBlock).toContain('needs: prerequisites');
+    expect(proveBlock).toContain("if: needs.prerequisites.result == 'success'");
+    expect(proveBlock).toContain('group: catalog-engine-production-d1');
+    expect(proveBlock).toContain('TARGET_SHA: ${{ needs.prerequisites.outputs.sha }}');
+  });
+
   it('waits for the ephemeral workers.dev route before starting TTFI measurement', () => {
     expect(workflow).toContain('Wait for ephemeral proof route readiness');
     expect(workflow).toContain('for attempt in $(seq 1 30)');
