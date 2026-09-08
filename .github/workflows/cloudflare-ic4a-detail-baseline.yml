@@ -1,5 +1,9 @@
-name: Cloudflare IC4A detail throughput baseline
+name: IC4A detail throughput baseline
 
+# IC4A is closed with trusted production evidence in
+# docs/IC4A-CLOSURE-2026-09-07.md. This workflow now preserves the historical
+# measurement contract in secret-free PR validation only. It intentionally no
+# longer runs as a production topology gate once IC4B changes the live Queue.
 on:
   pull_request:
     branches: ['main']
@@ -7,212 +11,30 @@ on:
       - '.github/workflows/cloudflare-ic4a-detail-baseline.yml'
       - 'scripts/cloudflare-ic4a-detail-baseline.mjs'
       - 'tests/ic4a-detail-baseline.test.mjs'
-      - 'worker/ingestion/detail-consumer.js'
-      - 'worker/ingestion/providers/**'
-      - 'src/catalog-provider/**'
-      - 'wrangler.import-detail.jsonc'
-      - 'wrangler.jsonc'
-  workflow_run:
-    workflows: ['Deploy Catalog Engine application']
-    types: [completed]
-  workflow_dispatch:
+      - 'worker/ingestion/ic4a-detail-baseline-contract.js'
 
 permissions:
   contents: read
-  statuses: write
 
 jobs:
   validate:
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 12
     steps:
-      - name: Checkout
+      - name: Checkout PR head
         uses: actions/checkout@v4
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - name: Install dependencies
+
+      - name: Install project dependencies
         run: npm ci
-      - name: Verify IC4A baseline contract
-        run: npx vitest run tests/ic4a-detail-baseline.test.mjs tests/tenant-import-queue-config.test.mjs
+
+      - name: Verify closed IC4A measurement contract
+        run: npx vitest run tests/ic4a-detail-baseline.test.mjs
+
       - name: Secret-free quality gate
         run: npm run quality
-
-  prove:
-    if: >-
-      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_run' &&
-       github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main')
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
-    concurrency:
-      group: catalog-engine-ic4a-detail-baseline
-      cancel-in-progress: false
-    env:
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_PLATFORM_DISPATCH_NAMESPACE: catalog-engine-production
-      IC4A_MERCHANT_DISPLAY_NAME: CROCCODILOS
-      IC4A_SAMPLE_SIZE: '6'
-      TARGET_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
-      STATUS_CONTEXT: catalog-engine/ic4a-detail-baseline
-    steps:
-      - name: Checkout exact trusted-main SHA
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ env.TARGET_SHA }}
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - name: Install dependencies
-        run: npm ci
-      - name: Verify IC4A baseline contract
-        run: npx vitest run tests/ic4a-detail-baseline.test.mjs tests/tenant-import-queue-config.test.mjs
-      - name: Validate conservative runtime and exact deploy
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo 'CLOUDFLARE_ACCOUNT_ID is missing'; exit 1; }
-          test -n "$CLOUDFLARE_API_TOKEN" || { echo 'CLOUDFLARE_API_TOKEN is missing'; exit 1; }
-          test -n "$TARGET_SHA" || { echo 'TARGET_SHA is missing'; exit 1; }
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const app = JSON.parse(fs.readFileSync('wrangler.jsonc', 'utf8'));
-          const detail = JSON.parse(fs.readFileSync('wrangler.import-detail.jsonc', 'utf8'));
-          const db = app.d1_databases?.find((entry) => entry.binding === 'CATALOG_DB');
-          const consumer = detail.queues?.consumers?.find((entry) => entry.queue === 'catalog-engine-import-detail');
-          if (!db?.database_id) throw new Error('IC4A control D1 binding missing');
-          if (app.vars?.TENANT_IMPORT_AUTOMATION_ENABLED !== '1') throw new Error('Initial import automation must remain enabled');
-          if (app.vars?.TENANT_SYNC_AUTOMATION_ENABLED !== '0') throw new Error('Recurring Intelligent Sync must remain disabled');
-          if (String(app.vars?.TENANT_SYNC_ACTIVE_COHORT || '') !== '') throw new Error('Recurring sync cohort must remain empty');
-          if (String(app.vars?.TENANT_SYNC_MAX_JOBS_PER_TICK || '') !== '1') throw new Error('Recurring sync max jobs boundary changed');
-          if (Number(consumer?.max_batch_size) !== 4) throw new Error('IC4A cannot change detail batch size');
-          if (Number(consumer?.max_batch_timeout) !== 5) throw new Error('IC4A cannot change detail batch timeout');
-          if (Number(consumer?.max_concurrency) !== 2) throw new Error('IC4A cannot change detail consumer concurrency');
-          NODE
-          STATUS_JSON="$(curl --fail --silent --show-error \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/status")"
-          DEPLOY_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context == "catalog-engine/application-deploy")][0].state // "missing"')"
-          test "$DEPLOY_STATE" = 'success' || { echo "Exact SHA application deploy state=$DEPLOY_STATE"; exit 1; }
-          echo 'exact_sha_application_deploy=success'
-      - name: Wait for exact-SHA Queue, IC3 and PB9 safety evidence
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          QUEUE_STATE='missing'
-          IC3_STATE='missing'
-          PB9_STATE='missing'
-          for attempt in $(seq 1 72); do
-            STATUS_JSON="$(curl --fail --silent --show-error \
-              -H "Authorization: Bearer $GH_TOKEN" \
-              -H 'Accept: application/vnd.github+json' \
-              -H 'X-GitHub-Api-Version: 2022-11-28' \
-              "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/status")"
-            QUEUE_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context == "catalog-engine/queue-consumer-activation")][0].state // "missing"')"
-            IC3_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context == "catalog-engine/ic3-production-proof")][0].state // "missing"')"
-            PB9_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context == "catalog-engine/pb9-production-proof")][0].state // "missing"')"
-            if test "$QUEUE_STATE" = 'success' -a "$IC3_STATE" = 'success' -a "$PB9_STATE" = 'success'; then
-              echo 'queue_consumer_activation=success'
-              echo 'ic3_listing_regression=success'
-              echo 'pb9_verified_lkg=success'
-              exit 0
-            fi
-            for state in "$QUEUE_STATE" "$IC3_STATE" "$PB9_STATE"; do
-              if test "$state" = 'failure' -o "$state" = 'error'; then
-                echo "Exact-SHA safety dependency failed: queue=$QUEUE_STATE ic3=$IC3_STATE pb9=$PB9_STATE"
-                exit 1
-              fi
-            done
-            sleep 10
-          done
-          echo "Exact-SHA safety dependencies unresolved: queue=$QUEUE_STATE ic3=$IC3_STATE pb9=$PB9_STATE"
-          exit 1
-      - name: Measure current detail throughput baseline safely
-        id: evidence
-        shell: bash
-        run: |
-          set -euo pipefail
-          node scripts/cloudflare-ic4a-detail-baseline.mjs | tee /tmp/ic4a-detail-baseline.json
-          jq -e '
-            .ic4aProductionBaseline == "passed" and
-            .referenceClass == "real-large-catalog" and
-            .detailQueue.batchSize == 4 and
-            .detailQueue.batchTimeoutSeconds == 5 and
-            .detailQueue.maxConcurrency == 2 and
-            .historicalDetail.discovered >= 5000 and
-            .historicalDetail.terminal >= 5000 and
-            .historicalDetail.detailTerminalWindowMs > 0 and
-            .historicalDetail.terminalProductsPerSecond > 0 and
-            .sample.requested >= 1 and
-            .sample.requested <= 8 and
-            .sample.successful >= 4 and
-            .sample.providerFetchMs.count >= 1 and
-            .sample.normalizationMs.count >= 1 and
-            .sample.d1WriteMs.count >= 1 and
-            .temporaryDatabaseCleaned == true and
-            .detailConcurrencyChanged == false and
-            .initialImportEnabled == true and
-            .recurringIntelligentSyncEnabled == false and
-            .privateIdentifiersExposed == false
-          ' /tmp/ic4a-detail-baseline.json >/dev/null
-          cat /tmp/ic4a-detail-baseline.json >> "$GITHUB_STEP_SUMMARY"
-          echo "result=$(jq -r '.ic4aProductionBaseline' /tmp/ic4a-detail-baseline.json)" >> "$GITHUB_OUTPUT"
-          echo "throughput=$(jq -r '.historicalDetail.terminalProductsPerSecond' /tmp/ic4a-detail-baseline.json)" >> "$GITHUB_OUTPUT"
-          echo "fetch_p95=$(jq -r '.sample.providerFetchMs.p95Ms' /tmp/ic4a-detail-baseline.json)" >> "$GITHUB_OUTPUT"
-          echo "write_p95=$(jq -r '.sample.d1WriteMs.p95Ms' /tmp/ic4a-detail-baseline.json)" >> "$GITHUB_OUTPUT"
-      - name: Publish successful IC4A production baseline
-        if: success()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          PROOF_RESULT: ${{ steps.evidence.outputs.result }}
-          THROUGHPUT: ${{ steps.evidence.outputs.throughput }}
-          FETCH_P95: ${{ steps.evidence.outputs.fetch_p95 }}
-          WRITE_P95: ${{ steps.evidence.outputs.write_p95 }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$PROOF_RESULT" = 'passed' || { echo 'IC4A baseline did not pass'; exit 1; }
-          DESCRIPTION="IC4A baseline green; historical ${THROUGHPUT}/s; fetch p95 ${FETCH_P95}ms; D1 p95 ${WRITE_P95}ms"
-          test "${#DESCRIPTION}" -le 140 || DESCRIPTION='IC4A safe detail baseline measured; conservative concurrency unchanged'
-          jq -n --arg state success --arg context "$STATUS_CONTEXT" \
-            --arg description "$DESCRIPTION" --arg target_url "$RUN_URL" \
-            '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
-          curl --fail --silent --show-error -X POST \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            "https://api.github.com/repos/$REPO/statuses/$TARGET_SHA" -d @/tmp/status.json
-      - name: Publish failed IC4A diagnostic evidence
-        if: failure()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -n "$TARGET_SHA" || exit 0
-          jq -n --arg state failure --arg context "$STATUS_CONTEXT" \
-            --arg description 'IC4A trusted detail baseline failed; inspect safe run' \
-            --arg target_url "$RUN_URL" \
-            '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
-          curl --fail --silent --show-error -X POST \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            "https://api.github.com/repos/$REPO/statuses/$TARGET_SHA" -d @/tmp/status.json
