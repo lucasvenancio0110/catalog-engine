@@ -57,6 +57,16 @@ describe('production deployment pipeline boundary', () => {
     }
   });
 
+  it('deploys exact main when IC2 production-proof orchestration changes', async () => {
+    const workflow = await readWorkflow('deploy-catalog-api.yml');
+    for (const path of [
+      '.github/workflows/cloudflare-ic2-production-proof.yml',
+      'tests/ic2-production-proof.test.mjs'
+    ]) {
+      expect(workflow).toContain(`- '${path}'`);
+    }
+  });
+
   it('deploys exact main when IC3 production-proof orchestration changes', async () => {
     const workflow = await readWorkflow('deploy-catalog-api.yml');
     for (const path of [
