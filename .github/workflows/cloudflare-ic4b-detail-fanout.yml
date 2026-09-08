@@ -10,6 +10,7 @@ on:
       - 'scripts/build-ic4b-detail-config.mjs'
       - 'scripts/cloudflare-ic4b-detail-fanout.mjs'
       - 'tests/ic4b-detail-fanout.test.mjs'
+      - 'tests/ic4b-proof-cleanup-retry.test.mjs'
       - 'tests/ic4a-detail-baseline.test.mjs'
       - 'tests/tenant-import-queue-config.test.mjs'
       - 'worker/ic4b-fanout-probe.js'
@@ -49,6 +50,7 @@ jobs:
         run: >-
           npx vitest run
           tests/ic4b-detail-fanout.test.mjs
+          tests/ic4b-proof-cleanup-retry.test.mjs
           tests/tenant-import-queue-config.test.mjs
           tests/ic4a-detail-baseline.test.mjs
           tests/tenant-import-detail.test.mjs
@@ -162,7 +164,7 @@ jobs:
 
       - name: Quality and IC4B contract gate before proof resources
         run: |
-          npx vitest run tests/ic4b-detail-fanout.test.mjs tests/tenant-import-queue-config.test.mjs tests/tenant-data-plane-command.test.mjs tests/tenant-m7d10-recovery-canary.test.mjs
+          npx vitest run tests/ic4b-detail-fanout.test.mjs tests/ic4b-proof-cleanup-retry.test.mjs tests/tenant-import-queue-config.test.mjs tests/tenant-data-plane-command.test.mjs tests/tenant-m7d10-recovery-canary.test.mjs
           npm run quality
 
       - name: Create isolated IC4B Queue and D1 probe resources
@@ -197,7 +199,19 @@ jobs:
         run: |
           set -euo pipefail
           rm -f "$IC4B_PROBE_CONFIG"
-          node scripts/cloudflare-ic4b-detail-fanout.mjs cleanup
+          cleanup_ok=0
+          for attempt in 1 2 3 4 5; do
+            if node scripts/cloudflare-ic4b-detail-fanout.mjs cleanup; then
+              cleanup_ok=1
+              break
+            fi
+            echo "IC4B cleanup attempt ${attempt} did not converge; retrying bounded teardown."
+            sleep $((attempt * 2))
+          done
+          if [ "$cleanup_ok" -ne 1 ]; then
+            echo 'IC4B cleanup failed after bounded retries; proof remains red.'
+            exit 1
+          fi
 
       - name: Finalize safe IC4B evidence after cleanup
         if: success()
