@@ -17,13 +17,18 @@ function healthy(state, count, startedAt = 1_000) {
 
 function fakeDurableState(initialState) {
   const values = new Map([['state', initialState]]);
+  const transactionView = {
+    async get(key) {
+      return values.get(key);
+    },
+    async put(key, value) {
+      values.set(key, value);
+    }
+  };
   return {
     storage: {
-      async get(key) {
-        return values.get(key);
-      },
-      async put(key, value) {
-        values.set(key, value);
+      async transaction(callback) {
+        return callback(transactionView);
       }
     }
   };
@@ -59,7 +64,7 @@ describe('IC4C provider detail governor', () => {
     expect(reduced.limit).toBe(PROVIDER_GOVERNOR_CONTRACT.floor);
   });
 
-  it('enforces the hard ceiling inside the shared Durable Object admission point', async () => {
+  it('enforces the hard ceiling inside one transactional Durable Object admission point', async () => {
     const durableState = fakeDurableState({
       ...initialProviderGovernorState(),
       limit: PROVIDER_GOVERNOR_CONTRACT.ceiling
@@ -67,10 +72,16 @@ describe('IC4C provider detail governor', () => {
     const governor = new ProviderDetailGovernor(durableState);
     const outcomes = [];
     for (let index = 0; index < PROVIDER_GOVERNOR_CONTRACT.ceiling + 1; index += 1) {
-      const response = await governor.fetch(new Request('https://governor.internal/acquire', { method: 'POST' }));
+      const response = await governor.fetch(
+        new Request('https://governor.internal/acquire', { method: 'POST' })
+      );
       outcomes.push({ status: response.status, body: await response.json() });
     }
-    expect(outcomes.slice(0, PROVIDER_GOVERNOR_CONTRACT.ceiling).every((entry) => entry.body.admitted)).toBe(true);
+    expect(
+      outcomes
+        .slice(0, PROVIDER_GOVERNOR_CONTRACT.ceiling)
+        .every((entry) => entry.body.admitted)
+    ).toBe(true);
     expect(outcomes.at(-1).status).toBe(429);
     expect(outcomes.at(-1).body.admitted).toBe(false);
   });
@@ -95,6 +106,7 @@ describe('IC4C provider detail governor', () => {
   it('keeps provider identity private and preserves the recurring-sync boundary', () => {
     const source = fs.readFileSync('worker/ingestion/provider-detail-governor.js', 'utf8');
     expect(source).toContain("crypto.subtle.digest('SHA-256'");
+    expect(source).toContain('storage.transaction');
     expect(source).not.toContain('console.log');
     expect(source).not.toContain('console.error');
     expect(PROVIDER_GOVERNOR_CONTRACT.recurringSyncChanged).toBe(false);
