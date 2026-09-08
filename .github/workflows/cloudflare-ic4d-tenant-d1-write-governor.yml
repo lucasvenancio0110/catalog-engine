@@ -1,0 +1,297 @@
+name: Cloudflare IC4D tenant D1 write-pressure governor proof
+
+on:
+  pull_request:
+    branches: ['main']
+    paths:
+      - '.github/workflows/cloudflare-ic4d-tenant-d1-write-governor.yml'
+      - 'tests/ic4d-tenant-d1-write-governor-proof.test.mjs'
+      - 'tests/ic4d-tenant-d1-write-governor.test.mjs'
+      - 'tests/ic4d-tenant-d1-write-config.test.mjs'
+      - 'worker/ic4d-write-governor-probe.js'
+      - 'worker/import-detail-entry.js'
+      - 'worker/ingestion/tenant-d1-write-governor.js'
+      - 'wrangler.import-detail.jsonc'
+  workflow_run:
+    workflows: ['Deploy Catalog Engine application']
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify IC4D governor and proof contracts
+        run: >-
+          npx vitest run
+          tests/ic4d-tenant-d1-write-governor.test.mjs
+          tests/ic4d-tenant-d1-write-config.test.mjs
+          tests/ic4d-tenant-d1-write-governor-proof.test.mjs
+          tests/ic4c-provider-detail-governor.test.mjs
+          tests/tenant-import-detail.test.mjs
+          tests/tenant-import-queue-config.test.mjs
+          tests/tenant-data-plane-command.test.mjs
+          tests/tenant-m7d10-recovery-canary.test.mjs
+          tests/exact-sha-production-proof-trigger-alignment.test.mjs
+
+      - name: Secret-free quality gate
+        run: npm run quality
+
+  prerequisites:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    outputs:
+      sha: ${{ steps.target.outputs.sha }}
+    steps:
+      - name: Resolve exact deployed trusted-main SHA
+        id: target
+        env:
+          EVENT_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$EVENT_SHA" || { echo 'Missing target SHA'; exit 1; }
+          echo "sha=$EVENT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for exact-SHA deploy, Queue, provider, IC4B, IC4C and LKG regressions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ steps.target.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 300); do
+            STATUS_JSON="$(curl --fail --silent --show-error \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/$REPO/commits/$SHA/status")"
+            APP_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context=="catalog-engine/application-deploy")][0].state // "missing"')"
+            QUEUE_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context=="catalog-engine/queue-consumer-activation")][0].state // "missing"')"
+            AUTO_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context=="catalog-engine/tenant-import-auto-canary")][0].state // "missing"')"
+            PB9_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context=="catalog-engine/pb9-production-proof")][0].state // "missing"')"
+            IC2_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context=="catalog-engine/ic2-production-proof")][0].state // "missing"')"
+            IC3_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context=="catalog-engine/ic3-production-proof")][0].state // "missing"')"
+            IC4B_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context=="catalog-engine/ic4b-detail-fanout")][0].state // "missing"')"
+            IC4C_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context=="catalog-engine/ic4c-provider-governor")][0].state // "missing"')"
+            if [ "$APP_STATE" = success ] && [ "$QUEUE_STATE" = success ] && \
+               [ "$AUTO_STATE" = success ] && [ "$PB9_STATE" = success ] && \
+               [ "$IC2_STATE" = success ] && [ "$IC3_STATE" = success ] && \
+               [ "$IC4B_STATE" = success ] && [ "$IC4C_STATE" = success ]; then
+              echo 'exact_sha_application_deploy=success'
+              echo 'exact_sha_queue_activation=success'
+              echo 'exact_sha_real_provider_canary=success'
+              echo 'exact_sha_pb9_lkg=success'
+              echo 'exact_sha_ic2_isolation=success'
+              echo 'exact_sha_ic3_listing=success'
+              echo 'exact_sha_ic4b_fanout=success'
+              echo 'exact_sha_ic4c_provider_governor=success'
+              exit 0
+            fi
+            case "$APP_STATE:$QUEUE_STATE:$AUTO_STATE:$PB9_STATE:$IC2_STATE:$IC3_STATE:$IC4B_STATE:$IC4C_STATE" in
+              *failure*|*error*)
+                echo "Exact-SHA dependency failed: app=$APP_STATE queue=$QUEUE_STATE auto=$AUTO_STATE pb9=$PB9_STATE ic2=$IC2_STATE ic3=$IC3_STATE ic4b=$IC4B_STATE ic4c=$IC4C_STATE"
+                exit 1
+                ;;
+            esac
+            sleep 10
+          done
+          echo "Exact-SHA dependencies unresolved: app=$APP_STATE queue=$QUEUE_STATE auto=$AUTO_STATE pb9=$PB9_STATE ic2=$IC2_STATE ic3=$IC3_STATE ic4b=$IC4B_STATE ic4c=$IC4C_STATE"
+          exit 1
+
+  prove:
+    needs: prerequisites
+    if: needs.prerequisites.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      TARGET_SHA: ${{ needs.prerequisites.outputs.sha }}
+      WRANGLER_VERSION: 4.123.0
+      STATUS_CONTEXT: catalog-engine/ic4d-tenant-d1-write-governor
+      WORKERS_SUBDOMAIN: lucassantanals0110
+
+    steps:
+      - name: Checkout exact deployed trusted-main SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate trusted Cloudflare credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo 'CLOUDFLARE_ACCOUNT_ID is missing'; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo 'CLOUDFLARE_API_TOKEN is missing'; exit 1; }
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Quality and IC4D contract gate before proof resource
+        run: |
+          npx vitest run tests/ic4d-tenant-d1-write-governor.test.mjs tests/ic4d-tenant-d1-write-config.test.mjs tests/ic4d-tenant-d1-write-governor-proof.test.mjs tests/tenant-import-detail.test.mjs tests/tenant-data-plane-command.test.mjs
+          npm run quality
+
+      - name: Create isolated IC4D Durable Object probe config
+        id: probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROBE_WORKER_NAME="ce-ic4d-proof-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          PROBE_TOKEN="$(node -e "process.stdout.write(require('crypto').randomBytes(32).toString('hex'))")"
+          PROBE_CONFIG=".wrangler.ic4d-write-governor-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.json"
+          node --input-type=module - "$PROBE_CONFIG" "$PROBE_WORKER_NAME" "$PROBE_TOKEN" <<'NODE'
+          import fs from 'node:fs';
+          const [configPath, workerName, token] = process.argv.slice(2);
+          fs.writeFileSync(configPath, JSON.stringify({
+            name: workerName,
+            main: './worker/ic4d-write-governor-probe.js',
+            compatibility_date: '2026-08-17',
+            workers_dev: true,
+            vars: { PROBE_TOKEN: token },
+            durable_objects: {
+              bindings: [{ name: 'TENANT_D1_WRITE_GOVERNOR', class_name: 'TenantD1WriteGovernor' }]
+            },
+            migrations: [{ tag: 'ic4d-proof-v1', new_sqlite_classes: ['TenantD1WriteGovernor'] }]
+          }, null, 2));
+          NODE
+          echo "worker_name=$PROBE_WORKER_NAME" >> "$GITHUB_OUTPUT"
+          echo "config=$PROBE_CONFIG" >> "$GITHUB_OUTPUT"
+          echo "token=$PROBE_TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy isolated guarded IC4D Durable Object probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! npx --yes "wrangler@$WRANGLER_VERSION" deploy --config "${{ steps.probe.outputs.config }}" >/tmp/ic4d-probe-deploy.log 2>&1; then
+            echo 'IC4D isolated probe deploy failed; raw resource identifiers remain suppressed.'
+            exit 1
+          fi
+          echo 'IC4D isolated guarded Durable Object probe deployed.'
+
+      - name: Prove tenant write slowdown, recovery, isolation and no-loss semantics
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROBE_URL="https://${{ steps.probe.outputs.worker_name }}.${WORKERS_SUBDOMAIN}.workers.dev/run"
+          ok=0
+          for attempt in $(seq 1 30); do
+            CODE="$(curl --silent --output /tmp/ic4d-write-governor-evidence-safe.json --write-out '%{http_code}' \
+              -X POST -H 'cache-control: no-store' \
+              -H "x-probe-token: ${{ steps.probe.outputs.token }}" \
+              "$PROBE_URL" || true)"
+            if [ "$CODE" = 200 ]; then ok=1; break; fi
+            sleep 2
+          done
+          test "$ok" = 1 || { echo 'IC4D guarded probe did not become ready.'; exit 1; }
+          jq -e '
+            .ic4dTenantWriteGovernor == "passed" and
+            .contractVersion == 1 and
+            .durableObjectCoordination == true and
+            .initialLimit == 2 and
+            .hardCeiling == 2 and
+            .initialConcurrentAttempted == 4 and
+            .initialConcurrentAdmitted == 2 and
+            .initialConcurrentRejected == 2 and
+            .slowWrite.reducedLimit == 1 and
+            .slowWrite.cooldownRejected == true and
+            .slowWrite.singleWriterAfterCooldown == true and
+            .slowWrite.recoveredLimit == 2 and
+            .tenantIsolation.pressuredTenantLimit == 1 and
+            .tenantIsolation.independentTenantAdmitted == 2 and
+            .tenantIsolation.independentTenantRejected == 1 and
+            .tenantIsolation.independentTenantLimit == 2 and
+            .pressure.server5xxReducedLimit == 1 and
+            .pressure.transportReducedLimit == 1 and
+            .workLossObserved == false and
+            .recurringIntelligentSyncChanged == false and
+            .privateIdentifiersExposed == false
+          ' /tmp/ic4d-write-governor-evidence-safe.json >/dev/null
+          cat /tmp/ic4d-write-governor-evidence-safe.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Delete isolated IC4D proof Worker and Durable Object namespace
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f "${{ steps.probe.outputs.config }}"
+          HTTP_CODE="$(curl --silent --output /tmp/ic4d-delete.json --write-out '%{http_code}' \
+            -X DELETE \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H 'Accept: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/${{ steps.probe.outputs.worker_name }}" || true)"
+          test "$HTTP_CODE" = 200 || test "$HTTP_CODE" = 404 || {
+            echo 'IC4D isolated proof resource cleanup failed.'
+            exit 1
+          }
+          echo 'IC4D isolated proof resource cleanup complete.'
+
+      - name: Publish successful IC4D production proof
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n --arg state success --arg context "$STATUS_CONTEXT" \
+            --arg description 'IC4D green; tenant D1 writes 2->1 under pressure; isolation and recovery proven' \
+            --arg target_url "$RUN_URL" \
+            '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
+          curl --fail --silent --show-error -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$REPO/statuses/$TARGET_SHA" -d @/tmp/status.json
+
+      - name: Publish failed IC4D production proof
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$TARGET_SHA" || exit 0
+          jq -n --arg state failure --arg context "$STATUS_CONTEXT" \
+            --arg description 'IC4D trusted tenant-write proof failed; existing bounded D1 path remains authority' \
+            --arg target_url "$RUN_URL" \
+            '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
+          curl --fail --silent --show-error -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$REPO/statuses/$TARGET_SHA" -d @/tmp/status.json
