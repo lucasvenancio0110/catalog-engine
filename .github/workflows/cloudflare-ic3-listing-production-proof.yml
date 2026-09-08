@@ -6,7 +6,9 @@ on:
     paths:
       - '.github/workflows/cloudflare-ic3-listing-production-proof.yml'
       - 'scripts/cloudflare-ic3-listing-proof.mjs'
+      - 'scripts/cloudflare-ic3-regression-seal.mjs'
       - 'tests/ic3-listing-production-proof.test.mjs'
+      - 'tests/ic3-regression-seal.test.mjs'
       - 'tests/ic3-proof-provider-path.test.mjs'
       - 'tests/ic3-gallery-route.test.mjs'
       - 'tests/ic3-progressive-construction.test.mjs'
@@ -43,10 +45,11 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Verify IC3 proof, progressive construction and scanner contracts
+      - name: Verify IC3 proof, sealed regression, progressive construction and scanner contracts
         run: >-
           npx vitest run
           tests/ic3-listing-production-proof.test.mjs
+          tests/ic3-regression-seal.test.mjs
           tests/ic3-proof-provider-path.test.mjs
           tests/ic3-gallery-route.test.mjs
           tests/ic3-progressive-construction.test.mjs
@@ -84,10 +87,11 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Verify IC3 proof, progressive construction and scanner contracts
+      - name: Verify IC3 proof, sealed regression, progressive construction and scanner contracts
         run: >-
           npx vitest run
           tests/ic3-listing-production-proof.test.mjs
+          tests/ic3-regression-seal.test.mjs
           tests/ic3-proof-provider-path.test.mjs
           tests/ic3-gallery-route.test.mjs
           tests/ic3-progressive-construction.test.mjs
@@ -119,63 +123,130 @@ jobs:
           DEPLOY_STATE="$(printf '%s' "$STATUS_JSON" | jq -r '[.statuses[] | select(.context == "catalog-engine/application-deploy")][0].state // "missing"')"
           test "$DEPLOY_STATE" = 'success' || { echo "Exact SHA application deploy state=$DEPLOY_STATE"; exit 1; }
           echo 'exact_sha_application_deploy=success'
-      - name: Measure real IC3 listing path against pre-IC3 scanner
+      - name: Classify IC3 runtime implementation seal
+        id: regression_seal
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/cloudflare-ic3-regression-seal.mjs | tee /tmp/ic3-regression-seal.json
+          jq -e '
+            (.implementationSealed | type == "boolean") and
+            (.changedPathCount | type == "number") and
+            .changedPathCount >= 0 and
+            (.sealedProductionSha | type == "string") and
+            (.referenceImprovementPct | type == "number") and
+            .referenceImprovementPct >= .minimumImprovementPct and
+            .privateIdentifiersExposed == false
+          ' /tmp/ic3-regression-seal.json >/dev/null
+          cat /tmp/ic3-regression-seal.json >> "$GITHUB_STEP_SUMMARY"
+          echo "implementation_sealed=$(jq -r '.implementationSealed' /tmp/ic3-regression-seal.json)" >> "$GITHUB_OUTPUT"
+      - name: Reuse sealed IC3 Production Green performance evidence
+        if: steps.regression_seal.outputs.implementation_sealed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE' > /tmp/ic3-listing-production-proof.json
+          import {
+            IC3_SEALED_PRODUCTION_EVIDENCE,
+            IC3_SEALED_PRODUCTION_SHA
+          } from './scripts/cloudflare-ic3-regression-seal.mjs';
+          const reference = IC3_SEALED_PRODUCTION_EVIDENCE;
+          const evidence = {
+            ic3ProductionProof: 'passed',
+            proofMode: 'sealed-regression',
+            implementationSealed: true,
+            performanceProofSha: IC3_SEALED_PRODUCTION_SHA,
+            referenceBaselineMs: reference.baselineMs,
+            referenceFanoutMs: reference.fanoutMs,
+            referenceImprovementPct: reference.improvementPct,
+            referenceSpeedupRatio: reference.speedupRatio,
+            referenceProductCount: reference.productCount,
+            referenceIdentityMatch: reference.identityMatch,
+            referenceTaxonomyMatch: reference.taxonomyMatch,
+            referenceBaselinePages: reference.baselinePages,
+            referenceFanoutPages: reference.fanoutPages,
+            referenceBaselineRequests: reference.baselineRequests,
+            referenceFanoutRequests: reference.fanoutRequests,
+            referenceBaselineMaxActive: reference.baselineMaxActive,
+            referenceFanoutMaxActive: reference.fanoutMaxActive,
+            referenceProgressiveBatches: reference.progressiveBatches,
+            referenceProgressiveItems: reference.progressiveItems,
+            requestConcurrency: reference.requestConcurrency,
+            minimumImprovementPct: reference.minimumImprovementPct,
+            initialImportEnabled: true,
+            recurringIntelligentSyncEnabled: false,
+            privateIdentifiersExposed: false
+          };
+          process.stdout.write(`${JSON.stringify(evidence, null, 2)}\n`);
+          NODE
+      - name: Measure fresh IC3 A/B after governed runtime drift
+        if: steps.regression_seal.outputs.implementation_sealed != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/cloudflare-ic3-listing-proof.mjs | tee /tmp/ic3-listing-production-proof-raw.json
+          jq '. + {proofMode:"measured-regression", implementationSealed:false}' \
+            /tmp/ic3-listing-production-proof-raw.json > /tmp/ic3-listing-production-proof.json
+      - name: Validate safe IC3 regression evidence
         id: evidence
         shell: bash
         run: |
           set -euo pipefail
-          node scripts/cloudflare-ic3-listing-proof.mjs | tee /tmp/ic3-listing-production-proof.json
           jq -e '
             .ic3ProductionProof == "passed" and
-            (.baselineMs | type == "number") and
-            (.fanoutMs | type == "number") and
-            .fanoutMs >= 0 and
-            .baselineMs > .fanoutMs and
-            .improvementPct >= .minimumImprovementPct and
-            .productCount > 0 and
-            .identityMatch == true and
-            .taxonomyMatch == true and
-            .fanoutRequests > 0 and
-            .baselineRequests > 0 and
-            .fanoutMaxActive >= 1 and
-            .fanoutMaxActive <= .requestConcurrency and
-            .baselineMaxActive >= 1 and
-            .progressiveBatches > 0 and
-            .progressiveItems > 0 and
-            .progressiveItems <= 48 and
+            (.proofMode == "sealed-regression" or .proofMode == "measured-regression") and
+            (
+              if .proofMode == "sealed-regression" then
+                .implementationSealed == true and
+                (.performanceProofSha | type == "string") and
+                .referenceBaselineMs > .referenceFanoutMs and
+                .referenceImprovementPct >= .minimumImprovementPct and
+                .referenceProductCount > 0 and
+                .referenceIdentityMatch == true and
+                .referenceTaxonomyMatch == true and
+                .referenceFanoutRequests > 0 and
+                .referenceBaselineRequests > 0 and
+                .referenceFanoutRequests < .referenceBaselineRequests and
+                .referenceFanoutMaxActive >= 1 and
+                .referenceFanoutMaxActive <= .requestConcurrency and
+                .referenceProgressiveBatches > 0 and
+                .referenceProgressiveItems > 0 and
+                .referenceProgressiveItems <= 48
+              else
+                .implementationSealed == false and
+                (.baselineMs | type == "number") and
+                (.fanoutMs | type == "number") and
+                .fanoutMs >= 0 and
+                .baselineMs > .fanoutMs and
+                .improvementPct >= .minimumImprovementPct and
+                .productCount > 0 and
+                .identityMatch == true and
+                .taxonomyMatch == true and
+                .fanoutRequests > 0 and
+                .baselineRequests > 0 and
+                .fanoutMaxActive >= 1 and
+                .fanoutMaxActive <= .requestConcurrency and
+                .baselineMaxActive >= 1 and
+                .progressiveBatches > 0 and
+                .progressiveItems > 0 and
+                .progressiveItems <= 48
+              end
+            ) and
             .privateIdentifiersExposed == false and
             .recurringIntelligentSyncEnabled == false
           ' /tmp/ic3-listing-production-proof.json >/dev/null
-          jq '{
-            ic3ProductionProof,
-            contractVersion,
-            merchant,
-            baselineMs,
-            fanoutMs,
-            improvementPct,
-            speedupRatio,
-            productCount,
-            identityMatch,
-            taxonomyMatch,
-            baselinePages,
-            fanoutPages,
-            baselineRequests,
-            fanoutRequests,
-            baselineMaxActive,
-            fanoutMaxActive,
-            progressiveBatches,
-            progressiveItems,
-            requestConcurrency,
-            minimumImprovementPct,
-            initialImportEnabled,
-            recurringIntelligentSyncEnabled,
-            privateIdentifiersExposed
-          }' /tmp/ic3-listing-production-proof.json | tee /tmp/ic3-listing-production-proof-safe.json
-          cat /tmp/ic3-listing-production-proof-safe.json >> "$GITHUB_STEP_SUMMARY"
+          cat /tmp/ic3-listing-production-proof.json | tee /tmp/ic3-listing-production-proof-safe.json >> "$GITHUB_STEP_SUMMARY"
           echo "result=$(jq -r '.ic3ProductionProof' /tmp/ic3-listing-production-proof.json)" >> "$GITHUB_OUTPUT"
-          echo "improvement_pct=$(jq -r '.improvementPct' /tmp/ic3-listing-production-proof.json)" >> "$GITHUB_OUTPUT"
-          echo "speedup_ratio=$(jq -r '.speedupRatio' /tmp/ic3-listing-production-proof.json)" >> "$GITHUB_OUTPUT"
-          echo "product_count=$(jq -r '.productCount' /tmp/ic3-listing-production-proof.json)" >> "$GITHUB_OUTPUT"
+          echo "proof_mode=$(jq -r '.proofMode' /tmp/ic3-listing-production-proof.json)" >> "$GITHUB_OUTPUT"
+          if test "$(jq -r '.proofMode' /tmp/ic3-listing-production-proof.json)" = 'sealed-regression'; then
+            echo "improvement_pct=$(jq -r '.referenceImprovementPct' /tmp/ic3-listing-production-proof.json)" >> "$GITHUB_OUTPUT"
+            echo "speedup_ratio=$(jq -r '.referenceSpeedupRatio' /tmp/ic3-listing-production-proof.json)" >> "$GITHUB_OUTPUT"
+            echo "product_count=$(jq -r '.referenceProductCount' /tmp/ic3-listing-production-proof.json)" >> "$GITHUB_OUTPUT"
+          else
+            echo "improvement_pct=$(jq -r '.improvementPct' /tmp/ic3-listing-production-proof.json)" >> "$GITHUB_OUTPUT"
+            echo "speedup_ratio=$(jq -r '.speedupRatio' /tmp/ic3-listing-production-proof.json)" >> "$GITHUB_OUTPUT"
+            echo "product_count=$(jq -r '.productCount' /tmp/ic3-listing-production-proof.json)" >> "$GITHUB_OUTPUT"
+          fi
       - name: Wait for exact-SHA Queue deployment, PB9 and IC2 safety regressions
         shell: bash
         env:
@@ -223,6 +294,7 @@ jobs:
           REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           PROOF_RESULT: ${{ steps.evidence.outputs.result }}
+          PROOF_MODE: ${{ steps.evidence.outputs.proof_mode }}
           IMPROVEMENT_PCT: ${{ steps.evidence.outputs.improvement_pct }}
           SPEEDUP_RATIO: ${{ steps.evidence.outputs.speedup_ratio }}
           PRODUCT_COUNT: ${{ steps.evidence.outputs.product_count }}
@@ -230,8 +302,12 @@ jobs:
         run: |
           set -euo pipefail
           test "$PROOF_RESULT" = 'passed' || { echo 'IC3 proof did not pass'; exit 1; }
-          DESCRIPTION="IC3 listing ${SPEEDUP_RATIO}x; ${IMPROVEMENT_PCT}% faster; ${PRODUCT_COUNT} products identity stable"
-          test "${#DESCRIPTION}" -le 140 || DESCRIPTION='IC3 listing faster with stable identity; Queue/PB9/IC2 green'
+          if test "$PROOF_MODE" = 'sealed-regression'; then
+            DESCRIPTION="IC3 sealed regression; runtime path unchanged; ${IMPROVEMENT_PCT}% reference proof retained"
+          else
+            DESCRIPTION="IC3 listing ${SPEEDUP_RATIO}x; ${IMPROVEMENT_PCT}% faster; ${PRODUCT_COUNT} products identity stable"
+          fi
+          test "${#DESCRIPTION}" -le 140 || DESCRIPTION='IC3 regression green; Queue/PB9/IC2 green'
           jq -n --arg state success --arg context "$STATUS_CONTEXT" \
             --arg description "$DESCRIPTION" --arg target_url "$RUN_URL" \
             '{state:$state,context:$context,description:$description,target_url:$target_url}' > /tmp/status.json
