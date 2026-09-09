@@ -130,6 +130,10 @@ function jobFailure(row, fallbackCode) {
   return error;
 }
 
+function jobRetryPending(row) {
+  return row?.status === 'failed' && parseSqliteTimestamp(row?.next_attempt_at) > 0;
+}
+
 async function cloudflareRequest(path, { method = 'GET', allowNotFound = false } = {}) {
   let response;
   try {
@@ -423,7 +427,7 @@ async function controlJob(fixture) {
     {
       sql: `SELECT status, phase, attempt_count, discovered_count, detail_enqueue_cursor,
                    queued_detail_count, completed_detail_count, failed_detail_count,
-                   deferred_detail_count, published_product_count, last_error_code,
+                   deferred_detail_count, published_product_count, last_error_code, next_attempt_at,
                    created_at, started_at, finished_at
               FROM tenant_import_jobs
              WHERE import_id=?1 AND tenant_id=?2 AND source_key=?3
@@ -439,7 +443,9 @@ async function waitForSchedulerDiscovery(fixture) {
   while (Date.now() - started < DISCOVERY_TIMEOUT_MS) {
     const row = await controlJob(fixture);
     if (row) {
-      if (row.status === 'failed') throw jobFailure(row, 'ic4e_scheduler_dispatch_failed');
+      if (row.status === 'failed' && !jobRetryPending(row)) {
+        throw jobFailure(row, 'ic4e_scheduler_dispatch_failed');
+      }
       return row;
     }
     await sleep(POLL_MS);
@@ -454,7 +460,9 @@ async function waitForCompletion(fixture) {
     const row = await controlJob(fixture);
     if (!row) throw new Error('ic4e_import_job_missing');
     if (row.status === 'success' && row.phase === 'complete') return row;
-    if (row.status === 'failed') throw jobFailure(row, 'ic4e_import_failed');
+    if (row.status === 'failed' && !jobRetryPending(row)) {
+      throw jobFailure(row, 'ic4e_import_failed');
+    }
     if (Date.now() - lastProgressLog >= PROGRESS_LOG_MS) {
       lastProgressLog = Date.now();
       console.error(
@@ -462,6 +470,7 @@ async function waitForCompletion(fixture) {
           ic4eProgress: true,
           status: String(row.status || ''),
           phase: String(row.phase || ''),
+          retryPending: jobRetryPending(row),
           discovered: Number(row.discovered_count || 0),
           queued: Number(row.queued_detail_count || 0),
           completed: Number(row.completed_detail_count || 0),
