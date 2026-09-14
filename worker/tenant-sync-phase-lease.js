@@ -39,6 +39,7 @@ export function tenantSyncFailureIsRetryable(kind, codeValue) {
   ) {
     return true;
   }
+  if (/^supplier_transient_(?:429|5\d\d)$/.test(code)) return true;
   if (
     /(?:invalid|mismatch|blocked|not_ready|not_verified|not_staged|not_product|incomplete|exhausted|leak|policy|stale_base|authority_conflict|cas_conflict|findings)/.test(
       code

@@ -86,12 +86,16 @@ describe('IC4E production detail-swarm proof contract', () => {
     expectScript('catalogProducts !== detail.counts.success');
   });
 
-  it('keeps failure, retry, exception, Queue and DLQ budgets fail closed', () => {
+  it('keeps failure, retry, exception, Queue and DLQ budgets fail closed while observing durable throttle recovery', () => {
     expectScript('ic4eSafeExceptionBudget(discovered)');
     expectScript("detail.counts.failed !== 0");
     expectScript('terminalExceptions > exceptionBudget');
     expectScript('retryExcess > exceptionBudget');
     expectScript("Number(finalJob.attempt_count || 0) > 2");
+    expectScript('next_attempt_at');
+    expectScript('function jobRetryPending(row)');
+    expectScript("row.status === 'failed' && !jobRetryPending(row)");
+    expectScript('retryPending: jobRetryPending(row)');
     expectScript('waitQueuesClean(queues)');
     expectScript("'catalog-engine-import-scan-dlq'");
     expectScript("'catalog-engine-import-detail-dlq'");

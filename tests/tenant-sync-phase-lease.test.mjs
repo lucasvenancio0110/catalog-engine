@@ -151,6 +151,28 @@ describe('M7D10 phase lease ownership', () => {
     expect(row.next_attempt_at).toBeTruthy();
   });
 
+  it('keeps supplier throttling and upstream 5xx on the bounded durable scan recovery path', async () => {
+    const { sqlite, d1 } = database();
+    const ownership = await claimTenantSyncPhaseLease(d1, job, 'scan');
+
+    expect(
+      await failTenantSyncPhaseLease(d1, job, ownership, 'supplier_transient_429')
+    ).toBe(true);
+
+    const row = sqlite.prepare(`SELECT status,recovery_attempt_count,last_failure_phase,
+      last_error_code,next_attempt_at,phase_lease_token FROM tenant_import_jobs`).get();
+    expect(row).toMatchObject({
+      status: 'failed',
+      recovery_attempt_count: 1,
+      last_failure_phase: 'scan',
+      last_error_code: 'supplier_transient_429',
+      phase_lease_token: null
+    });
+    expect(row.next_attempt_at).toBeTruthy();
+    expect(tenantSyncFailureIsRetryable('scan', 'supplier_transient_503')).toBe(true);
+    expect(tenantSyncFailureIsRetryable('scan', 'supplier_http_404')).toBe(false);
+  });
+
   it('stops retrying after the bounded recovery threshold', async () => {
     const { sqlite, d1 } = database({
       status: 'details',
@@ -199,6 +221,8 @@ describe('M7D10 phase lease ownership', () => {
     expect(tenantSyncFailureIsRetryable('scan', 'sync_stage_count_mismatch')).toBe(true);
     expect(tenantSyncFailureIsRetryable('classification', 'sync_candidate_cei_count_mismatch'))
       .toBe(true);
+    expect(tenantSyncFailureIsRetryable('scan', 'supplier_transient_429')).toBe(true);
+    expect(tenantSyncFailureIsRetryable('scan', 'supplier_transient_500')).toBe(true);
     expect(tenantSyncFailureIsRetryable('verification', 'sync_candidate_verify_public_source_leak'))
       .toBe(false);
     expect(safeTenantSyncErrorCode('https://private.example/token=secret')).toBe(
