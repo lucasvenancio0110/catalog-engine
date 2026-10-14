@@ -2,7 +2,7 @@
   "schemaVersion": 6,
   "mediaVersion": 3,
   "taxonomyVersion": 1,
-  "generatedAt": "2026-10-12T16:50:01.256Z",
+  "generatedAt": "2026-10-14T12:55:45.086Z",
   "store": {
     "name": "Catalog Engine Demo",
     "logo": "",
@@ -209,6 +209,14 @@
       "id": "c_a7bc5350d2fd95c4a85d",
       "type": "category",
       "name": "🧥 Windbreaker",
+      "parentId": null,
+      "childIds": [],
+      "depth": 0
+    },
+    {
+      "id": "c_20b38c03ee523a658145",
+      "type": "category",
+      "name": "Álbum não categorizado",
       "parentId": null,
       "childIds": [],
       "depth": 0
@@ -423,6 +431,3102 @@
     }
   ],
   "products": [
+    {
+      "id": "p_9785043d83eabc0c37c6",
+      "name": "Manchester City 26/27 Away Women's Jersey S-2XL",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_ed7de7ffca6a5e8879be/view",
+        "/media/m_4348be4c89041364b37a/view"
+      ],
+      "media": [
+        {
+          "id": "m_ed7de7ffca6a5e8879be",
+          "url": "/media/m_ed7de7ffca6a5e8879be/view",
+          "thumbnailUrl": "/media/m_ed7de7ffca6a5e8879be/thumb",
+          "downloadUrl": "/media/m_ed7de7ffca6a5e8879be",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_4348be4c89041364b37a",
+          "url": "/media/m_4348be4c89041364b37a/view",
+          "thumbnailUrl": "/media/m_4348be4c89041364b37a/thumb",
+          "downloadUrl": "/media/m_4348be4c89041364b37a",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_7c16f286075643be5f7b",
+      "name": "Manchester City 26/27 Third Away Long-Sleeved Jersey S-5XL",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_d28197d3b60ccaa5b5e4/view",
+        "/media/m_e3374dd100d50f2a21be/view"
+      ],
+      "media": [
+        {
+          "id": "m_d28197d3b60ccaa5b5e4",
+          "url": "/media/m_d28197d3b60ccaa5b5e4/view",
+          "thumbnailUrl": "/media/m_d28197d3b60ccaa5b5e4/thumb",
+          "downloadUrl": "/media/m_d28197d3b60ccaa5b5e4",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_e3374dd100d50f2a21be",
+          "url": "/media/m_e3374dd100d50f2a21be/view",
+          "thumbnailUrl": "/media/m_e3374dd100d50f2a21be/thumb",
+          "downloadUrl": "/media/m_e3374dd100d50f2a21be",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_5eb128bf1c3a47af24eb",
+      "name": "PSG 26/27 Third Away Player Version Long-Sleeve Jersey S-3XL",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_2c9153dc857341e97383/view",
+        "/media/m_ea70a512bfdc2fa2dbcc/view"
+      ],
+      "media": [
+        {
+          "id": "m_2c9153dc857341e97383",
+          "url": "/media/m_2c9153dc857341e97383/view",
+          "thumbnailUrl": "/media/m_2c9153dc857341e97383/thumb",
+          "downloadUrl": "/media/m_2c9153dc857341e97383",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_ea70a512bfdc2fa2dbcc",
+          "url": "/media/m_ea70a512bfdc2fa2dbcc/view",
+          "thumbnailUrl": "/media/m_ea70a512bfdc2fa2dbcc/thumb",
+          "downloadUrl": "/media/m_ea70a512bfdc2fa2dbcc",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_655de99bf8399f4e6491",
+      "name": "RCD Espanyol 26/27 Home Kids Kit Size 16-28",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_2e0eb11d2bca94325a8d/view",
+        "/media/m_e85569a89fa932f8037d/view"
+      ],
+      "media": [
+        {
+          "id": "m_2e0eb11d2bca94325a8d",
+          "url": "/media/m_2e0eb11d2bca94325a8d/view",
+          "thumbnailUrl": "/media/m_2e0eb11d2bca94325a8d/thumb",
+          "downloadUrl": "/media/m_2e0eb11d2bca94325a8d",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_e85569a89fa932f8037d",
+          "url": "/media/m_e85569a89fa932f8037d/view",
+          "thumbnailUrl": "/media/m_e85569a89fa932f8037d/thumb",
+          "downloadUrl": "/media/m_e85569a89fa932f8037d",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_57b71f5af9b34daea56f",
+      "name": "West Ham United 26/27 Third Away Jersey S-4XL",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_6da331f24692157ba578/view",
+        "/media/m_81882ce0dc2d55783073/view"
+      ],
+      "media": [
+        {
+          "id": "m_6da331f24692157ba578",
+          "url": "/media/m_6da331f24692157ba578/view",
+          "thumbnailUrl": "/media/m_6da331f24692157ba578/thumb",
+          "downloadUrl": "/media/m_6da331f24692157ba578",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_81882ce0dc2d55783073",
+          "url": "/media/m_81882ce0dc2d55783073/view",
+          "thumbnailUrl": "/media/m_81882ce0dc2d55783073/thumb",
+          "downloadUrl": "/media/m_81882ce0dc2d55783073",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_a0305eff20d8504fdd70",
+      "name": "AC Milan 26/27 Third Away Player Edition Jersey S-4XL",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_e843319ae849c0cc099f/view",
+        "/media/m_f2b6ddd5c5b711387b20/view"
+      ],
+      "media": [
+        {
+          "id": "m_e843319ae849c0cc099f",
+          "url": "/media/m_e843319ae849c0cc099f/view",
+          "thumbnailUrl": "/media/m_e843319ae849c0cc099f/thumb",
+          "downloadUrl": "/media/m_e843319ae849c0cc099f",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_f2b6ddd5c5b711387b20",
+          "url": "/media/m_f2b6ddd5c5b711387b20/view",
+          "thumbnailUrl": "/media/m_f2b6ddd5c5b711387b20/thumb",
+          "downloadUrl": "/media/m_f2b6ddd5c5b711387b20",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_eb48b6ac88d427f9edf1",
+      "name": "Atlético Mineiro 26/27 Third Away Player Version S-3XL",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_4146b26b7ba1ae865506/view",
+        "/media/m_c717d860a5f4a6c4b486/view"
+      ],
+      "media": [
+        {
+          "id": "m_4146b26b7ba1ae865506",
+          "url": "/media/m_4146b26b7ba1ae865506/view",
+          "thumbnailUrl": "/media/m_4146b26b7ba1ae865506/thumb",
+          "downloadUrl": "/media/m_4146b26b7ba1ae865506",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_c717d860a5f4a6c4b486",
+          "url": "/media/m_c717d860a5f4a6c4b486/view",
+          "thumbnailUrl": "/media/m_c717d860a5f4a6c4b486/thumb",
+          "downloadUrl": "/media/m_c717d860a5f4a6c4b486",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_0f26e1e6be4c01f5584f",
+      "name": "Bahia 26/27 Third Away Player Version S-3XL",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_10506ff6f882babbe3f7/view",
+        "/media/m_e97748914b52072be4cc/view"
+      ],
+      "media": [
+        {
+          "id": "m_10506ff6f882babbe3f7",
+          "url": "/media/m_10506ff6f882babbe3f7/view",
+          "thumbnailUrl": "/media/m_10506ff6f882babbe3f7/thumb",
+          "downloadUrl": "/media/m_10506ff6f882babbe3f7",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_e97748914b52072be4cc",
+          "url": "/media/m_e97748914b52072be4cc/view",
+          "thumbnailUrl": "/media/m_e97748914b52072be4cc/thumb",
+          "downloadUrl": "/media/m_e97748914b52072be4cc",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_0e0fc310736f977acb22",
+      "name": "Corinthians 26/27 Third Away Player Version S-3XL",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_9d8216f2b9183a47ef62/view",
+        "/media/m_bad078bd28b7b39c8795/view"
+      ],
+      "media": [
+        {
+          "id": "m_9d8216f2b9183a47ef62",
+          "url": "/media/m_9d8216f2b9183a47ef62/view",
+          "thumbnailUrl": "/media/m_9d8216f2b9183a47ef62/thumb",
+          "downloadUrl": "/media/m_9d8216f2b9183a47ef62",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_bad078bd28b7b39c8795",
+          "url": "/media/m_bad078bd28b7b39c8795/view",
+          "thumbnailUrl": "/media/m_bad078bd28b7b39c8795/thumb",
+          "downloadUrl": "/media/m_bad078bd28b7b39c8795",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_5b224d21bc5d738e5c45",
+      "name": "Feyenoord 26/27 Third Away Player Version S-3XL",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_7a394d310c0779636c96/view",
+        "/media/m_8093ad9c627ae4a5cf7b/view"
+      ],
+      "media": [
+        {
+          "id": "m_7a394d310c0779636c96",
+          "url": "/media/m_7a394d310c0779636c96/view",
+          "thumbnailUrl": "/media/m_7a394d310c0779636c96/thumb",
+          "downloadUrl": "/media/m_7a394d310c0779636c96",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_8093ad9c627ae4a5cf7b",
+          "url": "/media/m_8093ad9c627ae4a5cf7b/view",
+          "thumbnailUrl": "/media/m_8093ad9c627ae4a5cf7b/thumb",
+          "downloadUrl": "/media/m_8093ad9c627ae4a5cf7b",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_0d9cba0200ec9d0bb4ee",
+      "name": "Bahia 26/27 Third Away S-4XL",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_88f4449404ab873ccc92/view",
+        "/media/m_b528af8f53b58bf3c7e0/view"
+      ],
+      "media": [
+        {
+          "id": "m_88f4449404ab873ccc92",
+          "url": "/media/m_88f4449404ab873ccc92/view",
+          "thumbnailUrl": "/media/m_88f4449404ab873ccc92/thumb",
+          "downloadUrl": "/media/m_88f4449404ab873ccc92",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_b528af8f53b58bf3c7e0",
+          "url": "/media/m_b528af8f53b58bf3c7e0/view",
+          "thumbnailUrl": "/media/m_b528af8f53b58bf3c7e0/thumb",
+          "downloadUrl": "/media/m_b528af8f53b58bf3c7e0",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_8438d63bc6f9c0c1979e",
+      "name": "Atlético Mineiro 26/27 Third Away S-4XL",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_0bd16caecbbc829e91d6/view",
+        "/media/m_429df791acf004868ddd/view"
+      ],
+      "media": [
+        {
+          "id": "m_0bd16caecbbc829e91d6",
+          "url": "/media/m_0bd16caecbbc829e91d6/view",
+          "thumbnailUrl": "/media/m_0bd16caecbbc829e91d6/thumb",
+          "downloadUrl": "/media/m_0bd16caecbbc829e91d6",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_429df791acf004868ddd",
+          "url": "/media/m_429df791acf004868ddd/view",
+          "thumbnailUrl": "/media/m_429df791acf004868ddd/thumb",
+          "downloadUrl": "/media/m_429df791acf004868ddd",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_0d6560a330905493d925",
+      "name": "Vasco da Gama 26/27 Third away Women's Jersey S-XXL",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_417ef7fa87d36cc1cc4c/view",
+        "/media/m_345be884120f449389b7/view"
+      ],
+      "media": [
+        {
+          "id": "m_417ef7fa87d36cc1cc4c",
+          "url": "/media/m_417ef7fa87d36cc1cc4c/view",
+          "thumbnailUrl": "/media/m_417ef7fa87d36cc1cc4c/thumb",
+          "downloadUrl": "/media/m_417ef7fa87d36cc1cc4c",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_345be884120f449389b7",
+          "url": "/media/m_345be884120f449389b7/view",
+          "thumbnailUrl": "/media/m_345be884120f449389b7/thumb",
+          "downloadUrl": "/media/m_345be884120f449389b7",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_82ff1b156deb65bc3ca2",
+      "name": "Cruzeiro 26/27 Women's Adidas Originals Blue T-shirt S-XXL",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_57177cb576a5490380c5/view",
+        "/media/m_22074f9525dc1675a5df/view"
+      ],
+      "media": [
+        {
+          "id": "m_57177cb576a5490380c5",
+          "url": "/media/m_57177cb576a5490380c5/view",
+          "thumbnailUrl": "/media/m_57177cb576a5490380c5/thumb",
+          "downloadUrl": "/media/m_57177cb576a5490380c5",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_22074f9525dc1675a5df",
+          "url": "/media/m_22074f9525dc1675a5df/view",
+          "thumbnailUrl": "/media/m_22074f9525dc1675a5df/thumb",
+          "downloadUrl": "/media/m_22074f9525dc1675a5df",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_98135ee9b949d2241326",
+      "name": "Argentina 2026 Messi Special Edition Baby Jersey SIZE 9-12",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_e75c8c265fe85aa530e2/view",
+        "/media/m_bd288ea67e2b47778d24/view"
+      ],
+      "media": [
+        {
+          "id": "m_e75c8c265fe85aa530e2",
+          "url": "/media/m_e75c8c265fe85aa530e2/view",
+          "thumbnailUrl": "/media/m_e75c8c265fe85aa530e2/thumb",
+          "downloadUrl": "/media/m_e75c8c265fe85aa530e2",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_bd288ea67e2b47778d24",
+          "url": "/media/m_bd288ea67e2b47778d24/view",
+          "thumbnailUrl": "/media/m_bd288ea67e2b47778d24/thumb",
+          "downloadUrl": "/media/m_bd288ea67e2b47778d24",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_f305af0d559a19eadbbc",
+      "name": "Trabzonspor 94/95 Third Away Retro Jersey S-XXL",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_7cb13c82e1652e958793/view",
+        "/media/m_6b02527e13d9ca22f67c/view"
+      ],
+      "media": [
+        {
+          "id": "m_7cb13c82e1652e958793",
+          "url": "/media/m_7cb13c82e1652e958793/view",
+          "thumbnailUrl": "/media/m_7cb13c82e1652e958793/thumb",
+          "downloadUrl": "/media/m_7cb13c82e1652e958793",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_6b02527e13d9ca22f67c",
+          "url": "/media/m_6b02527e13d9ca22f67c/view",
+          "thumbnailUrl": "/media/m_6b02527e13d9ca22f67c/thumb",
+          "downloadUrl": "/media/m_6b02527e13d9ca22f67c",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_947925ec52d11beb0364",
+      "name": "Torino FC 26/27 Away Jersey S-4XL",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_0eea8c40fd9cec7f1e97/view",
+        "/media/m_01b9fb62e15767b78e07/view"
+      ],
+      "media": [
+        {
+          "id": "m_0eea8c40fd9cec7f1e97",
+          "url": "/media/m_0eea8c40fd9cec7f1e97/view",
+          "thumbnailUrl": "/media/m_0eea8c40fd9cec7f1e97/thumb",
+          "downloadUrl": "/media/m_0eea8c40fd9cec7f1e97",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_01b9fb62e15767b78e07",
+          "url": "/media/m_01b9fb62e15767b78e07/view",
+          "thumbnailUrl": "/media/m_01b9fb62e15767b78e07/thumb",
+          "downloadUrl": "/media/m_01b9fb62e15767b78e07",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_7c1038fc679ad51035b8",
+      "name": "Travis Scott Cactus Jack x NK for Canada Total 90 Retro Jersey S-4XL",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_23c52f07d79fbab3e622/view",
+        "/media/m_29368c1a54b27e6522ca/view"
+      ],
+      "media": [
+        {
+          "id": "m_23c52f07d79fbab3e622",
+          "url": "/media/m_23c52f07d79fbab3e622/view",
+          "thumbnailUrl": "/media/m_23c52f07d79fbab3e622/thumb",
+          "downloadUrl": "/media/m_23c52f07d79fbab3e622",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_29368c1a54b27e6522ca",
+          "url": "/media/m_29368c1a54b27e6522ca/view",
+          "thumbnailUrl": "/media/m_29368c1a54b27e6522ca/thumb",
+          "downloadUrl": "/media/m_29368c1a54b27e6522ca",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_64da2532dcf769c4eb3e",
+      "name": "Travis Scott Cactus Jack x NK Senegal Total 90 Retro Jersey S-4XL",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_2f4d9f5004bb1b2c6fda/view",
+        "/media/m_4d7d157f03a8d7f16824/view"
+      ],
+      "media": [
+        {
+          "id": "m_2f4d9f5004bb1b2c6fda",
+          "url": "/media/m_2f4d9f5004bb1b2c6fda/view",
+          "thumbnailUrl": "/media/m_2f4d9f5004bb1b2c6fda/thumb",
+          "downloadUrl": "/media/m_2f4d9f5004bb1b2c6fda",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_4d7d157f03a8d7f16824",
+          "url": "/media/m_4d7d157f03a8d7f16824/view",
+          "thumbnailUrl": "/media/m_4d7d157f03a8d7f16824/thumb",
+          "downloadUrl": "/media/m_4d7d157f03a8d7f16824",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_dde47d135945ba7c9341",
+      "name": "Vélez Sarsfield 96/97 Home Retro Jersey S-XXL",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_1590a831be982e4fffe1/view",
+        "/media/m_8f350b1156c473979022/view"
+      ],
+      "media": [
+        {
+          "id": "m_1590a831be982e4fffe1",
+          "url": "/media/m_1590a831be982e4fffe1/view",
+          "thumbnailUrl": "/media/m_1590a831be982e4fffe1/thumb",
+          "downloadUrl": "/media/m_1590a831be982e4fffe1",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_8f350b1156c473979022",
+          "url": "/media/m_8f350b1156c473979022/view",
+          "thumbnailUrl": "/media/m_8f350b1156c473979022/thumb",
+          "downloadUrl": "/media/m_8f350b1156c473979022",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_2db262019d27774a15b6",
+      "name": "Kids Granada Home Soccer Uniform 26 27-1040",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_b9b09bd3673da969183c/view",
+        "/media/m_928d4a4e699706f5e6b2/view"
+      ],
+      "media": [
+        {
+          "id": "m_b9b09bd3673da969183c",
+          "url": "/media/m_b9b09bd3673da969183c/view",
+          "thumbnailUrl": "/media/m_b9b09bd3673da969183c/thumb",
+          "downloadUrl": "/media/m_b9b09bd3673da969183c",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_928d4a4e699706f5e6b2",
+          "url": "/media/m_928d4a4e699706f5e6b2/view",
+          "thumbnailUrl": "/media/m_928d4a4e699706f5e6b2/thumb",
+          "downloadUrl": "/media/m_928d4a4e699706f5e6b2",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_e38b6160bfe5eac6cd61",
+      "name": "Kids Lille Third Away Soccer Uniform 26 27-1040",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_07827285ef9ed4fc8b96/view",
+        "/media/m_86b6049aabc866c5c08b/view"
+      ],
+      "media": [
+        {
+          "id": "m_07827285ef9ed4fc8b96",
+          "url": "/media/m_07827285ef9ed4fc8b96/view",
+          "thumbnailUrl": "/media/m_07827285ef9ed4fc8b96/thumb",
+          "downloadUrl": "/media/m_07827285ef9ed4fc8b96",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_86b6049aabc866c5c08b",
+          "url": "/media/m_86b6049aabc866c5c08b/view",
+          "thumbnailUrl": "/media/m_86b6049aabc866c5c08b/thumb",
+          "downloadUrl": "/media/m_86b6049aabc866c5c08b",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_9c681cae897dfefa03da",
+      "name": "Player Version Barcelona Special Soccer Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_fca35c9353ac1e23c08a/view",
+        "/media/m_307abff34c124048c938/view"
+      ],
+      "media": [
+        {
+          "id": "m_fca35c9353ac1e23c08a",
+          "url": "/media/m_fca35c9353ac1e23c08a/view",
+          "thumbnailUrl": "/media/m_fca35c9353ac1e23c08a/thumb",
+          "downloadUrl": "/media/m_fca35c9353ac1e23c08a",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_307abff34c124048c938",
+          "url": "/media/m_307abff34c124048c938/view",
+          "thumbnailUrl": "/media/m_307abff34c124048c938/thumb",
+          "downloadUrl": "/media/m_307abff34c124048c938",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_66ac50f6c8b94e151409",
+      "name": "Porto Goalkeeper Soccer Jersey 26 27-rongda",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_4db5856fd73bd5a5651d/view",
+        "/media/m_5e315784bda08d7fd642/view"
+      ],
+      "media": [
+        {
+          "id": "m_4db5856fd73bd5a5651d",
+          "url": "/media/m_4db5856fd73bd5a5651d/view",
+          "thumbnailUrl": "/media/m_4db5856fd73bd5a5651d/thumb",
+          "downloadUrl": "/media/m_4db5856fd73bd5a5651d",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_5e315784bda08d7fd642",
+          "url": "/media/m_5e315784bda08d7fd642/view",
+          "thumbnailUrl": "/media/m_5e315784bda08d7fd642/thumb",
+          "downloadUrl": "/media/m_5e315784bda08d7fd642",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_22cb43ceb61e4e1df195",
+      "name": "Women Argentina Souvenir Soccer Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_ad0be47e12e212a16378/view",
+        "/media/m_66bbba80d5746dc6603b/view"
+      ],
+      "media": [
+        {
+          "id": "m_ad0be47e12e212a16378",
+          "url": "/media/m_ad0be47e12e212a16378/view",
+          "thumbnailUrl": "/media/m_ad0be47e12e212a16378/thumb",
+          "downloadUrl": "/media/m_ad0be47e12e212a16378",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_66bbba80d5746dc6603b",
+          "url": "/media/m_66bbba80d5746dc6603b/view",
+          "thumbnailUrl": "/media/m_66bbba80d5746dc6603b/thumb",
+          "downloadUrl": "/media/m_66bbba80d5746dc6603b",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_e2436340677994cede06",
+      "name": "Kids Argentina Soccer Uniform 26 27-mairui",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_73e07e86dcde1a0a1547/view",
+        "/media/m_a72ce7a1b9f9cf672ec2/view"
+      ],
+      "media": [
+        {
+          "id": "m_73e07e86dcde1a0a1547",
+          "url": "/media/m_73e07e86dcde1a0a1547/view",
+          "thumbnailUrl": "/media/m_73e07e86dcde1a0a1547/thumb",
+          "downloadUrl": "/media/m_73e07e86dcde1a0a1547",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_a72ce7a1b9f9cf672ec2",
+          "url": "/media/m_a72ce7a1b9f9cf672ec2/view",
+          "thumbnailUrl": "/media/m_a72ce7a1b9f9cf672ec2/thumb",
+          "downloadUrl": "/media/m_a72ce7a1b9f9cf672ec2",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_2dcf6fdfdd82ed5a7875",
+      "name": "Kids Barcelona Special Soccer Uniform 26 27-afa",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_a703b5d5152381805dff/view",
+        "/media/m_83516c38dc0f12cbb1a8/view"
+      ],
+      "media": [
+        {
+          "id": "m_a703b5d5152381805dff",
+          "url": "/media/m_a703b5d5152381805dff/view",
+          "thumbnailUrl": "/media/m_a703b5d5152381805dff/thumb",
+          "downloadUrl": "/media/m_a703b5d5152381805dff",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_83516c38dc0f12cbb1a8",
+          "url": "/media/m_83516c38dc0f12cbb1a8/view",
+          "thumbnailUrl": "/media/m_83516c38dc0f12cbb1a8/thumb",
+          "downloadUrl": "/media/m_83516c38dc0f12cbb1a8",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_23918e10625850840837",
+      "name": "Kids Leicester City Third Away Soccer Uniform 26 27-1040",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_bea3601e0edc6ff323d1/view",
+        "/media/m_53f20aefe54fc7f987bb/view"
+      ],
+      "media": [
+        {
+          "id": "m_bea3601e0edc6ff323d1",
+          "url": "/media/m_bea3601e0edc6ff323d1/view",
+          "thumbnailUrl": "/media/m_bea3601e0edc6ff323d1/thumb",
+          "downloadUrl": "/media/m_bea3601e0edc6ff323d1",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_53f20aefe54fc7f987bb",
+          "url": "/media/m_53f20aefe54fc7f987bb/view",
+          "thumbnailUrl": "/media/m_53f20aefe54fc7f987bb/thumb",
+          "downloadUrl": "/media/m_53f20aefe54fc7f987bb",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_1be85dc734f1206cdf78",
+      "name": "Kids Toluca Away Soccer Uniform 26 27-huirong",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_541605e657e338dee815/view",
+        "/media/m_e5d3c8d12a19632a7953/view"
+      ],
+      "media": [
+        {
+          "id": "m_541605e657e338dee815",
+          "url": "/media/m_541605e657e338dee815/view",
+          "thumbnailUrl": "/media/m_541605e657e338dee815/thumb",
+          "downloadUrl": "/media/m_541605e657e338dee815",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_e5d3c8d12a19632a7953",
+          "url": "/media/m_e5d3c8d12a19632a7953/view",
+          "thumbnailUrl": "/media/m_e5d3c8d12a19632a7953/thumb",
+          "downloadUrl": "/media/m_e5d3c8d12a19632a7953",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_c1ff6be75d1343b321a6",
+      "name": "Kolner Special Soccer Jersey 26 27-baiyue",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_27499c20e2884c058f5a/view",
+        "/media/m_4beff99154b42978154c/view"
+      ],
+      "media": [
+        {
+          "id": "m_27499c20e2884c058f5a",
+          "url": "/media/m_27499c20e2884c058f5a/view",
+          "thumbnailUrl": "/media/m_27499c20e2884c058f5a/thumb",
+          "downloadUrl": "/media/m_27499c20e2884c058f5a",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_4beff99154b42978154c",
+          "url": "/media/m_4beff99154b42978154c/view",
+          "thumbnailUrl": "/media/m_4beff99154b42978154c/thumb",
+          "downloadUrl": "/media/m_4beff99154b42978154c",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_33484b9a434eb5dc37b1",
+      "name": "Palermo Third Away Soccer Jersey 26 27-1040",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_b1aae32aa59e72367b97/view",
+        "/media/m_00778f9524013eedc51e/view"
+      ],
+      "media": [
+        {
+          "id": "m_b1aae32aa59e72367b97",
+          "url": "/media/m_b1aae32aa59e72367b97/view",
+          "thumbnailUrl": "/media/m_b1aae32aa59e72367b97/thumb",
+          "downloadUrl": "/media/m_b1aae32aa59e72367b97",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_00778f9524013eedc51e",
+          "url": "/media/m_00778f9524013eedc51e/view",
+          "thumbnailUrl": "/media/m_00778f9524013eedc51e/thumb",
+          "downloadUrl": "/media/m_00778f9524013eedc51e",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_3bfd3c70f491ff2560cf",
+      "name": "Sassuolo Third Away Soccer Jersey 26 27-1040",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_31c90829c53500e72e2e/view",
+        "/media/m_313418e5aef8b01fb01c/view"
+      ],
+      "media": [
+        {
+          "id": "m_31c90829c53500e72e2e",
+          "url": "/media/m_31c90829c53500e72e2e/view",
+          "thumbnailUrl": "/media/m_31c90829c53500e72e2e/thumb",
+          "downloadUrl": "/media/m_31c90829c53500e72e2e",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_313418e5aef8b01fb01c",
+          "url": "/media/m_313418e5aef8b01fb01c/view",
+          "thumbnailUrl": "/media/m_313418e5aef8b01fb01c/thumb",
+          "downloadUrl": "/media/m_313418e5aef8b01fb01c",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_db22deeb6f1b06df1b34",
+      "name": "Sevilla Goalkeeper Soccer Jersey 26 27-268",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_09810549abb843daeed1/view",
+        "/media/m_396f8b1a3b765f9d6ba3/view"
+      ],
+      "media": [
+        {
+          "id": "m_09810549abb843daeed1",
+          "url": "/media/m_09810549abb843daeed1/view",
+          "thumbnailUrl": "/media/m_09810549abb843daeed1/thumb",
+          "downloadUrl": "/media/m_09810549abb843daeed1",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_396f8b1a3b765f9d6ba3",
+          "url": "/media/m_396f8b1a3b765f9d6ba3/view",
+          "thumbnailUrl": "/media/m_396f8b1a3b765f9d6ba3/thumb",
+          "downloadUrl": "/media/m_396f8b1a3b765f9d6ba3",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_57647d26844f1468da93",
+      "name": "Torino Away Soccer Jersey 26 27-1040",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_9f51d46480b3385909ee/view",
+        "/media/m_3aedf71af74d1eed3167/view"
+      ],
+      "media": [
+        {
+          "id": "m_9f51d46480b3385909ee",
+          "url": "/media/m_9f51d46480b3385909ee/view",
+          "thumbnailUrl": "/media/m_9f51d46480b3385909ee/thumb",
+          "downloadUrl": "/media/m_9f51d46480b3385909ee",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_3aedf71af74d1eed3167",
+          "url": "/media/m_3aedf71af74d1eed3167/view",
+          "thumbnailUrl": "/media/m_3aedf71af74d1eed3167/thumb",
+          "downloadUrl": "/media/m_3aedf71af74d1eed3167",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_de29e8bba456cba26f9b",
+      "name": "Versailles Away Soccer Jersey 26 27-1040",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_fff1d4055bf90a28fe12/view",
+        "/media/m_7ae3eb25c141c6a4cb9e/view"
+      ],
+      "media": [
+        {
+          "id": "m_fff1d4055bf90a28fe12",
+          "url": "/media/m_fff1d4055bf90a28fe12/view",
+          "thumbnailUrl": "/media/m_fff1d4055bf90a28fe12/thumb",
+          "downloadUrl": "/media/m_fff1d4055bf90a28fe12",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_7ae3eb25c141c6a4cb9e",
+          "url": "/media/m_7ae3eb25c141c6a4cb9e/view",
+          "thumbnailUrl": "/media/m_7ae3eb25c141c6a4cb9e/thumb",
+          "downloadUrl": "/media/m_7ae3eb25c141c6a4cb9e",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_215f14018d0092a12b1c",
+      "name": "Versailles Home Soccer Jersey 26 27-1040",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_6108d7d60bbfa32f89ae/view",
+        "/media/m_66a0392a01014b965ee1/view"
+      ],
+      "media": [
+        {
+          "id": "m_6108d7d60bbfa32f89ae",
+          "url": "/media/m_6108d7d60bbfa32f89ae/view",
+          "thumbnailUrl": "/media/m_6108d7d60bbfa32f89ae/thumb",
+          "downloadUrl": "/media/m_6108d7d60bbfa32f89ae",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_66a0392a01014b965ee1",
+          "url": "/media/m_66a0392a01014b965ee1/view",
+          "thumbnailUrl": "/media/m_66a0392a01014b965ee1/thumb",
+          "downloadUrl": "/media/m_66a0392a01014b965ee1",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_79ba537206f8ed850328",
+      "name": "Versailles Third Away Soccer Jersey 26 27-1040",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_cb653e2a8749f862dc43/view",
+        "/media/m_8e992df2a8c1372f16a1/view"
+      ],
+      "media": [
+        {
+          "id": "m_cb653e2a8749f862dc43",
+          "url": "/media/m_cb653e2a8749f862dc43/view",
+          "thumbnailUrl": "/media/m_cb653e2a8749f862dc43/thumb",
+          "downloadUrl": "/media/m_cb653e2a8749f862dc43",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_8e992df2a8c1372f16a1",
+          "url": "/media/m_8e992df2a8c1372f16a1/view",
+          "thumbnailUrl": "/media/m_8e992df2a8c1372f16a1/thumb",
+          "downloadUrl": "/media/m_8e992df2a8c1372f16a1",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_acd1d9746946ac17c721",
+      "name": "Aston Villa Away Long Sleeve Soccer Jersey 26 27-509",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_593ed7fda8c4d3920b3d/view",
+        "/media/m_b457491421b6261527df/view"
+      ],
+      "media": [
+        {
+          "id": "m_593ed7fda8c4d3920b3d",
+          "url": "/media/m_593ed7fda8c4d3920b3d/view",
+          "thumbnailUrl": "/media/m_593ed7fda8c4d3920b3d/thumb",
+          "downloadUrl": "/media/m_593ed7fda8c4d3920b3d",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_b457491421b6261527df",
+          "url": "/media/m_b457491421b6261527df/view",
+          "thumbnailUrl": "/media/m_b457491421b6261527df/thumb",
+          "downloadUrl": "/media/m_b457491421b6261527df",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_6c48ad1f394fc5e9cf5e",
+      "name": "Dynamo Away Soccer Jersey 26 27-changyuan",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_474784cedc364691706c/view",
+        "/media/m_76efe4af456093b381ff/view"
+      ],
+      "media": [
+        {
+          "id": "m_474784cedc364691706c",
+          "url": "/media/m_474784cedc364691706c/view",
+          "thumbnailUrl": "/media/m_474784cedc364691706c/thumb",
+          "downloadUrl": "/media/m_474784cedc364691706c",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_76efe4af456093b381ff",
+          "url": "/media/m_76efe4af456093b381ff/view",
+          "thumbnailUrl": "/media/m_76efe4af456093b381ff/thumb",
+          "downloadUrl": "/media/m_76efe4af456093b381ff",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_ce8389f928da51ffbc7a",
+      "name": "Lisbon Soccer Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_bfac36400b031f9b1af4/view",
+        "/media/m_6ab5995a51bb224c499e/view"
+      ],
+      "media": [
+        {
+          "id": "m_bfac36400b031f9b1af4",
+          "url": "/media/m_bfac36400b031f9b1af4/view",
+          "thumbnailUrl": "/media/m_bfac36400b031f9b1af4/thumb",
+          "downloadUrl": "/media/m_bfac36400b031f9b1af4",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_6ab5995a51bb224c499e",
+          "url": "/media/m_6ab5995a51bb224c499e/view",
+          "thumbnailUrl": "/media/m_6ab5995a51bb224c499e/thumb",
+          "downloadUrl": "/media/m_6ab5995a51bb224c499e",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_13998fb00b4ecce5b131",
+      "name": "Player Version Argentina Soccer Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_be63d1a94422c08163ad/view",
+        "/media/m_691544b91adf3a83cde1/view"
+      ],
+      "media": [
+        {
+          "id": "m_be63d1a94422c08163ad",
+          "url": "/media/m_be63d1a94422c08163ad/view",
+          "thumbnailUrl": "/media/m_be63d1a94422c08163ad/thumb",
+          "downloadUrl": "/media/m_be63d1a94422c08163ad",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_691544b91adf3a83cde1",
+          "url": "/media/m_691544b91adf3a83cde1/view",
+          "thumbnailUrl": "/media/m_691544b91adf3a83cde1/thumb",
+          "downloadUrl": "/media/m_691544b91adf3a83cde1",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_f2402c4783bd18a35385",
+      "name": "Player Version CFC Training Soccer Jersey 26 27-yiben",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_6f131447742a88121e98/view",
+        "/media/m_25297abac8a4a9dfdb69/view"
+      ],
+      "media": [
+        {
+          "id": "m_6f131447742a88121e98",
+          "url": "/media/m_6f131447742a88121e98/view",
+          "thumbnailUrl": "/media/m_6f131447742a88121e98/thumb",
+          "downloadUrl": "/media/m_6f131447742a88121e98",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_25297abac8a4a9dfdb69",
+          "url": "/media/m_25297abac8a4a9dfdb69/view",
+          "thumbnailUrl": "/media/m_25297abac8a4a9dfdb69/thumb",
+          "downloadUrl": "/media/m_25297abac8a4a9dfdb69",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_fda38c13018bfdeb190e",
+      "name": "Player Version CFC Training Soccer Jersey 26 27-yiben",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_a654fc109238a9a26b91/view",
+        "/media/m_11530ed1e2fa4e4fa2e7/view"
+      ],
+      "media": [
+        {
+          "id": "m_a654fc109238a9a26b91",
+          "url": "/media/m_a654fc109238a9a26b91/view",
+          "thumbnailUrl": "/media/m_a654fc109238a9a26b91/thumb",
+          "downloadUrl": "/media/m_a654fc109238a9a26b91",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_11530ed1e2fa4e4fa2e7",
+          "url": "/media/m_11530ed1e2fa4e4fa2e7/view",
+          "thumbnailUrl": "/media/m_11530ed1e2fa4e4fa2e7/thumb",
+          "downloadUrl": "/media/m_11530ed1e2fa4e4fa2e7",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_8dbaa281dbe08dde954c",
+      "name": "Kids Nottingham Forest Home Soccer Uniform 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_8ecdda075ea794f3a491/view",
+        "/media/m_a7b45586f0100775fab3/view"
+      ],
+      "media": [
+        {
+          "id": "m_8ecdda075ea794f3a491",
+          "url": "/media/m_8ecdda075ea794f3a491/view",
+          "thumbnailUrl": "/media/m_8ecdda075ea794f3a491/thumb",
+          "downloadUrl": "/media/m_8ecdda075ea794f3a491",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_a7b45586f0100775fab3",
+          "url": "/media/m_a7b45586f0100775fab3/view",
+          "thumbnailUrl": "/media/m_a7b45586f0100775fab3/thumb",
+          "downloadUrl": "/media/m_a7b45586f0100775fab3",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_05759102ac01d2e2cb9a",
+      "name": "Women FCB Third Away Soccer Jersey 26 27-jinji",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_61ad25e00150f14f2e93/view",
+        "/media/m_4220682acba7ca60ea92/view"
+      ],
+      "media": [
+        {
+          "id": "m_61ad25e00150f14f2e93",
+          "url": "/media/m_61ad25e00150f14f2e93/view",
+          "thumbnailUrl": "/media/m_61ad25e00150f14f2e93/thumb",
+          "downloadUrl": "/media/m_61ad25e00150f14f2e93",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_4220682acba7ca60ea92",
+          "url": "/media/m_4220682acba7ca60ea92/view",
+          "thumbnailUrl": "/media/m_4220682acba7ca60ea92/thumb",
+          "downloadUrl": "/media/m_4220682acba7ca60ea92",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_47a5317b09c2d4baadc5",
+      "name": "Women Napoli Away Soccer Jersey 26 27-jinji",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_0894522c396b9f0521a7/view",
+        "/media/m_ea8e5c78729122f90b9e/view"
+      ],
+      "media": [
+        {
+          "id": "m_0894522c396b9f0521a7",
+          "url": "/media/m_0894522c396b9f0521a7/view",
+          "thumbnailUrl": "/media/m_0894522c396b9f0521a7/thumb",
+          "downloadUrl": "/media/m_0894522c396b9f0521a7",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_ea8e5c78729122f90b9e",
+          "url": "/media/m_ea8e5c78729122f90b9e/view",
+          "thumbnailUrl": "/media/m_ea8e5c78729122f90b9e/thumb",
+          "downloadUrl": "/media/m_ea8e5c78729122f90b9e",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_493a40615336f19a5fa4",
+      "name": "AC Home Long Sleeve Soccer Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_2786e1b5444a09c30ed0/view",
+        "/media/m_f4bdb29ea7460e0b1011/view"
+      ],
+      "media": [
+        {
+          "id": "m_2786e1b5444a09c30ed0",
+          "url": "/media/m_2786e1b5444a09c30ed0/view",
+          "thumbnailUrl": "/media/m_2786e1b5444a09c30ed0/thumb",
+          "downloadUrl": "/media/m_2786e1b5444a09c30ed0",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_f4bdb29ea7460e0b1011",
+          "url": "/media/m_f4bdb29ea7460e0b1011/view",
+          "thumbnailUrl": "/media/m_f4bdb29ea7460e0b1011/thumb",
+          "downloadUrl": "/media/m_f4bdb29ea7460e0b1011",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_5b74e2b4f84014e9cc61",
+      "name": "Argentina Training Soccer Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_a78ac57f49a1d5197eaf/view",
+        "/media/m_513110b9e322cbb9d309/view"
+      ],
+      "media": [
+        {
+          "id": "m_a78ac57f49a1d5197eaf",
+          "url": "/media/m_a78ac57f49a1d5197eaf/view",
+          "thumbnailUrl": "/media/m_a78ac57f49a1d5197eaf/thumb",
+          "downloadUrl": "/media/m_a78ac57f49a1d5197eaf",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_513110b9e322cbb9d309",
+          "url": "/media/m_513110b9e322cbb9d309/view",
+          "thumbnailUrl": "/media/m_513110b9e322cbb9d309/thumb",
+          "downloadUrl": "/media/m_513110b9e322cbb9d309",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_b7d92c8335c9db66fbef",
+      "name": "Como Home Long Sleeve Soccer Jersey 26 27-bingyue",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_ec7ecae48ed518fa9d6c/view",
+        "/media/m_d01dcdf36cd550b02af3/view"
+      ],
+      "media": [
+        {
+          "id": "m_ec7ecae48ed518fa9d6c",
+          "url": "/media/m_ec7ecae48ed518fa9d6c/view",
+          "thumbnailUrl": "/media/m_ec7ecae48ed518fa9d6c/thumb",
+          "downloadUrl": "/media/m_ec7ecae48ed518fa9d6c",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_d01dcdf36cd550b02af3",
+          "url": "/media/m_d01dcdf36cd550b02af3/view",
+          "thumbnailUrl": "/media/m_d01dcdf36cd550b02af3/thumb",
+          "downloadUrl": "/media/m_d01dcdf36cd550b02af3",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_9f4edab8217f7901cfa0",
+      "name": "Kids Newcastle Goalkeeper Soccer Uniform 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_7cfe73db974a4b31ffd3/view",
+        "/media/m_4d958cfd60f66f663afe/view"
+      ],
+      "media": [
+        {
+          "id": "m_7cfe73db974a4b31ffd3",
+          "url": "/media/m_7cfe73db974a4b31ffd3/view",
+          "thumbnailUrl": "/media/m_7cfe73db974a4b31ffd3/thumb",
+          "downloadUrl": "/media/m_7cfe73db974a4b31ffd3",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_4d958cfd60f66f663afe",
+          "url": "/media/m_4d958cfd60f66f663afe/view",
+          "thumbnailUrl": "/media/m_4d958cfd60f66f663afe/thumb",
+          "downloadUrl": "/media/m_4d958cfd60f66f663afe",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_3c4094a1751f361dd50f",
+      "name": "Mali Home Soccer Jersey 26 27-mairui",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_1206a484e692fd587129/view",
+        "/media/m_141f87da7ec0903e7cc7/view"
+      ],
+      "media": [
+        {
+          "id": "m_1206a484e692fd587129",
+          "url": "/media/m_1206a484e692fd587129/view",
+          "thumbnailUrl": "/media/m_1206a484e692fd587129/thumb",
+          "downloadUrl": "/media/m_1206a484e692fd587129",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_141f87da7ec0903e7cc7",
+          "url": "/media/m_141f87da7ec0903e7cc7/view",
+          "thumbnailUrl": "/media/m_141f87da7ec0903e7cc7/thumb",
+          "downloadUrl": "/media/m_141f87da7ec0903e7cc7",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_b99ed0030c2141cafe1c",
+      "name": "Player Version Argentina Training Soccer Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_cd41ed44d1ac9e6328a0/view",
+        "/media/m_baac527dabdb2100e143/view"
+      ],
+      "media": [
+        {
+          "id": "m_cd41ed44d1ac9e6328a0",
+          "url": "/media/m_cd41ed44d1ac9e6328a0/view",
+          "thumbnailUrl": "/media/m_cd41ed44d1ac9e6328a0/thumb",
+          "downloadUrl": "/media/m_cd41ed44d1ac9e6328a0",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_baac527dabdb2100e143",
+          "url": "/media/m_baac527dabdb2100e143/view",
+          "thumbnailUrl": "/media/m_baac527dabdb2100e143/thumb",
+          "downloadUrl": "/media/m_baac527dabdb2100e143",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_cfe97b15a981acd79b34",
+      "name": "Mexico Souvenir Soccer Jersey 26 27-huiyi",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_f9f3c5d17482cad7874f/view",
+        "/media/m_26f9581f29532bd3af50/view"
+      ],
+      "media": [
+        {
+          "id": "m_f9f3c5d17482cad7874f",
+          "url": "/media/m_f9f3c5d17482cad7874f/view",
+          "thumbnailUrl": "/media/m_f9f3c5d17482cad7874f/thumb",
+          "downloadUrl": "/media/m_f9f3c5d17482cad7874f",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_26f9581f29532bd3af50",
+          "url": "/media/m_26f9581f29532bd3af50/view",
+          "thumbnailUrl": "/media/m_26f9581f29532bd3af50/thumb",
+          "downloadUrl": "/media/m_26f9581f29532bd3af50",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_49e2d6736be2b23c20b9",
+      "name": "Argentina Soccer Windbreak 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_4d3f8d1ea54c2ca89a61/view",
+        "/media/m_4a8f6629528e67279d7c/view"
+      ],
+      "media": [
+        {
+          "id": "m_4d3f8d1ea54c2ca89a61",
+          "url": "/media/m_4d3f8d1ea54c2ca89a61/view",
+          "thumbnailUrl": "/media/m_4d3f8d1ea54c2ca89a61/thumb",
+          "downloadUrl": "/media/m_4d3f8d1ea54c2ca89a61",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_4a8f6629528e67279d7c",
+          "url": "/media/m_4a8f6629528e67279d7c/view",
+          "thumbnailUrl": "/media/m_4a8f6629528e67279d7c/thumb",
+          "downloadUrl": "/media/m_4a8f6629528e67279d7c",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_e4b69949b309e2d463ff",
+      "name": "Argentina Souvenir Soccer Shorts 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_a72a2804f3c7aa1fc002/view"
+      ],
+      "media": [
+        {
+          "id": "m_a72a2804f3c7aa1fc002",
+          "url": "/media/m_a72a2804f3c7aa1fc002/view",
+          "thumbnailUrl": "/media/m_a72a2804f3c7aa1fc002/thumb",
+          "downloadUrl": "/media/m_a72a2804f3c7aa1fc002",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 1,
+      "entityType": "product"
+    },
+    {
+      "id": "p_8c57f2141d40b8de8567",
+      "name": "ATM Soccer Jersey 26 27-baiyue",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_cb6268bf542e3de8613d/view",
+        "/media/m_cb0e09d53e284882c028/view"
+      ],
+      "media": [
+        {
+          "id": "m_cb6268bf542e3de8613d",
+          "url": "/media/m_cb6268bf542e3de8613d/view",
+          "thumbnailUrl": "/media/m_cb6268bf542e3de8613d/thumb",
+          "downloadUrl": "/media/m_cb6268bf542e3de8613d",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_cb0e09d53e284882c028",
+          "url": "/media/m_cb0e09d53e284882c028/view",
+          "thumbnailUrl": "/media/m_cb0e09d53e284882c028/thumb",
+          "downloadUrl": "/media/m_cb0e09d53e284882c028",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_14236aa644e21a9c8a55",
+      "name": "Barcelona Basketball Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_3fca02da00d52d63224a/view",
+        "/media/m_8c8a796414d669635fc5/view"
+      ],
+      "media": [
+        {
+          "id": "m_3fca02da00d52d63224a",
+          "url": "/media/m_3fca02da00d52d63224a/view",
+          "thumbnailUrl": "/media/m_3fca02da00d52d63224a/thumb",
+          "downloadUrl": "/media/m_3fca02da00d52d63224a",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_8c8a796414d669635fc5",
+          "url": "/media/m_8c8a796414d669635fc5/view",
+          "thumbnailUrl": "/media/m_8c8a796414d669635fc5/thumb",
+          "downloadUrl": "/media/m_8c8a796414d669635fc5",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_43912f03e3bc631d9a30",
+      "name": "Brazil Special Soccer Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_881fbf5058eb3bc80da6/view",
+        "/media/m_5dffddbffd4c8a905c4a/view"
+      ],
+      "media": [
+        {
+          "id": "m_881fbf5058eb3bc80da6",
+          "url": "/media/m_881fbf5058eb3bc80da6/view",
+          "thumbnailUrl": "/media/m_881fbf5058eb3bc80da6/thumb",
+          "downloadUrl": "/media/m_881fbf5058eb3bc80da6",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_5dffddbffd4c8a905c4a",
+          "url": "/media/m_5dffddbffd4c8a905c4a/view",
+          "thumbnailUrl": "/media/m_5dffddbffd4c8a905c4a/thumb",
+          "downloadUrl": "/media/m_5dffddbffd4c8a905c4a",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_6ac1c5f0ca9672f74cc0",
+      "name": "CFC Away Long Sleeve Soccer Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_c508a1b452ae6c8eb61b/view",
+        "/media/m_928fdb37018a9d8c3486/view"
+      ],
+      "media": [
+        {
+          "id": "m_c508a1b452ae6c8eb61b",
+          "url": "/media/m_c508a1b452ae6c8eb61b/view",
+          "thumbnailUrl": "/media/m_c508a1b452ae6c8eb61b/thumb",
+          "downloadUrl": "/media/m_c508a1b452ae6c8eb61b",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_928fdb37018a9d8c3486",
+          "url": "/media/m_928fdb37018a9d8c3486/view",
+          "thumbnailUrl": "/media/m_928fdb37018a9d8c3486/thumb",
+          "downloadUrl": "/media/m_928fdb37018a9d8c3486",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_f855aacf2e0101e0da6d",
+      "name": "Club America Souvenir Soccer Jersey 26 27-xinghua",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_acf8b3cbf194c4080bab/view",
+        "/media/m_bab75ab32cf75aa0c7a9/view"
+      ],
+      "media": [
+        {
+          "id": "m_acf8b3cbf194c4080bab",
+          "url": "/media/m_acf8b3cbf194c4080bab/view",
+          "thumbnailUrl": "/media/m_acf8b3cbf194c4080bab/thumb",
+          "downloadUrl": "/media/m_acf8b3cbf194c4080bab",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_bab75ab32cf75aa0c7a9",
+          "url": "/media/m_bab75ab32cf75aa0c7a9/view",
+          "thumbnailUrl": "/media/m_bab75ab32cf75aa0c7a9/thumb",
+          "downloadUrl": "/media/m_bab75ab32cf75aa0c7a9",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_a9fe91e470a7c90b55da",
+      "name": "Corinthians 116th Soccer Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_1f3b848dc641850bbb42/view",
+        "/media/m_ff58f9dd14ce0a862cde/view"
+      ],
+      "media": [
+        {
+          "id": "m_1f3b848dc641850bbb42",
+          "url": "/media/m_1f3b848dc641850bbb42/view",
+          "thumbnailUrl": "/media/m_1f3b848dc641850bbb42/thumb",
+          "downloadUrl": "/media/m_1f3b848dc641850bbb42",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_ff58f9dd14ce0a862cde",
+          "url": "/media/m_ff58f9dd14ce0a862cde/view",
+          "thumbnailUrl": "/media/m_ff58f9dd14ce0a862cde/thumb",
+          "downloadUrl": "/media/m_ff58f9dd14ce0a862cde",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_24eacfbef87d81dc0da9",
+      "name": "Eindhoven Home Soccer Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_b5edb3571bc68563d304/view",
+        "/media/m_ff4e7edb2493dbf7609c/view"
+      ],
+      "media": [
+        {
+          "id": "m_b5edb3571bc68563d304",
+          "url": "/media/m_b5edb3571bc68563d304/view",
+          "thumbnailUrl": "/media/m_b5edb3571bc68563d304/thumb",
+          "downloadUrl": "/media/m_b5edb3571bc68563d304",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_ff4e7edb2493dbf7609c",
+          "url": "/media/m_ff4e7edb2493dbf7609c/view",
+          "thumbnailUrl": "/media/m_ff4e7edb2493dbf7609c/thumb",
+          "downloadUrl": "/media/m_ff4e7edb2493dbf7609c",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_b8e3037985f941adbeae",
+      "name": "Kids Corinthians Third Away Soccer Uniform 26 27-xiaohongmao",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_4966a25a3a81fe58ed1e/view",
+        "/media/m_836f93d0f0424a20fb0f/view"
+      ],
+      "media": [
+        {
+          "id": "m_4966a25a3a81fe58ed1e",
+          "url": "/media/m_4966a25a3a81fe58ed1e/view",
+          "thumbnailUrl": "/media/m_4966a25a3a81fe58ed1e/thumb",
+          "downloadUrl": "/media/m_4966a25a3a81fe58ed1e",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_836f93d0f0424a20fb0f",
+          "url": "/media/m_836f93d0f0424a20fb0f/view",
+          "thumbnailUrl": "/media/m_836f93d0f0424a20fb0f/thumb",
+          "downloadUrl": "/media/m_836f93d0f0424a20fb0f",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_8aab994ef090c4ce5a53",
+      "name": "Kids Eindhoven Home Soccer Uniform 26 27-1040",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_7775118401cbb003f602/view",
+        "/media/m_f27cce6cf7224fbef491/view"
+      ],
+      "media": [
+        {
+          "id": "m_7775118401cbb003f602",
+          "url": "/media/m_7775118401cbb003f602/view",
+          "thumbnailUrl": "/media/m_7775118401cbb003f602/thumb",
+          "downloadUrl": "/media/m_7775118401cbb003f602",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_f27cce6cf7224fbef491",
+          "url": "/media/m_f27cce6cf7224fbef491/view",
+          "thumbnailUrl": "/media/m_f27cce6cf7224fbef491/thumb",
+          "downloadUrl": "/media/m_f27cce6cf7224fbef491",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_5e9360c96d5821eda69e",
+      "name": "Kids Fluminense Third Away Soccer Uniform 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_0ec5f8b62e856b084a23/view",
+        "/media/m_de0a12ddfb447416201a/view"
+      ],
+      "media": [
+        {
+          "id": "m_0ec5f8b62e856b084a23",
+          "url": "/media/m_0ec5f8b62e856b084a23/view",
+          "thumbnailUrl": "/media/m_0ec5f8b62e856b084a23/thumb",
+          "downloadUrl": "/media/m_0ec5f8b62e856b084a23",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_de0a12ddfb447416201a",
+          "url": "/media/m_de0a12ddfb447416201a/view",
+          "thumbnailUrl": "/media/m_de0a12ddfb447416201a/thumb",
+          "downloadUrl": "/media/m_de0a12ddfb447416201a",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_017c5aa0576846b3caa2",
+      "name": "Kids Nuremberg Home Soccer Uniform 26 27-junyi",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_0b19db2701b1a3c0f1b9/view",
+        "/media/m_ad16dbb37ad70e7db900/view"
+      ],
+      "media": [
+        {
+          "id": "m_0b19db2701b1a3c0f1b9",
+          "url": "/media/m_0b19db2701b1a3c0f1b9/view",
+          "thumbnailUrl": "/media/m_0b19db2701b1a3c0f1b9/thumb",
+          "downloadUrl": "/media/m_0b19db2701b1a3c0f1b9",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_ad16dbb37ad70e7db900",
+          "url": "/media/m_ad16dbb37ad70e7db900/view",
+          "thumbnailUrl": "/media/m_ad16dbb37ad70e7db900/thumb",
+          "downloadUrl": "/media/m_ad16dbb37ad70e7db900",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_efee308545b4f8c7117e",
+      "name": "Kids Roma Third Away Soccer Uniform 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_38b17da8ca4b1eb001f4/view",
+        "/media/m_d3d418e297291d328ac6/view"
+      ],
+      "media": [
+        {
+          "id": "m_38b17da8ca4b1eb001f4",
+          "url": "/media/m_38b17da8ca4b1eb001f4/view",
+          "thumbnailUrl": "/media/m_38b17da8ca4b1eb001f4/thumb",
+          "downloadUrl": "/media/m_38b17da8ca4b1eb001f4",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_d3d418e297291d328ac6",
+          "url": "/media/m_d3d418e297291d328ac6/view",
+          "thumbnailUrl": "/media/m_d3d418e297291d328ac6/thumb",
+          "downloadUrl": "/media/m_d3d418e297291d328ac6",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_ba2151163118b49c8bbb",
+      "name": "Man City Fourth Soccer Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_c3dee1edc8e76de09140/view",
+        "/media/m_36df562f0905a86aabf5/view"
+      ],
+      "media": [
+        {
+          "id": "m_c3dee1edc8e76de09140",
+          "url": "/media/m_c3dee1edc8e76de09140/view",
+          "thumbnailUrl": "/media/m_c3dee1edc8e76de09140/thumb",
+          "downloadUrl": "/media/m_c3dee1edc8e76de09140",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_36df562f0905a86aabf5",
+          "url": "/media/m_36df562f0905a86aabf5/view",
+          "thumbnailUrl": "/media/m_36df562f0905a86aabf5/thumb",
+          "downloadUrl": "/media/m_36df562f0905a86aabf5",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_050cfac91a90365c4c13",
+      "name": "Man United Soccer Windbreak 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_cf0d7ee144459a793097/view",
+        "/media/m_c7fcaff767740b803939/view"
+      ],
+      "media": [
+        {
+          "id": "m_cf0d7ee144459a793097",
+          "url": "/media/m_cf0d7ee144459a793097/view",
+          "thumbnailUrl": "/media/m_cf0d7ee144459a793097/thumb",
+          "downloadUrl": "/media/m_cf0d7ee144459a793097",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_c7fcaff767740b803939",
+          "url": "/media/m_c7fcaff767740b803939/view",
+          "thumbnailUrl": "/media/m_c7fcaff767740b803939/thumb",
+          "downloadUrl": "/media/m_c7fcaff767740b803939",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_00249a3d30abb664b6b9",
+      "name": "Nantes Special Soccer Jersey 26 27-1040",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_b8b45f454be99bb6ac4e/view",
+        "/media/m_da83ec433bf922ab1e5f/view"
+      ],
+      "media": [
+        {
+          "id": "m_b8b45f454be99bb6ac4e",
+          "url": "/media/m_b8b45f454be99bb6ac4e/view",
+          "thumbnailUrl": "/media/m_b8b45f454be99bb6ac4e/thumb",
+          "downloadUrl": "/media/m_b8b45f454be99bb6ac4e",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_da83ec433bf922ab1e5f",
+          "url": "/media/m_da83ec433bf922ab1e5f/view",
+          "thumbnailUrl": "/media/m_da83ec433bf922ab1e5f/thumb",
+          "downloadUrl": "/media/m_da83ec433bf922ab1e5f",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_13fcf0c3207efe45750d",
+      "name": "Pittsburgh Pirates Third Away Soccer Jersey 26 27-sairui",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_99c4de773a173099d4ad/view",
+        "/media/m_3c4eced053b9748a929f/view"
+      ],
+      "media": [
+        {
+          "id": "m_99c4de773a173099d4ad",
+          "url": "/media/m_99c4de773a173099d4ad/view",
+          "thumbnailUrl": "/media/m_99c4de773a173099d4ad/thumb",
+          "downloadUrl": "/media/m_99c4de773a173099d4ad",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_3c4eced053b9748a929f",
+          "url": "/media/m_3c4eced053b9748a929f/view",
+          "thumbnailUrl": "/media/m_3c4eced053b9748a929f/thumb",
+          "downloadUrl": "/media/m_3c4eced053b9748a929f",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_cc82008523c38ac1186a",
+      "name": "Player Version Al-Hilal Special Soccer Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_599789cc17fc05eef7c9/view",
+        "/media/m_c3c583414b51c66e297a/view"
+      ],
+      "media": [
+        {
+          "id": "m_599789cc17fc05eef7c9",
+          "url": "/media/m_599789cc17fc05eef7c9/view",
+          "thumbnailUrl": "/media/m_599789cc17fc05eef7c9/thumb",
+          "downloadUrl": "/media/m_599789cc17fc05eef7c9",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_c3c583414b51c66e297a",
+          "url": "/media/m_c3c583414b51c66e297a/view",
+          "thumbnailUrl": "/media/m_c3c583414b51c66e297a/thumb",
+          "downloadUrl": "/media/m_c3c583414b51c66e297a",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_e418bf2a58f20a61aa3d",
+      "name": "Rayo Vallecano Soccer Jersey 26 27-bingyue",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_02945350166bc9e02041/view",
+        "/media/m_989c8a25e319243d62ba/view"
+      ],
+      "media": [
+        {
+          "id": "m_02945350166bc9e02041",
+          "url": "/media/m_02945350166bc9e02041/view",
+          "thumbnailUrl": "/media/m_02945350166bc9e02041/thumb",
+          "downloadUrl": "/media/m_02945350166bc9e02041",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_989c8a25e319243d62ba",
+          "url": "/media/m_989c8a25e319243d62ba/view",
+          "thumbnailUrl": "/media/m_989c8a25e319243d62ba/thumb",
+          "downloadUrl": "/media/m_989c8a25e319243d62ba",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_b1e424c26620d02fe5bf",
+      "name": "RM Polo Soccer Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_89c71f18df91d2565c77/view",
+        "/media/m_7cac50084349e1bed3c3/view"
+      ],
+      "media": [
+        {
+          "id": "m_89c71f18df91d2565c77",
+          "url": "/media/m_89c71f18df91d2565c77/view",
+          "thumbnailUrl": "/media/m_89c71f18df91d2565c77/thumb",
+          "downloadUrl": "/media/m_89c71f18df91d2565c77",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_7cac50084349e1bed3c3",
+          "url": "/media/m_7cac50084349e1bed3c3/view",
+          "thumbnailUrl": "/media/m_7cac50084349e1bed3c3/thumb",
+          "downloadUrl": "/media/m_7cac50084349e1bed3c3",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_b0bb0feecbe4c037b2cb",
+      "name": "Barcelona Special Soccer Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_1d72ded67d031e1deddc/view",
+        "/media/m_cbe7f8bb4b90e14495bd/view"
+      ],
+      "media": [
+        {
+          "id": "m_1d72ded67d031e1deddc",
+          "url": "/media/m_1d72ded67d031e1deddc/view",
+          "thumbnailUrl": "/media/m_1d72ded67d031e1deddc/thumb",
+          "downloadUrl": "/media/m_1d72ded67d031e1deddc",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_cbe7f8bb4b90e14495bd",
+          "url": "/media/m_cbe7f8bb4b90e14495bd/view",
+          "thumbnailUrl": "/media/m_cbe7f8bb4b90e14495bd/thumb",
+          "downloadUrl": "/media/m_cbe7f8bb4b90e14495bd",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_40c1eeea74b260ac7a8d",
+      "name": "Benfica Special Soccer Jersey 26 27-rongda",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_18f200042d8a5bfbf51a/view",
+        "/media/m_2d47da5ec4db1551d627/view"
+      ],
+      "media": [
+        {
+          "id": "m_18f200042d8a5bfbf51a",
+          "url": "/media/m_18f200042d8a5bfbf51a/view",
+          "thumbnailUrl": "/media/m_18f200042d8a5bfbf51a/thumb",
+          "downloadUrl": "/media/m_18f200042d8a5bfbf51a",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_2d47da5ec4db1551d627",
+          "url": "/media/m_2d47da5ec4db1551d627/view",
+          "thumbnailUrl": "/media/m_2d47da5ec4db1551d627/thumb",
+          "downloadUrl": "/media/m_2d47da5ec4db1551d627",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_4e0a31c6fc9bcf99f2b3",
+      "name": "Boca Soccer Windbreak 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_fc15081a57428b3e08d0/view",
+        "/media/m_15ca304b6d86a0507f68/view"
+      ],
+      "media": [
+        {
+          "id": "m_fc15081a57428b3e08d0",
+          "url": "/media/m_fc15081a57428b3e08d0/view",
+          "thumbnailUrl": "/media/m_fc15081a57428b3e08d0/thumb",
+          "downloadUrl": "/media/m_fc15081a57428b3e08d0",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_15ca304b6d86a0507f68",
+          "url": "/media/m_15ca304b6d86a0507f68/view",
+          "thumbnailUrl": "/media/m_15ca304b6d86a0507f68/thumb",
+          "downloadUrl": "/media/m_15ca304b6d86a0507f68",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_f5130e85c7a7100cf3d5",
+      "name": "CFC Home Long Sleeve Soccer Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_38410075349d6fbb1092/view",
+        "/media/m_a08245b9a6ef7cdf3155/view"
+      ],
+      "media": [
+        {
+          "id": "m_38410075349d6fbb1092",
+          "url": "/media/m_38410075349d6fbb1092/view",
+          "thumbnailUrl": "/media/m_38410075349d6fbb1092/thumb",
+          "downloadUrl": "/media/m_38410075349d6fbb1092",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_a08245b9a6ef7cdf3155",
+          "url": "/media/m_a08245b9a6ef7cdf3155/view",
+          "thumbnailUrl": "/media/m_a08245b9a6ef7cdf3155/thumb",
+          "downloadUrl": "/media/m_a08245b9a6ef7cdf3155",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_dc9a53295efefb0a6f7c",
+      "name": "Chivas Third Away Soccer Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_94c0310fa96179d4f901/view",
+        "/media/m_6b9713230dfa9554e0a7/view"
+      ],
+      "media": [
+        {
+          "id": "m_94c0310fa96179d4f901",
+          "url": "/media/m_94c0310fa96179d4f901/view",
+          "thumbnailUrl": "/media/m_94c0310fa96179d4f901/thumb",
+          "downloadUrl": "/media/m_94c0310fa96179d4f901",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_6b9713230dfa9554e0a7",
+          "url": "/media/m_6b9713230dfa9554e0a7/view",
+          "thumbnailUrl": "/media/m_6b9713230dfa9554e0a7/thumb",
+          "downloadUrl": "/media/m_6b9713230dfa9554e0a7",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_2e523072a22222f1e5fb",
+      "name": "FCB Soccer Windbreak 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_7e546b390ecb60f25bd6/view",
+        "/media/m_ce880be2fff5be50c5cf/view"
+      ],
+      "media": [
+        {
+          "id": "m_7e546b390ecb60f25bd6",
+          "url": "/media/m_7e546b390ecb60f25bd6/view",
+          "thumbnailUrl": "/media/m_7e546b390ecb60f25bd6/thumb",
+          "downloadUrl": "/media/m_7e546b390ecb60f25bd6",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_ce880be2fff5be50c5cf",
+          "url": "/media/m_ce880be2fff5be50c5cf/view",
+          "thumbnailUrl": "/media/m_ce880be2fff5be50c5cf/thumb",
+          "downloadUrl": "/media/m_ce880be2fff5be50c5cf",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_96f27a9f14ac3da2277e",
+      "name": "France Special Soccer Jersey 26 27-boom",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_de1715badec2f376221e/view",
+        "/media/m_622a5a4a6cda444d6076/view"
+      ],
+      "media": [
+        {
+          "id": "m_de1715badec2f376221e",
+          "url": "/media/m_de1715badec2f376221e/view",
+          "thumbnailUrl": "/media/m_de1715badec2f376221e/thumb",
+          "downloadUrl": "/media/m_de1715badec2f376221e",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_622a5a4a6cda444d6076",
+          "url": "/media/m_622a5a4a6cda444d6076/view",
+          "thumbnailUrl": "/media/m_622a5a4a6cda444d6076/thumb",
+          "downloadUrl": "/media/m_622a5a4a6cda444d6076",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_6485634fccaa7b432cde",
+      "name": "Germany Third Away Soccer Uniform 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_6315ba4d193cd185f1bf/view",
+        "/media/m_a7afe32bfa14cc67d7c6/view"
+      ],
+      "media": [
+        {
+          "id": "m_6315ba4d193cd185f1bf",
+          "url": "/media/m_6315ba4d193cd185f1bf/view",
+          "thumbnailUrl": "/media/m_6315ba4d193cd185f1bf/thumb",
+          "downloadUrl": "/media/m_6315ba4d193cd185f1bf",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_a7afe32bfa14cc67d7c6",
+          "url": "/media/m_a7afe32bfa14cc67d7c6/view",
+          "thumbnailUrl": "/media/m_a7afe32bfa14cc67d7c6/thumb",
+          "downloadUrl": "/media/m_a7afe32bfa14cc67d7c6",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_a585db897a96bf315366",
+      "name": "Getafe Special Soccer Jersey 26 27-baiyue",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_9a520b13dec86eba84ff/view",
+        "/media/m_3e06333e54f9d3f21aa3/view"
+      ],
+      "media": [
+        {
+          "id": "m_9a520b13dec86eba84ff",
+          "url": "/media/m_9a520b13dec86eba84ff/view",
+          "thumbnailUrl": "/media/m_9a520b13dec86eba84ff/thumb",
+          "downloadUrl": "/media/m_9a520b13dec86eba84ff",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_3e06333e54f9d3f21aa3",
+          "url": "/media/m_3e06333e54f9d3f21aa3/view",
+          "thumbnailUrl": "/media/m_3e06333e54f9d3f21aa3/thumb",
+          "downloadUrl": "/media/m_3e06333e54f9d3f21aa3",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_69220ba61c273fedb07c",
+      "name": "Kids Miami Away Soccer Uniform 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_a446e992fe12339f1560/view",
+        "/media/m_b5800bdc39eb6af80db8/view"
+      ],
+      "media": [
+        {
+          "id": "m_a446e992fe12339f1560",
+          "url": "/media/m_a446e992fe12339f1560/view",
+          "thumbnailUrl": "/media/m_a446e992fe12339f1560/thumb",
+          "downloadUrl": "/media/m_a446e992fe12339f1560",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_b5800bdc39eb6af80db8",
+          "url": "/media/m_b5800bdc39eb6af80db8/view",
+          "thumbnailUrl": "/media/m_b5800bdc39eb6af80db8/thumb",
+          "downloadUrl": "/media/m_b5800bdc39eb6af80db8",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_8218c2bb41f59996a164",
+      "name": "Player Version Spain Special Soccer Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_e9fdf2a50b1f79bbba77/view",
+        "/media/m_3cfaceb0e49b3467f0ec/view"
+      ],
+      "media": [
+        {
+          "id": "m_e9fdf2a50b1f79bbba77",
+          "url": "/media/m_e9fdf2a50b1f79bbba77/view",
+          "thumbnailUrl": "/media/m_e9fdf2a50b1f79bbba77/thumb",
+          "downloadUrl": "/media/m_e9fdf2a50b1f79bbba77",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_3cfaceb0e49b3467f0ec",
+          "url": "/media/m_3cfaceb0e49b3467f0ec/view",
+          "thumbnailUrl": "/media/m_3cfaceb0e49b3467f0ec/thumb",
+          "downloadUrl": "/media/m_3cfaceb0e49b3467f0ec",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_4ae0c2279517d2a52476",
+      "name": "Kids Elche Home Soccer Uniform 26 27-b2062",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_b073cd0a7a44c9970ffe/view",
+        "/media/m_2f69b90797a7de69f4af/view"
+      ],
+      "media": [
+        {
+          "id": "m_b073cd0a7a44c9970ffe",
+          "url": "/media/m_b073cd0a7a44c9970ffe/view",
+          "thumbnailUrl": "/media/m_b073cd0a7a44c9970ffe/thumb",
+          "downloadUrl": "/media/m_b073cd0a7a44c9970ffe",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_2f69b90797a7de69f4af",
+          "url": "/media/m_2f69b90797a7de69f4af/view",
+          "thumbnailUrl": "/media/m_2f69b90797a7de69f4af/thumb",
+          "downloadUrl": "/media/m_2f69b90797a7de69f4af",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_858f5d0a40865612e5b7",
+      "name": "River Plate Soccer Jersey 26 27-boom",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_b355aee839fa849f52dd/view",
+        "/media/m_0fae6e54d123fdbebc25/view"
+      ],
+      "media": [
+        {
+          "id": "m_b355aee839fa849f52dd",
+          "url": "/media/m_b355aee839fa849f52dd/view",
+          "thumbnailUrl": "/media/m_b355aee839fa849f52dd/thumb",
+          "downloadUrl": "/media/m_b355aee839fa849f52dd",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_0fae6e54d123fdbebc25",
+          "url": "/media/m_0fae6e54d123fdbebc25/view",
+          "thumbnailUrl": "/media/m_0fae6e54d123fdbebc25/thumb",
+          "downloadUrl": "/media/m_0fae6e54d123fdbebc25",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_f091515635a41b68868e",
+      "name": "University of Chile Home Soccer Jersey 26 27-baiyue",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_4101900ded9dc70cf5be/view",
+        "/media/m_d9a4850fbdf5d5f2c665/view"
+      ],
+      "media": [
+        {
+          "id": "m_4101900ded9dc70cf5be",
+          "url": "/media/m_4101900ded9dc70cf5be/view",
+          "thumbnailUrl": "/media/m_4101900ded9dc70cf5be/thumb",
+          "downloadUrl": "/media/m_4101900ded9dc70cf5be",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_d9a4850fbdf5d5f2c665",
+          "url": "/media/m_d9a4850fbdf5d5f2c665/view",
+          "thumbnailUrl": "/media/m_d9a4850fbdf5d5f2c665/thumb",
+          "downloadUrl": "/media/m_d9a4850fbdf5d5f2c665",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_5f884e08525a61119f7c",
+      "name": "Women Argentina Special Soccer Jersey 26 27-jinji",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_1811c76fdc52cc2935cb/view",
+        "/media/m_cb4648cc2541fe2b80e0/view"
+      ],
+      "media": [
+        {
+          "id": "m_1811c76fdc52cc2935cb",
+          "url": "/media/m_1811c76fdc52cc2935cb/view",
+          "thumbnailUrl": "/media/m_1811c76fdc52cc2935cb/thumb",
+          "downloadUrl": "/media/m_1811c76fdc52cc2935cb",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_cb4648cc2541fe2b80e0",
+          "url": "/media/m_cb4648cc2541fe2b80e0/view",
+          "thumbnailUrl": "/media/m_cb4648cc2541fe2b80e0/thumb",
+          "downloadUrl": "/media/m_cb4648cc2541fe2b80e0",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_aa435c9231bb0ed07a5f",
+      "name": "Kids Eindhoven Souvenir Soccer Uniform 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_6ce34e216d07f6b01b7d/view",
+        "/media/m_3fba84c5e92d2d9e1c80/view"
+      ],
+      "media": [
+        {
+          "id": "m_6ce34e216d07f6b01b7d",
+          "url": "/media/m_6ce34e216d07f6b01b7d/view",
+          "thumbnailUrl": "/media/m_6ce34e216d07f6b01b7d/thumb",
+          "downloadUrl": "/media/m_6ce34e216d07f6b01b7d",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_3fba84c5e92d2d9e1c80",
+          "url": "/media/m_3fba84c5e92d2d9e1c80/view",
+          "thumbnailUrl": "/media/m_3fba84c5e92d2d9e1c80/thumb",
+          "downloadUrl": "/media/m_3fba84c5e92d2d9e1c80",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_43d2f548d57da2daa3c4",
+      "name": "Kids West Bromwich Away Soccer Uniform 26 27-1040",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_901c40deaee45d17d57b/view",
+        "/media/m_9a91e94e9bd97f669ba3/view"
+      ],
+      "media": [
+        {
+          "id": "m_901c40deaee45d17d57b",
+          "url": "/media/m_901c40deaee45d17d57b/view",
+          "thumbnailUrl": "/media/m_901c40deaee45d17d57b/thumb",
+          "downloadUrl": "/media/m_901c40deaee45d17d57b",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_9a91e94e9bd97f669ba3",
+          "url": "/media/m_9a91e94e9bd97f669ba3/view",
+          "thumbnailUrl": "/media/m_9a91e94e9bd97f669ba3/thumb",
+          "downloadUrl": "/media/m_9a91e94e9bd97f669ba3",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_2163ba2fa45189ec9f1a",
+      "name": "Leicester City Third Away Soccer Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_99c9a4bbf10c717719ad/view",
+        "/media/m_8c0d3c4f6c4f4ea7efa2/view"
+      ],
+      "media": [
+        {
+          "id": "m_99c9a4bbf10c717719ad",
+          "url": "/media/m_99c9a4bbf10c717719ad/view",
+          "thumbnailUrl": "/media/m_99c9a4bbf10c717719ad/thumb",
+          "downloadUrl": "/media/m_99c9a4bbf10c717719ad",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_8c0d3c4f6c4f4ea7efa2",
+          "url": "/media/m_8c0d3c4f6c4f4ea7efa2/view",
+          "thumbnailUrl": "/media/m_8c0d3c4f6c4f4ea7efa2/thumb",
+          "downloadUrl": "/media/m_8c0d3c4f6c4f4ea7efa2",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_865680d38b0238a48a37",
+      "name": "Paris Polo Soccer Jersey 26 27-ouding",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_e65f6c4952f28ac9384c/view",
+        "/media/m_f7b9616439ebe5ca2346/view"
+      ],
+      "media": [
+        {
+          "id": "m_e65f6c4952f28ac9384c",
+          "url": "/media/m_e65f6c4952f28ac9384c/view",
+          "thumbnailUrl": "/media/m_e65f6c4952f28ac9384c/thumb",
+          "downloadUrl": "/media/m_e65f6c4952f28ac9384c",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_f7b9616439ebe5ca2346",
+          "url": "/media/m_f7b9616439ebe5ca2346/view",
+          "thumbnailUrl": "/media/m_f7b9616439ebe5ca2346/thumb",
+          "downloadUrl": "/media/m_f7b9616439ebe5ca2346",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_976440458aca3160934e",
+      "name": "Player Version AC Soccer Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_90cfbc29c2e021f9fecc/view",
+        "/media/m_53da3f2a04f87c8b8127/view"
+      ],
+      "media": [
+        {
+          "id": "m_90cfbc29c2e021f9fecc",
+          "url": "/media/m_90cfbc29c2e021f9fecc/view",
+          "thumbnailUrl": "/media/m_90cfbc29c2e021f9fecc/thumb",
+          "downloadUrl": "/media/m_90cfbc29c2e021f9fecc",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_53da3f2a04f87c8b8127",
+          "url": "/media/m_53da3f2a04f87c8b8127/view",
+          "thumbnailUrl": "/media/m_53da3f2a04f87c8b8127/thumb",
+          "downloadUrl": "/media/m_53da3f2a04f87c8b8127",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_11930e8852234cf69db8",
+      "name": "Player Version RM Soccer Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_4602ab893cf6dd63e49c/view",
+        "/media/m_fce82125e070719711b2/view"
+      ],
+      "media": [
+        {
+          "id": "m_4602ab893cf6dd63e49c",
+          "url": "/media/m_4602ab893cf6dd63e49c/view",
+          "thumbnailUrl": "/media/m_4602ab893cf6dd63e49c/thumb",
+          "downloadUrl": "/media/m_4602ab893cf6dd63e49c",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_fce82125e070719711b2",
+          "url": "/media/m_fce82125e070719711b2/view",
+          "thumbnailUrl": "/media/m_fce82125e070719711b2/thumb",
+          "downloadUrl": "/media/m_fce82125e070719711b2",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_d14ce86248270d2a7abc",
+      "name": "Player Version Santos Third Away Soccer Jersey 26 27",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_b4c3132cf603f1323423/view",
+        "/media/m_8063d99b9dad26307534/view"
+      ],
+      "media": [
+        {
+          "id": "m_b4c3132cf603f1323423",
+          "url": "/media/m_b4c3132cf603f1323423/view",
+          "thumbnailUrl": "/media/m_b4c3132cf603f1323423/thumb",
+          "downloadUrl": "/media/m_b4c3132cf603f1323423",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_8063d99b9dad26307534",
+          "url": "/media/m_8063d99b9dad26307534/view",
+          "thumbnailUrl": "/media/m_8063d99b9dad26307534/thumb",
+          "downloadUrl": "/media/m_8063d99b9dad26307534",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
+    {
+      "id": "p_93c6606d0be100fb96c8",
+      "name": "Argentina Souvenir Soccer Jersey 26 27-b2097",
+      "category": "Álbum não categorizado",
+      "categoryId": "c_20b38c03ee523a658145",
+      "categoryPathIds": [
+        "c_20b38c03ee523a658145"
+      ],
+      "description": "",
+      "images": [
+        "/media/m_1cdd2678192669a8a90e/view",
+        "/media/m_c0b4534badb2661ebaeb/view"
+      ],
+      "media": [
+        {
+          "id": "m_1cdd2678192669a8a90e",
+          "url": "/media/m_1cdd2678192669a8a90e/view",
+          "thumbnailUrl": "/media/m_1cdd2678192669a8a90e/thumb",
+          "downloadUrl": "/media/m_1cdd2678192669a8a90e",
+          "storage": "edge-proxy"
+        },
+        {
+          "id": "m_c0b4534badb2661ebaeb",
+          "url": "/media/m_c0b4534badb2661ebaeb/view",
+          "thumbnailUrl": "/media/m_c0b4534badb2661ebaeb/thumb",
+          "downloadUrl": "/media/m_c0b4534badb2661ebaeb",
+          "storage": "edge-proxy"
+        }
+      ],
+      "imageCount": 2,
+      "entityType": "product"
+    },
     {
       "id": "p_5b465ef68dce0473886d",
       "name": "Argentina Souvenir Soccer Jersey 26 27",
@@ -5554,10 +8658,10 @@
     {
       "id": "p_d4bf2996b1f812cd3618",
       "name": "Santos Third Away Soccer Jersey 26 27-518",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -5586,10 +8690,10 @@
     {
       "id": "p_7e49b0d5623ee3ff5fc5",
       "name": "Sevilla Soccer Jersey 26 27-268",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -5618,10 +8722,10 @@
     {
       "id": "p_de9570b39cb69d2c2745",
       "name": "Villarreal Home Soccer Jersey 26 27",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -684520,11 +687624,11 @@
     }
   },
   "taxonomyStats": {
-    "total": 48,
-    "roots": 26,
+    "total": 49,
+    "roots": 27,
     "nested": 22,
     "maxDepth": 1,
-    "used": 48
+    "used": 49
   },
   "mediaStats": {
     "storageMode": "edge-proxy",
@@ -684547,28 +687651,28 @@
     "taxonomyCategoriesScanned": 56
   },
   "stats": {
-    "products": 17601,
-    "photos": 50156
+    "products": 17698,
+    "photos": 50349
   },
   "sync": {
     "mode": "incremental",
     "tenantId": "t_00000000000000000001",
     "sourceKey": "primary",
-    "runId": "r_d775f575634cf898bb8a",
-    "completedAt": "2026-10-12T16:50:01.256Z",
+    "runId": "r_f2b33cdc5b9791575758",
+    "completedAt": "2026-10-14T12:55:45.086Z",
     "scanComplete": false,
-    "scannedAlbums": 5689,
-    "detailFetches": 817,
+    "scannedAlbums": 5726,
+    "detailFetches": 115,
     "summary": {
       "BASELINE": 0,
-      "CHANGED_MOVED": 765,
-      "CHANGED": 52,
-      "MOVED": 176
+      "NEW": 97,
+      "CHANGED_MOVED": 3,
+      "CHANGED": 15
     },
     "processing": {
-      "created": 0,
-      "updated": 814,
-      "moved": 176,
+      "created": 97,
+      "updated": 15,
+      "moved": 0,
       "removed": 0,
       "skippedNonProduct": 0,
       "deferredNoMedia": 3,
