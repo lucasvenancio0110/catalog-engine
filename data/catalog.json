@@ -2,7 +2,7 @@
   "schemaVersion": 6,
   "mediaVersion": 3,
   "taxonomyVersion": 1,
-  "generatedAt": "2026-10-20T12:47:09.170Z",
+  "generatedAt": "2026-10-21T12:59:09.015Z",
   "store": {
     "name": "Catalog Engine Demo",
     "logo": "",
@@ -209,14 +209,6 @@
       "id": "c_a7bc5350d2fd95c4a85d",
       "type": "category",
       "name": "🧥 Windbreaker",
-      "parentId": null,
-      "childIds": [],
-      "depth": 0
-    },
-    {
-      "id": "c_20b38c03ee523a658145",
-      "type": "category",
-      "name": "Álbum não categorizado",
       "parentId": null,
       "childIds": [],
       "depth": 0
@@ -434,10 +426,10 @@
     {
       "id": "p_ff8c3b709a161d06cffe",
       "name": "Brazil Thick Fleece Windbreak M-4XL",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -458,10 +450,10 @@
     {
       "id": "p_8f00e53755e67a07df51",
       "name": "Brazil Windbreak M-4XL",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -482,10 +474,10 @@
     {
       "id": "p_8ebdb8cafd6999a9f8d2",
       "name": "Brazil Windbreak M-4XL亚码",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -506,10 +498,10 @@
     {
       "id": "p_64a4edb1dab3bb404770",
       "name": "Paris Soccer Windbreak",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -530,10 +522,10 @@
     {
       "id": "p_016d400fe443474032e0",
       "name": "France Soccer Windbreak S-3XL",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -554,10 +546,10 @@
     {
       "id": "p_3b3e21c36fd26ecada56",
       "name": "Mali Away Soccer Jersey 26 27-panzhi",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -586,10 +578,10 @@
     {
       "id": "p_ea69c84e23b4400d492d",
       "name": "Como Home Soccer Shorts 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -610,10 +602,10 @@
     {
       "id": "p_9e20af3202920884a89f",
       "name": "FCB Souvenir Soccer Shorts 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -634,10 +626,10 @@
     {
       "id": "p_40e0617355836d73bb17",
       "name": "Florence Third Away Soccer Jersey 26 27-1040",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -666,10 +658,10 @@
     {
       "id": "p_20deafcf4a22fe2d24b5",
       "name": "Gremio Training Soccer Jersey 26 27-xianfeng",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -698,10 +690,10 @@
     {
       "id": "p_77e010502d7c097e6a37",
       "name": "Kids Como Away Soccer Uniform 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -730,10 +722,10 @@
     {
       "id": "p_42ec0c1fd9ff815786ef",
       "name": "Kids Köln Special Soccer Uniform 26 27-1040",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -762,10 +754,10 @@
     {
       "id": "p_e825d1aa66a8e7df3571",
       "name": "Leeds United Home Soccer Shorts 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -786,10 +778,10 @@
     {
       "id": "p_9869654b546709a02cd6",
       "name": "Orlando Pirates Home Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -818,10 +810,10 @@
     {
       "id": "p_a116b3f1e6edf7561dbc",
       "name": "Paranaense Away Soccer Jersey 26 27-xianfeng",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -850,10 +842,10 @@
     {
       "id": "p_270139e1b30b8b64992d",
       "name": "Player Version Boca Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -882,10 +874,10 @@
     {
       "id": "p_0c019216886514c099e1",
       "name": "Player Version Boca Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -914,10 +906,10 @@
     {
       "id": "p_e7098353f9a210dd9cbd",
       "name": "Slovakia Away Soccer Jersey 26 27-1040",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -946,10 +938,10 @@
     {
       "id": "p_7a96b414033fa631dca8",
       "name": "Slovakia Home Soccer Jersey 26 27-1040",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -978,10 +970,10 @@
     {
       "id": "p_ce0da31abe63ff343590",
       "name": "Vasco Special Soccer Jersey 26 27-guanyu",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1010,10 +1002,10 @@
     {
       "id": "p_b63617e56bd546e87a46",
       "name": "Venice Special Soccer Jersey 26 27-1040",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1042,10 +1034,10 @@
     {
       "id": "p_7ab24f0ce511052c701d",
       "name": "Como Soccer Windbreak 26 27-bingyue",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1074,10 +1066,10 @@
     {
       "id": "p_ac42344f1f5441fe9461",
       "name": "Eindhoven Special Long Sleeve Soccer Jersey 26 27-b2087",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1106,10 +1098,10 @@
     {
       "id": "p_19ff3c09037416bc7aa6",
       "name": "Kids Corinthians Third Away Soccer Uniform 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1138,10 +1130,10 @@
     {
       "id": "p_7123dfeb558b70460295",
       "name": "Kids Cruz azul Third Away Soccer Uniform 26 27-huirong",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1170,10 +1162,10 @@
     {
       "id": "p_86607e478aa683b2929e",
       "name": "Kids Leeds United Home Soccer Uniform 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1202,10 +1194,10 @@
     {
       "id": "p_377a88825159aa887f61",
       "name": "Lisbon Training Soccer Suit 26 27-huirong",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1234,10 +1226,10 @@
     {
       "id": "p_eb32e587c69547b600b0",
       "name": "Man United Long Sleeve Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1266,10 +1258,10 @@
     {
       "id": "p_db2f4e13b89c965989b7",
       "name": "Newcastle Third Away Long Sleeve Soccer Jersey 26 27-509",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1290,10 +1282,10 @@
     {
       "id": "p_4ae8a74c5cafd654367f",
       "name": "Player Version Flamengo Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1322,10 +1314,10 @@
     {
       "id": "p_8cb0929e50c1d6cef627",
       "name": "Player Version Man United Long Sleeve Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1354,10 +1346,10 @@
     {
       "id": "p_eda910bacfbb45d4dbd1",
       "name": "Player Version RM Long Sleeve Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1386,10 +1378,10 @@
     {
       "id": "p_49d95fb854db4a93f93f",
       "name": "Oviedo Away Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1418,10 +1410,10 @@
     {
       "id": "p_d39a0dbb63b121d44a3d",
       "name": "Roma Third Away Soccer Shorts 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1442,10 +1434,10 @@
     {
       "id": "p_cdf611d68272e0748ca4",
       "name": "University of Chile Away Long Sleeve Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1474,10 +1466,10 @@
     {
       "id": "p_6ef5cade7df3420e80c5",
       "name": "Ars Long Sleeve Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1506,10 +1498,10 @@
     {
       "id": "p_a7c3c26ef7a51fc317e2",
       "name": "Bahia Special Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1538,10 +1530,10 @@
     {
       "id": "p_345d6a85f38c08227860",
       "name": "Club America Third Away Soccer Jersey 26 27-hongqi",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1570,10 +1562,10 @@
     {
       "id": "p_c9372a4d522957504637",
       "name": "Kids Castellón Home Soccer Uniform 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1602,10 +1594,10 @@
     {
       "id": "p_af08e20f1827ca2d1c01",
       "name": "Kids Metz Away Soccer Uniform 26 27-1040",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1634,10 +1626,10 @@
     {
       "id": "p_929d882fe6a316c8cdbd",
       "name": "Kids Metz Home Soccer Uniform 26 27-1040",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1666,10 +1658,10 @@
     {
       "id": "p_4c537e739c9158c6c306",
       "name": "Man United Goalkeeper Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1698,10 +1690,10 @@
     {
       "id": "p_1537e8e435c82b5d9ced",
       "name": "Man United Special Soccer Jersey 1994 1996",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1730,10 +1722,10 @@
     {
       "id": "p_d73e668f8a40cf36973a",
       "name": "Paris Third Away Soccer Uniform 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1762,10 +1754,10 @@
     {
       "id": "p_0409bfe8099950de72d0",
       "name": "Player Version Club America Long Sleeve Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1794,10 +1786,10 @@
     {
       "id": "p_2b661f80aa0c3911f923",
       "name": "Player Version Club America Long Sleeve Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1826,10 +1818,10 @@
     {
       "id": "p_ce08b66f69454e0ffa83",
       "name": "Player Version Club America Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1858,10 +1850,10 @@
     {
       "id": "p_8ff314b4fb69466c8d6a",
       "name": "Richmond Away Soccer Jersey 26 27-bingyue",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1890,10 +1882,10 @@
     {
       "id": "p_5fb3c8bf0f3722a07bc6",
       "name": "So Paulo Training Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1922,10 +1914,10 @@
     {
       "id": "p_c192ce2863f3b405a2c3",
       "name": "Vasco Training Soccer Jersey 26 27-xianfeng",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1954,10 +1946,10 @@
     {
       "id": "p_2c36ebcb0614db69b52c",
       "name": "Vasco Training Soccer Vest Jersey 26 27-xianfeng",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -1986,10 +1978,10 @@
     {
       "id": "p_f777e1dbe56c7c635df5",
       "name": "Barcelona Special Soccer Jersey 26 27-panzhi",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2018,10 +2010,10 @@
     {
       "id": "p_fbe25ea8bcd2de51b4ea",
       "name": "Castellón Home Soccer Jersey 26 27-518",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2050,10 +2042,10 @@
     {
       "id": "p_722c38fadf5e9cefbab1",
       "name": "Celtic Long Sleeve Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2082,10 +2074,10 @@
     {
       "id": "p_1327c748519e0e23560c",
       "name": "Chivas Soccer Jersey 26 27-huiyi",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2114,10 +2106,10 @@
     {
       "id": "p_e68a78d3b442a04cf77b",
       "name": "Corinthians 116th Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2146,10 +2138,10 @@
     {
       "id": "p_17b25ee048a2e7beb7e5",
       "name": "Flamengo Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2178,10 +2170,10 @@
     {
       "id": "p_0a3032e51dd58c737e1a",
       "name": "Kids Eindhoven Long Sleeve Soccer Uniform 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2210,10 +2202,10 @@
     {
       "id": "p_356a99dc82644d78668c",
       "name": "Kids Lisbon Soccer Uniform 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2242,10 +2234,10 @@
     {
       "id": "p_82461f0c64bdbc5e0d00",
       "name": "Kids Sheffield wednesday Third Away Soccer Uniform 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2274,10 +2266,10 @@
     {
       "id": "p_f2d8e6d0a4ac7a5f33ab",
       "name": "Napoli Special Soccer Jersey 26 27-boom",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2306,10 +2298,10 @@
     {
       "id": "p_a5a27c016c1337e4ae2f",
       "name": "Player Version River Plate Away Long Sleeve Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2338,10 +2330,10 @@
     {
       "id": "p_88c0685c74c7a69d11d8",
       "name": "Makassar Away Soccer Jersey 26 27-baxi",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2370,10 +2362,10 @@
     {
       "id": "p_d7277feed7aad3f3dabd",
       "name": "Tigre Third Away Soccer Jersey 26 27-a8",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2402,10 +2394,10 @@
     {
       "id": "p_d24da5c80ce7be1c519b",
       "name": "Women Napoli Away Soccer Jersey 26 27-c2195",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2434,10 +2426,10 @@
     {
       "id": "p_20fe0113192afd4870fa",
       "name": "Women Napoli Home Soccer Jersey 26 27-c2195",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2466,10 +2458,10 @@
     {
       "id": "p_7eab42cd42f21386d211",
       "name": "Women Santos Third Away Soccer Jersey 26 27-baxi",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2498,10 +2490,10 @@
     {
       "id": "p_9785043d83eabc0c37c6",
       "name": "Manchester City 26/27 Away Women's Jersey S-2XL",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2530,10 +2522,10 @@
     {
       "id": "p_7c16f286075643be5f7b",
       "name": "Manchester City 26/27 Third Away Long-Sleeved Jersey S-5XL",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2562,10 +2554,10 @@
     {
       "id": "p_5eb128bf1c3a47af24eb",
       "name": "PSG 26/27 Third Away Player Version Long-Sleeve Jersey S-3XL",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2594,10 +2586,10 @@
     {
       "id": "p_655de99bf8399f4e6491",
       "name": "RCD Espanyol 26/27 Home Kids Kit Size 16-28",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2626,10 +2618,10 @@
     {
       "id": "p_57b71f5af9b34daea56f",
       "name": "West Ham United 26/27 Third Away Jersey S-4XL",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2658,10 +2650,10 @@
     {
       "id": "p_a0305eff20d8504fdd70",
       "name": "AC Milan 26/27 Third Away Player Edition Jersey S-4XL",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2690,10 +2682,10 @@
     {
       "id": "p_eb48b6ac88d427f9edf1",
       "name": "Atlético Mineiro 26/27 Third Away Player Version S-3XL",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2722,10 +2714,10 @@
     {
       "id": "p_0f26e1e6be4c01f5584f",
       "name": "Bahia 26/27 Third Away Player Version S-3XL",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2754,10 +2746,10 @@
     {
       "id": "p_0e0fc310736f977acb22",
       "name": "Corinthians 26/27 Third Away Player Version S-3XL",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2786,10 +2778,10 @@
     {
       "id": "p_5b224d21bc5d738e5c45",
       "name": "Feyenoord 26/27 Third Away Player Version S-3XL",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2818,10 +2810,10 @@
     {
       "id": "p_0d9cba0200ec9d0bb4ee",
       "name": "Bahia 26/27 Third Away S-4XL",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2850,10 +2842,10 @@
     {
       "id": "p_8438d63bc6f9c0c1979e",
       "name": "Atlético Mineiro 26/27 Third Away S-4XL",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2882,10 +2874,10 @@
     {
       "id": "p_0d6560a330905493d925",
       "name": "Vasco da Gama 26/27 Third away Women's Jersey S-XXL",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2914,10 +2906,10 @@
     {
       "id": "p_82ff1b156deb65bc3ca2",
       "name": "Cruzeiro 26/27 Women's Adidas Originals Blue T-shirt S-XXL",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2946,10 +2938,10 @@
     {
       "id": "p_98135ee9b949d2241326",
       "name": "Argentina 2026 Messi Special Edition Baby Jersey SIZE 9-12",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -2978,10 +2970,10 @@
     {
       "id": "p_f305af0d559a19eadbbc",
       "name": "Trabzonspor 94/95 Third Away Retro Jersey S-XXL",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3010,10 +3002,10 @@
     {
       "id": "p_947925ec52d11beb0364",
       "name": "Torino FC 26/27 Away Jersey S-4XL",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3042,10 +3034,10 @@
     {
       "id": "p_7c1038fc679ad51035b8",
       "name": "Travis Scott Cactus Jack x NK for Canada Total 90 Retro Jersey S-4XL",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3074,10 +3066,10 @@
     {
       "id": "p_64da2532dcf769c4eb3e",
       "name": "Travis Scott Cactus Jack x NK Senegal Total 90 Retro Jersey S-4XL",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3106,10 +3098,10 @@
     {
       "id": "p_dde47d135945ba7c9341",
       "name": "Vélez Sarsfield 96/97 Home Retro Jersey S-XXL",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3138,10 +3130,10 @@
     {
       "id": "p_2db262019d27774a15b6",
       "name": "Kids Granada Home Soccer Uniform 26 27-1040",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3170,10 +3162,10 @@
     {
       "id": "p_e38b6160bfe5eac6cd61",
       "name": "Kids Lille Third Away Soccer Uniform 26 27-1040",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3202,10 +3194,10 @@
     {
       "id": "p_9c681cae897dfefa03da",
       "name": "Player Version Barcelona Special Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3234,10 +3226,10 @@
     {
       "id": "p_66ac50f6c8b94e151409",
       "name": "Porto Goalkeeper Soccer Jersey 26 27-rongda",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3266,10 +3258,10 @@
     {
       "id": "p_22cb43ceb61e4e1df195",
       "name": "Women Argentina Souvenir Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3298,10 +3290,10 @@
     {
       "id": "p_e2436340677994cede06",
       "name": "Kids Argentina Soccer Uniform 26 27-mairui",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3330,10 +3322,10 @@
     {
       "id": "p_2dcf6fdfdd82ed5a7875",
       "name": "Kids Barcelona Special Soccer Uniform 26 27-afa",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3362,10 +3354,10 @@
     {
       "id": "p_23918e10625850840837",
       "name": "Kids Leicester City Third Away Soccer Uniform 26 27-1040",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3394,10 +3386,10 @@
     {
       "id": "p_1be85dc734f1206cdf78",
       "name": "Kids Toluca Away Soccer Uniform 26 27-huirong",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3426,10 +3418,10 @@
     {
       "id": "p_c1ff6be75d1343b321a6",
       "name": "Kolner Special Soccer Jersey 26 27-baiyue",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3458,10 +3450,10 @@
     {
       "id": "p_33484b9a434eb5dc37b1",
       "name": "Palermo Third Away Soccer Jersey 26 27-1040",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3490,10 +3482,10 @@
     {
       "id": "p_3bfd3c70f491ff2560cf",
       "name": "Sassuolo Third Away Soccer Jersey 26 27-1040",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3522,10 +3514,10 @@
     {
       "id": "p_db22deeb6f1b06df1b34",
       "name": "Sevilla Goalkeeper Soccer Jersey 26 27-268",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3554,10 +3546,10 @@
     {
       "id": "p_57647d26844f1468da93",
       "name": "Torino Away Soccer Jersey 26 27-1040",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3586,10 +3578,10 @@
     {
       "id": "p_de29e8bba456cba26f9b",
       "name": "Versailles Away Soccer Jersey 26 27-1040",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3618,10 +3610,10 @@
     {
       "id": "p_215f14018d0092a12b1c",
       "name": "Versailles Home Soccer Jersey 26 27-1040",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3650,10 +3642,10 @@
     {
       "id": "p_79ba537206f8ed850328",
       "name": "Versailles Third Away Soccer Jersey 26 27-1040",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3682,10 +3674,10 @@
     {
       "id": "p_acd1d9746946ac17c721",
       "name": "Aston Villa Away Long Sleeve Soccer Jersey 26 27-509",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3714,10 +3706,10 @@
     {
       "id": "p_6c48ad1f394fc5e9cf5e",
       "name": "Dynamo Away Soccer Jersey 26 27-changyuan",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3746,10 +3738,10 @@
     {
       "id": "p_ce8389f928da51ffbc7a",
       "name": "Lisbon Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3778,10 +3770,10 @@
     {
       "id": "p_13998fb00b4ecce5b131",
       "name": "Player Version Argentina Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3810,10 +3802,10 @@
     {
       "id": "p_f2402c4783bd18a35385",
       "name": "Player Version CFC Training Soccer Jersey 26 27-yiben",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3842,10 +3834,10 @@
     {
       "id": "p_fda38c13018bfdeb190e",
       "name": "Player Version CFC Training Soccer Jersey 26 27-yiben",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3874,10 +3866,10 @@
     {
       "id": "p_8dbaa281dbe08dde954c",
       "name": "Kids Nottingham Forest Home Soccer Uniform 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3906,10 +3898,10 @@
     {
       "id": "p_05759102ac01d2e2cb9a",
       "name": "Women FCB Third Away Soccer Jersey 26 27-jinji",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3938,10 +3930,10 @@
     {
       "id": "p_47a5317b09c2d4baadc5",
       "name": "Women Napoli Away Soccer Jersey 26 27-jinji",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -3970,10 +3962,10 @@
     {
       "id": "p_493a40615336f19a5fa4",
       "name": "AC Home Long Sleeve Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4002,10 +3994,10 @@
     {
       "id": "p_5b74e2b4f84014e9cc61",
       "name": "Argentina Training Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4034,10 +4026,10 @@
     {
       "id": "p_b7d92c8335c9db66fbef",
       "name": "Como Home Long Sleeve Soccer Jersey 26 27-bingyue",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4066,10 +4058,10 @@
     {
       "id": "p_9f4edab8217f7901cfa0",
       "name": "Kids Newcastle Goalkeeper Soccer Uniform 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4098,10 +4090,10 @@
     {
       "id": "p_3c4094a1751f361dd50f",
       "name": "Mali Home Soccer Jersey 26 27-mairui",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4130,10 +4122,10 @@
     {
       "id": "p_b99ed0030c2141cafe1c",
       "name": "Player Version Argentina Training Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4162,10 +4154,10 @@
     {
       "id": "p_cfe97b15a981acd79b34",
       "name": "Mexico Souvenir Soccer Jersey 26 27-huiyi",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4194,10 +4186,10 @@
     {
       "id": "p_49e2d6736be2b23c20b9",
       "name": "Argentina Soccer Windbreak 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4226,10 +4218,10 @@
     {
       "id": "p_e4b69949b309e2d463ff",
       "name": "Argentina Souvenir Soccer Shorts 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4250,10 +4242,10 @@
     {
       "id": "p_8c57f2141d40b8de8567",
       "name": "ATM Soccer Jersey 26 27-baiyue",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4282,10 +4274,10 @@
     {
       "id": "p_14236aa644e21a9c8a55",
       "name": "Barcelona Basketball Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4314,10 +4306,10 @@
     {
       "id": "p_43912f03e3bc631d9a30",
       "name": "Brazil Special Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4346,10 +4338,10 @@
     {
       "id": "p_6ac1c5f0ca9672f74cc0",
       "name": "CFC Away Long Sleeve Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4378,10 +4370,10 @@
     {
       "id": "p_f855aacf2e0101e0da6d",
       "name": "Club America Souvenir Soccer Jersey 26 27-xinghua",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4410,10 +4402,10 @@
     {
       "id": "p_a9fe91e470a7c90b55da",
       "name": "Corinthians 116th Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4442,10 +4434,10 @@
     {
       "id": "p_24eacfbef87d81dc0da9",
       "name": "Eindhoven Home Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4474,10 +4466,10 @@
     {
       "id": "p_b8e3037985f941adbeae",
       "name": "Kids Corinthians Third Away Soccer Uniform 26 27-xiaohongmao",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4506,10 +4498,10 @@
     {
       "id": "p_8aab994ef090c4ce5a53",
       "name": "Kids Eindhoven Home Soccer Uniform 26 27-1040",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4538,10 +4530,10 @@
     {
       "id": "p_5e9360c96d5821eda69e",
       "name": "Kids Fluminense Third Away Soccer Uniform 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4570,10 +4562,10 @@
     {
       "id": "p_017c5aa0576846b3caa2",
       "name": "Kids Nuremberg Home Soccer Uniform 26 27-junyi",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4602,10 +4594,10 @@
     {
       "id": "p_efee308545b4f8c7117e",
       "name": "Kids Roma Third Away Soccer Uniform 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4634,10 +4626,10 @@
     {
       "id": "p_ba2151163118b49c8bbb",
       "name": "Man City Fourth Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4666,10 +4658,10 @@
     {
       "id": "p_050cfac91a90365c4c13",
       "name": "Man United Soccer Windbreak 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4698,10 +4690,10 @@
     {
       "id": "p_00249a3d30abb664b6b9",
       "name": "Nantes Special Soccer Jersey 26 27-1040",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4730,10 +4722,10 @@
     {
       "id": "p_13fcf0c3207efe45750d",
       "name": "Pittsburgh Pirates Third Away Soccer Jersey 26 27-sairui",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4762,10 +4754,10 @@
     {
       "id": "p_cc82008523c38ac1186a",
       "name": "Player Version Al-Hilal Special Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4794,10 +4786,10 @@
     {
       "id": "p_e418bf2a58f20a61aa3d",
       "name": "Rayo Vallecano Soccer Jersey 26 27-bingyue",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4826,10 +4818,10 @@
     {
       "id": "p_b1e424c26620d02fe5bf",
       "name": "RM Polo Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4858,10 +4850,10 @@
     {
       "id": "p_b0bb0feecbe4c037b2cb",
       "name": "Barcelona Special Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4890,10 +4882,10 @@
     {
       "id": "p_40c1eeea74b260ac7a8d",
       "name": "Benfica Special Soccer Jersey 26 27-rongda",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4922,10 +4914,10 @@
     {
       "id": "p_4e0a31c6fc9bcf99f2b3",
       "name": "Boca Soccer Windbreak 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4954,10 +4946,10 @@
     {
       "id": "p_f5130e85c7a7100cf3d5",
       "name": "CFC Home Long Sleeve Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -4986,10 +4978,10 @@
     {
       "id": "p_dc9a53295efefb0a6f7c",
       "name": "Chivas Third Away Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -5018,10 +5010,10 @@
     {
       "id": "p_2e523072a22222f1e5fb",
       "name": "FCB Soccer Windbreak 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -5050,10 +5042,10 @@
     {
       "id": "p_96f27a9f14ac3da2277e",
       "name": "France Special Soccer Jersey 26 27-boom",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -5082,10 +5074,10 @@
     {
       "id": "p_6485634fccaa7b432cde",
       "name": "Germany Third Away Soccer Uniform 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -5114,10 +5106,10 @@
     {
       "id": "p_a585db897a96bf315366",
       "name": "Getafe Special Soccer Jersey 26 27-baiyue",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -5146,10 +5138,10 @@
     {
       "id": "p_69220ba61c273fedb07c",
       "name": "Kids Miami Away Soccer Uniform 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -5178,10 +5170,10 @@
     {
       "id": "p_8218c2bb41f59996a164",
       "name": "Player Version Spain Special Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -5210,10 +5202,10 @@
     {
       "id": "p_4ae0c2279517d2a52476",
       "name": "Kids Elche Home Soccer Uniform 26 27-b2062",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -5242,10 +5234,10 @@
     {
       "id": "p_858f5d0a40865612e5b7",
       "name": "River Plate Soccer Jersey 26 27-boom",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -5274,10 +5266,10 @@
     {
       "id": "p_f091515635a41b68868e",
       "name": "University of Chile Home Soccer Jersey 26 27-baiyue",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -5306,10 +5298,10 @@
     {
       "id": "p_5f884e08525a61119f7c",
       "name": "Women Argentina Special Soccer Jersey 26 27-jinji",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -5338,10 +5330,10 @@
     {
       "id": "p_aa435c9231bb0ed07a5f",
       "name": "Kids Eindhoven Souvenir Soccer Uniform 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -5370,10 +5362,10 @@
     {
       "id": "p_43d2f548d57da2daa3c4",
       "name": "Kids West Bromwich Away Soccer Uniform 26 27-1040",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -5402,10 +5394,10 @@
     {
       "id": "p_2163ba2fa45189ec9f1a",
       "name": "Leicester City Third Away Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -5434,10 +5426,10 @@
     {
       "id": "p_865680d38b0238a48a37",
       "name": "Paris Polo Soccer Jersey 26 27-ouding",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -5466,10 +5458,10 @@
     {
       "id": "p_976440458aca3160934e",
       "name": "Player Version AC Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -5498,10 +5490,10 @@
     {
       "id": "p_11930e8852234cf69db8",
       "name": "Player Version RM Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -5530,10 +5522,10 @@
     {
       "id": "p_d14ce86248270d2a7abc",
       "name": "Player Version Santos Third Away Soccer Jersey 26 27",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -5562,10 +5554,10 @@
     {
       "id": "p_93c6606d0be100fb96c8",
       "name": "Argentina Souvenir Soccer Jersey 26 27-b2097",
-      "category": "Álbum não categorizado",
-      "categoryId": "c_20b38c03ee523a658145",
+      "category": "NEW PRODUCT RENEW",
+      "categoryId": "c_0b9cf1d3e18986e302e6",
       "categoryPathIds": [
-        "c_20b38c03ee523a658145"
+        "c_0b9cf1d3e18986e302e6"
       ],
       "description": "",
       "images": [
@@ -7922,10 +7914,10 @@
     {
       "id": "p_7e4d7cf8730f6a35e1fa",
       "name": "Sporting de Gijón 26/27 Away Jersey S-4XL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -7954,10 +7946,10 @@
     {
       "id": "p_67f4962319757d61078d",
       "name": "Sunderland 26/27 Blue-Purple Special Edition Jersey S-4XL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -7986,10 +7978,10 @@
     {
       "id": "p_2d719f7017caae96874e",
       "name": "Sevilla 26/27 Training T-Shirt S-4XL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8018,10 +8010,10 @@
     {
       "id": "p_5a1464bc6e078d18ed73",
       "name": "UD Almería 26/27 Third Away Jersey S-4XL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8050,10 +8042,10 @@
     {
       "id": "p_74b91d7bcf9e56d8ad87",
       "name": "Argentina 2026 (With Number And Name) Special Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8082,10 +8074,10 @@
     {
       "id": "p_6fd10517ebcb3d79382d",
       "name": "Argentina 2026 Special Player Version Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8114,10 +8106,10 @@
     {
       "id": "p_d507e2129513b54c78cf",
       "name": "Argentina Commemorative Edition No. 10 Jersey S-4XL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8146,10 +8138,10 @@
     {
       "id": "p_d0d6dffcce77c369ff2d",
       "name": "Barcelona 14/15 Away Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8178,10 +8170,10 @@
     {
       "id": "p_d7ee4ca216f904ebdad4",
       "name": "Barcelona 16/17 Away Long-Sleeves Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8210,10 +8202,10 @@
     {
       "id": "p_07192d60093fed69330e",
       "name": "Bayern Munich 14/15 Away Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8242,10 +8234,10 @@
     {
       "id": "p_2a756c6b4bdc21ed3c05",
       "name": "Croatia 2018 Home Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8274,10 +8266,10 @@
     {
       "id": "p_9c4680e863388c45970d",
       "name": "England 1998 Away Long-Sleeves Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8306,10 +8298,10 @@
     {
       "id": "p_c4cef9139efed256763b",
       "name": "England 2016 Home Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8338,10 +8330,10 @@
     {
       "id": "p_3332d6e63626065cce6d",
       "name": "Fiorentina Commemorative Edition Jersey S-4XL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8370,10 +8362,10 @@
     {
       "id": "p_cf101784d3b4208eef73",
       "name": "Germany 2026 Third Away Jersey S-4XL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8402,10 +8394,10 @@
     {
       "id": "p_b6f5b71c37daf035e967",
       "name": "Ireland 2002 Home Long-Sleeves Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8434,10 +8426,10 @@
     {
       "id": "p_49cddf11d1fc44b80ef5",
       "name": "Ireland 2002 Home Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8466,10 +8458,10 @@
     {
       "id": "p_96cde8d57dc5928e471a",
       "name": "Manchester United 15/16 Third Away Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8498,10 +8490,10 @@
     {
       "id": "p_dac99fc674c212c051c3",
       "name": "Mexico 2004 Home Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8530,10 +8522,10 @@
     {
       "id": "p_3cfe11efbba40a1ab0db",
       "name": "Mexico 26/27 Americas 110th Anniversary Jersey S-4XL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8562,10 +8554,10 @@
     {
       "id": "p_0027bd339f799963e91d",
       "name": "Portugal 2012 Home Long-Sleeves Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8594,10 +8586,10 @@
     {
       "id": "p_cc07a39da535f49a17f6",
       "name": "Portugal 2012 Home Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8626,10 +8618,10 @@
     {
       "id": "p_4121892e3fc5d185e4cb",
       "name": "Portugal 2013 Black Long- Sleeves Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8658,10 +8650,10 @@
     {
       "id": "p_512688a3d7f4495e2587",
       "name": "Portugal 2013 Black Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8690,10 +8682,10 @@
     {
       "id": "p_21ae3c3a7524b0d03402",
       "name": "Portugal 2014 Home Long-Sleeves Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8722,10 +8714,10 @@
     {
       "id": "p_380a4e8d691acaa8146c",
       "name": "Portugal 2015 Away Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8754,10 +8746,10 @@
     {
       "id": "p_2099a7fbbc766c83d7bd",
       "name": "Portugal 2020 Away Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8786,10 +8778,10 @@
     {
       "id": "p_d97f2bf98dd2b72557dc",
       "name": "PSG 16/17 Home Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8818,10 +8810,10 @@
     {
       "id": "p_3f6701c08370fcfba4c3",
       "name": "PSG 17/18 Away Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8850,10 +8842,10 @@
     {
       "id": "p_98ab9b7f1c7233110c15",
       "name": "PSG 17/18 Home Long-Sleeves Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8882,10 +8874,10 @@
     {
       "id": "p_4a49476bd6d89596732c",
       "name": "PSG 17/18 Third Away Long-Sleeves Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8914,10 +8906,10 @@
     {
       "id": "p_896c545e0279868ee7bc",
       "name": "PSG 18/19 Away Long-Sleeves Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8946,10 +8938,10 @@
     {
       "id": "p_1c7154b7dd0ddfbcd60d",
       "name": "Real Madrid 10/11 Third Away Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -8978,10 +8970,10 @@
     {
       "id": "p_53679ea89f4c93285e7d",
       "name": "Real Madrid 19/20 Home Long-Sleeves Retro Jersey S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -9010,10 +9002,10 @@
     {
       "id": "p_14d0aed9fc56cc241b58",
       "name": "Sevilla 26/27 White EQT Retro Jersey S-4XL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -9042,10 +9034,10 @@
     {
       "id": "p_e7f02ff1e90096dc61cc",
       "name": "Bayern Munich 26/27 Hooded - Dark Blue S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -9066,10 +9058,10 @@
     {
       "id": "p_7c849754658cfd8ec2c1",
       "name": "M-U 26/27 Hooded - Black S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -9090,10 +9082,10 @@
     {
       "id": "p_db1aaccccc822e5ee06d",
       "name": "M-U 26/27 Hooded Sweatshirt - Blue S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -9114,10 +9106,10 @@
     {
       "id": "p_54af07c6a3758bb203d0",
       "name": "Real Madrid 26/27 Hooded - Blue S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -9138,10 +9130,10 @@
     {
       "id": "p_f2baffaf74f9a62e9b15",
       "name": "Real Madrid 26/27 Hoodie - White S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -9162,10 +9154,10 @@
     {
       "id": "p_5b27f0564dc2f0bf126b",
       "name": "Senegal 2026 Full-Zip Hooded Jacket - Black and Light Blue S-XXL",
-      "category": "NEW PRODUCT RENEW",
-      "categoryId": "c_0b9cf1d3e18986e302e6",
+      "category": "Outros",
+      "categoryId": "c_f7087f79d9b69814006b",
       "categoryPathIds": [
-        "c_0b9cf1d3e18986e302e6"
+        "c_f7087f79d9b69814006b"
       ],
       "description": "",
       "images": [
@@ -689688,11 +689680,11 @@
     }
   },
   "taxonomyStats": {
-    "total": 49,
-    "roots": 27,
+    "total": 48,
+    "roots": 26,
     "nested": 22,
     "maxDepth": 1,
-    "used": 49
+    "used": 48
   },
   "mediaStats": {
     "storageMode": "edge-proxy",
@@ -689722,20 +689714,21 @@
     "mode": "incremental",
     "tenantId": "t_00000000000000000001",
     "sourceKey": "primary",
-    "runId": "r_c261691e8aa041b8585e",
-    "completedAt": "2026-10-20T12:47:09.170Z",
+    "runId": "r_94ea2e218b513c976dd4",
+    "completedAt": "2026-10-21T12:59:09.015Z",
     "scanComplete": false,
-    "scannedAlbums": 5767,
-    "detailFetches": 83,
+    "scannedAlbums": 5644,
+    "detailFetches": 47,
     "summary": {
       "BASELINE": 0,
-      "NEW": 67,
-      "CHANGED": 16
+      "CHANGED_MOVED": 43,
+      "CHANGED": 4,
+      "MOVED": 162
     },
     "processing": {
-      "created": 67,
-      "updated": 13,
-      "moved": 0,
+      "created": 0,
+      "updated": 44,
+      "moved": 162,
       "removed": 0,
       "skippedNonProduct": 0,
       "deferredNoMedia": 3,
